@@ -154,7 +154,7 @@ ul.marked li::before{
 .mark{flex:none;width:10px;height:10px;display:inline-block;transform:translateY(1px)}
 .mark-mal{background:var(--key);border:1px solid var(--key)}
 .mark-ben{background:transparent;border:1px solid var(--alt)}
-.cat{font-family:var(--serif);font-size:var(--label);color:var(--line-2);font-style:italic}
+.cat{font-family:var(--serif);font-size:var(--label);color:var(--line-2);font-style:italic;margin-bottom:var(--xs)}
 
 /* ---------- data ---------- */
 table{border-collapse:collapse;width:100%;font-variant-numeric:tabular-nums}
@@ -265,30 +265,47 @@ em.term{font-style:normal;color:var(--key)}
   <nav class="marks" aria-label="Tiến trình"><span class="on"><i></i>Bài toán</span><span><i></i>Dataset</span><span><i></i>SOTA</span><span><i></i>Ứng dụng</span></nav>
   <div class="body">
     <h2>Bảy lớp tổn thương, phân biệt trực tiếp trên khối 3D</h2>
+    <p class="sub">Đầu vào là <em class="term">khối 3D đa pha</em><sup class="key">1</sup>: tám thì MRI của cùng một tổn thương, đã căn chỉnh về cùng khung toạ độ. Model đọc cả khối, không hạ xuống từng lát 2D. <strong>Không làm segmentation:</strong> vùng tổn thương đã khoanh sẵn, việc cần làm là gọi đúng tên nó.</p>
     <div class="cols mt">
       <div class="tax">
         <div>
           <div class="cat">Ác tính, 3 lớp</div>
           <ul>
-            <li><span class="mark mark-mal"></span><span>HCC: ung thư biểu mô tế bào gan</span></li>
-            <li><span class="mark mark-mal"></span><span>ICC: ung thư đường mật trong gan</span></li>
-            <li><span class="mark mark-mal"></span><span>Di căn gan</span></li>
+            <li><span class="mark mark-mal"></span><span>HCC: ung thư biểu mô tế bào gan (hepatocellular carcinoma)</span></li>
+            <li><span class="mark mark-mal"></span><span>ICC: ung thư đường mật trong gan (intrahepatic cholangiocarcinoma)</span></li>
+            <li><span class="mark mark-mal"></span><span>Di căn gan (liver metastases)</span></li>
           </ul>
         </div>
         <div>
           <div class="cat">Lành tính, 4 lớp</div>
           <ul>
-            <li><span class="mark mark-ben"></span><span>Nang gan</span></li>
-            <li><span class="mark mark-ben"></span><span>U máu</span></li>
-            <li><span class="mark mark-ben"></span><span>FNH: tăng sản thể nốt khu trú</span></li>
-            <li><span class="mark mark-ben"></span><span>Áp-xe gan</span></li>
+            <li><span class="mark mark-ben"></span><span>Nang gan (hepatic cysts)</span></li>
+            <li><span class="mark mark-ben"></span><span>U máu (hepatic hemangioma)</span></li>
+            <li><span class="mark mark-ben"></span><span>FNH: tăng sản thể nốt khu trú (focal nodular hyperplasia)</span></li>
+            <li><span class="mark mark-ben"></span><span>Áp-xe gan (hepatic abscess)</span></li>
           </ul>
         </div>
       </div>
       <div class="stack">
-        <p>Đầu vào là <em class="term">khối 3D đa pha</em><sup class="key">1</sup>: tám thì MRI của cùng một tổn thương, đã căn chỉnh về cùng khung toạ độ. Model đọc cả khối, không hạ xuống từng lát 2D.</p>
-        <p class="quiet">Động học ngấm thuốc qua các thì động (ngấm mạnh thì động mạch rồi thải thuốc thì tĩnh mạch) chính là dấu hiệu bác sĩ dùng để nhận HCC theo LI-RADS.</p>
-        <p><strong>Không làm segmentation.</strong> Vùng tổn thương đã được khoanh sẵn; việc cần làm là gọi đúng tên nó.</p>
+        <div>
+          <div class="cat">Cấu trúc, 4 thì</div>
+          <ul class="marked">
+            <li>T2WI</li>
+            <li>DWI, ảnh khuếch tán</li>
+            <li>T1 in-phase</li>
+            <li>T1 out-phase</li>
+          </ul>
+        </div>
+        <div>
+          <div class="cat">Động học ngấm thuốc, 4 thì</div>
+          <ul class="marked">
+            <li>Trước thuốc</li>
+            <li>Thì động mạch</li>
+            <li>Thì tĩnh mạch cửa</li>
+            <li>Thì muộn</li>
+          </ul>
+          <p class="quiet mt-sm">Bốn thì này mang tín hiệu LI-RADS: ngấm mạnh thì động mạch rồi thải thuốc thì tĩnh mạch.</p>
+        </div>
       </div>
     </div>
   </div>
@@ -339,7 +356,7 @@ em.term{font-style:normal;color:var(--key)}
       <div class="panel">
         <div class="cat">Chuỗi ảnh</div>
         <p class="big mt-sm">8 thì MRI<sup class="key">1</sup></p>
-        <p class="quiet mt-sm">T2WI · DWI · in-phase · out-phase · T1 trước thuốc · động mạch · tĩnh mạch cửa · thì muộn.</p>
+        <p class="quiet mt-sm">Bốn thì cấu trúc và bốn thì động, liệt kê đầy đủ ở bản khắc II. Dataset công bố các thì đã căn chỉnh sẵn về cùng khung toạ độ.</p>
       </div>
       <div class="panel">
         <div class="cat">Nhãn kèm theo</div>
