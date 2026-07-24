@@ -1,0 +1,20 @@
+# Chuẩn hoá line ending. Repo này làm trên Windows nhưng chạy script bằng sh
+# (git-bash) và có thể clone trên Linux/Kaggle.
+* text=auto eol=lf
+
+# BẮT BUỘC LF — script shell với CRLF sẽ lỗi "bad interpreter: no such file or directory"
+*.sh            text eol=lf
+.githooks/*     text eol=lf
+
+# Notebook: commit bản đã strip output (MULTI_TOOL_WORKFLOW §5.5)
+*.ipynb         text eol=lf
+
+# Nhị phân — không đụng vào
+*.png           binary
+*.jpg           binary
+*.pdf           binary
+*.pt            binary
+*.pth           binary
+*.nii           binary
+*.nii.gz        binary
+*.dcm           binary

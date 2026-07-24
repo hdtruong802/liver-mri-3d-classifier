@@ -1,0 +1,36 @@
+Vai trò: Bạn đóng đồng thời hai vai: (1) một PI/reviewer khó tính của hội nghị ảnh y tế (MICCAI-tier) luôn truy vấn về tính chặt chẽ và novelty, và (2) một mentor kỹ thuật thực chiến về 3D medical imaging. Đừng nương tay — mục tiêu của tôi là một sản phẩm khiến mentor đánh giá rất cao về năng lực research và vượt kỳ vọng, không phải một đồ án "đủ điểm".
+
+Về tôi: Tôi đã có kinh nghiệm research (đọc/viết paper, thiết kế thí nghiệm) và đã từng làm ảnh y tế. Bạn không cần giải thích kiến thức cơ bản. Hãy nói ở tầm chiến lược nghiên cứu và chi tiết kỹ thuật nâng cao; giả định tôi tự code được.
+
+Bối cảnh dự án:
+
+- Đề tài: mô hình AI phân loại đa lớp (multi-class) ung thư gan từ ảnh y tế, làm trực tiếp trên ảnh 3D (volume) — không hạ xuống 2D lát cắt trừ khi có lý do phương pháp luận thuyết phục.
+- Modality ưu tiên: MRI (đặc biệt các bộ có nhãn loại tổn thương như LLD-MMRI, hoặc multi-phase dynamic contrast-enhanced MRI). CT chỉ dùng làm phương án thay thế nếu MRI không đáp ứng được về nhãn/cỡ mẫu — và nếu bạn khuyến nghị đổi sang CT thì phải giải thích rõ vì sao.
+- Nhân lực: 1 người (tôi). Thời gian: 6 tuần = 3 sprint × 2 tuần (S1: dữ liệu/tiền xử lý/augmentation/baseline; S2: train/tối ưu/đánh giá; S3: triển khai + web app demo + kiểm thử + tài liệu).
+- Tài nguyên: chỉ Kaggle Notebooks (GPU free tier: ~30h/tuần, session ≤12h, VRAM ~16GB, RAM/disk giới hạn) và các công cụ AI agent coding. Không cloud budget, không server riêng.
+- Demo: tôi tự code web app full-stack (backend serve model + frontend thuần). KHÔNG dùng Streamlit/Gradio. Đề xuất stack gọn tôi tự dựng được (ví dụ FastAPI + HTML/JS thuần hoặc React), và cách serve model 3D với latency chấp nhận được.
+
+Yêu cầu — trả lời theo đúng thứ tự:
+
+1. Đặt research question, không chỉ đặt task. Đề xuất 2–3 góc nghiên cứu biến đề tài này thành câu hỏi đáng trả lời (ví dụ: 3D full-volume có thắng 2.5D không và trade-off ở đâu; giá trị của uncertainty/calibration cho quyết định lâm sàng; hiệu quả pretrained 3D backbone vs train-from-scratch trên dữ liệu nhỏ; khai thác đa chuỗi MRI — T1/T2/DWI/multi-phase — như multi-channel input). Với mỗi góc: novelty, tính khả thi trong 6 tuần, rủi ro.
+2. Định vị so với SOTA. Tóm tắt baseline/kết quả mạnh nhất hiện có cho phân loại u gan 3D đa lớp trên MRI, chỉ rõ khoảng trống tôi có thể đánh vào và chỗ không nên cố cạnh tranh.
+3. Chọn dataset MRI đa lớp cụ thể. Ưu tiên dataset có nhãn loại tổn thương (không chỉ tumor/không-tumor), khả dụng trên Kaggle/TCIA. Đề xuất 1 chính + 1 external validation set độc lập (bắt buộc để gây ấn tượng research). Nêu cỡ mẫu, phân bố lớp, cách xử lý đa chuỗi MRI (đăng ký/registration giữa các sequence), và chiến lược khi lớp hiếm quá ít.
+4. Bộ metric + tính chặt chẽ thống kê. Chốt metric cho bài toán đa lớp mất cân bằng trong y tế (macro-AUC/AUC-PR, sensitivity per-class, F1-macro, balanced accuracy, confusion matrix, calibration/ECE, Cohen's kappa). Kèm cách báo cáo có confidence interval (bootstrap) và test ý nghĩa khi so model — thứ reviewer soi.
+5. Kế hoạch 6 tuần theo tuần. Mỗi tuần: mục tiêu, deliverable đo được, thời gian ước lượng, mốc buffer phòng train fail. Xác định "critical path" và phần cắt được nếu trễ.
+6. Chi tiết kỹ thuật 3D MRI trên Kaggle (phần khó nhất — đừng nói chung chung):
+- Preprocessing 3D MRI: bias field correction (N4), resampling về spacing đồng nhất, đăng ký giữa các chuỗi, skull/organ-agnostic ROI-crop quanh gan, intensity normalization (z-score/percentile — lưu ý MRI không có đơn vị chuẩn như HU của CT).
+- Vượt ràng buộc bộ nhớ/thời gian: MONAI, patch-based vs whole-volume, cache preprocessed volumes thành Kaggle Dataset để không tiền xử lý lại mỗi session, mixed precision, gradient accumulation/checkpointing, sliding-window inference.
+- Kiến trúc: backbone 3D cụ thể (3D ResNet/DenseNet, MedicalNet pretrained, MONAI model zoo, Swin-based) + lý do; cách nhận đa chuỗi MRI làm multi-channel; nêu rõ fallback 2.5D và tiêu chí khi nào chuyển sang fallback.
+- Split theo bệnh nhân (patient-level), tuyệt đối tránh leakage — chỉ ra chính xác chỗ dễ leak trong dữ liệu 3D đa chuỗi.
+7. Rigor & reproducibility. Ablation nào chứng minh đóng góp, cách seed/config hóa để reproduce, và failure analysis (case sai, Grad-CAM 3D kiểm mô hình nhìn đúng vùng u). Cảnh báo các cách tạo kết quả cao giả (leakage, test set nhỏ, cherry-picking).
+8. Web app demo tự code. Kiến trúc serve model 3D (upload volume NIfTI/DICOM → inference → trả class + xác suất + uncertainty + heatmap 3D), stack cụ thể không dùng Streamlit/Gradio, cách giữ chạy được trong ràng buộc của tôi.
+9. Outline báo cáo/paper ở mức nộp hội nghị được, và checklist "điều gì khiến mentor nói vượt kỳ vọng".
+
+Nguyên tắc:
+
+- Thành thật về tính khả thi. Nếu 3D full-volume đa lớp trên MRI + external validation + web app trong 6 tuần bởi 1 người là quá tải, nói thẳng và đề xuất phiên bản bảo vệ được, kèm phần "nếu còn thời gian thì mở rộng".
+- Ưu tiên phương pháp chặt chẽ hơn mô hình hào nhoáng. Baseline đơn giản + evaluation nghiêm túc + external validation gây ấn tượng hơn kiến trúc phức tạp không reproduce được.
+- Code khi đưa phải chạy được trên Kaggle, dùng MONAI/PyTorch, không giả định thư viện lạ.
+- Đừng đổ hết một lúc. Trả lời mục 1–4 trước (research question, SOTA, dataset, metric) rồi DỪNG hỏi tôi chốt hướng.
+
+Đầu ra cuối cùng (sau khi tôi chốt scope): khi tôi đã xác nhận hướng ở mục 1–4, hãy tổng hợp toàn bộ kế hoạch (mục 5–9 + các quyết định đã chốt) thành một file Markdown hoàn chỉnh, dùng được như tài liệu dự án chính thức, tên liver_mri_3d_classification_plan.md. File cần có: mục lục, phần tóm tắt scope/research question đã chốt, bảng kế hoạch 6 tuần với deliverable và mốc buffer, các quyết định kỹ thuật (dataset, preprocessing, kiến trúc, metric), checklist rigor, và checklist tiêu chí "vượt kỳ vọng". Trình bày rõ ràng, có heading/bảng/checklist để tôi theo dõi tiến độ trực tiếp trên file.

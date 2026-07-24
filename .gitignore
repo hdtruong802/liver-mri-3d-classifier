@@ -1,0 +1,149 @@
+# =============================================================================
+# liver-mri-3d-classifier
+# Xem docs/MULTI_TOOL_WORKFLOW.md. Chỉ THÊM dòng vào file này;
+# bỏ ignore một thư mục dữ liệu phải hỏi người dùng (AGENTS.md §10).
+# =============================================================================
+
+# -----------------------------------------------------------------------------
+# DỮ LIỆU BỆNH NHÂN — tuyệt đối không vào git
+# -----------------------------------------------------------------------------
+data/
+raw/
+*.nii
+*.nii.gz
+*.dcm
+*.dicom
+*.mha
+*.mhd
+*.nrrd
+*.img
+*.hdr
+
+# -----------------------------------------------------------------------------
+# Artifact huấn luyện — nặng, tái tạo được, thuộc về Kaggle output
+# -----------------------------------------------------------------------------
+artifacts/
+checkpoints/
+*.pt
+*.pth
+*.ckpt
+*.onnx
+*.h5
+*.npz
+*.npy
+wandb/
+runs/
+lightning_logs/
+mlruns/
+
+# NGOẠI LỆ — splits/ PHẢI được commit (AGENTS.md §3.6). Không ignore nó.
+# Nếu thấy splits/ biến mất khỏi git, đó là lỗi, không phải chủ ý.
+
+# -----------------------------------------------------------------------------
+# Python
+# -----------------------------------------------------------------------------
+__pycache__/
+*.py[cod]
+*.so
+.Python
+build/
+dist/
+*.egg-info/
+.venv/
+venv/
+env/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.coverage
+htmlcov/
+.ipynb_checkpoints/
+
+# -----------------------------------------------------------------------------
+# Secret / thông tin máy
+# -----------------------------------------------------------------------------
+.env
+.env.*
+!.env.example
+kaggle.json
+*.pem
+*.key
+secrets/
+
+# -----------------------------------------------------------------------------
+# Node (web app frontend, nếu buộc phải có — xem MULTI_TOOL_WORKFLOW §5.6)
+# -----------------------------------------------------------------------------
+node_modules/
+npm-debug.log*
+.npm/
+# package-lock.json KHÔNG ignore — nếu có package.json thì phải commit lockfile.
+
+# -----------------------------------------------------------------------------
+# Impeccable — ephemeral (MULTI_TOOL_WORKFLOW §8.4)
+# Commit: PRODUCT.md, DESIGN.md, .impeccable/config.json, .impeccable/design.json,
+#         .impeccable/critique/*.md, .impeccable/live/config.json
+# -----------------------------------------------------------------------------
+.impeccable/config.local.json
+.impeccable/hook.cache.json
+.impeccable/hook.pending.json
+.impeccable/detect-report.json
+.impeccable/detect-stderr.log
+.impeccable/*.png
+.impeccable/live/server.json
+.impeccable/live/sessions/
+.impeccable/live/previews/
+.impeccable/live/annotations/
+.impeccable/live/cache/
+.impeccable/live/*.png
+
+# -----------------------------------------------------------------------------
+# Claude Code
+# CLAUDE.md và .claude/settings.json ĐƯỢC commit.
+# settings.local.json là cấu hình máy — cũng là nơi Impeccable cài hook Claude
+# (MULTI_TOOL_WORKFLOW §5.3), nên hook đó là máy-cục-bộ, không đi theo git.
+# -----------------------------------------------------------------------------
+.claude/settings.local.json
+.claude/*.local.json
+
+# -----------------------------------------------------------------------------
+# Cursor — .cursor/rules/ và .cursor/hooks.json ĐƯỢC commit
+# -----------------------------------------------------------------------------
+.cursor/*.local.json
+.cursorignore.local
+
+# -----------------------------------------------------------------------------
+# Codex — .codex/hooks.json ĐƯỢC commit
+# -----------------------------------------------------------------------------
+.codex/*.local.json
+.codex/cache/
+
+# -----------------------------------------------------------------------------
+# Google Antigravity
+# CHƯA KIỂM CHỨNG: các đường dẫn dưới đây là phỏng đoán. Sau phiên Antigravity
+# ĐẦU TIÊN, chạy `git status` và bổ sung đúng những gì nó thực sự sinh ra,
+# rồi ghi vào WORKLOG. Antigravity có hệ memory riêng nằm NGOÀI repo — .gitignore
+# không kiểm soát được nó (MULTI_TOOL_WORKFLOW §5.8).
+# -----------------------------------------------------------------------------
+.antigravity/
+.agent/
+.gemini/
+
+# -----------------------------------------------------------------------------
+# Editor / OS
+# -----------------------------------------------------------------------------
+.vscode/*
+!.vscode/extensions.json
+.idea/
+*.swp
+*~
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# -----------------------------------------------------------------------------
+# Tạm
+# -----------------------------------------------------------------------------
+tmp/
+scratch/
+*.log
+!scripts/*.log
