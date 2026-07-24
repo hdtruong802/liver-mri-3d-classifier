@@ -834,3 +834,27 @@ Hai ngoại lệ đăng ký kèm lý do (`single-font`, `overused-font=arial`): 
 **Điểm vào phiên sau:** W2 ngày 2 (EDA) — viết `notebooks/01_eda.ipynb`, chạy `build_manifest` trên data thật, và **GATE geometry bắt buộc** (đối chiếu shape/spacing/orientation ảnh thật với annotation, overlay bbox lên slice) trước khi tin ROI-crop.
 
 **Cảnh báo cho tool sau:** `src/data/build_manifest.py` và `LLDMMRIDataset` chưa chạy thử trên data thật — logic đã unit-test qua fixture nhưng chưa end-to-end. `ruff` không trên PATH ở máy này (dùng `python -m ruff`).
+
+
+## S-023 · 2026-07-24 18:15 · claude-code
+
+**Mục tiêu phiên:** Phát hiện + sửa bug `.gitignore` khiến `src/data/` không bao giờ được commit ở S-022.
+
+**Nhánh / commit:** `main` · `49c2bde` → `9240aa2`
+
+**Đã đụng file:**
+- `.gitignore` — neo `data/` → `/data/`, `raw/` → `/raw/` (chỉ khớp thư mục gốc repo).
+- `src/data/{__init__,annotation,build_manifest,dataset,images,splits,taxonomy}.py` — **commit lần đầu thật sự** (trước đó bị nuốt).
+
+**Quyết định & lý do:**
+- Sau khi push S-022, kiểm `git status` phát hiện **rỗng bất thường** dù `src/data/` có 7 file trên đĩa. Nguyên nhân: `.gitignore` dòng `data/` (không neo `/`) khớp **mọi thư mục tên "data" ở mọi cấp** — nuốt cả `src/data/`. Commit `49c2bde` ("scaffold src/data...") trên thực tế **không hề chứa** `src/data/*.py`, dù message nói có.
+- Sửa bằng neo `/data/` + `/raw/` về gốc — đã verify: root `data/` **vẫn ignore tuyệt đối như cũ** (test tạo `data/manifest.csv`, vẫn bị chặn), chỉ dừng lan sang thư mục con trùng tên. Đây là bug fix, không phải "bỏ ignore dữ liệu bệnh nhân" (AGENTS.md §10) — phạm vi bảo vệ dữ liệu bệnh nhân không đổi.
+- File không bị mất (vẫn trên đĩa suốt), nhưng đã có nguy cơ thật: nếu máy bị xoá/mất trước khi phiên sau phát hiện, toàn bộ `src/data/` (annotation, splits, images, dataset, build_manifest, taxonomy) sẽ biến mất không dấu vết.
+
+**Kết quả / số liệu:** `git ls-files src/` xác nhận đủ 13 file (`src/__init__.py` + 5 `utils/*` + 7 `data/*`); `tests/` đủ 6 file. `pytest -q` 27 passed, `ruff check`/`ruff format --check` pass. Quality gate PASS.
+
+**Dang dở:** (không có gì mới ngoài các mục đã ghi ở S-022 — EDA/gate geometry vẫn là việc tiếp theo).
+
+**Điểm vào phiên sau:** Không đổi so với S-022 — W2 ngày 2 (EDA + gate geometry).
+
+**Cảnh báo cho tool sau:** **Luôn `git ls-files <dir>` (không chỉ `ls` + `git status`) để xác nhận file thực sự được track**, đặc biệt sau khi tạo thư mục mới trùng tên với rule trong `.gitignore` (data/raw/checkpoints/artifacts...). `git add` không báo lỗi khi ignore âm thầm loại bỏ file — commit "thành công" vẫn có thể thiếu file.
