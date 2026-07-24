@@ -646,3 +646,57 @@ Hai ngoại lệ đăng ký kèm lý do (`single-font`, `overused-font=arial`): 
 **Điểm vào phiên sau:** Mở `slides/overview.html` trong Chrome nếu cần kiểm tra trực quan các câu rút gọn ở bản khắc I–V.
 
 **Cảnh báo cho tool sau:** Các số 5/13/23 trong slide IV vẫn là dữ liệu minh hoạ, không phải kết quả dự án.
+
+
+## S-016 · 2026-07-24 14:51 · codex
+
+**Mục tiêu phiên:** Bổ sung timeline W1 và commit/push toàn bộ chỉnh sửa đang có theo xác nhận người dùng.
+
+**Nhánh / commit:** `main` · `db522d7` → *(commit đang chờ)*
+
+**Đã động file:**
+- `reports/W1_REPORT.md` — thêm mốc 16–18/07/2026: nhận danh sách đề tài, phân tích/lựa chọn đề tài và phân tích ban đầu; giữ toàn bộ chỉnh sửa nội dung hiện có của người dùng.
+- `WORKLOG.md` — ghi nhận phạm vi commit tổng hợp.
+
+**Quyết định & lý do:**
+- Người dùng yêu cầu commit/push toàn bộ thay đổi hiện tại, nên mọi chỉnh sửa đang có trong W1 report được giữ nguyên và đưa vào cùng commit.
+- Mốc 16–18/07 được đặt đầu timeline để trình tự tiến độ bắt đầu từ giai đoạn nhận/lựa chọn đề tài, trước khi dựng pipeline CT.
+
+**Kết quả / số liệu:** Không có số liệu nghiên cứu mới; timeline W1 đầy đủ hơn về các bước khởi đầu.
+
+**Dang dở:**
+- [ ] Không có việc treo trong phạm vi commit này.
+
+**Điểm vào phiên sau:** Cập nhật W1 report khi có EDA/baseline MRI thật; giữ rõ ranh giới giữa kế hoạch và kết quả thực nghiệm.
+
+**Cảnh báo cho tool sau:** Chỉ thay số mock trên slide khi có kết quả thực nghiệm thật và nguồn/CI tương ứng.
+
+
+## S-017 · 2026-07-24 15:39 · claude-code
+
+**Mục tiêu phiên:** Lập kế hoạch chi tiết 5 tuần còn lại + plan làm việc W2, và dọn repo (chuyển Spec Sheet + Plan vào `docs/`).
+
+**Nhánh / commit:** `main` · `db522d7` → *(commit đang chờ)*
+
+**Đã động file:**
+- `docs/plan.md` — TẠO: kế hoạch chi tiết W2–W6, tái-định-mốc (W1 thực tế là CT+scope+spec nên nén lộ trình MRI vào 5 tuần); ranh giới sprint chốt lại: Sprint 1=W2, Sprint 2=W3–W4, Sprint 3=W5–W6.
+- `docs/W2_plan.md` — TẠO: plan làm việc Tuần 2 theo ngày (GATE data ngày 0 → src/ + EDA + cache + split khoá + leakage test + baseline 1 fold), mỗi task có DoD + cách verify.
+- `docs/MRI_Classification_Spec_Sheet.md` — `git mv` từ root (giữ lịch sử).
+- `docs/liver_mri_3d_classification_plan.md` — `git mv` từ root (giữ lịch sử).
+- `AGENTS.md` — cập nhật link §1, bảng doc-map §2 (thêm dòng `docs/plan.md`, `docs/W2_plan.md`), cây thư mục §4 (2 file giờ nằm dưới `docs/`).
+- `PRODUCT.md` — cập nhật 2 link mục *Evidence on Hand* sang `docs/`.
+
+**Quyết định & lý do:**
+- **Không xóa Spec Sheet + Plan** — review cho thấy cả hai vẫn là nguồn sự thật (chốt khoa học + project doc chiến lược); `docs/plan.md` chỉ *triển khai* chúng, không thay thế. Theo yêu cầu người dùng, chuyển vào `docs/` để dọn root.
+- Đảo quyết định hoãn ở WORKLOG dòng 152 (phiên trước để nguyên ở root vì sợ gãy link) — giờ làm được vì đã cập nhật toàn bộ tham chiếu (AGENTS.md, PRODUCT.md, docs/plan.md) cùng lúc.
+- **Không sửa `prompt/`** (slides_overview.md, plan_research.txt) — là prompt gốc lịch sử, giữ path cũ có chủ đích, không phải lỗi.
+- **Không tự commit** — `WORKLOG.md` + `reports/W1_REPORT.md` đang là việc staged treo của Codex (S-016, "commit đang chờ"); để người dùng quyết gộp/tách phạm vi.
+
+**Kết quả / số liệu:** Không có số liệu nghiên cứu. Quality gate PowerShell: **PASS** (ruff SKIP — src/ chưa tồn tại).
+
+**Dang dở:**
+- [ ] Chưa commit — chờ người dùng quyết cách gộp với việc treo của Codex (S-016).
+
+**Điểm vào phiên sau:** Vào W2 theo `docs/W2_plan.md` — GATE ngày 0: xác nhận quyền truy cập LLD-MMRI trước khi dựng `src/`; nếu chưa có → bàn CT fallback (GNG-1).
+
+**Cảnh báo cho tool sau:** Spec Sheet + Plan **đã chuyển sang `docs/`**, không còn ở root. `prompt/` vẫn trỏ path cũ (lịch sử). `git status` còn việc staged của Codex chưa commit — đừng tưởng là rác.

@@ -42,8 +42,8 @@ Dự án **research** (Research Use Only, chưa kiểm định lâm sàng): mô 
   3. **HTML slide + report** trình bày kết quả.
 
 Chi tiết đầy đủ, không lặp lại ở đây:
-- [`MRI_Classification_Spec_Sheet.md`](MRI_Classification_Spec_Sheet.md) — chốt kỹ thuật (dataset, model, metric, ngưỡng).
-- [`liver_mri_3d_classification_plan.md`](liver_mri_3d_classification_plan.md) — kế hoạch 6 tuần, kill-switch, outline báo cáo.
+- [`docs/MRI_Classification_Spec_Sheet.md`](docs/MRI_Classification_Spec_Sheet.md) — chốt kỹ thuật (dataset, model, metric, ngưỡng).
+- [`docs/liver_mri_3d_classification_plan.md`](docs/liver_mri_3d_classification_plan.md) — kế hoạch 6 tuần, kill-switch, outline báo cáo.
 
 > **Agent phải đọc 2 file trên trước khi đề xuất thay đổi về model / metric / split.** Không tự ý đổi quyết định đã chốt trong đó; muốn đổi thì nêu ra và ghi vào WORKLOG dưới mục "Quyết định".
 
@@ -57,8 +57,10 @@ Chi tiết đầy đủ, không lặp lại ở đây:
 | `CLAUDE.md` | Cầu nối → import AGENTS.md | Chỉ khi thêm quy tắc *riêng Claude Code* |
 | `.cursor/rules/00-project-context.mdc` | Cầu nối → AGENTS.md | Chỉ khi thêm quy tắc *riêng Cursor* |
 | `WORKLOG.md` | Nhật ký bàn giao giữa các tool, **append-only** | Mọi tool, chỉ được **thêm** |
-| `MRI_Classification_Spec_Sheet.md` | Chốt kỹ thuật (khoa học) | Người dùng duyệt; agent đề xuất diff |
-| `liver_mri_3d_classification_plan.md` | Kế hoạch & lộ trình | Người dùng duyệt; agent đề xuất diff |
+| `docs/MRI_Classification_Spec_Sheet.md` | Chốt kỹ thuật (khoa học) | Người dùng duyệt; agent đề xuất diff |
+| `docs/liver_mri_3d_classification_plan.md` | Kế hoạch & lộ trình | Người dùng duyệt; agent đề xuất diff |
+| `docs/plan.md` | Kế hoạch chi tiết W2–W6 (triển khai Plan thành task/tuần) | Mọi tool, ghi WORKLOG |
+| `docs/W2_plan.md` | Plan làm việc chi tiết Tuần 2 (task theo ngày) | Mọi tool, ghi WORKLOG |
 | `docs/MULTI_TOOL_WORKFLOW.md` | Giao thức chống xung đột giữa 4 tool, tích hợp Impeccable | Mọi tool |
 | `PRODUCT.md` | Sự thật sản phẩm: người dùng, mục đích, ràng buộc, nguyên tắc, a11y | Mọi tool |
 | `DESIGN.md` | Thế giới thị giác & design system | *(chưa tạo — xuất hiện khi chạy `/impeccable shape`, KHÔNG phải từ `init`)* |
@@ -103,9 +105,11 @@ liver-mri-3d-classifier/
 ├── .impeccable/                 # config.json, design.json, critique/*.md → COMMIT
 │                                #   phần còn lại ephemeral → gitignore
 ├── docs/
-│   └── MULTI_TOOL_WORKFLOW.md   # giao thức đa tool + tích hợp Impeccable
-├── MRI_Classification_Spec_Sheet.md
-├── liver_mri_3d_classification_plan.md
+│   ├── MULTI_TOOL_WORKFLOW.md   # giao thức đa tool + tích hợp Impeccable
+│   ├── MRI_Classification_Spec_Sheet.md      # chốt kỹ thuật (khoa học)
+│   ├── liver_mri_3d_classification_plan.md   # kế hoạch & lộ trình 6 tuần
+│   ├── plan.md                  # kế hoạch chi tiết W2–W6 (triển khai)
+│   └── W2_plan.md               # plan làm việc chi tiết Tuần 2
 ├── configs/                     # YAML hyperparam (mọi run 1 file)
 ├── splits/                      # file fold đã khoá — COMMIT, bất biến
 ├── src/

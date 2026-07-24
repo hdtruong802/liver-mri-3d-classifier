@@ -23,6 +23,7 @@ raw/
 # Artifact huấn luyện — nặng, tái tạo được, thuộc về Kaggle output
 # -----------------------------------------------------------------------------
 artifacts/
+output/
 checkpoints/
 *.pt
 *.pth

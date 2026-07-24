@@ -1,10 +1,10 @@
 # Báo cáo W1: tiến độ và thay đổi scope dự án AI nghiên cứu u gan
 
-**Người thực hiện:** Hoàng Đức Trường<br>
-**Ngày chốt:** 24/07/2026
+**Người thực hiện:** Hoàng Đức Trường
+**Ngày tổng hợp:** 24/07/2026
 **Trạng thái:** Research Use Only (RUO); không dùng để chẩn đoán hay thay thế bác sĩ.
 
-## Tóm tắt điều hành
+## Tóm tắt dự án
 
 Dự án khởi đầu bằng một pipeline CT dạng *detection/triage proxy*: phân loại lát cắt có tổn thương gan hay gan bình thường, sau đó tổng hợp theo bệnh nhân. Pha này đã tạo được bằng chứng kỹ thuật ban đầu: data audit, chia tập theo bệnh nhân, CI bootstrap, kiểm tra Grad-CAM và một lần đánh giá external trên 3D-IRCADb-01. Tuy nhiên, nhãn LiTS được suy ra từ segmentation và bài toán nhị phân chỉ trả lời một proxy cho phát hiện tổn thương, chưa trả lời trực tiếp bài toán phân loại loại u gan. Sau feedback của mentor và rà soát lại mức độ phù hợp giữa câu hỏi nghiên cứu, dữ liệu public và đóng góp khoa học, dự án chọn hướng **phân loại đa lớp u gan trên MRI 3D đa pha**. Scope mới dùng LLD-MMRI, gồm 7 lớp tổn thương và 8 chuỗi/thì MRI, đồng thời lấy **calibration** và **selective prediction** làm đóng góp chính thay vì chạy đua accuracy.
 
@@ -43,15 +43,13 @@ Chuỗi thay đổi scope là: **feedback mentor → rà soát độ phù hợp 
 
 **Interpretability và external.** Grad-CAM đã qua sanity check định tính theo báo cáo; đây là bằng chứng rằng cần tiếp tục kiểm tra vùng chú ý, không phải chứng minh lâm sàng tuyệt đối. External 3D-IRCADb-01 được chạy một lần với threshold khóa từ validation nội bộ: 20 ca, 2.068 lát có gan, slice-AUROC **0,807 [0,678–0,902]**, sensitivity/specificity **0,74/0,71**. Kết quả hỗ trợ generalization ở mức lát cắt, còn patient-level vẫn nhiễu do cohort nhỏ.
 
-**Bàn giao MRI từ repo cũ.** Repo cũ cũng đã có ingestion/QC và scaffold train/eval LLD-MMRI cho 7 lớp. Đây là tài sản kỹ thuật có thể tái sử dụng, nhưng không được suy diễn thành kết quả hiệu năng MRI đã xác nhận cho repo mới.
+**Bàn giao MRI từ hướng cũ.** Hướng cũ cũng đã có ingestion/QC và scaffold train/eval LLD-MMRI cho 7 lớp. Đây là tài sản kỹ thuật có thể tái sử dụng, nhưng không được suy diễn thành kết quả hiệu năng MRI đã xác nhận cho hướng mới.
 
 ### 3.2. Pha MRI trong liver-mri-3d-classifier
 
-Scope mới đã được đặc tả là phân loại 3D đa pha cho 7 lớp tổn thương trên LLD-MMRI. Các nguyên tắc đã khóa gồm: split tuyệt đối theo bệnh nhân, test-104 giữ kín và chỉ dùng một lần, mọi metric kèm bootstrap CI mức bệnh nhân (tối thiểu 2.000 lần), không leakage, và demo bằng FastAPI cùng frontend tự code.
+Scope mới đã được đặc tả là phân loại 3D đa pha cho 7 lớp tổn thương trên LLD-MMRI. Các nguyên tắc đã khóa gồm: split tuyệt đối theo bệnh nhân, test-104 giữ kín và chỉ dùng một lần, mọi metric kèm bootstrap CI mức bệnh nhân (tối thiểu 2.000 lần), không leakage, và demo bằng webapp (frontend+FastAPI).
 
 Về đánh giá ngoài miền, kế hoạch tách hai vai trò: cohort external có nhãn thô HCC-vs-non-HCC và Duke Liver Dataset làm OOD/domain-shift probe. Duke không có nhãn loại tổn thương nên không được dùng để báo external classification accuracy hay calibration có giám sát. OpenSwissHCC là **đề xuất cần audit metadata và formalize protocol**, chưa được tải hoặc chạy.
-
-Deliverable truyền thông hiện có là `slides/overview.html` gồm 14 slide, đã rà typography/layout và trích dẫn. Biểu đồ risk–coverage với các mốc 5/13/23 là **minh hoạ giả lập có gắn nhãn**, không phải kết quả dự án. Chưa có kết quả train/eval MRI nào được xác minh trong repo mới.
 
 ## 4. Kết quả, nhận xét và bài học
 
@@ -66,38 +64,27 @@ Deliverable truyền thông hiện có là `slides/overview.html` gồm 14 slide
 | Duke OOD | Chưa bắt đầu | Dataset phù hợp domain shift, không có lesion label | Không được đánh đồng với external supervised test. |
 | Demo MRI với model thật | Chưa bắt đầu | Chỉ có định hướng FastAPI/HTML | Phụ thuộc baseline/checkpoint đã khóa. |
 
-Pha CT chứng minh nhóm có thể xây pipeline với split đúng, CI, external test và kiểm tra interpretability. Hạn chế nằm ở độ khớp của dataset với câu hỏi phân loại đa lớp, không nằm ở việc thiếu một demo kỹ thuật. MRI 3D đa pha khớp hơn với mục tiêu lâm sàng-nghiên cứu nhưng tăng rủi ro về truy cập dữ liệu, registration, mất cân bằng lớp, compute Kaggle và harmonize nhãn external. Điểm mạnh cần chứng minh của scope mới là **độ đáng tin cậy của xác suất và quyết định defer**, không phải một con số accuracy cao đơn lẻ.
+Pha CT chứng minh có thể xây pipeline với split đúng, CI, external test và kiểm tra interpretability. Hạn chế nằm ở độ khớp của dataset với câu hỏi phân loại đa lớp, không nằm ở việc thiếu một demo kỹ thuật. MRI 3D đa pha khớp hơn với mục tiêu lâm sàng - nghiên cứu nhưng tăng rủi ro về truy cập dữ liệu, registration, mất cân bằng lớp, compute Kaggle và harmonize nhãn external. Điểm mạnh cần chứng minh của scope mới là **độ đáng tin cậy của xác suất và quyết định defer**, không phải một con số accuracy cao đơn lẻ.
 
 ## 5. Công việc tiếp theo theo thứ tự ưu tiên
 
-1. Chốt quyền truy cập, audit LLD-MMRI và frozen split mức bệnh nhân.
-2. Dựng baseline 2.5D và 3D đa pha với cross-validation và CI.
+1. EDA, tiền xử lý (nếu cần thiết) LLD-MMRI và frozen split mức bệnh nhân.
+2. Dựng baseline 3D (hoặc 2.5D) đa pha với cross-validation và CI.
 3. So sánh fusion/phase-importance, đồng thời xử lý mất cân bằng lớp hiếm.
 4. Thực hiện calibration, selective prediction, reliability diagram và risk–coverage/AURC.
 5. Audit mapping OpenSwissHCC trước external HCC-vs-non-HCC; tách Duke thành OOD probe.
-6. Khóa protocol/model/threshold trước khi chạy test-104 đúng một lần.
+6. Khóa protocol/model/threshold trước khi chạy test đúng một lần.
 7. Nối model thật vào FastAPI/web app, failure analysis, reproducibility pack và báo cáo cuối.
 
 ## 6. Timeline và nguồn nội bộ
 
 | Thời điểm | Mốc |
 |---|---|
+| 16–18/07/2026 | Nhận danh sách đề tài, phân tích yêu cầu và các hướng khả thi, lựa chọn đề tài u gan, sau đó thực hiện phân tích ban đầu về scope, dữ liệu công khai và đầu ra dự kiến. |
 | 20–21/07/2026 | Thiết lập pipeline CT, audit LiTS, cache/manifest, split theo bệnh nhân và baseline. |
 | 21/07/2026 | Sàng lọc 4 backbone CT; ConvNeXt V2 Nano là finalist. |
 | 22/07/2026 | Grad-CAM sanity và external 3D-IRCADb-01; bắt đầu chuẩn bị phân loại LLD-MMRI 7 lớp. |
-| 24/07/2026 | Scope MRI 3D đa pha/trustworthiness được đặc tả trong repo riêng; hoàn thiện slide truyền thông. |
-
-Nguồn nội bộ chính:
-
-- [AGENTS: HCC-TACE-Assist](../../HCC-TACE-Assist/HCC-TACE-Assist/AGENTS.md)
-- [DATA_CARD: LiTS](../../HCC-TACE-Assist/HCC-TACE-Assist/DATA_CARD.md)
-- [Phase 1 backbone report](../../HCC-TACE-Assist/HCC-TACE-Assist/report/T3_W2_Phase1.md)
-- [External 3D-IRCADb report](../../HCC-TACE-Assist/HCC-TACE-Assist/report/T3_W3_External_IRCADb.md)
-- [Grad-CAM sanity report](../../HCC-TACE-Assist/HCC-TACE-Assist/report/T3_W3_GradCAM_Sanity.md)
-- [HCC-TACE worklog](../../HCC-TACE-Assist/HCC-TACE-Assist/docs/WORKLOG.md)
-- [MRI specification](../MRI_Classification_Spec_Sheet.md)
-- [MRI six-week plan](../liver_mri_3d_classification_plan.md)
-- [MRI worklog](../WORKLOG.md)
+| 24/07/2026 | Scope MRI 3D đa pha/trustworthiness được đặc tả trong repo riêng; hoàn thiện slide presentation tổng quan dự án và tài liệu báo cáo tuần 1. |
 
 ## Kết luận cho mentor
 

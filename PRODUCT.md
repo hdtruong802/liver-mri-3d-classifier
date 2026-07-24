@@ -75,8 +75,8 @@ Không có thương hiệu, logo, hay identity có sẵn. Ba cam kết bắt bu�
 ## Evidence on Hand
 
 **Đã có:**
-- [`MRI_Classification_Spec_Sheet.md`](MRI_Classification_Spec_Sheet.md) — chốt kỹ thuật: dataset, model, toàn bộ định nghĩa metric, chiến lược ngưỡng.
-- [`liver_mri_3d_classification_plan.md`](liver_mri_3d_classification_plan.md) — kế hoạch 6 tuần, kill-switch, schema JSON của `/predict` (§8.1), outline báo cáo.
+- [`docs/MRI_Classification_Spec_Sheet.md`](docs/MRI_Classification_Spec_Sheet.md) — chốt kỹ thuật: dataset, model, toàn bộ định nghĩa metric, chiến lược ngưỡng.
+- [`docs/liver_mri_3d_classification_plan.md`](docs/liver_mri_3d_classification_plan.md) — kế hoạch 6 tuần, kill-switch, schema JSON của `/predict` (§8.1), outline báo cáo.
 
 **Chưa có, và tuyệt đối không được bịa:**
 - **Chưa có dữ liệu** — quyền truy cập LLD-MMRI đang chờ.
