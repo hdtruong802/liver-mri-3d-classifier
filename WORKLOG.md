@@ -885,3 +885,30 @@ Hai ngoại lệ đăng ký kèm lý do (`single-font`, `overused-font=arial`): 
 **Điểm vào phiên sau:** Mở `slides/overview.html` trong trình duyệt local của người dùng để xác nhận trực quan ba viewport trước khi dùng deck trình bày.
 
 **Cảnh báo cho tool sau:** Đây là overview hướng MRI, không phải progress report: không thêm lịch sử đổi scope, feedback mentor, binary CT, scaffold/code hoặc kết quả chưa xác minh. Mọi số liệu minh hoạ mới phải tránh trục/số mock và được gắn nhãn rõ.
+
+
+## S-025 · 2026-07-24 18:50 · codex
+
+**Mục tiêu phiên:** Redesign `slides/overview.html` cho mentor/reviewer hỗn hợp: kể câu chuyện bằng MRI đa thì thật và sơ đồ, thay cho deck thiên về chữ và visual atlas.
+
+**Nhánh / commit:** `main` · `39f7568` → *(commit đang chờ)*
+
+**Đã động file:**
+- `slides/overview.html` — giữ 11 slide nhưng thay toàn bộ visual language sang dark “signal flow”; bổ sung ảnh MRI đa thì công khai, giải thích `defer` bằng ngôn ngữ phổ thông, luồng model, dataset coverage, SOTA, calibration, protocol, đóng góp, ứng dụng second reader, và output dự kiến không số.
+- `slides/assets/cmir-8-107-f5.jpg` — TẠO: ảnh MRI đa thì công khai của Nils Albiin, chỉ dùng minh hoạ, không phải dữ liệu LLD-MMRI.
+- `slides/assets/ATTRIBUTION.md` — TẠO: nguồn Wikimedia Commons, tác giả, thay đổi khi dùng lại và giấy phép CC BY 2.5.
+- `WORKLOG.md` — append entry này.
+
+**Quyết định & lý do:**
+- Người xem không có nền tảng AI/y tế cần nhìn thấy quan hệ “nhiều thì MRI → model → các khả năng → cần bác sĩ xem lại” trước khi gặp thuật ngữ calibration và selective prediction. `defer` được định nghĩa ngay tại lần xuất hiện đầu tiên là model chưa đủ chắc để tự trả lời.
+- Không dùng ảnh LLD-MMRI vì không nên tái phân phối dữ liệu bệnh nhân. Ảnh công khai được gắn attribution cả trên slide và trong file asset; output/heatmap là minh hoạ bố cục, không phải kết quả dự án.
+- Giữ deck ở phạm vi overview hướng MRI hiện tại; không thêm feedback mentor, CT/binary, lịch sử đổi scope hay metric train/eval chưa có.
+
+**Kết quả / số liệu:** 11 slide (01/11–11/11); `impeccable detect slides` và `powershell -NoProfile -ExecutionPolicy Bypass -File scripts/quality-gate.ps1` đều PASS. Quality gate dùng binary Impeccable cache cục bộ 3.3.1 và không còn warning. Không có metric thực nghiệm MRI mới.
+
+**Dang dở:**
+- [ ] Chưa có screenshot QA trực tiếp ở 1280×720, 1366×768 và 1920×1080 vì browser automation bị policy chặn mở `file://` local; không dùng workaround. Đã kiểm tra responsive CSS, 11 slide, keyboard/hash/print theo mã tĩnh và detector.
+
+**Điểm vào phiên sau:** Mở `slides/overview.html` bằng trình duyệt local của người dùng để duyệt trực quan ba viewport trước buổi trình bày.
+
+**Cảnh báo cho tool sau:** Ảnh `cmir-8-107-f5.jpg` là asset CC BY 2.5; phải giữ attribution trong `slides/assets/ATTRIBUTION.md` và slide nguồn. Duke chỉ là OOD probe, không là external classification test; mọi output mock phải tiếp tục ghi rõ là minh hoạ không có dữ liệu dự án.
