@@ -725,3 +725,28 @@ Hai ngoại lệ đăng ký kèm lý do (`single-font`, `overused-font=arial`): 
 **Điểm vào phiên sau:** Vào W2 ngày 1 — scaffold `src/utils` + `src/data/dataset.py` (đọc `lld/images/` + `LLD_MMRI_Annotation.json`, bỏ `labels/`+`.cache/`). Chờ người dùng chỉ đường dẫn file split official (Câu hỏi #1 trong W2_plan).
 
 **Cảnh báo cho tool sau:** Dataset Kaggle là bản **SEGMENTATION** (wanglab MedSAM2) — TUYỆT ĐỐI không nạp `lld/labels/` (mask) vào classification. Không có **patch cắt sẵn**, chỉ full-volume → crop bằng bbox. bbox là **2D per-slice**, phải gộp theo `slice_idx` thành ROI 3D.
+
+
+## S-019 · 2026-07-24 16:25 · claude-code
+
+**Mục tiêu phiên:** Xác minh nguồn có official split không, và chốt chiến lược split cho hướng mới.
+
+**Nhánh / commit:** `main` · `e7a6f6c` → *(commit đang chờ)*
+
+**Đã động file:**
+- `docs/MRI_Classification_Spec_Sheet.md` — §2 Split: thay "dùng split challenge 316/78/104" bằng **split tự tạo mức bệnh nhân** (nguồn thực nhận không có official split), ghi rõ đánh đổi + đặc điểm bản dữ liệu (chỉ full-volume, kèm mask MedSAM2).
+- `docs/W2_plan.md` — flip 7 chỗ (§0 quyết định, GATE, T1.3, T4.1, DoD, "Điểm phải hỏi", "Câu hỏi cần chốt") sang **split tự tạo = primary**; GATE ngày 0 chuyển "ĐÃ THÔNG".
+
+**Quyết định & lý do:**
+- **Split tự tạo mức bệnh nhân** (tách ~104 held-out test + 5-fold stratified trên 498, frozen+commit). Lý do: nguồn `wanglab/LLD-MMRI-MedSAM2` **không kèm official split 316/78/104** — xác minh qua **HF API siblings** (chỉ `.gitattributes`, `LLD_MMRI_Annotation.json`, `README.md` + ~4000 nii.gz) và **annotation JSON** (top-key chỉ `Annotation_info`+`Category_info`, không trường split nào); repo LMMMEng cũng không public split (chỉ có `gene_cross_val.py` sinh fold). Người dùng đã chọn phương án này (câu hỏi trực tiếp). Đổi quyết định đã chốt Spec Sheet §2 → có phê duyệt người dùng, đã ghi diff vào Spec Sheet.
+- Đánh đổi: **mất so trực tiếp leaderboard test-104**. Chấp nhận vì headline dự án là calibration/selective, không đua accuracy.
+- Phương án đã loại: đăng ký bản LLD-MMRI classification gốc để lấy official split — thêm bước + chờ duyệt, không tương xứng khi không đua leaderboard.
+
+**Kết quả / số liệu:** Không có số liệu nghiên cứu. Ghi chú kỹ thuật: `3D_box` trong annotation **null toàn bộ** (0/3984) → vẫn phải gộp `2D_box` per-slice thành ROI 3D (T3.2 giữ nguyên).
+
+**Dang dở:**
+- [ ] Verify geometry ảnh↔annotation (bản MedSAM2 có thể đã resample) — gate EDA T2.1.
+
+**Điểm vào phiên sau:** W2 ngày 1 — scaffold `src/utils` + `src/data/dataset.py` (đọc `lld/images/` + `LLD_MMRI_Annotation.json`, bỏ `labels/`+`.cache/`). Khâu data đã hết blocker.
+
+**Cảnh báo cho tool sau:** Split là **TỰ TẠO**, không phải official challenge — KHÔNG báo cáo so với leaderboard test-104 của SOTA. `splits/test_heldout.json` là held-out khoá kín, chạm đúng 1 lần (AGENTS.md §3.4).

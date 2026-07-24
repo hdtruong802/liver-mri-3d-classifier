@@ -17,8 +17,8 @@
 
 - **Chính, LLD-MMRI:** 498 bn (1 tổn thương/bn), **8 thì MRI** (pre / arterial / venous / delay / T2WI / DWI / T1 in-phase / T1 out-phase), **7 lớp** (HCC, ICC, di căn, nang, u máu, FNH, áp-xe: 3 ác, 4 lành), có **bbox + patch cắt sẵn + full-volume**. Truy cập qua form (research-use).
 - **Split & đánh giá:**
-  > - **5-fold stratified patient-level CV** trên train+val để chọn model. Test 104 ca quá nhỏ nên coi là **held-out khóa kín, chạm 1 lần**, không dùng để chọn model hay threshold.
-  > - Dùng split challenge 316/78/104 khi cần **so benchmark**.
+  > - **5-fold stratified patient-level CV** để chọn model. Tập test held-out coi là **khóa kín, chạm 1 lần**, không dùng để chọn model hay threshold.
+  > - **Cập nhật 2026-07-24 (WORKLOG S-019):** bản dữ liệu thực nhận (`wanglab/LLD-MMRI-MedSAM2` trên Kaggle) **không kèm file split official 316/78/104** (đã xác minh qua HF API + annotation JSON), **chỉ có full-volume, không có patch cắt sẵn**, và kèm mask segmentation MedSAM2 (không dùng). → dùng **split tự tạo mức bệnh nhân**: tách ~104 ca held-out test + 5-fold stratified trên phần còn lại (498 bn), **frozen + commit** (`splits/`). Đánh đổi: **mất so trực tiếp với leaderboard test-104**; chấp nhận được vì headline là calibration/selective, không đua accuracy. Nếu sau lấy được official split → tái lập benchmark như bảng phụ. Chi tiết: `docs/W2_plan.md §0`.
 - **External validation (nhãn thô + OOD):**
   > - **Nhãn thô:** gộp về **ác/lành** (hoặc HCC vs non-HCC) rồi lấy tập external từ nguồn public thứ 2 (cohort HCC MRI / TCIA). Cho một con số external thật trên task coarse có ý nghĩa lâm sàng, vì không có bộ MRI đa pha public nào cùng taxonomy 7 lớp.
   > - **OOD/domain-shift:** **Duke Liver Dataset** (2146 series/105 bn, có liver mask + series-label, không có nhãn loại tổn thương) làm probe robustness + OOD detection.
