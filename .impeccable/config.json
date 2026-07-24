@@ -3,7 +3,9 @@
     "ignoreRules": [
       "single-font"
     ],
-    "ignoreFiles": [],
+    "ignoreFiles": [
+      "slides/overview-alt-*.html"
+    ],
     "ignoreValues": [
       {
         "rule": "overused-font",

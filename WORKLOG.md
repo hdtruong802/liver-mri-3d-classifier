@@ -347,3 +347,36 @@ Hai ngoại lệ đăng ký kèm lý do (`single-font`, `overused-font=arial`): 
 - `DESIGN.md` giờ là ràng buộc cho **cả web app và report**, không riêng slide. Đọc trước khi đụng UI.
 - **Không có con số nào của dự án này trên slide** và phải giữ nguyên như vậy cho tới khi có kết quả thật.
 - `.body` dùng `overflow:auto` có chủ ý: nếu nội dung tràn thì hiện thanh cuộn để người trình bày thấy khi tập dượt, thay vì nuốt mất một dòng ngay giữa buổi báo cáo. Đừng đổi lại thành `hidden`.
+
+
+## S-006 · 2026-07-24 15:40 · claude-code
+
+**Mục tiêu phiên:** Lưu prompt ra file để đọc được, và dựng thêm một bản slide theo phong cách khác để người dùng so sánh.
+
+**Nhánh / commit:** `main` · `54513ac` → *(commit đang chờ)*
+
+**Đã đụng file:**
+- `prompt/slides_overview.md` — **mới**. Prompt đã dùng để sinh `slides/overview.html`, kèm ghi chú sau lần chạy đầu. Người dùng không đọc được prompt trong panel hẹp của VS Code nên cần file mở full-width.
+- `slides/overview-alt-atlas.html` — **mới**. Bản đối chiếu theo thế giới "bản khắc atlas giải phẫu".
+- `slides/README.md` — **mới**. Bảng so sánh hai bản và quy trình phải làm nếu chọn bản atlas.
+- `.impeccable/config.json` — thêm ignore file cho `slides/overview-alt-*.html`.
+
+**Quyết định & lý do:**
+- **Dựng bản đối chiếu bằng đúng hướng mà Impeccable đã roll trúng** (grounded #5, seed `b8275583`) thay vì bịa ra một phong cách mới. Đó là so sánh có ý nghĩa: quy ước so với thế giới thị giác riêng, và hướng đó đã được cân nhắc đầy đủ ở S-005 nên không phải làm lại từ đầu.
+- **Giữ nguyên 100% nội dung và số liệu.** Chỉ khác thế giới thị giác. So sánh mà đổi cả nội dung thì không so được gì.
+- **KHÔNG viết đè `DESIGN.md`.** File đó vẫn sở hữu thế giới đã cam kết (canon MICCAI). Bản atlas là artifact đối chiếu, không phải bản thay thế. Ghi rõ điều này ở đầu file HTML và trong `slides/README.md`.
+- **Đăng ký `ignores add-file` cho `slides/overview-alt-*.html`** kèm lý do. Detector báo 9 finding trên file này, **tất cả đều là "outside DESIGN.md"** — tức là nó nói đúng, file này cố tình đi ra ngoài hệ thống. Không có lỗi thật nào (không tương phản kém, không chữ hoa, không em-dash quá tay). Đây là ca dùng đúng của cơ chế ignore-file, khác hẳn việc thêm token để tắt cảnh báo.
+- **Bản atlas dùng chú số + chú giải thay cho `[Tác giả, Năm]` viết thẳng.** Chú số và đường dóng là thiết bị gốc của bản khắc giải phẫu, nên hệ trích nguồn mọc ra từ chính ngôn ngữ của thế giới đó chứ không phải dán vào.
+
+**Kết quả / số liệu:** quality gate PASS. Cả hai file đều 13 slide, 0 tham chiếu ngoài, RUO 13/13, không có số nào của dự án.
+
+**Dang dở:**
+- [ ] Người dùng chưa chọn bản nào. Bản canon vẫn là bản đã chốt cho tới khi có quyết định khác.
+- [ ] Vẫn chưa xem render thật của cả hai bản (phiên này không có công cụ trình duyệt).
+- [ ] Chưa push.
+
+**Điểm vào phiên sau:** người dùng mở cả hai file, chọn một. Nếu chọn atlas thì làm đủ 3 bước ghi trong `slides/README.md` — quan trọng nhất là **viết lại `DESIGN.md`** và **gỡ dòng ignore**, vì `DESIGN.md` chi phối cả web app lẫn report.
+
+**Cảnh báo cho tool sau:**
+- **Đừng coi bản atlas là chính thức khi ignore vẫn còn.** Giữ ignore rồi xuất bản là tự tắt đèn báo cho một bề mặt thật. Quy trình đúng nằm ở `slides/README.md`.
+- Ignore này dùng wildcard `slides/overview-alt-*.html`, nên **mọi file `overview-alt-*` sau này cũng không bị soi**. Nếu thêm bản đối chiếu thứ ba thì vẫn được che; nhớ điều đó khi dọn dẹp.
