@@ -146,6 +146,21 @@ npm-debug.log*
 .gemini/
 
 # -----------------------------------------------------------------------------
+# GitHub Copilot — artifact do tool cục bộ cài, KHÔNG phải nội dung dự án
+# `.github/copilot-instructions.md` ở đây do "mermaid-ai-skills" sinh ra, không
+# phải người dùng viết, và không chứa ngữ cảnh dự án.
+#
+# Copilot KHÔNG nằm trong 4 tool của quy trình này. Nếu về sau thực sự dùng
+# Copilot: bỏ 2 dòng dưới, rồi biến file đó thành CẦU NỐI trỏ về AGENTS.md
+# (giống CLAUDE.md và .cursor/rules/), tuyệt đối không chép nội dung dự án
+# vào đó — nó sẽ thành nguồn drift thứ năm.
+#
+# KHÔNG ignore cả `.github/` — chỗ đó còn để dành cho GitHub Actions.
+# -----------------------------------------------------------------------------
+.github/copilot-instructions.md
+.github/instructions/
+
+# -----------------------------------------------------------------------------
 # Editor / OS
 # -----------------------------------------------------------------------------
 .vscode/*
