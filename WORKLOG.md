@@ -380,3 +380,44 @@ Hai ngoại lệ đăng ký kèm lý do (`single-font`, `overused-font=arial`): 
 **Cảnh báo cho tool sau:**
 - **Đừng coi bản atlas là chính thức khi ignore vẫn còn.** Giữ ignore rồi xuất bản là tự tắt đèn báo cho một bề mặt thật. Quy trình đúng nằm ở `slides/README.md`.
 - Ignore này dùng wildcard `slides/overview-alt-*.html`, nên **mọi file `overview-alt-*` sau này cũng không bị soi**. Nếu thêm bản đối chiếu thứ ba thì vẫn được che; nhớ điều đó khi dọn dẹp.
+
+
+## S-007 · 2026-07-24 16:20 · claude-code
+
+**Mục tiêu phiên:** Sửa trích dẫn cho đúng chuẩn học thuật có link, và xử lý việc `slides/overview.html` bị xoá khỏi working tree.
+
+**Nhánh / commit:** `main` · `41ae19d` → *(commit đang chờ)*
+
+**Đã đụng file:**
+- `slides/overview.html` — bản canon MICCAI **bị người dùng xoá**, và bản atlas được đổi tên vào chỗ đó.
+- `DESIGN.md` — **viết lại toàn bộ** theo thế giới bản khắc atlas.
+- `PRODUCT.md` — sửa cam kết thương hiệu #3.
+- `slides/README.md` — viết lại, giờ chỉ còn một bản.
+- `.impeccable/config.json` — gỡ 2 ignore.
+
+**Quyết định & lý do:**
+- **Phát hiện `slides/overview.html` bị xoá, đã DỪNG và hỏi thay vì tự khôi phục.** Đúng giao thức `docs/MULTI_TOOL_WORKFLOW.md` §2: thay đổi mình không nhận là của mình thì không được ghi đè. Người dùng xác nhận **cố ý xoá, chọn bản atlas**.
+- **Làm đủ 3 bước trong `slides/README.md` thay vì chỉ đổi tên file.** Đổi tên mà giữ nguyên `DESIGN.md` canon sẽ tạo drift ngay ở deliverable đầu tiên, vì `DESIGN.md` chi phối cả web app và report.
+- **Gỡ `ignoreFiles: slides/overview-alt-*.html`** — file không còn là artifact đối chiếu, phải chịu detector soi như mọi bề mặt thật.
+- **Gỡ luôn `ignoreRules: single-font`** — thế giới atlas dùng **hai** họ chữ (chân phương cho tiêu đề/chú giải, sans cho số liệu), nên ngoại lệ đó không còn lý do tồn tại. Giữ một ignore đã hết hạn là để lại bẫy cho phiên sau.
+- **Chỉ giữ `overused-font=arial`** — vẫn đúng, Arial là chốt chặn cuối của stack sans chứ không phải font được chọn.
+
+**Trích dẫn — sửa cái gì:**
+> Định dạng cũ `1Taxonomy 7 lớp và 8 thì theo công bố dataset LLD-MMRI, 2023` **không phải trích dẫn**, nó là câu mô tả có kèm năm, dính số, không link.
+> Nay theo **kiểu số thứ tự (Vancouver)**: `4. Lou M., et al. SDR-Former. Neural Networks 185 (2025) 107228. arXiv:2402.17246` với mã định danh là link bấm được.
+> 14 hyperlink tới nguồn gốc. Khi in ra giấy, link tự hiện URL trong ngoặc qua `@media print` — trên giấy không ai bấm được.
+> File vẫn **mở và hiển thị đầy đủ khi ngoại tuyến**; link chỉ cần mạng lúc bấm.
+
+**Kết quả / số liệu:** `impeccable detect slides` → **exit 0, 0 finding**, với ignoreRules và ignoreFiles đều **rỗng**. Đây là lần đầu file slide sạch mà không có gì che.
+
+**Dang dở:**
+- [ ] Vẫn chưa xem render thật (phiên này không có công cụ trình duyệt). Nền tối + khung kẻ đôi là thứ cần nhìn mắt thường mới biết có ổn không.
+- [ ] Spec Sheet vẫn chưa được sửa theo S-005.
+- [ ] Chưa push.
+
+**Điểm vào phiên sau:** mở `slides/overview.html`, bấm qua 13 bản khắc, thử in PDF, và **bấm thử vài link trích dẫn** xem có tới đúng nguồn không.
+
+**Cảnh báo cho tool sau:**
+- **Bản canon MICCAI đã bị loại sau khi dựng thành bản chạy được, không phải bị bỏ qua.** Nó còn trong git ở `54513ac`. Đừng đề xuất quay về nó như thể đó là lựa chọn an toàn chưa ai nghĩ tới — đã ghi vào `PRODUCT.md`.
+- **Nền tối cần phòng chiếu có giảm sáng.** Đây là đánh đổi đã chấp nhận có ý thức, ghi trong `DESIGN.md` mục Overview. Nếu buổi báo cáo diễn ra trong phòng bật đèn đầy đủ thì đây là rủi ro thật, không phải lỗi thiết kế cần sửa lén.
+- `.impeccable/config.json` giờ chỉ còn **một** ignore duy nhất và nó có lý do. Giữ nguyên tình trạng đó: mỗi ignore thêm vào phải kèm `--reason`, và phải gỡ khi hết hiệu lực.

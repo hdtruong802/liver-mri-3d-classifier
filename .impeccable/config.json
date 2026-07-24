@@ -1,11 +1,7 @@
 {
   "detector": {
-    "ignoreRules": [
-      "single-font"
-    ],
-    "ignoreFiles": [
-      "slides/overview-alt-*.html"
-    ],
+    "ignoreRules": [],
+    "ignoreFiles": [],
     "ignoreValues": [
       {
         "rule": "overused-font",

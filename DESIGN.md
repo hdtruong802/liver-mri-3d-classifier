@@ -2,54 +2,59 @@
 name: Liver MRI 3D Classifier
 description: Hệ thống thị giác cho slide, report và web app của một dự án research phân loại u gan trên MRI đa pha
 colors:
-  ink: "#12161A"
-  ink-secondary: "#5A646E"
-  ink-tertiary: "#7A848E"
-  paper: "#F6F7F8"
-  paper-panel: "#FFFFFF"
-  rule: "#C8CDD2"
-  rule-strong: "#9AA4AE"
-  data-primary: "#14507A"
-  data-secondary: "#A8500A"
-  unverified: "#656E7A"
+  ground: "#10161B"
+  plate: "#161E24"
+  line: "#E8E4DA"
+  line-secondary: "#A9B2B8"
+  line-tertiary: "#8B949B"
+  rule: "#2E3A42"
+  rule-strong: "#44535D"
+  key: "#D4A72C"
+  counter: "#6FC2DC"
 typography:
   display:
-    fontFamily: "Segoe UI, system-ui, -apple-system, Noto Sans, Liberation Sans, Arial, sans-serif"
-    fontSize: "clamp(1.9rem, 3.9vw, 3.1rem)"
-    fontWeight: 600
-    lineHeight: 1.12
-    letterSpacing: "-0.018em"
+    fontFamily: "Cambria, Times New Roman, Liberation Serif, Noto Serif, Georgia, serif"
+    fontSize: "clamp(1.75rem, 3.5vw, 2.85rem)"
+    fontWeight: 400
+    lineHeight: 1.16
+    letterSpacing: "0.002em"
   headline:
-    fontFamily: "Segoe UI, system-ui, -apple-system, Noto Sans, Liberation Sans, Arial, sans-serif"
-    fontSize: "clamp(1.35rem, 2.5vw, 2rem)"
-    fontWeight: 600
-    lineHeight: 1.2
-    letterSpacing: "-0.012em"
+    fontFamily: "Cambria, Times New Roman, Liberation Serif, Noto Serif, Georgia, serif"
+    fontSize: "clamp(1.2rem, 2.2vw, 1.75rem)"
+    fontWeight: 400
+    lineHeight: 1.35
+    letterSpacing: "normal"
   title:
-    fontFamily: "Segoe UI, system-ui, -apple-system, Noto Sans, Liberation Sans, Arial, sans-serif"
-    fontSize: "clamp(1.05rem, 1.7vw, 1.4rem)"
-    fontWeight: 600
+    fontFamily: "Cambria, Times New Roman, Liberation Serif, Noto Serif, Georgia, serif"
+    fontSize: "clamp(1rem, 1.6vw, 1.3rem)"
+    fontWeight: 400
     lineHeight: 1.3
-    letterSpacing: "-0.005em"
+    letterSpacing: "normal"
   body:
     fontFamily: "Segoe UI, system-ui, -apple-system, Noto Sans, Liberation Sans, Arial, sans-serif"
-    fontSize: "clamp(0.95rem, 1.5vw, 1.25rem)"
+    fontSize: "clamp(0.92rem, 1.45vw, 1.2rem)"
     fontWeight: 400
-    lineHeight: 1.5
+    lineHeight: 1.55
     letterSpacing: "normal"
-  label:
-    fontFamily: "Segoe UI, system-ui, -apple-system, Noto Sans, Liberation Sans, Arial, sans-serif"
-    fontSize: "clamp(0.7rem, 1vw, 0.85rem)"
-    fontWeight: 600
-    lineHeight: 1.35
-    letterSpacing: "0.02em"
   data:
     fontFamily: "Segoe UI, system-ui, -apple-system, Noto Sans, Liberation Sans, Arial, sans-serif"
     fontSize: "clamp(1rem, 1.6vw, 1.3rem)"
-    fontWeight: 500
+    fontWeight: 400
     lineHeight: 1.25
     letterSpacing: "normal"
     fontFeature: "tnum"
+  label:
+    fontFamily: "Segoe UI, system-ui, -apple-system, Noto Sans, Liberation Sans, Arial, sans-serif"
+    fontSize: "clamp(0.7rem, 1vw, 0.85rem)"
+    fontWeight: 400
+    lineHeight: 1.35
+    letterSpacing: "0.02em"
+  caption:
+    fontFamily: "Cambria, Times New Roman, Liberation Serif, Noto Serif, Georgia, serif"
+    fontSize: "clamp(0.7rem, 1vw, 0.85rem)"
+    fontWeight: 400
+    lineHeight: 1.45
+    letterSpacing: "normal"
 rounded:
   none: "0"
 spacing:
@@ -57,25 +62,31 @@ spacing:
   sm: "8px"
   md: "16px"
   lg: "28px"
-  xl: "48px"
-  xxl: "80px"
+  xl: "44px"
+  xxl: "72px"
 components:
-  metric-cell:
-    backgroundColor: "{colors.paper}"
-    textColor: "{colors.ink}"
-    typography: "{typography.data}"
+  plate-panel:
+    backgroundColor: "{colors.plate}"
+    textColor: "{colors.line}"
+    typography: "{typography.body}"
     rounded: "{rounded.none}"
-    padding: "8px 16px"
-  citation-tag:
-    backgroundColor: "{colors.paper}"
-    textColor: "{colors.ink-secondary}"
-    typography: "{typography.label}"
+    padding: "28px"
+  plate-key:
+    backgroundColor: "{colors.ground}"
+    textColor: "{colors.key}"
+    typography: "{typography.caption}"
     rounded: "{rounded.none}"
-    padding: "2px 0"
+    padding: "0"
+  legend-entry:
+    backgroundColor: "{colors.ground}"
+    textColor: "{colors.line-secondary}"
+    typography: "{typography.caption}"
+    rounded: "{rounded.none}"
+    padding: "0"
   unverified-chip:
-    backgroundColor: "{colors.paper}"
-    textColor: "{colors.unverified}"
-    typography: "{typography.label}"
+    backgroundColor: "{colors.ground}"
+    textColor: "{colors.line-tertiary}"
+    typography: "{typography.caption}"
     rounded: "{rounded.none}"
     padding: "4px 10px"
 ---
@@ -84,148 +95,171 @@ components:
 
 ## Overview
 
-**Creative North Star: "The Conference Proceedings"**
+**Creative North Star: "The Anatomical Plate"**
 
-Đây là hệ thống thị giác của một bài talk hội nghị ảnh y tế (MICCAI/MIDL), chơi thẳng, không mỉa mai, không cài cắm phong cách riêng. Người dùng chọn quy ước thay vì một thế giới thị giác riêng, nên quy ước trở thành cam kết — và cam kết đó được thực thi ở mức thủ công cao nhất, chứ không phải ở mức "slide tử tế".
+Thế giới thị giác là **bản khắc atlas giải phẫu**, dựng như một bản khắc âm bản: nét sáng ấm trên nền mực sâu. Đây là nghề in nền tảng của y học — atlas giải phẫu là hiện vật thị giác lâu đời nhất mà mọi bác sĩ đều đã đọc.
 
-Tính cách: khô, chặt, tự tin về mặt số liệu. Mật độ trung bình — mỗi slide mang đúng một luận điểm và đủ chỗ thở để một con số đứng riêng được. Nền sáng vì đây là bài chiếu trong phòng họp còn bật đèn để người nghe ghi chú, và vì máy chiếu hội trường xử lý nền sáng ổn định hơn nền tối bị nhạt màu. Phẳng tuyệt đối: không đổ bóng, không bo góc, không hiệu ứng vật liệu. Chiều sâu đến từ kẻ hairline và khoảng trắng, đúng như một trang proceedings.
+Lý do chọn nó không phải là hoài cổ. Bản khắc atlas có sẵn một thiết bị mà dự án này cần đúng: **chú số và đường dóng**. Mọi thứ trong một bản khắc giải phẫu đều mang một con số, và mọi con số đều truy được về chú giải ở chân bản. Dự án này có một yêu cầu gần như y hệt: mọi số liệu trên màn hình phải truy được về nguồn công bố. Nên hệ trích nguồn không bị dán vào từ ngoài, nó **mọc ra từ chính ngữ pháp của thế giới**.
 
-Hệ thống này tồn tại để phục vụ một luận điểm khoa học: **một con số không bao giờ đứng một mình**. Vì vậy phần khó nhất của nó không phải màu hay chữ, mà là một quy tắc: phân biệt được ngay lập tức giữa số đã xác minh từ công bố của người khác và thứ chưa hề tồn tại.
+Tính cách: trang trọng, chậm rãi, có nghi thức. Mật độ trung bình, mỗi bản khắc mang đúng một luận điểm. Phẳng tuyệt đối — chiều sâu đến từ độ đậm nhạt của nét khắc và hai cấp nền, không từ bóng đổ. Khung kẻ đôi bao quanh mỗi bản, đúng như trang atlas in.
+
+Hệ thống này tồn tại để phục vụ một luận điểm khoa học: **một con số không bao giờ đứng một mình**. Phần khó nhất của nó không phải màu hay chữ, mà là phân biệt được ngay lập tức giữa số đã xác minh từ công bố của người khác và thứ chưa hề tồn tại.
 
 **Key Characteristics:**
-- Nền sáng, mực gần đen, một họ chữ duy nhất
-- Phẳng hoàn toàn — không bóng đổ, bán kính bo góc bằng 0
-- Kẻ hairline 1px là công cụ tạo cấu trúc chính
-- Số dùng chữ số bảng (tabular figures), canh theo cột
-- Màu chỉ phân biệt dữ liệu, không bao giờ trang trí, không bao giờ là kênh thông tin duy nhất
+- Nền mực sâu, nét sáng ấm — bản khắc âm bản
+- Khung kẻ đôi bao quanh mỗi bề mặt
+- Chữ chân phương cho tiêu đề và chú giải, sans cho số liệu
+- Chú số cộng chú giải là hệ trích nguồn, không phải trang trí
+- Phẳng hoàn toàn, bán kính bo góc bằng 0
+
+**Rủi ro đã biết, ghi lại để không quên:** nền tối cần phòng chiếu **có giảm sáng**. Nếu buổi báo cáo diễn ra trong phòng bật đèn đầy đủ, hoặc máy chiếu bị nhạt màu nặng, nền sáng sẽ an toàn hơn. Hệ thống này chấp nhận đánh đổi đó một cách có ý thức; đừng phát hiện lại nó rồi tưởng là lỗi thiết kế.
 
 ## Colors
 
-Bảng màu tối giản có chủ đích: hai sắc dữ liệu trên nền trung tính. Cặp xanh–cam được chọn vì đây là cặp phân biệt được với mù màu đỏ-lục, dạng thiếu hụt thị giác màu phổ biến nhất.
+Nền mực sâu với nét sáng ấm, hai sắc dữ liệu. Cặp hoàng thổ và lam ngọc được chọn vì phân biệt được với mù màu đỏ-lục, dạng thiếu hụt thị giác màu phổ biến nhất.
 
 ### Primary
-- **Xanh Lâm Sàng** (#14507A): sắc dữ liệu thứ nhất. Dùng cho chuỗi số liệu chính, đường kẻ nhấn dưới tiêu đề slide, và trạng thái đang hoạt động của chỉ báo tiến trình. Tỷ lệ tương phản 7.9:1 trên nền giấy.
+- **Hoàng Thổ** (#D4A72C): sắc của **chú số và chú giải**. Đây là màu mang chức năng cốt lõi của hệ thống, nên nó không được dùng cho bất cứ việc gì khác. Cũng dùng cho đường nhấn dưới tiêu đề và mốc phần đang hoạt động. Tương phản 8.1:1 trên nền mực.
 
 ### Secondary
-- **Cam Đất Nung** (#A8500A): sắc dữ liệu thứ hai, chỉ xuất hiện khi cần **đối lập** với Xanh Lâm Sàng trong cùng một hình. Không bao giờ dùng một mình để nhấn mạnh. Tương phản 5.1:1 trên nền giấy.
+- **Lam Ngọc** (#6FC2DC): sắc đối lập, chỉ xuất hiện khi cần **tương phản** với Hoàng Thổ trong cùng một hình (ví dụ lành tính so với ác tính). Không bao giờ dùng một mình để nhấn mạnh. Tương phản 9.1:1.
 
 ### Neutral
-- **Mực** (#12161A): toàn bộ chữ chính và số liệu. Gần đen nhưng ngả lạnh, dịu hơn đen tuyệt đối khi chiếu.
-- **Mực Phụ** (#5A646E): chú thích, nhãn nguồn, chữ hỗ trợ. Tương phản 5.3:1 — vẫn đạt AA cho chữ thường.
-- **Mực Mờ** (#7A848E): chỉ dùng cho số slide và siêu dữ liệu không mang nội dung.
-- **Giấy** (#F6F7F8): nền. Cố ý không phải trắng tuyệt đối — trắng #FFF trên máy chiếu gây loá và làm chữ mảnh bị mất nét.
-- **Giấy Panel** (#FFFFFF): nền của ô dữ liệu cần tách khỏi nền chính.
-- **Kẻ** (#C8CDD2): hairline mặc định. **Kẻ Đậm** (#9AA4AE): kẻ phân tách cấp cao hơn, ví dụ đầu bảng.
-- **Chưa Xác Minh** (#656E7A): duy nhất cho nội dung được đánh dấu là chưa có dữ liệu. Tương phản 4.8:1 — giá trị đầu tiên thử là #6B7480 chỉ đạt 4.4:1 và đã bị detector bắt; đừng làm nhạt lại.
+- **Nét Khắc** (#E8E4DA): toàn bộ chữ chính và số liệu. Trắng ngả ấm như mực in trên bản khắc, không phải trắng lạnh.
+- **Nét Phụ** (#A9B2B8): chú thích, chữ hỗ trợ. Tương phản 8.5:1.
+- **Nét Mờ** (#8B949B): số bản khắc, siêu dữ liệu, và nội dung đánh dấu là chưa có dữ liệu. Tương phản 5.9:1 — vẫn đạt AA.
+- **Nền Mực** (#10161B): nền chính.
+- **Nền Bản** (#161E24): cấp nền thứ hai, cho ô dữ liệu cần tách khỏi nền chính.
+- **Kẻ** (#2E3A42): hairline trong. **Kẻ Đậm** (#44535D): khung ngoài và kẻ phân tách cấp cao.
 
 ### Named Rules
 
-**The Two-Number Rule.** Bộ slide này chỉ có hai loại số. **Loại A** là số đã công bố của người khác: hiển thị bằng Mực, chữ số bảng, và **bắt buộc** kèm nhãn nguồn `[Tác giả, Năm]` cùng cỡ mẫu `n=` ở chân slide chứa nó. **Loại B** là số của dự án này: **chưa tồn tại, và không bao giờ được vẽ ra**. Nơi cần minh hoạ một khái niệm, dùng sơ đồ không có trục số kèm nhãn "Minh hoạ khái niệm: chưa có dữ liệu". Vi phạm quy tắc này là lỗi nghiêm trọng nhất hệ thống có thể mắc.
+**The Two-Number Rule.** Hệ thống này chỉ có hai loại số. **Loại A** là số đã công bố của người khác: hiển thị bằng Nét Khắc, chữ số bảng, và **bắt buộc** mang một chú số dẫn về chú giải ở chân bề mặt, kèm cỡ mẫu `n=`. **Loại B** là số của dự án này: **chưa tồn tại, và không bao giờ được vẽ ra**. Nơi cần minh hoạ một khái niệm, dùng sơ đồ không có trục số kèm nhãn "Minh hoạ khái niệm: chưa có dữ liệu". Vi phạm quy tắc này là lỗi nghiêm trọng nhất hệ thống có thể mắc.
 
-**The Never-Colour-Alone Rule.** Không thông tin nào được mã hoá chỉ bằng màu. Ác/lành, mức tin cậy, trạng thái `defer`, xác minh/chưa xác minh — mỗi thứ luôn đi kèm nhãn chữ, hoặc kiểu nét (liền so với đứt), hoặc cả hai. Bài kiểm tra: in slide ra máy in đen trắng; nếu mất thông tin thì thiết kế sai.
+**The Plate Key Rule.** Hoàng Thổ thuộc về chú số. Không dùng nó để làm đẹp một tiêu đề, một đường viền, hay một trạng thái hover không liên quan đến trích nguồn. Sức mạnh của thiết bị này nằm ở chỗ khi thấy màu hoàng thổ, người xem biết ngay đó là một con trỏ tới nguồn.
 
-**The Restraint Rule.** Hai sắc dữ liệu là toàn bộ ngân sách màu. Không có sắc thứ ba. Muốn phân biệt thêm hạng mục thì dùng vị trí, kiểu nét, hoặc nhãn — không phải hue mới.
+**The Never-Colour-Alone Rule.** Không thông tin nào được mã hoá chỉ bằng màu. Ác/lành, mức tin cậy, trạng thái `defer`, xác minh/chưa xác minh — mỗi thứ luôn đi kèm nhãn chữ, hoặc kiểu nét (liền so với đứt), hoặc hình dạng (đặc so với rỗng). Bài kiểm tra: in ra máy in đen trắng; nếu mất thông tin thì thiết kế sai.
+
+**The Restraint Rule.** Hoàng Thổ và Lam Ngọc là toàn bộ ngân sách màu. Không có sắc thứ ba. Muốn phân biệt thêm hạng mục thì dùng vị trí, kiểu nét, hoặc nhãn.
 
 ## Typography
 
-**Một họ chữ duy nhất** cho toàn hệ thống, là stack font hệ thống:
-`Segoe UI → system-ui → -apple-system → Noto Sans → Liberation Sans → Arial → sans-serif`
+**Chân phương (serif):** `Cambria → Times New Roman → Liberation Serif → Noto Serif → Georgia → serif`
+Dùng cho tiêu đề, chú giải, chú thích bảng, và số bản khắc. Đây là giọng của trang in.
 
-**Character:** Đây là lựa chọn có chủ ý chứ không phải sự lười. Canon hội nghị dùng một workhorse sans và để trọng lượng cùng cỡ chữ gánh phân cấp. Ràng buộc quyết định là **tiếng Việt có dấu phải hiển thị đúng khi ngoại tuyến**, không CDN và không webfont, nên chỉ font hệ thống mới bảo đảm đủ dấu thanh và dấu phụ ở mọi cỡ. Segoe UI đứng đầu vì môi trường phát triển là Windows; Noto Sans và Liberation Sans là hai fallback Linux có bộ dấu tiếng Việt đầy đủ; Arial là chốt chặn cuối, không phải lựa chọn thẩm mỹ.
+**Sans:** `Segoe UI → system-ui → -apple-system → Noto Sans → Liberation Sans → Arial → sans-serif`
+Dùng cho chữ chạy và **mọi con số**. Số liệu cần rõ ràng hơn cần trang trọng.
 
-Detector sẽ cảnh báo `single-font` và `overused-font=arial`. Cả hai đã được đăng ký ngoại lệ kèm lý do trong `.impeccable/config.json`. **Đừng thêm font thứ hai chỉ để tắt cảnh báo** — nó sẽ phá cam kết ngoại tuyến.
+**Character:** Cặp chân phương và sans chia nhau theo chức năng chứ không theo cấp bậc: chân phương nói *về* dữ liệu (tiêu đề, chú giải, nhãn), sans *là* dữ liệu. Ràng buộc quyết định cho cả hai stack là **tiếng Việt có dấu phải hiển thị đúng khi ngoại tuyến** — không CDN, không webfont. Cambria có bộ dấu tiếng Việt tốt trên Windows; Times New Roman, Liberation Serif và Noto Serif phủ các nền tảng còn lại. Arial ở cuối stack sans là chốt chặn, không phải lựa chọn thẩm mỹ (đã đăng ký ngoại lệ `overused-font=arial` kèm lý do trong `.impeccable/config.json`).
 
 ### Hierarchy
-- **Display** (600, clamp 1.9–3.1rem, lh 1.12): tiêu đề slide. Là **một câu khẳng định**, không phải nhãn danh từ.
-- **Headline** (600, clamp 1.35–2rem, lh 1.2): tiêu đề mục trong slide, và con số đơn lẻ khi nó là nội dung chính.
-- **Title** (600, clamp 1.05–1.4rem, lh 1.3): đầu cột bảng, nhãn nhóm.
-- **Body** (400, clamp 0.95–1.25rem, lh 1.5): chữ chạy. Giới hạn 62ch cho slide — ngắn hơn chuẩn đọc 65–75ch vì đây là chữ nhìn từ xa, không phải chữ đọc gần.
-- **Label** (600, clamp 0.7–0.85rem, tracking 0.02em, **chữ thường**): nhãn nguồn, cỡ mẫu, nhãn trạng thái, đầu cột bảng, tên phần. Vai trò "nhãn" do cỡ nhỏ, trọng lượng 600 và màu Mực Phụ gánh — không do chữ hoa.
-- **Data** (500, clamp 1–1.3rem, `tnum`): mọi con số trong bảng và hình.
+- **Display** (chân phương, 400, clamp 1.75–2.85rem, lh 1.16): tiêu đề bề mặt. Là **một câu khẳng định**, không phải nhãn danh từ.
+- **Headline** (chân phương, 400, clamp 1.2–1.75rem, lh 1.35): câu dẫn, và con số đơn lẻ khi nó là nội dung chính.
+- **Title** (chân phương, 400, clamp 1–1.3rem, lh 1.3): tiêu đề mục trong bề mặt.
+- **Body** (sans, 400, clamp 0.92–1.2rem, lh 1.55): chữ chạy. Giới hạn 62ch.
+- **Data** (sans, 400, clamp 1–1.3rem, `tnum`): mọi con số trong bảng và hình.
+- **Label** (sans, 400, clamp 0.7–0.85rem, tracking 0.02em): dải RUO, siêu dữ liệu đầu bề mặt.
+- **Caption** (chân phương nghiêng, 400, clamp 0.7–0.85rem): chú giải nguồn, chú thích bảng, đầu cột, nhãn nhóm, chip.
 
 ### Named Rules
 
-**The Assertion Rule.** Tiêu đề slide phải là một mệnh đề có thể đúng hoặc sai — "SOTA trên LLD-MMRI đã bão hoà", không phải "Kết quả SOTA". Người xem đọc tiêu đề trước; nếu tiêu đề chỉ là nhãn thì slide đã lãng phí dòng quan trọng nhất của nó.
+**The Assertion Rule.** Tiêu đề phải là một mệnh đề có thể đúng hoặc sai — "SOTA trên LLD-MMRI đã bão hoà", không phải "Kết quả SOTA". Người xem đọc tiêu đề trước; nếu tiêu đề chỉ là nhãn thì bề mặt đã lãng phí dòng quan trọng nhất của nó.
 
-**The Tabular Rule.** Mọi con số dùng `font-variant-numeric: tabular-nums`. Số trong bảng canh theo dấu thập phân. Số nhảy cột khi so sánh là lỗi đọc, không phải lỗi thẩm mỹ.
+**The Tabular Rule.** Mọi con số dùng `font-variant-numeric: tabular-nums` và canh theo dấu thập phân. Số nhảy cột khi so sánh là lỗi đọc, không phải lỗi thẩm mỹ.
 
-**The No-Uppercase Rule.** `text-transform: uppercase` **không được dùng ở đâu trong hệ thống này**. Lý do là tiếng Việt, không phải sở thích: dấu thanh và dấu phụ chồng lên nhau khi đặt trên chữ hoa (Ế, Ữ, Ậ, Ổ), chúng bị chèn ép ở cỡ nhỏ và mất hẳn khi chiếu trên máy chiếu nhạt màu. Bản dựng đầu tiên của bộ slide này có 31 chuỗi in hoa, dài tới 108 ký tự, và detector đã bắt đúng. Muốn tạo cảm giác "nhãn" thì dùng cỡ chữ, trọng lượng và màu.
+**The No-Uppercase Rule.** `text-transform: uppercase` **không được dùng ở đâu trong hệ thống này**. Lý do là tiếng Việt, không phải sở thích: dấu thanh và dấu phụ chồng lên nhau khi đặt trên chữ hoa (Ế, Ữ, Ậ, Ổ), bị chèn ép ở cỡ nhỏ và mất hẳn khi chiếu trên máy chiếu nhạt màu. Muốn tạo cảm giác "nhãn" thì dùng cỡ chữ, kiểu nghiêng chân phương, và màu.
 
 ## Layout
 
-Khung slide tỷ lệ **16:9 cố định**, co giãn theo viewport bằng `clamp()` chứ không dùng transform scale — để chữ giữ nguyên chất lượng render và dấu tiếng Việt không bị mờ.
+Bề mặt trình chiếu theo tỷ lệ **16:9 cố định**, co giãn bằng `clamp()` chứ không dùng transform scale, để chữ giữ chất lượng render và dấu tiếng Việt không bị mờ.
 
-Lưới 12 cột với máng 28px. Lề trong slide bằng `xl` (48px) ở mọi phía, nới lên `xxl` (80px) ở slide tiêu đề. Vùng chân slide cao cố định, tách khỏi nội dung bằng một kẻ hairline, chứa nhãn nguồn bên trái và số slide bên phải.
+**Khung kẻ đôi** là đặc trưng cấu trúc: hai đường viền lồng nhau (`inset` khoảng 1.2vw và 1.7vw), viền ngoài dùng Kẻ Đậm, viền trong dùng Kẻ. Khung không bao giờ chứa nội dung sát mép — luôn còn lề trong.
 
-Nhịp khoảng cách theo thang `xs/sm/md/lg/xl/xxl`. **Luôn nhiều khoảng trống phía trên một tiêu đề hơn phía dưới nó** — tiêu đề thuộc về nội dung bên dưới, không phải nội dung bên trên.
+Đầu bề mặt: dải RUO bên trái, số bản khắc bên phải, phân cách với thân bằng một hairline. Chân bề mặt: **chú giải nguồn bên trái**, số thứ tự bên phải, phân cách bằng hairline.
 
-Dưới 900px chiều rộng, slide bỏ khung tỷ lệ cố định và chảy dọc để đọc được trên laptop nhỏ; đây là chế độ soát lại, không phải chế độ trình chiếu.
+Nhịp khoảng cách theo thang `xs/sm/md/lg/xl/xxl`. **Luôn nhiều khoảng trống phía trên một tiêu đề hơn phía dưới nó.**
 
-`@media print`: mỗi slide một trang ngang, `break-after: page`, bỏ mọi điều khiển điều hướng, giữ nguyên nhãn nguồn.
+Dưới 900px chiều rộng: bỏ khung tỷ lệ cố định và khung kẻ đôi, nội dung chảy dọc. Đây là chế độ soát lại, không phải chế độ trình chiếu.
+
+`@media print`: mỗi bề mặt một trang ngang. Link bỏ gạch chân và **tự in URL trong ngoặc** — trên giấy không ai bấm được.
 
 ## Elevation & Depth
 
-**Hệ thống này hoàn toàn phẳng. Không có bóng đổ, ở bất kỳ đâu.**
+**Hoàn toàn phẳng. Không có bóng đổ, ở bất kỳ đâu.**
 
-Chiều sâu được diễn đạt bằng ba thứ: kẻ hairline 1px, khoảng trắng, và một cấp nền duy nhất (Giấy Panel #FFFFFF nổi trên Giấy #F6F7F8). Đây là ngữ pháp của trang in khoa học, và nó cũng là lựa chọn kỹ thuật đúng — bóng đổ mảnh biến mất hoàn toàn trên máy chiếu bị nhạt màu, nên bóng đổ ở đây sẽ là chiều sâu chỉ tồn tại trên màn hình của người thiết kế.
+Chiều sâu đến từ ba thứ: độ đậm nhạt của nét (Nét Khắc → Nét Phụ → Nét Mờ), hairline, và hai cấp nền (Nền Bản #161E24 nổi trên Nền Mực #10161B). Đây là ngữ pháp của bản khắc, và cũng là lựa chọn kỹ thuật đúng: bóng đổ mảnh biến mất hoàn toàn trên máy chiếu bị nhạt màu.
 
 ### Named Rules
 
-**The No-Shadow Rule.** `box-shadow` không xuất hiện trong hệ thống này. Cần tách một vùng khỏi nền thì dùng kẻ hairline hoặc đổi cấp nền. Không có ngoại lệ.
+**The No-Shadow Rule.** `box-shadow` không xuất hiện trong hệ thống này. Cần tách một vùng khỏi nền thì dùng hairline hoặc đổi cấp nền. Không có ngoại lệ.
 
 ## Shapes
 
-Bán kính bo góc bằng **0** ở mọi nơi. Không bo góc mềm, không viên thuốc, không hình tròn trừ khi hình tròn mang nghĩa dữ liệu.
+Bán kính bo góc bằng **0** ở mọi nơi.
 
-Kẻ luôn là 1px. Kẻ dày hơn 1px chỉ được dùng khi nó mang thông tin — ví dụ đường nhấn dưới tiêu đề slide dày 3px màu Xanh Lâm Sàng, đóng vai trò mốc thị giác cho biết đang ở phần nào của bài.
+Kẻ là 1px, trừ mốc phần đang hoạt động (2px Hoàng Thổ) — độ dày chỉ được tăng khi nó mang thông tin.
 
-Nét đứt (`dashed`) là **ngôn ngữ dành riêng cho "chưa có dữ liệu / minh hoạ khái niệm"**. Không dùng nét đứt cho mục đích trang trí, vì làm vậy sẽ phá vỡ tín hiệu duy nhất phân biệt hai loại số.
+Đầu mục danh sách là một **đoạn kẻ ngang 16px** (đường dóng thu nhỏ), không phải dấu chấm tròn. Đây là chi tiết bản khắc, dùng nhất quán.
+
+**Nét đứt (`dashed`) là ngôn ngữ dành riêng cho "chưa có dữ liệu / minh hoạ khái niệm".** Không dùng nét đứt để trang trí, vì làm vậy sẽ phá tín hiệu duy nhất phân biệt hai loại số.
 
 ## Components
 
+### Chú số và chú giải (thiết bị chữ ký của hệ thống)
+- **Chú số:** `<sup>` chân phương, màu Hoàng Thổ, đặt ngay sau con số hoặc mệnh đề mà nó dẫn nguồn.
+- **Chú giải:** ở chân bề mặt, mỗi mục mở đầu bằng số Hoàng Thổ có dấu chấm, cách chữ 7px.
+- **Định dạng trích dẫn:** kiểu số thứ tự (Vancouver). `Tác giả, et al. Tiêu đề ngắn. Tạp chí Năm. doi/arXiv` — mã định danh là **link bấm được**.
+- **Quy tắc:** không có chú số thì con số không được lên bề mặt.
+
+### Khung bản khắc
+- Hai đường viền lồng nhau qua `::before` và `::after`, `pointer-events:none`.
+- Không bao giờ bo góc, không bao giờ đổ bóng.
+
 ### Bảng số liệu
-- **Hình dạng:** không viền ngoài. Chỉ có một kẻ Kẻ Đậm dưới hàng đầu cột và kẻ hairline giữa các hàng.
-- **Số:** chữ số bảng, canh phải, canh theo dấu thập phân.
-- **Cột "trên tập test nào":** bắt buộc có mặt trong mọi bảng so sánh giữa các công trình. Bảng không có cột này là bảng trình bày sai lệch.
-- **Nhãn nguồn:** một nhãn `[Tác giả, Năm]` cho mỗi hàng, không gom chung ở cuối.
+- Không viền ngoài. Một Kẻ Đậm dưới hàng đầu cột, hairline giữa các hàng.
+- Đầu cột: chân phương nghiêng, màu Nét Phụ. Số: sans, chữ số bảng, canh phải.
+- **Cột hoặc chú thích cho biết "đo trên tập nào" là bắt buộc** trong mọi bảng so sánh giữa các công trình. Thiếu nó là trình bày sai lệch.
+- Hàng dẫn đầu dùng Hoàng Thổ **và** một nhãn chữ; màu không bao giờ đứng một mình.
 
-### Nhãn nguồn (citation-tag)
-- **Kiểu:** chữ Label, màu Mực Phụ, đặt ở chân slide.
-- **Nội dung:** `[Tên/Tác giả, Năm]` cộng `n=` khi con số gắn với một tập đánh giá cụ thể.
-- **Quy tắc:** không có nhãn nguồn thì con số không được lên slide.
+### Chip "chưa có dữ liệu"
+- Viền 1px **nét đứt** màu Nét Mờ, chữ chân phương nghiêng.
+- Luôn có chữ: "Minh hoạ khái niệm: chưa có dữ liệu", "Chưa xây dựng", v.v.
+- Gắn liền với hình hoặc số mà nó mô tả, không đứng rời ở góc.
 
-### Chip "chưa có dữ liệu" (unverified-chip)
-- **Kiểu:** viền 1px **nét đứt** màu Chưa Xác Minh, nền Giấy, chữ Label.
-- **Nội dung:** luôn có chữ, ví dụ "Minh hoạ khái niệm — chưa có dữ liệu" hoặc "Chưa xác minh được nguồn".
-- **Hành vi:** chip này gắn liền với hình hoặc số mà nó mô tả, không đứng rời ở góc slide.
+### Mốc phần
+- Một dải các đoạn hairline ở đầu bề mặt, mỗi phần một đoạn kèm tên phần bằng chữ.
+- Đoạn đang hoạt động: Hoàng Thổ, dày 2px, chữ chuyển từ nghiêng sang đứng.
+- Đoạn màu một mình không đủ — tên phần luôn hiện.
 
-### Chỉ báo tiến trình
-- **Kiểu:** một dải các đoạn hairline ở mép trên slide, mỗi phần của bài một đoạn; đoạn đang hoạt động chuyển sang Xanh Lâm Sàng và dày lên 3px.
-- **Kèm chữ:** luôn có tên phần bằng chữ. Đoạn màu một mình không đủ.
+### Link
+- Gạch chân 1px màu Kẻ Đậm, chữ giữ màu Nét Khắc. Hover chuyển sang Hoàng Thổ.
+- `:focus-visible` có outline 2px Hoàng Thổ — bắt buộc, đây là bề mặt điều hướng bằng bàn phím.
+- Khi in: bỏ gạch chân, tự chèn URL trong ngoặc.
 
 ### Dải RUO
-- **Kiểu:** chữ Label màu Mực Phụ trên kẻ hairline, cố định ở đầu mỗi slide có nội dung kết quả.
-- **Nội dung:** "RESEARCH USE ONLY — chưa kiểm định lâm sàng".
-- **Quy tắc:** không bao giờ bị cuộn khuất, không bao giờ chỉ xuất hiện ở slide cuối.
+- Chữ Label màu Nét Phụ, kèm một ô vuông rỗng 8px, đặt ở đầu **mọi** bề mặt có nội dung kết quả.
+- Nội dung: "Research Use Only: chưa kiểm định lâm sàng".
+- Không bao giờ bị cuộn khuất, không bao giờ chỉ xuất hiện ở bề mặt cuối.
 
 ## Do's and Don'ts
 
 ### Do:
-- **Do** viết tiêu đề slide thành câu khẳng định có thể đúng hoặc sai (The Assertion Rule).
-- **Do** gắn nhãn nguồn `[Tác giả, Năm]` và cỡ mẫu `n=` vào chân mọi slide có số của người khác.
-- **Do** ghi rõ mỗi con số đo trên tập test nào, kể cả khi điều đó làm bảng dài thêm một cột.
+- **Do** viết tiêu đề thành câu khẳng định có thể đúng hoặc sai (The Assertion Rule).
+- **Do** gắn chú số cho mọi con số của người khác, và chú giải đầy đủ ở chân bề mặt kèm link tới nguồn.
+- **Do** ghi rõ mỗi con số đo trên tập nào, kể cả khi điều đó làm bảng dài thêm.
 - **Do** dùng `font-variant-numeric: tabular-nums` cho mọi số.
 - **Do** dùng nét đứt cộng nhãn chữ cho mọi thứ chưa có dữ liệu.
 - **Do** kiểm tra bằng cách in đen trắng: nếu mất thông tin thì màu đang làm việc một mình.
+- **Do** giữ Hoàng Thổ cho riêng chú số (The Plate Key Rule).
 
 ### Don't:
 - **Don't** vẽ bất kỳ con số nào của dự án này — chưa có kết quả, và số giả trông giống số thật là rủi ro nghiêm trọng nhất ở đây.
 - **Don't** dùng `box-shadow` (The No-Shadow Rule).
 - **Don't** dùng bán kính bo góc khác 0.
-- **Don't** thêm sắc màu thứ ba ngoài Xanh Lâm Sàng và Cam Đất Nung.
+- **Don't** dùng `text-transform: uppercase` (The No-Uppercase Rule) — tiếng Việt có dấu không chịu được.
+- **Don't** thêm sắc màu thứ ba ngoài Hoàng Thổ và Lam Ngọc.
 - **Don't** dùng nét đứt để trang trí — nó đã được đặt trước cho nghĩa "chưa có dữ liệu".
 - **Don't** dùng gradient, glass, blur, hay icon trang trí.
-- **Don't** dùng `text-transform: uppercase` (The No-Uppercase Rule) — tiếng Việt có dấu không chịu được.
-- **Don't** rải em-dash trong chữ chạy. Dùng dấu phẩy, hai chấm, chấm, hoặc ngoặc đơn. Bản dựng đầu có 46 em-dash và bị bắt là nhịp văn máy.
-- **Don't** đặt nền trắng tuyệt đối #FFFFFF làm nền slide (gây loá khi chiếu); #FFFFFF chỉ dành cho panel dữ liệu.
-- **Don't** đặt hai bảng số của hai tập test khác nhau cạnh nhau mà không ghi rõ — đó là trình bày sai lệch, không phải tiết kiệm chỗ.
+- **Don't** rải em-dash trong chữ chạy. Dùng dấu phẩy, hai chấm, chấm, hoặc ngoặc đơn.
+- **Don't** thêm font thứ ba. Hai stack đã phủ hết vai trò, và mọi bổ sung đều phải qua bài kiểm tra "hiển thị đủ dấu tiếng Việt khi ngoại tuyến".
+- **Don't** đặt hai bảng số của hai tập test khác nhau cạnh nhau mà không ghi rõ.

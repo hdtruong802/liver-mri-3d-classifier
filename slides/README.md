@@ -1,57 +1,58 @@
-# slides/ — hai bản để so sánh
-
-Cùng nội dung, cùng số liệu đã xác minh, khác thế giới thị giác. Mở cả hai bằng
-double-click, bấm mũi tên trái/phải để duyệt.
+# slides/
 
 | File | Thế giới | Trạng thái |
 |---|---|---|
-| [`overview.html`](overview.html) | **Canon talk MICCAI/MIDL** | ✅ Đã chốt. Tuân theo [`DESIGN.md`](../DESIGN.md). |
-| [`overview-alt-atlas.html`](overview-alt-atlas.html) | **Bản khắc atlas giải phẫu** | 🔍 Đối chiếu. Cố tình đi ra ngoài DESIGN.md. |
+| [`overview.html`](overview.html) | Bản khắc atlas giải phẫu | ✅ Bản chính thức |
+
+13 bản khắc, một file tự chứa, mở bằng double-click. Điều hướng: mũi tên trái/phải,
+Space, Home/End. In ra PDF được (mỗi bản khắc một trang ngang, URL tự hiện trong ngoặc).
+
+Hệ thống thị giác đầy đủ ở [`DESIGN.md`](../DESIGN.md). Prompt đã dùng để sinh file
+này ở [`prompt/slides_overview.md`](../prompt/slides_overview.md).
 
 ---
 
-## Khác nhau ở đâu
+## Đã chốt thế giới thị giác (2026-07-24)
 
-| | `overview.html` (canon) | `overview-alt-atlas.html` |
-|---|---|---|
-| Nền | Giấy sáng `#F6F7F8` | Mực sâu `#10161B` |
-| Chữ | Một họ sans hệ thống | Cambria chân phương cho tiêu đề, sans cho số liệu |
-| Khung | Không khung, chỉ kẻ hairline phân vùng | Khung kẻ đôi bao quanh mỗi bản khắc |
-| Trích nguồn | `[Tác giả, Năm]` viết thẳng ở chân slide | **Chú số¹ + chú giải ở chân bản khắc** |
-| Sắc dữ liệu | Xanh lâm sàng và cam đất nung | Hoàng thổ và lam ngọc |
-| Đánh số | "7 / 13" | "Bản khắc VII" + "7 / 13" |
-| Nhịp | Thẳng, khô, đọc nhanh | Chậm hơn, có nghi thức |
+Dự án dựng **hai bản chạy được** rồi so trực tiếp:
 
-Chỗ khác biệt đáng cân nhắc nhất là **hệ trích nguồn**. Bản atlas dùng chú số và
-chú giải, vốn là thiết bị gốc của bản khắc giải phẫu, nên nội dung slide sạch hơn
-và ít bị chú thích chen ngang. Bù lại, người xem phải liếc xuống chân slide mới
-biết con số đến từ đâu — với hội đồng đang soi số liệu thì đó là một bước thừa.
+- **Canon talk MICCAI/MIDL** — nền giấy sáng, một họ sans, trích dẫn `[Tác giả, Năm]`
+  viết thẳng tại chỗ. **Đã bị loại.** Còn trong git ở commit `54513ac`.
+- **Bản khắc atlas giải phẫu** — nền mực sâu, nét khắc sáng, chữ chân phương cho
+  tiêu đề, khung kẻ đôi, và **chú số cộng chú giải** làm hệ trích nguồn. **Đã chọn.**
 
-Bản canon đặt `[Tác giả, Năm]` ngay tại chỗ, xấu hơn nhưng không bắt ai phải tra.
+Lý do quyết định không phải thẩm mỹ: bản khắc atlas có sẵn thiết bị *chú số và
+đường dóng*, và dự án này cần đúng thứ đó — mọi con số phải truy được về nguồn
+công bố. Hệ trích nguồn mọc ra từ ngữ pháp của thế giới, không bị dán vào.
 
-## Cả hai đều giữ nguyên các ràng buộc cứng
+Đánh đổi đã chấp nhận: nền tối cần phòng chiếu **có giảm sáng**. Nếu buổi báo cáo
+diễn ra trong phòng bật đèn đầy đủ thì nền sáng sẽ an toàn hơn. Ghi lại trong
+`DESIGN.md` để không ai phát hiện lại rồi tưởng là lỗi.
 
-Đây không phải chỗ để đánh đổi. Cả hai file đều có:
+## Ràng buộc cứng, không được đánh đổi
 
-- RUO trên **13/13** slide, ở vị trí không thể bỏ sót
+- RUO trên **13/13** bản khắc, ở vị trí không thể bỏ sót
 - **Không một con số nào của dự án này** — chưa có kết quả, và không được bịa
 - Ác/lành phân biệt bằng **hình dạng cộng nhãn chữ**, không bao giờ chỉ bằng màu
 - Nét đứt cộng nhãn chữ = "chưa có dữ liệu"
 - Không `text-transform: uppercase` (dấu tiếng Việt trên chữ hoa bị chèn ép)
-- Một file tự chứa, **0 tham chiếu ngoài**, mở được ngoại tuyến
-- Điều hướng bàn phím, `@media print`, tôn trọng `prefers-reduced-motion`
+- Mọi số của người khác mang **chú số dẫn về chú giải có link tới paper gốc**
+- Tự chứa: CSS và JS inline, không CDN, không webfont, mở được ngoại tuyến
+  *(có 14 hyperlink tới nguồn — bấm thì cần mạng, nhưng file vẫn mở và hiển thị
+  đầy đủ khi không có mạng)*
 
-## Nếu bạn chọn bản atlas
+## Số liệu trên slide đến từ đâu
 
-Đừng chỉ đổi file. Phải làm ba việc, theo thứ tự:
+Mọi con số đều là **kết quả đã công bố của nhóm khác**, đã mở nguồn gốc đối chiếu:
 
-1. **Viết lại [`DESIGN.md`](../DESIGN.md)** theo thế giới mới. File đó chi phối cả
-   web app và report sau này, nên để nguyên bản canon trong khi slide dùng atlas
-   là tạo drift ngay từ deliverable đầu tiên.
-2. **Gỡ dòng ignore** `slides/overview-alt-*.html` trong `.impeccable/config.json`.
-   Nó tồn tại vì file này *đang* là artifact đối chiếu; khi nó thành bản chính thì
-   phải chịu detector soi như mọi bề mặt khác.
-3. Đổi tên file thành `overview.html` và ghi một entry vào [`WORKLOG.md`](../WORKLOG.md).
+| Chú số | Nguồn |
+|---|---|
+| 1 | [LLD-MMRI Dataset](https://github.com/LMMMEng/LLD-MMRI-Dataset) · [LLD-MMRI2023 Challenge](https://github.com/LMMMEng/LLD-MMRI2023) |
+| 2 | [Macdonald et al., *Radiol Artif Intell* 2023](https://doi.org/10.1148/ryai.220275) — Duke Liver Dataset |
+| 3 | [LLD-MMRI2023 test leaderboard](https://github.com/LMMMEng/LLD-MMRI2023/blob/main/assets/test_leaderboard.md) |
+| 4 | [Lou et al., *Neural Networks* 185 (2025)](https://arxiv.org/abs/2402.17246) — SDR-Former |
+| 5 | [Wang et al., arXiv:2110.08817 (2021)](https://arxiv.org/abs/2110.08817) |
 
-Giữ nguyên ignore rồi coi bản atlas là chính thức là cách tự tắt đèn báo — đúng
-thứ [`docs/MULTI_TOOL_WORKFLOW.md`](../docs/MULTI_TOOL_WORKFLOW.md) cảnh báo.
+⚠️ **Spec Sheet đang lệch so với các nguồn này** ở ba con số SOTA và một nhận định
+về khoảng trống nghiên cứu. Slide dùng số đã xác minh; Spec Sheet chưa được sửa.
+Chi tiết ở [`WORKLOG.md`](../WORKLOG.md) entry S-005.
