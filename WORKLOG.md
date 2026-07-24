@@ -700,3 +700,28 @@ Hai ngoại lệ đăng ký kèm lý do (`single-font`, `overused-font=arial`): 
 **Điểm vào phiên sau:** Vào W2 theo `docs/W2_plan.md` — GATE ngày 0: xác nhận quyền truy cập LLD-MMRI trước khi dựng `src/`; nếu chưa có → bàn CT fallback (GNG-1).
 
 **Cảnh báo cho tool sau:** Spec Sheet + Plan **đã chuyển sang `docs/`**, không còn ở root. `prompt/` vẫn trỏ path cũ (lịch sử). `git status` còn việc staged của Codex chưa commit — đừng tưởng là rác.
+
+
+## S-018 · 2026-07-24 16:05 · claude-code
+
+**Mục tiêu phiên:** Review dataset LLD-MMRI trên Kaggle (`marcohoang/lldmmridataset`) xem đã sẵn sàng cho hướng phân loại mới chưa, và cập nhật `docs/W2_plan.md` theo phát hiện.
+
+**Nhánh / commit:** `main` · `2de3f39` → *(commit đang chờ)*
+
+**Đã động file:**
+- `docs/W2_plan.md` — thêm §0 "Kết quả review dataset"; đổi GATE ngày 0 (data access = ✅, gate mới = đủ mảnh cho classification); sửa T1.2 (reader chỉ đọc `images/` + annotation, bỏ `labels/`+`.cache/`), T1.3 (split từ file official), T2.1 (gate geometry ảnh↔annotation), T3.2 (gộp bbox 2D→3D, crop full-volume vì không có patch cắt sẵn), T4.1 (test-104 official khoá kín + 5-fold trên 394); cập nhật DoD + "Điểm phải hỏi" + "Câu hỏi cần chốt".
+
+**Quyết định & lý do:**
+- Dataset = bản raw `wanglab/LLD-MMRI-MedSAM2` (HuggingFace) dump lên Kaggle (~83.7GB, private, v1). Đóng gói cho **segmentation** (kèm `labels/` mask MedSAM2) nhưng **giữ nguyên annotation phân loại gốc** `LLD_MMRI_Annotation.json`: 7 lớp + Benign[0,2,4,5]/Malignant[1,3,6] (khớp Spec Sheet 100%) + bbox 2D per-slice.
+- **Giữ official 316/78/104** (test-104 khoá kín, 5-fold trên 394) theo khuyến nghị — đúng Spec Sheet §2, so được benchmark SOTA. Phương án đã loại: tự chia hoàn toàn (mất tính so-benchmark) — chỉ dùng làm fallback.
+- Xác nhận cơ chế split official (đọc code repo LMMMEng): `data/classification_dataset/labels/{train,val}_fold*.txt` (`np.loadtxt`, `patient_id  class`); `gene_cross_val.py` chỉ sinh fold, KHÔNG định nghĩa official split → file split đến từ bản classification gốc, **không có trong bản wanglab**.
+
+**Kết quả / số liệu:** Không có số liệu nghiên cứu. Đã cài `kaggle` CLI (chỉ để inspect, KHÔNG vào requirements) + tải `README.md`, `__huggingface_repos__.json`, `LLD_MMRI_Annotation.json` về scratchpad (ngoài repo). Quality gate: (chạy sau khi ghi entry).
+
+**Dang dở:**
+- [ ] **Định vị file split official** (`train/val/test`) từ bản LLD-MMRI classification gốc — CHẶN test-104 khoá kín.
+- [ ] Verify geometry ảnh↔annotation (bản MedSAM2 có thể đã resample) — gate EDA T2.1.
+
+**Điểm vào phiên sau:** Vào W2 ngày 1 — scaffold `src/utils` + `src/data/dataset.py` (đọc `lld/images/` + `LLD_MMRI_Annotation.json`, bỏ `labels/`+`.cache/`). Chờ người dùng chỉ đường dẫn file split official (Câu hỏi #1 trong W2_plan).
+
+**Cảnh báo cho tool sau:** Dataset Kaggle là bản **SEGMENTATION** (wanglab MedSAM2) — TUYỆT ĐỐI không nạp `lld/labels/` (mask) vào classification. Không có **patch cắt sẵn**, chỉ full-volume → crop bằng bbox. bbox là **2D per-slice**, phải gộp theo `slice_idx` thành ROI 3D.

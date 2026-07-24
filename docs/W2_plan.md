@@ -10,16 +10,35 @@
 
 ---
 
-## GATE ngày 0 — Quyền truy cập LLD-MMRI (làm NGAY, không chờ)
+## 0. Kết quả review dataset (2026-07-24) — ĐÃ XÁC MINH
 
-> Đây là điểm **phải hỏi người dùng** (AGENTS.md §10 / docs/plan.md §5). W1 đã hết nên rủi ro này khẩn cấp — nếu để lộ ra giữa tuần thì cả W2 vỡ.
+Dataset `marcohoang/lldmmridataset` (Kaggle, private, ~83.7GB, v1) = **bản raw của `wanglab/LLD-MMRI-MedSAM2` (HuggingFace) dump nguyên si**, gồm cả cache `lld/.cache/huggingface/**`. Là **input thô cho `build_cache`**, không phải cache đã tiền xử lý.
 
-- [ ] **Xác nhận form LLD-MMRI đã được duyệt** và có link tải thật (GitHub `LMMMEng/LLD-MMRI-Dataset` hoặc mirror research-use).
-- [ ] Nếu **CHƯA duyệt** → không chờ. Kích hoạt **GNG-1 → CT fallback** (bộ CT gan đa pha public), chấp nhận mất T2/DWI + câu chuyện LI-RADS. **→ hỏi người dùng trước khi chuyển**, ghi WORKLOG mục "Quyết định".
-- [ ] Nếu **đã duyệt** → tải về `data/` (đã gitignore), verify checksum/số bệnh nhân = 498, số pha = 8, số lớp = 7.
+**Đã sẵn (khớp hướng mới):**
+- ✅ 498 bn · 8 thì đúng chuẩn (`C-pre, C+A, C+V, C+Delay, T2WI, DWI, InPhase, OutPhase`) · full-volume `.nii.gz` tại `lld/images/`.
+- ✅ `lld/LLD_MMRI_Annotation.json` (18MB) giữ **annotation phân loại gốc**: `Category_info` = 7 lớp + `Benign[0,2,4,5]`/`Malignant[1,3,6]` (khớp Spec Sheet 100%); `Annotation_info` = per-phase `pixel_spacing/slice_spacing/origin` + `lesion.category` + `bbox.2D_box` (hộp 2D theo từng slice).
 
-**Verify:** liệt kê được 498 bệnh nhân × 8 pha; đối chiếu pre-split gốc 316/78/104 khớp tài liệu dataset.
-**Kill-switch:** chưa có data hết ngày 0 → CT fallback; không dựng pipeline MRI trên giả định có data.
+**Thiếu / phải xử lý (đã phản ánh vào task bên dưới):**
+- 🔴 **Không có file split official 316/78/104.** Cơ chế chuẩn (repo LMMMEng): `data/classification_dataset/labels/{train,val}_fold{i}.txt` — `np.loadtxt`, cột `patient_id  class`; `gene_cross_val.py` chỉ **sinh fold** từ 1 file nhãn gốc, **không** định nghĩa official split. → phải lấy file nhãn train/val/**test** từ bản LLD-MMRI classification gốc (bạn đã có quyền); bản wanglab đã lược bỏ.
+- 🟡 **Là bản đóng gói SEGMENTATION** — kèm `lld/labels/` = mask MedSAM2 (không dùng, chiếm phần lớn 83.7GB). Reader chỉ đọc `images/` + annotation, **bỏ `labels/` + `.cache/`**. Không drift sang segmentation (AGENTS.md §3.9).
+- 🟡 **Không có patch cắt sẵn** — chỉ full-volume → v0 **crop từ full-volume bằng bbox** (đảo giả định "patch cắt sẵn" của Plan §3).
+- 🟡 **bbox là 2D per-slice** → phải gộp `2D_box` theo `slice_idx` thành 1 ROI 3D cho crop.
+- 🟡 **Chưa xác minh ảnh↔annotation** (bản MedSAM2 có thể đã resample/reorient ảnh trong khi bbox ở toạ độ gốc) → gate EDA (T2.1).
+
+**Quyết định đã chốt (theo khuyến nghị):** giữ **official 316/78/104** — 5-fold patient-level trên 394 (train+val), **test-104 khoá kín** (đúng Spec Sheet §2, so được benchmark SOTA). Fallback nếu không định vị được file split kịp: tự chia patient-level + tự held-out, **ghi rõ mất tính so-benchmark**.
+
+---
+
+## GATE ngày 0 — Data readiness (làm NGAY)
+
+> Data access = ✅ (dataset đã có, §0). GATE giờ **không còn là quyền truy cập** mà là **đủ mảnh cho classification chưa**.
+
+- [x] LLD-MMRI 498 bn / 8 thì / annotation 7 lớp + bbox — **có** (§0).
+- [ ] **Định vị/lấy file split official** `train/val/test` (hoặc `{train,val}_fold*.txt` + `test`) từ bản LLD-MMRI classification gốc → đặt vào `data/classification_dataset/labels/`. **→ cần bạn cung cấp/định vị.** Đây là điểm chặn cho **test-104 khoá kín** + so benchmark.
+- [ ] Chốt reader **bỏ `lld/labels/` (mask segmentation) + `lld/.cache/`**.
+
+**Verify:** đọc được `lld/images/` + `LLD_MMRI_Annotation.json`; có danh sách **104 patient_id test official**.
+**Kill-switch:** không lấy được split official → fallback tự chia (ghi WORKLOG, chấp nhận mất so-benchmark). **CT fallback (GNG-1) KHÔNG còn cần** — đã có MRI.
 
 ---
 
@@ -38,15 +57,15 @@
 - *Kaggle:* — · *Rủi ro:* —
 
 **T1.2 — Dataset reader LLD-MMRI**
-- *File:* `src/data/dataset.py` (đọc 8 pha + bbox + nhãn 7 lớp cho mỗi bệnh nhân), `src/data/__init__.py`.
+- *File:* `src/data/dataset.py` (đọc 8 pha từ `lld/images/{MR-*}_{lesion}_{phase}_0000.nii.gz` + parse `LLD_MMRI_Annotation.json` cho `category` + `bbox.2D_box`), `src/data/__init__.py`.
 - *Phụ thuộc:* GATE ngày 0, T1.1.
-- *DoD + verify:* load 1 mẫu → trả dict `{phases: tensor[8,...], label: int, patient_id, bbox}`; unit sanity: shape 8 pha khớp nhau sau khi chỉ resample; script in ra 5 mẫu đầu.
-- *Kaggle:* đường dẫn gốc data **qua config/env**, không hardcode. · *Rủi ro:* thiếu pha ở một số bệnh nhân → ghi lại chiến lược (impute/loại) ở EDA, chưa quyết ở đây.
+- *DoD + verify:* load 1 mẫu → trả dict `{phases: tensor[8,...], label: int, patient_id, bbox3d}`; **chỉ đọc `images/` + annotation**, bỏ qua `lld/labels/` (mask segmentation) và `lld/.cache/`; script in ra 5 mẫu đầu.
+- *Kaggle:* đường dẫn gốc data **qua config/env**, không hardcode. · *Rủi ro:* (a) thiếu pha ở một số bệnh nhân → ghi chiến lược (impute/loại) ở EDA; (b) đừng vô tình nạp `labels/` mask → sai bài toán (segmentation).
 
 **T1.3 — Manifest bệnh nhân**
-- *File:* `src/data/build_manifest.py` → `data/manifest.csv` (gitignore) : patient_id, class, có/thiếu từng pha, spacing, shape gốc, split gốc (train/val/test).
+- *File:* `src/data/build_manifest.py` → `data/manifest.csv` (gitignore) : patient_id, class (từ `Category_info`), có/thiếu từng pha, spacing/shape gốc, cột `split` (điền từ file split official ở GATE — nếu chưa có thì để trống, điền sau).
 - *Phụ thuộc:* T1.2.
-- *DoD + verify:* manifest có đúng 498 dòng; cột class ∈ 7 nhãn; đếm thiếu-pha ra số cụ thể.
+- *DoD + verify:* manifest có đúng 498 dòng; cột class ∈ 7 nhãn; đếm thiếu-pha ra số cụ thể; nếu có split official → đếm khớp 316/78/104.
 
 ---
 
@@ -55,8 +74,8 @@
 **T2.1 — Notebook EDA**
 - *File:* `notebooks/01_eda.ipynb` (lớp mỏng, chỉ gọi vào `src/`, **strip output trước commit**).
 - *Phụ thuộc:* T1.3.
-- *DoD + verify:* notebook chạy end-to-end sinh: (a) phân bố 7 lớp (xác nhận áp-xe/FNH hiếm cỡ nào); (b) phân bố spacing & shape mỗi pha; (c) tỉ lệ thiếu pha; (d) thống kê kích thước bbox lesion; (e) khuyến nghị crop size (96³ hay 64³) dựa trên bbox thực.
-- *Kaggle:* — · *Rủi ro:* nếu bbox lớn hơn 96×96×48 ở nhiều ca → điều chỉnh crop size ở `configs/preprocess.yaml` trước khi cache (tránh cache lại).
+- *DoD + verify:* notebook chạy end-to-end sinh: (a) phân bố 7 lớp (xác nhận áp-xe/FNH hiếm cỡ nào); (b) phân bố spacing & shape mỗi pha; (c) tỉ lệ thiếu pha; (d) thống kê kích thước bbox lesion; (e) khuyến nghị crop size (96³ hay 64³) dựa trên bbox thực; (f) **GATE geometry (bắt buộc, vì bản MedSAM2 có thể đã resample):** load 3–5 ca, đối chiếu `shape`/`spacing` ảnh thật với `pixel_spacing/slice_spacing/origin` trong annotation; overlay `bbox.2D_box` lên đúng slice → xác nhận hộp trùng vùng u. **Không đạt → dừng, không crop theo bbox.**
+- *Kaggle:* — · *Rủi ro:* (a) bbox lớn hơn 96×96×48 nhiều ca → chỉnh crop size ở `configs/preprocess.yaml` trước khi cache; (b) geometry lệch → phải resample bbox theo ảnh hoặc dùng full-volume tọa độ nhất quán trước khi tin ROI-crop.
 
 **T2.2 — Chốt tham số tiền xử lý từ EDA**
 - *File:* ghi quyết định vào đầu `configs/preprocess.yaml` (comment) + WORKLOG.
@@ -73,8 +92,8 @@
 - *DoD + verify:* mọi hyperparam preprocessing (spacing, crop, clip percentile, z-score, N4 on/off, path in/out) **đều trong YAML**, code chỉ đọc. Không magic number trong code.
 
 **T3.2 — Pipeline build_cache**
-- *File:* `src/preprocess/build_cache.py`, `src/preprocess/transforms.py` (MONAI: resample ~1.5×1.5×3.0mm → ROI-crop 96×96×48 quanh lesion → per-sequence z-score / percentile clip). **N4 tuỳ chọn** (chậm — mặc định off ở v0, bật qua config).
-- *Phụ thuộc:* T3.1. Dùng **patch cắt sẵn** của LLD-MMRI làm kênh đã căn ở pass đầu → **registration hoãn sang W3** (ghi rõ trong docstring).
+- *File:* `src/preprocess/build_cache.py`, `src/preprocess/transforms.py`, `src/preprocess/bbox3d.py` (gộp `bbox.2D_box` theo `slice_idx` → 1 ROI 3D). MONAI: resample ~1.5×1.5×3.0mm → **ROI-crop 96×96×48 từ full-volume quanh ROI 3D** → per-sequence z-score / percentile clip. **N4 tuỳ chọn** (chậm — mặc định off ở v0, bật qua config).
+- *Phụ thuộc:* T3.1, gate geometry T2.1. **Không có patch cắt sẵn** trong bản wanglab → crop từ full-volume bằng bbox (khác giả định Plan §3). **Registration vẫn hoãn W3** (pass đầu coi các pha như đã căn thô; ghi rõ trong docstring).
 - *DoD + verify:* `python -m src.preprocess.build_cache --config configs/preprocess.yaml` chạy hết 498 ca, sinh cache (một file/ca hoặc tensor gộp); log CSV tiến độ; kiểm 3 ca ngẫu nhiên: shape đồng nhất `[8, 96, 96, 48]`, z-score mean≈0/std≈1 per-pha **tính trên train**.
 - *Kaggle:* chạy **offline 1 lần** → đẩy lên làm **Kaggle Dataset có version**; notebook chỉ mount. Path ghi qua config. · *Rủi ro:* N4 quá chậm → **kill-switch: bỏ N4 v0** (đã mặc định off); cache không kịp → giảm còn resample+crop+z-score.
 
@@ -87,10 +106,10 @@
 
 ### Ngày 4 — Split khoá mức bệnh nhân + leakage test
 
-**T4.1 — Sinh split 5-fold**
-- *File:* `src/data/make_splits.py` → `splits/cv5_patient.json` (+ ghi test-104 giữ riêng).
-- *Phụ thuộc:* T1.3 (manifest).
-- *DoD + verify:* `python -m src.data.make_splits --out splits/` sinh **5-fold stratified patient-level** trên train+val (394 ca), **test-104 khoá riêng, không vào fold nào**; stratify theo 7 lớp; seed cố định. File **commit** (bất biến), không sinh lại ngẫu nhiên mỗi lần.
+**T4.1 — Sinh split 5-fold (trên nền split official)**
+- *File:* `src/data/make_splits.py` → `splits/cv5_patient.json` (5-fold train+val) + `splits/test104.json` (held-out official, khoá kín).
+- *Phụ thuộc:* T1.3 (manifest) + **file split official ở GATE** (`test` = 104 patient_id).
+- *DoD + verify:* `python -m src.data.make_splits --out splits/` → **tách test-104 official ra trước** (không vào fold nào), rồi sinh **5-fold stratified patient-level** trên 394 (train+val), stratify theo 7 lớp, seed cố định. File **commit** (bất biến). *(Nếu chưa có split official → fallback: tự tách test held-out patient-level từ 498, ghi WORKLOG là mất so-benchmark.)*
 - *Rủi ro:* lớp cực hiếm (áp-xe/FNH) có thể 0 mẫu ở một fold → in cảnh báo + xét gộp super-class cho việc stratify (ghi WORKLOG nếu phải làm vậy).
 
 **T4.2 — Leakage test (bắt buộc)**
@@ -151,7 +170,7 @@
 |---|---|
 | [ ] EDA notebook (phân bố 7 lớp, spacing, shape, thiếu pha) | mở `notebooks/01_eda.ipynb`, chạy end-to-end ra đủ 5 biểu đồ/bảng |
 | [ ] Preprocessing v0 (resample→crop→z-score) cache thành Kaggle Dataset versioned | `build_cache` chạy hết 498 ca; Kaggle Dataset có version; 3 ca kiểm shape `[8,96,96,48]` |
-| [ ] `splits/` 5-fold stratified patient-level, đã commit, bất biến | file `splits/cv5_patient.json` trong git; chạy lại `make_splits` cho **cùng** kết quả (seed) |
+| [ ] `splits/` 5-fold trên 394 + `test104.json` official khoá kín, đã commit, bất biến | `splits/cv5_patient.json` + `splits/test104.json` trong git; test-104 không giao fold nào; chạy lại `make_splits` cho **cùng** kết quả (seed) |
 | [ ] `pytest tests/` leakage test PASS (giao tập BN mọi cặp fold = ∅) | `pytest -q` xanh; test kiểm cả test-104 tách rời |
 | [ ] Baseline 2.5D + 3D-patch chạy 1 fold, ra macro-F1 val | 2 số val + 2 config + seed ghi lại |
 | [ ] Cập nhật bảng lệnh AGENTS.md §6 (cùng commit tạo entrypoint) | đối chiếu §6 với entrypoint thật |
@@ -162,7 +181,7 @@
 
 ## Điểm phải hỏi người dùng (AGENTS.md §10)
 
-- **Quyền truy cập LLD-MMRI** & kích hoạt **CT fallback (GNG-1)** nếu chưa có data — hỏi trước, ghi WORKLOG.
+- **File split official** — định vị `train/val/test` label từ bản LLD-MMRI classification gốc; nếu không có → quyết fallback tự chia (mất so-benchmark). *(Data access đã ✅ — CT fallback GNG-1 không còn cần.)*
 - **Đổi tham số đã chốt trong Spec Sheet** (spacing, crop, taxonomy, chiến lược split) — nếu EDA gợi ý phải đổi, nêu ra, không tự quyết.
 - **Thêm dependency nặng** (vd ANTs cho registration — nhưng registration là W3, đừng kéo vào W2).
 - **Đẩy dữ liệu/cache lên dịch vụ ngoài** ngoài Kaggle Dataset research-use.
@@ -177,8 +196,8 @@
 
 ## Câu hỏi cần chốt (Spec/plan chưa rõ)
 
-1. **Nguồn tải LLD-MMRI cụ thể** đã có link/quyền chưa? (gate ngày 0)
-2. **Dùng patch cắt sẵn hay full-volume ở v0?** Plan §3 nói pass đầu dùng patch cắt sẵn (registration hoãn W3) — xác nhận để `build_cache` khỏi làm thừa.
+1. ✅ **Data đã có** (`marcohoang/lldmmridataset`). Việc còn lại: **định vị file split official** (`train/val/test` label) — có trong bản LLD-MMRI classification gốc bạn tải từ form không? Nếu có, chỉ tôi đường dẫn; nếu không, ta đi fallback tự chia (mất so-benchmark).
+2. ✅ **Chốt: v0 crop từ full-volume bằng bbox** (bản wanglab không có patch cắt sẵn). Registration vẫn hoãn W3.
 3. **Chạy N4 ở v0 không?** Mặc định đề xuất **off** (chậm, hoãn được). Đồng ý?
 4. **Định dạng file split:** JSON (`{fold: {train:[ids], val:[ids]}}`) + test-104 riêng — OK hay muốn CSV?
 5. **Chiến lược ca thiếu pha:** loại khỏi train hay zero-fill + mask? (EDA T2.1 sẽ cho số để quyết)
