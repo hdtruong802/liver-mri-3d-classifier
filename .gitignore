@@ -79,9 +79,24 @@ npm-debug.log*
 # package-lock.json KHÔNG ignore — nếu có package.json thì phải commit lockfile.
 
 # -----------------------------------------------------------------------------
+# Impeccable — payload skill (KIỂM CHỨNG 2026-07-24)
+# `npx impeccable install` chép NGUYÊN BỘ skill vào 3 chỗ: .claude/skills/,
+# .cursor/skills/, .agents/skills/ — 377 file, ~8.7MB, ba bản y hệt nhau.
+# KHÔNG commit: mỗi lần cài lại sẽ tạo diff khổng lồ ở 3 nơi cùng lúc.
+# Cách khôi phục trên máy mới: chạy lại lệnh install (AGENTS.md §6).
+# Đánh đổi đã chấp nhận: version Impeccable KHÔNG được pin trong git, nên bản
+# cài lại có thể khác. Nếu về sau cần khoá version, ghi số version vào WORKLOG
+# thay vì commit 8.7MB.
+# -----------------------------------------------------------------------------
+.claude/skills/impeccable/
+.cursor/skills/impeccable/
+.agents/skills/impeccable/
+
+# -----------------------------------------------------------------------------
 # Impeccable — ephemeral (MULTI_TOOL_WORKFLOW §8.4)
 # Commit: PRODUCT.md, DESIGN.md, .impeccable/config.json, .impeccable/design.json,
-#         .impeccable/critique/*.md, .impeccable/live/config.json
+#         .impeccable/critique/*.md, .impeccable/live/config.json,
+#         .cursor/hooks.json, .codex/hooks.json
 # -----------------------------------------------------------------------------
 .impeccable/config.local.json
 .impeccable/hook.cache.json
@@ -119,13 +134,15 @@ npm-debug.log*
 
 # -----------------------------------------------------------------------------
 # Google Antigravity
-# CHƯA KIỂM CHỨNG: các đường dẫn dưới đây là phỏng đoán. Sau phiên Antigravity
+# CHƯA KIỂM CHỨNG: hai đường dẫn dưới đây là phỏng đoán. Sau phiên Antigravity
 # ĐẦU TIÊN, chạy `git status` và bổ sung đúng những gì nó thực sự sinh ra,
 # rồi ghi vào WORKLOG. Antigravity có hệ memory riêng nằm NGOÀI repo — .gitignore
 # không kiểm soát được nó (MULTI_TOOL_WORKFLOW §5.8).
+#
+# CẢNH BÁO: KHÔNG viết `.agent*` hay `.agents/` ở đây. `.agents/skills/impeccable/`
+# là của Impeccable (payload cho Codex), đã xử lý riêng ở khối trên.
 # -----------------------------------------------------------------------------
 .antigravity/
-.agent/
 .gemini/
 
 # -----------------------------------------------------------------------------
