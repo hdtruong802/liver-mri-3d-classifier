@@ -398,16 +398,29 @@ em.term{font-style:normal;color:var(--key)}
         <p class="quiet">Hai câu hỏi này quyết định việc một model có dùng được trên lâm sàng hay không. Accuracy thì không.</p>
       </div>
       <div class="concept">
-        <div class="chip">Minh hoạ khái niệm: chưa có dữ liệu</div>
-        <svg viewBox="0 0 320 150" role="img" aria-label="Sơ đồ khái niệm: khi giảm coverage thì sai số giảm. Không có số liệu.">
-          <line x1="40" y1="16" x2="40" y2="118" stroke="#44535D" stroke-width="1"/>
-          <line x1="40" y1="118" x2="300" y2="118" stroke="#44535D" stroke-width="1"/>
-          <path d="M60 34 C120 52 200 84 288 106" fill="none" stroke="#D4A72C" stroke-width="2" stroke-dasharray="7 5"/>
-          <text x="6" y="24" font-family="Cambria,serif" font-size="10" fill="#A9B2B8">Sai số</text>
-          <text x="226" y="140" font-family="Cambria,serif" font-size="10" fill="#A9B2B8">Coverage tăng</text>
-          <text x="52" y="70" font-family="Cambria,serif" font-size="10" fill="#A9B2B8">model tự quyết ít hơn</text>
+        <div class="chip">Ví dụ minh hoạ: dữ liệu giả lập, không phải kết quả dự án</div>
+        <svg viewBox="0 0 360 210" role="img" aria-label="Biểu đồ số giả lập, không phải kết quả dự án: khi coverage tăng từ 50% lên 100%, số ca sai trên 100 ca giả lập tăng từ 5 lên 23.">
+          <text x="48" y="18" font-family="Cambria,serif" font-size="11" fill="#A9B2B8">Sai / 100 ca giả lập</text>
+          <line x1="50" y1="30" x2="50" y2="166" stroke="#44535D" stroke-width="1"/>
+          <line x1="50" y1="166" x2="330" y2="166" stroke="#44535D" stroke-width="1"/>
+          <line x1="50" y1="125" x2="330" y2="125" stroke="#2E3A42" stroke-width="1"/>
+          <line x1="50" y1="82" x2="330" y2="82" stroke="#2E3A42" stroke-width="1"/>
+          <text x="32" y="169" text-anchor="end" font-family="Segoe UI,Arial,sans-serif" font-size="11" fill="#8B949B">0</text>
+          <text x="32" y="128" text-anchor="end" font-family="Segoe UI,Arial,sans-serif" font-size="11" fill="#8B949B">10</text>
+          <text x="32" y="85" text-anchor="end" font-family="Segoe UI,Arial,sans-serif" font-size="11" fill="#8B949B">20</text>
+          <path d="M78 145 L190 111 L302 68" fill="none" stroke="#E8E4DA" stroke-width="2" stroke-dasharray="7 5"/>
+          <circle cx="78" cy="145" r="4" fill="#10161B" stroke="#E8E4DA" stroke-width="2"/>
+          <circle cx="190" cy="111" r="4" fill="#10161B" stroke="#E8E4DA" stroke-width="2"/>
+          <circle cx="302" cy="68" r="4" fill="#10161B" stroke="#E8E4DA" stroke-width="2"/>
+          <text x="78" y="136" text-anchor="middle" font-family="Segoe UI,Arial,sans-serif" font-size="12" fill="#E8E4DA">5</text>
+          <text x="190" y="102" text-anchor="middle" font-family="Segoe UI,Arial,sans-serif" font-size="12" fill="#E8E4DA">13</text>
+          <text x="302" y="59" text-anchor="middle" font-family="Segoe UI,Arial,sans-serif" font-size="12" fill="#E8E4DA">23</text>
+          <text x="78" y="185" text-anchor="middle" font-family="Segoe UI,Arial,sans-serif" font-size="11" fill="#A9B2B8">50%</text>
+          <text x="190" y="185" text-anchor="middle" font-family="Segoe UI,Arial,sans-serif" font-size="11" fill="#A9B2B8">75%</text>
+          <text x="302" y="185" text-anchor="middle" font-family="Segoe UI,Arial,sans-serif" font-size="11" fill="#A9B2B8">100%</text>
+          <text x="190" y="204" text-anchor="middle" font-family="Cambria,serif" font-size="11" fill="#A9B2B8">Coverage được model tự quyết</text>
         </svg>
-        <p class="quiet" style="font-size:var(--label);margin-top:var(--sm);max-width:none">Trục không có số vì dự án chưa có kết quả. Hình chỉ mô tả quan hệ: cho phép từ chối nhiều hơn thì sai số trên phần còn lại giảm xuống.</p>
+        <p class="quiet" style="font-size:var(--label);margin-top:var(--sm);max-width:none">Số <span class="num">5</span>, <span class="num">13</span>, <span class="num">23</span> là <strong>dữ liệu giả lập</strong>, chỉ diễn giải trade-off: giảm coverage bằng cách <em class="term">defer</em> nhiều hơn có thể giảm sai số trên các ca còn lại. Không dùng để suy luận hiệu năng của dự án này.</p>
       </div>
     </div>
   </div>

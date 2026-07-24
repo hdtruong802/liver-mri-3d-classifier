@@ -545,3 +545,28 @@ Hai ngoại lệ đăng ký kèm lý do (`single-font`, `overused-font=arial`): 
 **Điểm vào phiên sau:** Mở `slides/overview.html`, trình chiếu lần lượt 14 bản ở 1366×768, 1920×1080 và 1280×720; ưu tiên kiểm tra VII, VIII, X, XI, XIV là các bản nhiều chữ/bảng.
 
 **Cảnh báo cho tool sau:** `dense-slide` là biến thể đọc xa nhưng nhiều nội dung, không phải lớp “thu nhỏ chữ”. Giữ khoảng cách đầy đủ giữa `data` và `body` theo DESIGN.md; nếu một bản tràn, sửa cấu trúc/nội dung riêng của bản đó trước khi hạ cả thang chữ.
+
+## S-012 · 2026-07-24 12:19 · codex
+
+**Mục tiêu phiên:** Thêm số liệu giả lập để minh hoạ trực quan trade-off risk–coverage ở bản khắc IV, với nhãn trung thực về trạng thái dữ liệu.
+
+**Nhánh / commit:** `main` · `b97424b` → *(commit đang chờ)*
+
+**Đã động file:**
+- `slides/overview.html` — thay sơ đồ khái niệm bằng biểu đồ 3 mốc số giả lập.
+- `WORKLOG.md` — ghi nhận mục đích và giới hạn của biểu đồ.
+
+**Quyết định & lý do:**
+- Dùng mốc `coverage` 50% / 75% / 100% và 5 / 13 / 23 ca sai trên 100 ca giả lập — minh hoạ trực tiếp cho ý nghĩa của selective prediction thay vì chỉ vẽ đường cong trừu tượng.
+- Nhãn chip, `aria-label` và chú thích đều ghi “dữ liệu giả lập, không phải kết quả dự án” — đây là điều kiện để số mô phỏng không bị hiểu nhầm là hiệu năng thật.
+- Đường dữ liệu dùng Nét Khắc đứt, không dùng Hoàng Thổ — nét đứt có nghĩa “minh hoạ/chưa có dữ liệu” trong DESIGN.md; Hoàng Thổ vẫn dành riêng cho chú số và điều hướng.
+
+**Kết quả / số liệu:** Detector layout của Impeccable và CLI Impeccable cho `slides` đều trả `[]`; `git diff --check` sạch; số thẻ `<div>` mở/đóng đều là 93.
+
+**Dang dở:**
+- [ ] Phần thay đổi chữ ở bản I–III (`Bảy/Tám` → `7/8`, rút dòng giới thiệu) là thay đổi chưa commit của người dùng. Đã được người dùng yêu cầu giữ nguyên, nhưng không được stage/commit cùng thay đổi này.
+- [ ] `bash scripts/quality-gate.sh` không chạy được vì máy chưa cài WSL distribution; detector tương đương đã chạy trực tiếp từ npm cache.
+
+**Điểm vào phiên sau:** Mở `slides/overview.html#4` và kiểm tra biểu đồ ở 16:9; nếu có kết quả nghiên cứu thật, thay toàn bộ 3 mốc giả lập và cập nhật chú thích/nguồn cùng lúc.
+
+**Cảnh báo cho tool sau:** Không dùng số `5 / 13 / 23` hay biểu đồ này ở bất kỳ bề mặt nào như dữ liệu thật. Đây là mô phỏng được ghi nhãn rõ để giải thích khái niệm, không phải kết quả mô hình.
