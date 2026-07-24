@@ -19,31 +19,31 @@ Dataset `marcohoang/lldmmridataset` (Kaggle, private, ~83.7GB, v1) = **bản raw
 - ✅ `lld/LLD_MMRI_Annotation.json` (18MB) giữ **annotation phân loại gốc**: `Category_info` = 7 lớp + `Benign[0,2,4,5]`/`Malignant[1,3,6]` (khớp Spec Sheet 100%); `Annotation_info` = per-phase `pixel_spacing/slice_spacing/origin` + `lesion.category` + `bbox.2D_box` (hộp 2D theo từng slice).
 
 **Bổ sung từ PDF challenge (`docs/LiverLesion…pdf` p.9-13) + repo LMMMEng:**
-- **Phân bố lớp (tổng 498):** HCC 157 · u máu 79 · ICC 58 · áp-xe 54 · nang 53 · di căn 51 · FNH 46 → **HCC áp đảo, imbalance vừa phải** (HCC:FNH ≈ 3.4:1), KHÔNG long-tail. Split official **stratified, sizes 316/78/104** nhưng **không công bố patient_id** (chỉ có số/lớp/tập).
+- **Phân bố lớp (tổng 498):** HCC 157 · u máu 79 · ICC 58 · áp-xe 54 · nang 53 · di căn 51 · FNH 46 → **HCC áp đảo, imbalance vừa phải** (HCC:FNH ≈ 3.4:1), KHÔNG long-tail. Split official **stratified, sizes 316/78/104**; **patient_id không có trong PDF nhưng ĐÃ TÁI LẬP** (xem Quyết định §0 + `splits/`).
 - **Geometry khác nhau giữa thì (p.9):** non-contrast chụp **coronal**; DWI matrix 132×116 (thô); T1 spacing 2mm, T2 spacing 1mm; đa máy 1.5T/3T (Kangda/GE/Philips) → **registration + resample về grid chung là BẮT BUỘC**, và có **domain shift nội bộ** (hợp lý hoá calibration/robustness).
 - **Nhãn = pathology report** (gold standard), bbox vẽ per-phase. Metric ranking = **trung bình(macro-F1, Cohen's κ)** — khớp Spec Sheet.
 - ⚠️ **License CC BY-NC-ND** → KHÔNG phát tán bản dữ liệu phái sinh (cache) công khai; repro pack chỉ chia **code + split IDs + config**; Kaggle Dataset để **private**.
 
 **Thiếu / phải xử lý (đã phản ánh vào task bên dưới):**
-- ✅ **Không có file split official 316/78/104** (đã xác minh HF API + annotation JSON; repo LMMMEng cũng không public split — chỉ có code `gene_cross_val.py` sinh fold từ 1 file nhãn gốc). **Quyết định 2026-07-24: dùng split tự tạo mức bệnh nhân** (xem "Quyết định" dưới + T4.1), không truy official.
+- ✅ **Split official 316/78/104 — ĐÃ TÁI LẬP** (bản wanglab không kèm split, nhưng lấy `labels_trainval.txt` từ repo đội thi ZHEGG/miccai2023 → test-104 = 498 − 394; verify khớp PDF 100%). Lưu 12 file ở `splits/`. Xem "Quyết định" dưới + T4.1.
 - 🟡 **Là bản đóng gói SEGMENTATION** — kèm `lld/labels/` = mask MedSAM2 (không dùng, chiếm phần lớn 83.7GB). Reader chỉ đọc `images/` + annotation, **bỏ `labels/` + `.cache/`**. Không drift sang segmentation (AGENTS.md §3.9).
 - 🟡 **Không có patch cắt sẵn** — chỉ full-volume → v0 **crop từ full-volume bằng bbox** (đảo giả định "patch cắt sẵn" của Plan §3).
 - 🟡 **bbox là 2D per-slice** → phải gộp `2D_box` theo `slice_idx` thành 1 ROI 3D cho crop.
 - 🟡 **Chưa xác minh ảnh↔annotation** (bản MedSAM2 có thể đã resample/reorient ảnh trong khi bbox ở toạ độ gốc) → gate EDA (T2.1).
 
-**Quyết định đã chốt (2026-07-24, WORKLOG S-019):** nguồn wanglab **không có official split** → dùng **split tự tạo mức bệnh nhân**: tách ~104 ca held-out test + 5-fold stratified trên phần còn lại (498 bn), **frozen + commit**. Đánh đổi: mất so trực tiếp leaderboard test-104 — chấp nhận vì headline là trustworthiness, không đua accuracy. *(Đã cập nhật Spec Sheet §2.)*
+**Quyết định đã chốt (2026-07-24, WORKLOG S-021):** dùng **split official 316/78/104 — ĐÃ TÁI LẬP + verify**. `labels_trainval.txt` (394) lấy từ [ZHEGG/miccai2023](https://github.com/ZHEGG/miccai2023) → test-104 = 498 − 394; **phân bố lớp khớp PDF official 100%** (7/7 lớp). Lưu 12 file ở `splits/` (bất biến); 5-fold CV dùng official fold. **Khôi phục so benchmark trực tiếp với SOTA.** *(Đảo quyết định S-019 "tự chia"; Spec Sheet §2 cập nhật lại.)*
 
 ---
 
 ## GATE ngày 0 — Data readiness (ĐÃ THÔNG)
 
-> Data access = ✅ (dataset đã có, §0). Official split đã xác minh **không có** trong nguồn → dùng split tự tạo (§0). **Không còn blocker cho W2.**
+> Data access = ✅ + **split official 316/78/104 đã tái lập + verify** (§0). **Không còn blocker cho W2.**
 
 - [x] LLD-MMRI 498 bn / 8 thì / annotation 7 lớp + bbox — **có** (§0).
-- [x] Official split 316/78/104 — **không có** trong bản wanglab → **split tự tạo mức bệnh nhân** (T4.1).
+- [x] Split official 316/78/104 — **đã tái lập + verify** (khớp PDF 100%), lưu `splits/` (12 file, bất biến).
 - [ ] Chốt reader **bỏ `lld/labels/` (mask segmentation) + `lld/.cache/`**.
 
-**Verify:** đọc được `lld/images/` + `LLD_MMRI_Annotation.json`; parse 498 bn + 7 lớp từ `Category_info`.
+**Verify:** `splits/labels_trainval.txt` = 394 · `splits/test_official.txt` = 104 · union = 498; đọc được `lld/images/` + `LLD_MMRI_Annotation.json`.
 **Ghi chú:** CT fallback (GNG-1) KHÔNG còn cần — đã có MRI.
 
 ---
@@ -69,7 +69,7 @@ Dataset `marcohoang/lldmmridataset` (Kaggle, private, ~83.7GB, v1) = **bản raw
 - *Kaggle:* đường dẫn gốc data **qua config/env**, không hardcode. · *Rủi ro:* (a) thiếu pha ở một số bệnh nhân → ghi chiến lược (impute/loại) ở EDA; (b) đừng vô tình nạp `labels/` mask → sai bài toán (segmentation).
 
 **T1.3 — Manifest bệnh nhân**
-- *File:* `src/data/build_manifest.py` → `data/manifest.csv` (gitignore) : patient_id, class (từ `Category_info`), có/thiếu từng pha, spacing/shape gốc, cột `split` (điền sau khi chạy `make_splits` T4.1, split tự tạo).
+- *File:* `src/data/build_manifest.py` → `data/manifest.csv` (gitignore) : patient_id, class (từ `Category_info`), có/thiếu từng pha, spacing/shape gốc, cột `split` (điền từ `splits/` official: train_fold/val_fold/test).
 - *Phụ thuộc:* T1.2.
 - *DoD + verify:* manifest có đúng 498 dòng; cột class ∈ 7 nhãn; đếm thiếu-pha ra số cụ thể.
 
@@ -112,11 +112,11 @@ Dataset `marcohoang/lldmmridataset` (Kaggle, private, ~83.7GB, v1) = **bản raw
 
 ### Ngày 4 — Split khoá mức bệnh nhân + leakage test
 
-**T4.1 — Sinh split tự tạo (patient-level, frozen)**
-- *File:* `src/data/make_splits.py` → `splits/test_heldout.json` (~104 ca held-out, khoá kín) + `splits/cv5_patient.json` (5-fold train+val).
+**T4.1 — Nạp + validate split official (đã lưu ở `splits/`)**
+- *File:* `src/data/make_splits.py` (nạp `splits/*.txt`, map ID theo **chữ số** sang key annotation + đường dẫn ảnh; **KHÔNG sinh ngẫu nhiên** — split đã khoá).
 - *Phụ thuộc:* T1.3 (manifest 498 bn + class).
-- *DoD + verify:* `python -m src.data.make_splits --out splits/` → **tách 104 ca held-out test stratified 7 lớp** (đúng size official), rồi sinh **5-fold stratified patient-level** trên 394 còn lại; test không vào fold nào. **Cùng protocol official (sizes 316/78/104 + stratified) để so setup, dù khác patient.** File **commit** (bất biến), chạy lại cho cùng kết quả. Docstring ghi rõ: **split tự tạo, không phải official challenge → không so trực tiếp leaderboard test-104**.
-- *Rủi ro:* lớp thiểu số (FNH 46 ít nhất — không long-tail; với 104 test stratified mỗi lớp vẫn ~10 ca) → theo dõi fold nào có lớp <5 mẫu, in cảnh báo + xét gộp super-class cho stratify (ghi WORKLOG nếu phải làm vậy).
+- *DoD + verify:* `python -m src.data.make_splits --check` xác nhận: `labels_trainval.txt` 394 + `test_official.txt` 104 = 498; 5-fold (`train_fold{i}`/`val_fold{i}`) hợp = 394, mọi cặp fold train∩val = ∅; class trong file khớp `Category_info`. **Split đã commit (bất biến) — không regenerate.** Docstring ghi rõ: **official split tái lập, test-104 = held-out khoá kín (chạm 1 lần)**.
+- *Rủi ro:* ID format lệch (16/498 có gạch nối) → **chuẩn hoá theo chữ số** khi map file↔annotation↔ảnh; lớp thiểu số FNH 46 (không long-tail).
 
 **T4.2 — Leakage test (bắt buộc)**
 - *File:* `tests/test_no_leakage.py`, `tests/__init__.py`.
@@ -176,7 +176,7 @@ Dataset `marcohoang/lldmmridataset` (Kaggle, private, ~83.7GB, v1) = **bản raw
 |---|---|
 | [ ] EDA notebook (phân bố 7 lớp, spacing, shape, thiếu pha) | mở `notebooks/01_eda.ipynb`, chạy end-to-end ra đủ 5 biểu đồ/bảng |
 | [ ] Preprocessing v0 (resample→crop→z-score) cache thành Kaggle Dataset versioned | `build_cache` chạy hết 498 ca; Kaggle Dataset có version; 3 ca kiểm shape `[8,96,96,48]` |
-| [ ] `splits/` 5-fold + `test_heldout.json` (~104 ca) tự tạo, khoá kín, đã commit, bất biến | `splits/cv5_patient.json` + `splits/test_heldout.json` trong git; test không giao fold nào; chạy lại `make_splits` cho **cùng** kết quả (seed) |
+| [ ] `splits/` official 316/78/104 (12 file) đã commit, bất biến, validate | `labels_trainval.txt`(394)+`test_official.txt`(104)+5 fold trong git; `make_splits --check` pass; test không giao fold |
 | [ ] `pytest tests/` leakage test PASS (giao tập BN mọi cặp fold = ∅) | `pytest -q` xanh; test kiểm cả test-104 tách rời |
 | [ ] Baseline 2.5D + 3D-patch chạy 1 fold, ra macro-F1 val | 2 số val + 2 config + seed ghi lại |
 | [ ] Cập nhật bảng lệnh AGENTS.md §6 (cùng commit tạo entrypoint) | đối chiếu §6 với entrypoint thật |
@@ -187,7 +187,7 @@ Dataset `marcohoang/lldmmridataset` (Kaggle, private, ~83.7GB, v1) = **bản raw
 
 ## Điểm phải hỏi người dùng (AGENTS.md §10)
 
-- ✅ **Chiến lược split — đã quyết (2026-07-24):** split tự tạo mức bệnh nhân (nguồn không có official). Đã cập nhật Spec Sheet §2 + WORKLOG S-019. *(Data access ✅ — CT fallback GNG-1 không còn cần.)*
+- ✅ **Chiến lược split — đã chốt (2026-07-24, S-021):** **official 316/78/104 tái lập + verify** (khớp PDF 100%), lưu `splits/`. *(Đảo S-019; Spec Sheet §2 cập nhật. Data access ✅.)*
 - **Đổi tham số đã chốt trong Spec Sheet** (spacing, crop, taxonomy, chiến lược split) — nếu EDA gợi ý phải đổi, nêu ra, không tự quyết.
 - **Thêm dependency nặng** (vd ANTs cho registration — nhưng registration là W3, đừng kéo vào W2).
 - **Đẩy dữ liệu/cache lên dịch vụ ngoài** ngoài Kaggle Dataset research-use.
@@ -202,10 +202,10 @@ Dataset `marcohoang/lldmmridataset` (Kaggle, private, ~83.7GB, v1) = **bản raw
 
 ## Câu hỏi cần chốt (Spec/plan chưa rõ)
 
-1. ✅ **Data + split — đã chốt.** Nguồn wanglab không có official split → **split tự tạo mức bệnh nhân** (T4.1). Không còn chờ gì ở khâu data.
+1. ✅ **Data + split — đã chốt.** Official split 316/78/104 **đã tái lập** từ ZHEGG/miccai2023 + verify (khớp PDF). `splits/` có 12 file. Không còn chờ gì ở khâu data.
 2. ✅ **Chốt: v0 crop từ full-volume bằng bbox** (bản wanglab không có patch cắt sẵn). Registration vẫn hoãn W3.
 3. **Chạy N4 ở v0 không?** Mặc định đề xuất **off** (chậm, hoãn được). Đồng ý?
-4. **Định dạng file split:** JSON (`{fold: {train:[ids], val:[ids]}}`) + test-104 riêng — OK hay muốn CSV?
+4. ✅ **Định dạng split:** txt chuẩn LLD-MMRI `<patient_id> <class>` (tương thích baseline) — đã lưu `splits/`.
 5. **Chiến lược ca thiếu pha:** loại khỏi train hay zero-fill + mask? (EDA T2.1 sẽ cho số để quyết)
 6. **Batch/crop mặc định:** bắt đầu 96³ batch 2 + grad-accum, hạ 64³ nếu tràn — chấp nhận?
 

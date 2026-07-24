@@ -776,3 +776,29 @@ Hai ngoại lệ đăng ký kèm lý do (`single-font`, `overused-font=arial`): 
 **Điểm vào phiên sau:** W2 ngày 1 — scaffold `src/` + reader. Split: tự tạo cùng protocol 316/78/104 stratified.
 
 **Cảnh báo cho tool sau:** Phân bố lớp official ở W2_plan §0 (dùng cho stratify). Split tự tạo **cùng protocol nhưng khác patient** → KHÔNG so trực tiếp leaderboard. License **CC BY-NC-ND** → Kaggle Dataset private, repro pack không kèm ảnh/cache.
+
+
+## S-021 · 2026-07-24 17:20 · claude-code
+
+**Mục tiêu phiên:** Tìm official split trên internet, tái lập + verify, đảo quyết định sang official split, lưu `splits/`.
+
+**Nhánh / commit:** `main` · `09deaf9` → *(commit đang chờ)*
+
+**Đã động file:**
+- `splits/` — **TẠO 12 file** (KHOÁ, bất biến): `labels_trainval.txt` (394), `train_fold{1..5}.txt` + `val_fold{1..5}.txt` (5-fold official), `test_official.txt` (104), `README.md` (provenance + verify + cách map ID).
+- `docs/MRI_Classification_Spec_Sheet.md` — §2 Split: **đảo lại sang official 316/78/104 tái lập** (revert quyết định S-019 "tự chia").
+- `docs/W2_plan.md` — §0/GATE/T4.1/T1.3/DoD/"Điểm phải hỏi"/"Câu hỏi chốt" → official split tái lập; T4.1 đổi từ "sinh split" thành "nạp + validate".
+
+**Quyết định & lý do:**
+- **Dùng official split 316/78/104 (đảo S-019).** Tái lập: `labels_trainval.txt` (394 train+val) từ repo đội thi **ZHEGG/miccai2023** (`data/trainval_labels/`); **test-104 = 498 (annotation JSON) − 394**. Verify: phân bố lớp test + trainval **khớp PDF official 100% (7/7 lớp)**; class ZHEGG vs `Category_info` **0 mismatch**; trainval∩test=∅, union=498.
+- Khôi phục **so benchmark trực tiếp với SOTA** — lý do đảo quyết định trước (khi đó tưởng official split không lấy được).
+- ID map theo **chữ số** (annotation có 16/498 key dạng `MR-xxxxxx`, còn lại `MRxxxxxx`; label `MRxxxxxx`). Lưu split theo key annotation.
+
+**Kết quả / số liệu:** test_official dist = HCC32/u máu16/ICC12/áp-xe12/di căn11/nang11/FNH10 (=104), khớp PDF. Nguồn: [ZHEGG/miccai2023](https://github.com/ZHEGG/miccai2023).
+
+**Dang dở:**
+- [ ] Verify geometry ảnh↔annotation (gate EDA T2.1) — vẫn treo.
+
+**Điểm vào phiên sau:** W2 ngày 1 — scaffold `src/` + reader; `make_splits.py` chỉ **nạp + validate** `splits/` (không sinh ngẫu nhiên).
+
+**Cảnh báo cho tool sau:** `splits/` **KHOÁ** — quality gate chặn thay đổi (cần `ALLOW_SPLIT_CHANGE=1`, chỉ dùng lần tạo đầu này). `splits/test_official.txt` = held-out chạm **đúng 1 lần** (AGENTS.md §3.4). Map ID luôn **chuẩn hoá theo chữ số**.
