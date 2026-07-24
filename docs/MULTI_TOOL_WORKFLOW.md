@@ -26,7 +26,10 @@ Chạy đủ, theo thứ tự. Không bỏ bước nào vì "phiên này ngắn"
 git status --short
 
 # 2. Quality gate (nếu phiên có đụng UI: webapp / slides / reports)
-bash scripts/quality-gate.sh
+# Windows PowerShell (không cần WSL):
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts/quality-gate.ps1
+# Bash thật (macOS/Linux/Git Bash):
+sh scripts/quality-gate.sh
 
 # 3. Test (khi đã có test)
 pytest -q
@@ -280,10 +283,16 @@ Mỗi khi Antigravity nói điều gì mâu thuẫn với `AGENTS.md` / `DESIGN.
 
 ### 9.3 Quality gate chung — mọi tool bị soi bằng cùng bộ detector
 
-CLI `npx impeccable detect` chạy độc lập với provider → dùng được cho **cả Antigravity**. Đây là cách duy nhất để đầu ra UI của cả 4 tool đi qua cùng một bộ luật.
+CLI Impeccable chạy độc lập với provider → dùng được cho **cả Antigravity**. Đây là cách duy nhất để đầu ra UI của cả 4 tool đi qua cùng một bộ luật. Gate Windows gọi binary Impeccable cục bộ trực tiếp, tránh `npx` tự tải lại package.
+
+```powershell
+# Windows PowerShell — đường chuẩn trên máy này, không cần WSL.
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts/quality-gate.ps1
+```
 
 ```bash
-bash scripts/quality-gate.sh          # chạy tay, trước khi rời tool
+# macOS/Linux/Git Bash có Bash thật.
+sh scripts/quality-gate.sh
 ```
 
 Cài hook để không phụ thuộc trí nhớ — **chạy một lần**, hook được commit nên áp cho mọi tool:
@@ -305,7 +314,7 @@ git commit --no-verify -m "..."
 
 ## 10. Quality gate — nội dung
 
-Script: [`../scripts/quality-gate.sh`](../scripts/quality-gate.sh). Hook: [`../.githooks/pre-commit`](../.githooks/pre-commit).
+Scripts: [`../scripts/quality-gate.ps1`](../scripts/quality-gate.ps1) (Windows) và [`../scripts/quality-gate.sh`](../scripts/quality-gate.sh) (Bash thật). Hook: [`../.githooks/pre-commit`](../.githooks/pre-commit).
 
 Gate hiện kiểm:
 1. **Impeccable detect** trên `webapp/frontend/`, `slides/`, `reports/` (bỏ qua thư mục chưa tồn tại).
@@ -327,7 +336,7 @@ Thêm về sau khi có code: `ruff check`, `pytest -q`, test chống leakage ở
 | Thấy diff lạ trong `.cursor/` `.codex/` `.claude/` | `git checkout -- <path>`. Không gộp tay. |
 | Antigravity mâu thuẫn với AGENTS.md | AGENTS.md thắng. Ghi đè memory. Ghi WORKLOG. |
 | Sắp dựng UI mới | `/impeccable shape` trước. Nếu đang ở Antigravity → đổi tool. |
-| Sắp chốt một deliverable UI | `critique` → `audit` → `polish` → `scripts/quality-gate.sh` |
+| Sắp chốt một deliverable UI | `critique` → `audit` → `polish` → quality gate phù hợp shell (`quality-gate.ps1` trên Windows) |
 | Cần đổi `splits/` | Hỏi người dùng. Ghi WORKLOG. `ALLOW_SPLIT_CHANGE=1 git commit ...` |
 | Muốn đổi ngữ cảnh dự án | Sửa `AGENTS.md`, không sửa CLAUDE.md hay `.cursor/rules/`. |
 

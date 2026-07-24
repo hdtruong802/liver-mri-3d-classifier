@@ -23,7 +23,7 @@ Mọi phiên, bất kể tool nào, theo đúng thứ tự:
    ```
 3. `git status` phải sạch. Nếu bẩn → **dừng, hỏi người dùng**, không tự commit đè việc của tool khác.
 
-Khi kết thúc phiên: chạy `bash scripts/quality-gate.sh`, **bắt buộc** append một entry vào `WORKLOG.md` (quy tắc ở đầu file đó), rồi commit + push.
+Khi kết thúc phiên: chạy quality gate phù hợp với shell (`powershell -NoProfile -ExecutionPolicy Bypass -File scripts/quality-gate.ps1` trên Windows; `sh scripts/quality-gate.sh` trên Bash thật), **bắt buộc** append một entry vào `WORKLOG.md` (quy tắc ở đầu file đó), rồi commit + push.
 
 Giao thức đầy đủ (checklist vào/ra phiên, ai sửa file config của tool nào, các điểm dễ xung đột): **[`docs/MULTI_TOOL_WORKFLOW.md`](docs/MULTI_TOOL_WORKFLOW.md)**.
 
@@ -62,7 +62,7 @@ Chi tiết đầy đủ, không lặp lại ở đây:
 | `docs/MULTI_TOOL_WORKFLOW.md` | Giao thức chống xung đột giữa 4 tool, tích hợp Impeccable | Mọi tool |
 | `PRODUCT.md` | Sự thật sản phẩm: người dùng, mục đích, ràng buộc, nguyên tắc, a11y | Mọi tool |
 | `DESIGN.md` | Thế giới thị giác & design system | *(chưa tạo — xuất hiện khi chạy `/impeccable shape`, KHÔNG phải từ `init`)* |
-| `scripts/quality-gate.sh` | Quality gate chung cho mọi tool | Mọi tool |
+| `scripts/quality-gate.sh` / `scripts/quality-gate.ps1` | Quality gate chung cho Bash thật / Windows PowerShell | Mọi tool |
 
 **Quy tắc chống trùng lặp:** nếu một thông tin đã có trong Spec Sheet hoặc Plan, AGENTS.md chỉ **link tới**, không chép lại. Nếu bạn (agent) thấy nội dung bị chép ra nhiều chỗ → xoá bản chép, giữ link, ghi vào WORKLOG.
 
@@ -124,7 +124,8 @@ liver-mri-3d-classifier/
 ├── slides/                      # HTML slide
 ├── reports/                     # HTML/MD report
 ├── scripts/
-│   └── quality-gate.sh          # gate chung cho cả 4 tool
+│   ├── quality-gate.sh          # gate cho Bash thật
+│   └── quality-gate.ps1         # gate cho Windows PowerShell, không cần WSL
 ├── artifacts/                   # checkpoint, log, hình — GITIGNORE
 ├── data/                        # dữ liệu bệnh nhân — GITIGNORE
 └── prompt/                      # prompt gốc dùng dựng dự án
@@ -158,7 +159,7 @@ Pin version trong `requirements.txt` (train) và `webapp/backend/requirements.tx
 | Việc | Lệnh | Trạng thái |
 |---|---|---|
 | **Bật quality gate** (một lần / máy) | `git config core.hooksPath .githooks` | sẵn sàng |
-| **Quality gate** (trước khi rời tool) | `bash scripts/quality-gate.sh` | sẵn sàng |
+| **Quality gate** (trước khi rời tool) | Windows: `powershell -NoProfile -ExecutionPolicy Bypass -File scripts/quality-gate.ps1`; Bash thật: `sh scripts/quality-gate.sh` | sẵn sàng |
 | Cài Impeccable (một lần / máy) | `npx impeccable install --providers=claude,codex,cursor --scope=project` | ✅ đã chạy 2026-07-24 |
 | Quét UI thủ công (mọi tool, kể cả Antigravity) | `npx impeccable detect --json <dir>` | sẵn sàng |
 | Cài môi trường train | `pip install -r requirements.txt` | chưa có file |
@@ -250,7 +251,7 @@ Ba thứ có mặt người dùng — **web app** (`webapp/`), **HTML slide** (`
 5. **RUO hiển thị trên mọi màn hình có kết quả**, ở vị trí không thể bỏ sót.
 6. **Không trình bày kết quả như chẩn đoán chắc chắn.** Mức bất định là nội dung hạng nhất, không phải chú thích nhỏ.
 7. **Motion chỉ để giải thích chuyển trạng thái.** Tôn trọng `prefers-reduced-motion`.
-8. **Trước khi chốt bất kỳ deliverable UI nào:** chạy `bash scripts/quality-gate.sh` (dùng bộ detector của Impeccable — áp được cho cả 4 tool).
+8. **Trước khi chốt bất kỳ deliverable UI nào:** chạy quality gate phù hợp với shell (Windows: `powershell -NoProfile -ExecutionPolicy Bypass -File scripts/quality-gate.ps1`; Bash thật: `sh scripts/quality-gate.sh`) để dùng detector Impeccable cho cả 4 tool.
 
 **Việc dựng UI mới nên giao cho Claude Code / Codex / Cursor** (có `/impeccable shape` và `critique`). Antigravity nên nhận backend, xử lý dữ liệu, sửa lỗi logic — lý do ở `docs/MULTI_TOOL_WORKFLOW.md` §9.3.
 

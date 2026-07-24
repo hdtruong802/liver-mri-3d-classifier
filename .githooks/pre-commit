@@ -6,4 +6,12 @@
 #
 # Bỏ qua có chủ đích:  git commit --no-verify   (phải ghi lý do vào WORKLOG.md)
 
-exec sh "$(git rev-parse --show-toplevel)/scripts/quality-gate.sh" --staged
+REPO_ROOT=$(git rev-parse --show-toplevel) || exit 1
+
+# Windows không có Bash thật trên máy này; ưu tiên PowerShell gate để hook vẫn hoạt động.
+if command -v powershell.exe >/dev/null 2>&1; then
+  exec powershell.exe -NoProfile -ExecutionPolicy Bypass \
+    -File "$REPO_ROOT/scripts/quality-gate.ps1" -Staged
+fi
+
+exec sh "$REPO_ROOT/scripts/quality-gate.sh" --staged

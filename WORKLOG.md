@@ -570,3 +570,31 @@ Hai ngoại lệ đăng ký kèm lý do (`single-font`, `overused-font=arial`): 
 **Điểm vào phiên sau:** Mở `slides/overview.html#4` và kiểm tra biểu đồ ở 16:9; nếu có kết quả nghiên cứu thật, thay toàn bộ 3 mốc giả lập và cập nhật chú thích/nguồn cùng lúc.
 
 **Cảnh báo cho tool sau:** Không dùng số `5 / 13 / 23` hay biểu đồ này ở bất kỳ bề mặt nào như dữ liệu thật. Đây là mô phỏng được ghi nhãn rõ để giải thích khái niệm, không phải kết quả mô hình.
+
+
+## S-013 · 2026-07-24 14:28 · codex
+
+**Mục tiêu phiên:** Khắc phục quality gate trên Windows khi `bash.exe` trỏ vào WSL chưa có distro và `npx --yes` bị chặn ở npm cache.
+
+**Nhánh / commit:** `main` · `47566d2` → *(commit đang chờ)*
+
+**Đã động file:**
+- `scripts/quality-gate.ps1` — mới; gate PowerShell tương đương bản Bash, không cần WSL.
+- `.githooks/pre-commit` — ưu tiên gọi gate PowerShell trên Windows, fallback Bash trên máy có Bash thật.
+- `AGENTS.md`, `docs/MULTI_TOOL_WORKFLOW.md` — cập nhật lệnh chuẩn Windows/Bash và đường dẫn hai script.
+- `reports/W1_REPORT.md` — mới; báo cáo W1 về pha CT, feedback mentor và scope pivot sang MRI đa lớp.
+
+**Quyết định & lý do:**
+- Trên Windows, resolve binary Impeccable theo thứ tự `IMPECCABLE_BIN` → `node_modules/.bin` → npm npx cache và gọi trực tiếp — tránh `npx --yes` cố tải lại package rồi vướng quyền cache/network.
+- Giữ `quality-gate.sh` cho macOS/Linux/Git Bash thật; không cài WSL chỉ để chạy một gate của repo.
+- Script PowerShell chỉ dùng ASCII ở chuỗi runtime để Windows PowerShell 5 không diễn giải UTF-8 không BOM theo code page cũ.
+
+**Kết quả / số liệu:** `powershell -NoProfile -ExecutionPolicy Bypass -File scripts/quality-gate.ps1` PASS (Impeccable trên `slides` và `reports`); `git hook run pre-commit` PASS ở chế độ staged.
+
+**Dang dở:**
+- [ ] Lệnh cũ `bash scripts/quality-gate.sh` trên máy này vẫn không dùng được vì WSL chưa có distro; tài liệu đã đổi sang lệnh PowerShell chuẩn. Không cần cài WSL để làm việc với repo.
+- [ ] `slides/overview.html` là thay đổi chưa commit của người dùng; không stage/commit cùng phiên này.
+
+**Điểm vào phiên sau:** dùng `powershell -NoProfile -ExecutionPolicy Bypass -File scripts/quality-gate.ps1` trước commit; nếu cache Impeccable chuyển chỗ, đặt `IMPECCABLE_BIN` tới binary cục bộ rồi chạy lại.
+
+**Cảnh báo cho tool sau:** `reports/W1_REPORT.md` là report tóm tắt; số 5/13/23 trên slide vẫn là mock, không được chép thành kết quả. Không dùng `npx --yes impeccable` làm đường gate chuẩn trên Windows này.
