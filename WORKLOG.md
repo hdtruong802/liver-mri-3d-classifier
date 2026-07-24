@@ -598,3 +598,51 @@ Hai ngoại lệ đăng ký kèm lý do (`single-font`, `overused-font=arial`): 
 **Điểm vào phiên sau:** dùng `powershell -NoProfile -ExecutionPolicy Bypass -File scripts/quality-gate.ps1` trước commit; nếu cache Impeccable chuyển chỗ, đặt `IMPECCABLE_BIN` tới binary cục bộ rồi chạy lại.
 
 **Cảnh báo cho tool sau:** `reports/W1_REPORT.md` là report tóm tắt; số 5/13/23 trên slide vẫn là mock, không được chép thành kết quả. Không dùng `npx --yes impeccable` làm đường gate chuẩn trên Windows này.
+
+
+## S-014 · 2026-07-24 14:33 · codex
+
+**Mục tiêu phiên:** Rà soát định dạng `reports/W1_REPORT.md` theo phản hồi người dùng.
+
+**Nhánh / commit:** `main` · `9fa2ba5` → *(commit đang chờ)*
+
+**Đã động file:**
+- `reports/W1_REPORT.md` — gộp các đoạn văn bị xuống dòng giữa câu, bỏ toàn bộ dấu gạch ngang dài, thêm tên người thực hiện Hoàng Đức Trường trước ngày chốt.
+- `WORKLOG.md` — ghi nhận phiên chỉnh report.
+
+**Quyết định & lý do:**
+- Dùng một dòng Markdown cho mỗi đoạn văn để không cắt từ/câu trong file nguồn; trình render vẫn tự ngắt dòng theo khung đọc.
+- Dùng dấu hai chấm, chấm phẩy hoặc gạch nối thông thường khi cần thay cho dấu gạch ngang dài theo yêu cầu người dùng.
+- Dùng `<br>` sau tên người thực hiện để tên luôn hiển thị trên ngày chốt mà không cần khoảng trắng cuối dòng.
+
+**Kết quả / số liệu:** Không còn ký tự `—` trong W1 report; PowerShell quality gate PASS.
+
+**Dang dở:**
+- [ ] `slides/overview.html` vẫn là thay đổi chưa commit của người dùng; không stage/commit cùng phiên này.
+
+**Điểm vào phiên sau:** Tiếp tục cập nhật W1 report khi có kết quả MRI thật; giữ phân biệt rõ số mock và số thực nghiệm.
+
+**Cảnh báo cho tool sau:** Không chèn lại hard-wrap giữa từ trong các đoạn văn của W1 report; không dùng số 5/13/23 như kết quả dự án.
+
+
+## S-015 · 2026-07-24 14:35 · codex
+
+**Mục tiêu phiên:** Xác nhận và commit các chỉnh sửa nội dung chưa commit trong `slides/overview.html` theo yêu cầu người dùng.
+
+**Nhánh / commit:** `main` · `9fa2ba5` → *(commit đang chờ)*
+
+**Đã động file:**
+- `slides/overview.html` — stage các chỉnh sửa đã được người dùng xác nhận: đổi cách ghi số lớp/số thì sang chữ số, rút gọn mô tả intro/dataset và nhãn web app.
+- `WORKLOG.md` — ghi nhận phạm vi đã được xác nhận.
+
+**Quyết định & lý do:**
+- Người dùng đã xác nhận toàn bộ diff slide; thay đổi chỉ rút gọn ngôn ngữ và không thay đổi tuyên bố khoa học, nguồn trích dẫn hay số liệu minh hoạ.
+
+**Kết quả / số liệu:** Quality gate PowerShell đã PASS trước khi stage; slide, W1 report và worklog sẽ được commit/push cùng nhau theo xác nhận người dùng.
+
+**Dang dở:**
+- [ ] Không có việc treo cho phạm vi commit này.
+
+**Điểm vào phiên sau:** Mở `slides/overview.html` trong Chrome nếu cần kiểm tra trực quan các câu rút gọn ở bản khắc I–V.
+
+**Cảnh báo cho tool sau:** Các số 5/13/23 trong slide IV vẫn là dữ liệu minh hoạ, không phải kết quả dự án.

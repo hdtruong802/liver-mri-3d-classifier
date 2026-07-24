@@ -315,8 +315,8 @@ em.term{font-style:normal;color:var(--key)}
   <div></div>
   <div class="body">
     <h1>Phân loại u gan trên MRI 3D đa pha, với xác suất biết tự nhận mình sai</h1>
-    <p class="lede">Bảy lớp tổn thương gan. Tám thì MRI. Và một câu hỏi mà bảng xếp hạng không trả lời.</p>
-    <p class="sub">Tổng quan dự án: nghiên cứu cá nhân, 6 tuần, PyTorch/MONAI, Kaggle, Claude/Codex</p>
+    <p class="lede">7 lớp tổn thương gan. 8 thì MRI. Và một câu hỏi mà bảng xếp hạng không trả lời.</p>
+    <p class="sub">Tổng quan dự án: nghiên cứu cá nhân, 6 tuần, PyTorch/MONAI</p>
   </div>
   <div class="foot"><span class="src">Mọi số liệu trong bài đều là kết quả đã công bố của nhóm khác, có chú số dẫn nguồn</span><span class="no">1 / 14</span></div>
 </section>
@@ -326,7 +326,7 @@ em.term{font-style:normal;color:var(--key)}
   <div class="head"><span class="ruo">Research Use Only: chưa kiểm định lâm sàng</span><span class="plate-no">Bản khắc II</span></div>
   <nav class="marks" aria-label="Tiến trình"><span class="on"><i></i>Bài toán</span><span><i></i>Dataset</span><span><i></i>SOTA</span><span><i></i>Ứng dụng</span></nav>
   <div class="body">
-    <h2>Bảy lớp tổn thương, ba ác tính và bốn lành tính</h2>
+    <h2>7 lớp tổn thương, 3 ác tính và 4 lành tính</h2>
     <p class="sub">Phân loại ở mức tổn thương, không phải mức bệnh nhân. Vùng tổn thương đã được khoanh sẵn trong dataset, nên việc cần làm là gọi đúng tên nó. <strong>Không làm segmentation.</strong></p>
     <div class="tax mt">
       <div>
@@ -357,8 +357,8 @@ em.term{font-style:normal;color:var(--key)}
   <nav class="marks" aria-label="Tiến trình"><span class="on"><i></i>Bài toán</span><span><i></i>Dataset</span><span><i></i>SOTA</span><span><i></i>Ứng dụng</span></nav>
   <div class="body">
     <div class="phase-content">
-      <h2>Tám thì MRI của cùng một tổn thương, đã căn chỉnh sẵn</h2>
-      <p class="sub">Dataset công bố tám thì đã đưa về cùng khung toạ độ<sup class="key">1</sup>. Model đọc cả khối 3D đa pha, không hạ xuống từng lát 2D.</p>
+      <h2>8 thì MRI của cùng một tổn thương, đã căn chỉnh sẵn</h2>
+      <p class="sub">Dataset công bố 8 thì đã đưa về cùng khung toạ độ<sup class="key">1</sup>. Model đọc cả khối 3D đa pha, không hạ xuống từng lát 2D.</p>
       <div class="phase-grid mt">
         <div>
           <div class="cat">Cấu trúc, 4 thì</div>
@@ -450,7 +450,6 @@ em.term{font-style:normal;color:var(--key)}
         <p class="quiet mt-sm">Khối voxel đầy đủ, bounding box tổn thương, và ROI đã cắt sẵn theo box.</p>
       </div>
     </div>
-    <p class="sub mt">Truy cập qua form đăng ký research-use. Đây là nền của MICCAI LLD-MMRI Challenge 2023, nghĩa là có sẵn một bảng xếp hạng công khai để đối chiếu, điều rất hiếm với dữ liệu MRI gan.</p>
   </div>
   <div class="foot"><span class="legend"><span><b>1.</b><a href="https://github.com/LMMMEng/LLD-MMRI-Dataset" target="_blank" rel="noopener">LLD-MMRI Dataset</a>, LLD-MMRI2023 Challenge, MICCAI 2023</span></span><span class="no">5 / 14</span></div>
 </section>
@@ -605,7 +604,7 @@ em.term{font-style:normal;color:var(--key)}
     <h2>Đầu ra không phải một nhãn, mà một nhãn kèm mức tin cậy</h2>
     <div class="cols mt">
       <div class="stack">
-        <h3>Web app tự code trả về</h3>
+        <h3>Web app trả về</h3>
         <ul class="marked">
           <li>Lớp dự đoán và <strong>xác suất từng lớp</strong> trong 7 lớp</li>
           <li><strong>Xác suất ác tính</strong> gộp, con số bác sĩ hỏi trước tiên</li>
@@ -616,7 +615,7 @@ em.term{font-style:normal;color:var(--key)}
       </div>
       <div class="stack">
         <h3>Ràng buộc kỹ thuật</h3>
-        <p>Nhận NIfTI hoặc DICOM series. Backend FastAPI, frontend tự viết, không dùng framework demo dựng sẵn.</p>
+        <p>Nhận NIfTI hoặc DICOM series. Backend FastAPI, frontend.</p>
         <p class="quiet">Nút thắt tốc độ là bước căn chỉnh ảnh, không phải bước chạy model. Chạy trên vùng cắt quanh tổn thương thay vì cả khối gan để giữ thời gian phản hồi ở mức vài giây.</p>
         <div class="chip">Chưa xây dựng, thuộc giai đoạn cuối của dự án</div>
       </div>
