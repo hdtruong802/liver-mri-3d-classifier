@@ -750,3 +750,29 @@ Hai ngoại lệ đăng ký kèm lý do (`single-font`, `overused-font=arial`): 
 **Điểm vào phiên sau:** W2 ngày 1 — scaffold `src/utils` + `src/data/dataset.py` (đọc `lld/images/` + `LLD_MMRI_Annotation.json`, bỏ `labels/`+`.cache/`). Khâu data đã hết blocker.
 
 **Cảnh báo cho tool sau:** Split là **TỰ TẠO**, không phải official challenge — KHÔNG báo cáo so với leaderboard test-104 của SOTA. `splits/test_heldout.json` là held-out khoá kín, chạm đúng 1 lần (AGENTS.md §3.4).
+
+
+## S-020 · 2026-07-24 16:50 · claude-code
+
+**Mục tiêu phiên:** Khai thác PDF challenge (`docs/LiverLesion…pdf`) + repo LMMMEng, cập nhật Spec Sheet + W2_plan.
+
+**Nhánh / commit:** `main` · `45db1c2` → *(commit đang chờ)*
+
+**Đã động file:**
+- `docs/MRI_Classification_Spec_Sheet.md` — §2: thêm **phân bố lớp thật** (HCC 157 áp đảo … FNH 46, imbalance vừa phải — đính chính "áp-xe/FNH cực hiếm"); ghi **registration bắt buộc** (các thì khác geometry: non-contrast coronal, DWI thô, đa máy 1.5T/3T); thêm **nhãn = pathology report** + **license CC BY-NC-ND** + note bản wanglab thực nhận.
+- `docs/W2_plan.md` — §0 thêm block "Bổ sung từ PDF challenge" (phân bố lớp, geometry, license); T2.1 (đối chiếu phân bố official + kiểm orientation); T4.1 (split tự tạo **cùng protocol official** 316/78/104 + stratified); T3.3 (Kaggle Dataset **private** + không phát tán cache — license).
+
+**Quyết định & lý do:**
+- Trả lời câu split: **vẫn tự chia** — PDF cho số/lớp/tập (316/78/104, stratified) nhưng **KHÔNG có patient_id** nên không tái lập official được. Khai thác được: làm split tự tạo **cùng protocol** (sizes + stratified) → so setup, khác patient.
+- Đính chính giả định imbalance: HCC áp đảo (157), FNH ít nhất (46), HCC:FNH ≈ 3.4:1 — **vừa phải, không long-tail** → nhẹ lo ngại lớp hiếm ở W4.
+- Registration nâng từ "nên" lên **bắt buộc**: PDF xác nhận các thì khác orientation/độ phân giải.
+- License **CC BY-NC-ND**: không đẩy cache/bản phái sinh công khai; repro pack chỉ code + split IDs + config.
+
+**Kết quả / số liệu:** Không có số liệu nghiên cứu. Nguồn: PDF challenge 14 trang (trích bằng PyMuPDF vào scratchpad) + repo LMMMEng/LLD-MMRI2023.
+
+**Dang dở:**
+- [ ] Verify geometry ảnh↔annotation (gate EDA T2.1) — nay có thêm cảnh báo orientation từ PDF.
+
+**Điểm vào phiên sau:** W2 ngày 1 — scaffold `src/` + reader. Split: tự tạo cùng protocol 316/78/104 stratified.
+
+**Cảnh báo cho tool sau:** Phân bố lớp official ở W2_plan §0 (dùng cho stratify). Split tự tạo **cùng protocol nhưng khác patient** → KHÔNG so trực tiếp leaderboard. License **CC BY-NC-ND** → Kaggle Dataset private, repro pack không kèm ảnh/cache.

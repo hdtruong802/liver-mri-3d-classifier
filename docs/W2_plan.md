@@ -18,6 +18,12 @@ Dataset `marcohoang/lldmmridataset` (Kaggle, private, ~83.7GB, v1) = **bản raw
 - ✅ 498 bn · 8 thì đúng chuẩn (`C-pre, C+A, C+V, C+Delay, T2WI, DWI, InPhase, OutPhase`) · full-volume `.nii.gz` tại `lld/images/`.
 - ✅ `lld/LLD_MMRI_Annotation.json` (18MB) giữ **annotation phân loại gốc**: `Category_info` = 7 lớp + `Benign[0,2,4,5]`/`Malignant[1,3,6]` (khớp Spec Sheet 100%); `Annotation_info` = per-phase `pixel_spacing/slice_spacing/origin` + `lesion.category` + `bbox.2D_box` (hộp 2D theo từng slice).
 
+**Bổ sung từ PDF challenge (`docs/LiverLesion…pdf` p.9-13) + repo LMMMEng:**
+- **Phân bố lớp (tổng 498):** HCC 157 · u máu 79 · ICC 58 · áp-xe 54 · nang 53 · di căn 51 · FNH 46 → **HCC áp đảo, imbalance vừa phải** (HCC:FNH ≈ 3.4:1), KHÔNG long-tail. Split official **stratified, sizes 316/78/104** nhưng **không công bố patient_id** (chỉ có số/lớp/tập).
+- **Geometry khác nhau giữa thì (p.9):** non-contrast chụp **coronal**; DWI matrix 132×116 (thô); T1 spacing 2mm, T2 spacing 1mm; đa máy 1.5T/3T (Kangda/GE/Philips) → **registration + resample về grid chung là BẮT BUỘC**, và có **domain shift nội bộ** (hợp lý hoá calibration/robustness).
+- **Nhãn = pathology report** (gold standard), bbox vẽ per-phase. Metric ranking = **trung bình(macro-F1, Cohen's κ)** — khớp Spec Sheet.
+- ⚠️ **License CC BY-NC-ND** → KHÔNG phát tán bản dữ liệu phái sinh (cache) công khai; repro pack chỉ chia **code + split IDs + config**; Kaggle Dataset để **private**.
+
 **Thiếu / phải xử lý (đã phản ánh vào task bên dưới):**
 - ✅ **Không có file split official 316/78/104** (đã xác minh HF API + annotation JSON; repo LMMMEng cũng không public split — chỉ có code `gene_cross_val.py` sinh fold từ 1 file nhãn gốc). **Quyết định 2026-07-24: dùng split tự tạo mức bệnh nhân** (xem "Quyết định" dưới + T4.1), không truy official.
 - 🟡 **Là bản đóng gói SEGMENTATION** — kèm `lld/labels/` = mask MedSAM2 (không dùng, chiếm phần lớn 83.7GB). Reader chỉ đọc `images/` + annotation, **bỏ `labels/` + `.cache/`**. Không drift sang segmentation (AGENTS.md §3.9).
@@ -74,7 +80,7 @@ Dataset `marcohoang/lldmmridataset` (Kaggle, private, ~83.7GB, v1) = **bản raw
 **T2.1 — Notebook EDA**
 - *File:* `notebooks/01_eda.ipynb` (lớp mỏng, chỉ gọi vào `src/`, **strip output trước commit**).
 - *Phụ thuộc:* T1.3.
-- *DoD + verify:* notebook chạy end-to-end sinh: (a) phân bố 7 lớp (xác nhận áp-xe/FNH hiếm cỡ nào); (b) phân bố spacing & shape mỗi pha; (c) tỉ lệ thiếu pha; (d) thống kê kích thước bbox lesion; (e) khuyến nghị crop size (96³ hay 64³) dựa trên bbox thực; (f) **GATE geometry (bắt buộc, vì bản MedSAM2 có thể đã resample):** load 3–5 ca, đối chiếu `shape`/`spacing` ảnh thật với `pixel_spacing/slice_spacing/origin` trong annotation; overlay `bbox.2D_box` lên đúng slice → xác nhận hộp trùng vùng u. **Không đạt → dừng, không crop theo bbox.**
+- *DoD + verify:* notebook chạy end-to-end sinh: (a) phân bố 7 lớp (đối chiếu phân bố official ở §0: HCC áp đảo, FNH ít nhất — kiểm dữ liệu thật có khớp); (b) phân bố spacing & shape mỗi pha; (c) tỉ lệ thiếu pha; (d) thống kê kích thước bbox lesion; (e) khuyến nghị crop size (96³ hay 64³) dựa trên bbox thực; (f) **GATE geometry (bắt buộc — các thì khác geometry theo PDF: non-contrast coronal, DWI thô):** load 3–5 ca, đối chiếu `shape`/`spacing`/**orientation** ảnh thật với `pixel_spacing/slice_spacing/origin` trong annotation; overlay `bbox.2D_box` lên đúng slice → xác nhận hộp trùng vùng u. **Không đạt → dừng, không crop theo bbox.**
 - *Kaggle:* — · *Rủi ro:* (a) bbox lớn hơn 96×96×48 nhiều ca → chỉnh crop size ở `configs/preprocess.yaml` trước khi cache; (b) geometry lệch → phải resample bbox theo ảnh hoặc dùng full-volume tọa độ nhất quán trước khi tin ROI-crop.
 
 **T2.2 — Chốt tham số tiền xử lý từ EDA**
@@ -99,8 +105,8 @@ Dataset `marcohoang/lldmmridataset` (Kaggle, private, ~83.7GB, v1) = **bản raw
 
 **T3.3 — Đẩy cache thành Kaggle Dataset versioned**
 - *Phụ thuộc:* T3.2.
-- *DoD + verify:* Kaggle Dataset tồn tại, có version tag, ghi lại slug + version vào `configs/preprocess.yaml` (comment) để tái lập.
-- *Kaggle:* **không commit cache/NIfTI vào git** (AGENTS.md §10).
+- *DoD + verify:* Kaggle Dataset tồn tại (**để private** — license CC BY-NC-ND), có version tag, ghi lại slug + version vào `configs/preprocess.yaml` (comment) để tái lập.
+- *Kaggle:* **không commit cache/NIfTI vào git** (AGENTS.md §10). *License:* **CC BY-NC-ND → không phát tán cache/bản phái sinh công khai**; repro pack (W6) chỉ chia code + split IDs + config.
 
 ---
 
@@ -109,8 +115,8 @@ Dataset `marcohoang/lldmmridataset` (Kaggle, private, ~83.7GB, v1) = **bản raw
 **T4.1 — Sinh split tự tạo (patient-level, frozen)**
 - *File:* `src/data/make_splits.py` → `splits/test_heldout.json` (~104 ca held-out, khoá kín) + `splits/cv5_patient.json` (5-fold train+val).
 - *Phụ thuộc:* T1.3 (manifest 498 bn + class).
-- *DoD + verify:* `python -m src.data.make_splits --out splits/` → **tách ~104 ca held-out test** (stratified 7 lớp, seed cố định), rồi sinh **5-fold stratified patient-level** trên phần còn lại; test không vào fold nào. File **commit** (bất biến), chạy lại cho cùng kết quả. Docstring ghi rõ: **split tự tạo, không phải official challenge → không so leaderboard test-104**.
-- *Rủi ro:* lớp cực hiếm (áp-xe/FNH) có thể 0 mẫu ở một fold → in cảnh báo + xét gộp super-class cho việc stratify (ghi WORKLOG nếu phải làm vậy).
+- *DoD + verify:* `python -m src.data.make_splits --out splits/` → **tách 104 ca held-out test stratified 7 lớp** (đúng size official), rồi sinh **5-fold stratified patient-level** trên 394 còn lại; test không vào fold nào. **Cùng protocol official (sizes 316/78/104 + stratified) để so setup, dù khác patient.** File **commit** (bất biến), chạy lại cho cùng kết quả. Docstring ghi rõ: **split tự tạo, không phải official challenge → không so trực tiếp leaderboard test-104**.
+- *Rủi ro:* lớp thiểu số (FNH 46 ít nhất — không long-tail; với 104 test stratified mỗi lớp vẫn ~10 ca) → theo dõi fold nào có lớp <5 mẫu, in cảnh báo + xét gộp super-class cho stratify (ghi WORKLOG nếu phải làm vậy).
 
 **T4.2 — Leakage test (bắt buộc)**
 - *File:* `tests/test_no_leakage.py`, `tests/__init__.py`.
