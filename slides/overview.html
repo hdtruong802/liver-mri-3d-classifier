@@ -40,12 +40,12 @@
      nội dung trên màn thấp (1366x768) — đừng đưa nó trở lại. */
   --u:min(1vw,1.778vh);
 
-  --display:max(2.15rem,calc(2.78 * var(--u)));
-  --headline:max(1.36rem,calc(1.76 * var(--u)));
-  --data:max(1.08rem,calc(1.37 * var(--u)));
-  --title:max(.86rem,calc(1.09 * var(--u)));
-  --body:max(.86rem,calc(1.09 * var(--u)));
-  --label:max(.655rem,calc(.83 * var(--u)));
+  --display:max(2.3rem,calc(3.15 * var(--u)));
+  --headline:max(1.43rem,calc(1.95 * var(--u)));
+  --data:max(1.13rem,calc(1.52 * var(--u)));
+  --title:max(.9rem,calc(1.18 * var(--u)));
+  --body:max(.9rem,calc(1.18 * var(--u)));
+  --label:max(.68rem,calc(.9 * var(--u)));
 }
 *{box-sizing:border-box;margin:0;padding:0}
 html,body{height:100%}
@@ -105,7 +105,23 @@ body{
 /* overflow:hidden có chủ ý — không bao giờ hiện thanh trượt giữa buổi trình
    chiếu. Đổi lại, nội dung PHẢI vừa khung: mọi cỡ chữ và khoảng cách đều đo
    theo --u nên tỉ lệ giữ nguyên ở mọi độ phân giải 16:9. */
-.body{padding-top:calc(1.6 * var(--u));min-height:0;overflow:hidden}
+.body{
+  display:grid;align-content:center;
+  padding:calc(1.6 * var(--u)) 0 calc(2.8 * var(--u));
+  min-height:0;overflow:hidden;
+}
+.slide:not(.phase-slide):not(.citation-slide) .body>*{
+  width:min(100%,calc(72 * var(--u)));margin-inline:auto;
+}
+.dense-slide{
+  --display:max(2.25rem,calc(3.0 * var(--u)));
+  --headline:max(1.4rem,calc(1.85 * var(--u)));
+  --data:max(1.1rem,calc(1.43 * var(--u)));
+  --title:max(.88rem,calc(1.12 * var(--u)));
+  --body:max(.88rem,calc(1.12 * var(--u)));
+  --label:max(.67rem,calc(.85 * var(--u)));
+}
+.citation-slide .body{align-content:start}
 
 h1,h2{
   font-family:var(--serif);font-weight:400;
@@ -143,7 +159,7 @@ p{max-width:62ch}
   width:min(100%,calc(68 * var(--u)));margin-inline:auto;
 }
 .phase-content h2{
-  max-width:24ch;font-size:calc(3.05 * var(--u));
+  max-width:24ch;font-size:calc(3.4 * var(--u));
 }
 .phase-content .sub{
   max-width:56ch;font-size:calc(1.18 * var(--u));
@@ -255,6 +271,8 @@ em.term{font-style:normal;color:var(--key)}
   .slide{position:static;display:grid;padding:var(--lg) var(--md);border-bottom:1px solid var(--rule-2)}
   .slide::before,.slide::after{display:none}
   .slide.is-active>*{animation:none}
+  .body{display:block;padding:var(--lg) 0 0}
+  .slide:not(.phase-slide):not(.citation-slide) .body>*{width:100%}
   .cols,.cols-3,.tax{grid-template-columns:1fr}
   .nav{display:none}
 }
@@ -268,6 +286,8 @@ em.term{font-style:normal;color:var(--key)}
   .deck{width:100%;height:auto}
   .slide{position:static;display:grid;break-after:page;page-break-after:always;min-height:172mm}
   .slide:last-child{break-after:auto;page-break-after:auto}
+  .body{display:block;padding-bottom:0}
+  .slide:not(.phase-slide):not(.citation-slide) .body>*{width:100%}
   .slide.is-active>*{animation:none}
   .nav{display:none}
 }
@@ -449,7 +469,7 @@ em.term{font-style:normal;color:var(--key)}
 </section>
 
 <!-- 7 -->
-<section class="slide" aria-label="Bản khắc 7">
+<section class="slide dense-slide" aria-label="Bản khắc 7">
   <div class="head"><span class="ruo">Research Use Only: chưa kiểm định lâm sàng</span><span class="plate-no">Bản khắc VII</span></div>
   <nav class="marks" aria-label="Tiến trình"><span><i></i>Bài toán</span><span class="on"><i></i>Dataset</span><span><i></i>SOTA</span><span><i></i>Ứng dụng</span></nav>
   <div class="body">
@@ -534,7 +554,7 @@ em.term{font-style:normal;color:var(--key)}
 </section>
 
 <!-- 10 -->
-<section class="slide" aria-label="Bản khắc 10">
+<section class="slide dense-slide" aria-label="Bản khắc 10">
   <div class="head"><span class="ruo">Research Use Only: chưa kiểm định lâm sàng</span><span class="plate-no">Bản khắc X</span></div>
   <nav class="marks" aria-label="Tiến trình"><span><i></i>Bài toán</span><span><i></i>Dataset</span><span class="on"><i></i>SOTA</span><span><i></i>Ứng dụng</span></nav>
   <div class="body">
@@ -565,7 +585,7 @@ em.term{font-style:normal;color:var(--key)}
 </section>
 
 <!-- 11 -->
-<section class="slide" aria-label="Bản khắc 11">
+<section class="slide dense-slide" aria-label="Bản khắc 11">
   <div class="head"><span class="ruo">Research Use Only: chưa kiểm định lâm sàng</span><span class="plate-no">Bản khắc XI</span></div>
   <nav class="marks" aria-label="Tiến trình"><span><i></i>Bài toán</span><span><i></i>Dataset</span><span><i></i>SOTA</span><span class="on"><i></i>Ứng dụng</span></nav>
   <div class="body">
@@ -642,7 +662,7 @@ em.term{font-style:normal;color:var(--key)}
 </section>
 
 <!-- 14 -->
-<section class="slide" aria-label="Bản khắc 14">
+<section class="slide dense-slide citation-slide" aria-label="Bản khắc 14">
   <div class="head"><span class="ruo">Research Use Only: chưa kiểm định lâm sàng</span><span class="plate-no">Bản khắc XIV</span></div>
   <div></div>
   <div class="body">

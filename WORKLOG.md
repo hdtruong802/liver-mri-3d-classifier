@@ -519,3 +519,29 @@ Hai ngoại lệ đăng ký kèm lý do (`single-font`, `overused-font=arial`): 
 **Điểm vào phiên sau:** Mở `slides/overview.html#3` trong Chrome, kiểm tra trực quan bản khắc III ở 100% zoom và trình chiếu 16:9; nếu cần, kiểm tra lại các bản dày chữ VII, VIII, X sau khi có môi trường screenshot hoạt động.
 
 **Cảnh báo cho tool sau:** Chỉ bản khắc III mang lớp `phase-slide`; giữ cỡ chữ lớn và độ rộng bị giới hạn ở scope này, không áp dụng mù quáng sang toàn bộ deck vì các bản bảng số liệu cần không gian khác.
+
+## S-011 · 2026-07-24 12:04 · codex
+
+**Mục tiêu phiên:** Rà soát và sửa hệ typography, bố cục của toàn bộ 14 bản khắc trong `slides/overview.html`, không chỉ bản III.
+
+**Nhánh / commit:** `main` · `4c69ab9` → *(commit đang chờ)*
+
+**Đã động file:**
+- `slides/overview.html` — tăng thang chữ, căn lại toàn bộ vùng thân slide, thêm biến thể mật độ cao cho các bản dày nội dung và điều chỉnh mobile/print.
+- `WORKLOG.md` — ghi nhận phiên rà soát deck toàn diện.
+
+**Quyết định & lý do:**
+- Tăng sáu token cỡ chữ của toàn deck theo cùng tỉ lệ hierarchy, thay vì phóng một vài bản riêng lẻ — lỗi người dùng thấy là lỗi hệ thống, rõ nhất ở màn 16:9 thấp nơi chữ chạy còn nhỏ.
+- Các bản khắc mặc định đặt nội dung vào trục giữa dọc và giới hạn bề rộng 72 đơn vị khung — làm khoảng trống trên/dưới và trái/phải cân hơn, đồng thời giữ tiêu đề, chữ chạy và nhóm nội dung chung một trục đọc.
+- Bản VII, X, XI và XIV dùng `dense-slide`, tăng ít hơn để các danh sách dài, ba cột và chú giải vẫn vừa vùng trình chiếu; XIV giữ căn trên vì đây là trang thư mục nguồn, không phải một luận điểm cần đặt giữa.
+- Mobile và print trở lại dòng chảy tự nhiên toàn bề rộng — chỉ trình chiếu 16:9 mới dùng khối giới hạn bề rộng/căn giữa.
+
+**Kết quả / số liệu:** Rà 14/14 bản khắc theo cấu trúc và loại nội dung. Detector layout của Impeccable và CLI Impeccable cho toàn thư mục `slides` đều trả `[]`; `git diff --check` sạch; số `<div>` mở/đóng đều là 93.
+
+**Dang dở:**
+- [ ] `bash scripts/quality-gate.sh` tiếp tục không chạy vì máy chưa cài WSL distribution; detector tương đương đã chạy trực tiếp từ npm cache.
+- [ ] Chrome/Edge headless vẫn lỗi GPU, chưa có ảnh render tự động mới cho 14 bản. Cần kiểm tra mắt thường trong Chrome khi môi trường GPU/screenshot hoạt động.
+
+**Điểm vào phiên sau:** Mở `slides/overview.html`, trình chiếu lần lượt 14 bản ở 1366×768, 1920×1080 và 1280×720; ưu tiên kiểm tra VII, VIII, X, XI, XIV là các bản nhiều chữ/bảng.
+
+**Cảnh báo cho tool sau:** `dense-slide` là biến thể đọc xa nhưng nhiều nội dung, không phải lớp “thu nhỏ chữ”. Giữ khoảng cách đầy đủ giữa `data` và `body` theo DESIGN.md; nếu một bản tràn, sửa cấu trúc/nội dung riêng của bản đó trước khi hạ cả thang chữ.
