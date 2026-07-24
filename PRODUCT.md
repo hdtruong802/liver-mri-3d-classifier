@@ -64,10 +64,11 @@ Hệ quả trực tiếp lên sản phẩm: **mức bất định là nội dung
 
 ## Brand Commitments
 
-Không có thương hiệu, logo, hay identity có sẵn. Chỉ có hai cam kết bắt buộc:
+Không có thương hiệu, logo, hay identity có sẵn. Ba cam kết bắt buộc:
 
 1. **Cảnh báo Research Use Only phải xuất hiện trên mọi bề mặt có kết quả**, ở vị trí không thể bỏ sót. Không màn hình nào được ngụ ý công cụ đã kiểm định lâm sàng.
 2. **Ngôn ngữ hiển thị là tiếng Việt** cho cả web app, slide và report. Thuật ngữ y khoa và thống kê giữ nguyên tiếng Anh (xem mục trên).
+3. **Quy ước hội nghị là lựa chọn thường trực, không phải mặc định vì lười.** Người dùng đã chọn quy ước academic — cụ thể là chuẩn talk MICCAI/MIDL — thay vì một thế giới thị giác riêng (2026-07-24). Vì vậy quy ước trở thành cam kết và được thực thi ở mức thủ công cao nhất: chữ là chính, lưới chặt, kẻ hairline, phẳng hoàn toàn, không cài cắm phong cách riêng và không mỉa mai. Hệ thống thị giác cụ thể ở [`DESIGN.md`](DESIGN.md).
 
 ## Evidence on Hand
 

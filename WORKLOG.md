@@ -289,3 +289,61 @@ field `defer`. Nếu thấy mâu thuẫn thì AGENTS.md + plan §8.1 thắng. Đ
 - ⚠️ **Repo là PUBLIC.** Đã kiểm: không có dữ liệu bệnh nhân, không có secret, không có checkpoint (quality gate chặn sẵn). Nhưng Spec Sheet và Plan — tức toàn bộ hướng nghiên cứu chưa công bố — **đang công khai**. Nếu không cố ý thì đổi sang private:
   `gh repo edit hdtruong802/liver-mri-3d-classifier --visibility private --accept-visibility-change-consequences`
 - Repo public mà chưa có `README.md` nghĩa là **chưa có RUO disclaimer ở nơi người ta nhìn đầu tiên**. Vi phạm AGENTS.md §3.1. Nên viết README sớm.
+
+
+## S-005 · 2026-07-24 14:30 · claude-code
+
+**Mục tiêu phiên:** Dựng `slides/overview.html` — bộ slide tổng quan dự án, qua `/impeccable craft`, có xác minh nguồn cho mọi con số.
+
+**Nhánh / commit:** `main` · `17675ff` → *(commit đang chờ)*
+
+**Đã đụng file:**
+- `slides/overview.html` — **mới**, 13 slide, 36.5 KB, một file tự chứa, 0 tham chiếu ngoài.
+- `DESIGN.md` — **mới**. Thế giới thị giác đầu tiên của dự án; chi phối cả web app và report sau này.
+- `PRODUCT.md` — thêm cam kết thương hiệu thứ 3 (quy ước hội nghị là lựa chọn thường trực).
+- `.impeccable/config.json` — 2 ngoại lệ detector kèm lý do.
+
+**Quyết định & lý do:**
+- **Người dùng chọn canon (standing exit)** thay vì hướng được roll (bản khắc atlas giải phẫu, grounded #5, seed `b8275583`). Theo luật của Impeccable, chọn canon = quy ước trở thành cam kết, thực thi ở mức cao nhất, không cài cắm quirk. Thanh chuẩn người dùng chốt: **talk MICCAI/MIDL**.
+- **Nền sáng**, chọn từ cảnh dùng thật (phòng họp còn bật đèn để ghi chú; máy chiếu xử lý nền sáng ổn định hơn nền tối bị nhạt màu), không phải từ thói quen thể loại.
+- **Một họ chữ hệ thống duy nhất.** Ràng buộc quyết định: slide phải mở ngoại tuyến bằng double-click và hiển thị đủ dấu tiếng Việt ở cỡ nhỏ → không CDN, không webfont.
+- **Thiết bị phân biệt hai loại số:** nét đứt + nhãn chữ = "chưa có dữ liệu"; nét liền + nhãn nguồn `[Tác giả, Năm]` + `n=` = số đã công bố của người khác. Ghi thành `The Two-Number Rule` trong DESIGN.md.
+
+**Kết quả / số liệu:** quality gate PASS. 13/13 slide có dải RUO và nhãn nguồn. 0 tham chiếu ngoài.
+
+**Detector bắt được 35 finding ở bản dựng đầu — 4 loại, tất cả đều đúng:**
+1. **`all-caps-body` ×31**, chuỗi in hoa dài tới 108 ký tự. Đây là lỗi riêng của tiếng Việt mà tôi đã bỏ sót: dấu thanh chồng lên chữ hoa (Ế, Ữ, Ậ) bị chèn ép ở cỡ nhỏ và mất khi chiếu. **Đã bỏ `text-transform:uppercase` khỏi toàn bộ hệ thống** và ghi thành `The No-Uppercase Rule`.
+2. **`low-contrast` 4.4:1** — màu `#6B7480` thiếu chuẩn AA. Đổi sang `#656E7A` (4.8:1). Đã ghi cả giá trị hỏng vào DESIGN.md để phiên sau không làm nhạt lại.
+3. **`design-system-font`** — CSS khai stack khác DESIGN.md. Đây là **drift thật**, đã sửa file thiết kế cho khớp code chứ không tắt cảnh báo.
+4. **`em-dash-overuse` 46 lần** — nhịp văn máy. Giảm còn 8 bằng cách viết lại prose dùng dấu phẩy, hai chấm, ngoặc đơn.
+
+Hai ngoại lệ đăng ký kèm lý do (`single-font`, `overused-font=arial`): cả hai bị ràng buộc ngoại tuyến + tiếng Việt ép, không phải lựa chọn thẩm mỹ. Ghi rõ trong DESIGN.md: **đừng thêm font thứ hai chỉ để tắt cảnh báo**.
+
+**Ba chỗ Spec Sheet lệch so với nguồn gốc — CẦN NGƯỜI DÙNG SỬA:**
+> Spec Sheet §1 và §2 ghi *"SOTA trên LLD-MMRI đã bão hòa quanh 85% acc / 85% macro-F1 / 97% macro-AUC"*. Đối chiếu nguồn gốc thì **cả ba số đều cao hơn thực tế**:
+> - **F1 cao nhất xác minh được: 0,8322** (quán quân challenge), không phải 0,85.
+> - **Accuracy cao nhất xác minh được: 0,7885** (SDR-Former). Không tìm thấy công bố nào đạt 85% acc.
+> - **AUC cao nhất xác minh được: 0,9536** (SDR-Former), không phải 0,97.
+> - Thêm nữa: bài SDR-Former **không nói rõ F1 và AUC có macro hay không**, nên chữ "macro-" trong Spec Sheet là suy diễn.
+>
+> Slide dùng số đã xác minh. **Spec Sheet vẫn đang sai và cần sửa.**
+
+**Một nhận định của Spec Sheet bị tìm kiếm bác bỏ một phần:**
+> Spec Sheet nói SOTA *"chỉ báo accuracy/F1/AUC"* và calibration/selective prediction là chỗ bỏ trống. Thực tế **[Wang et al., 2021] arXiv:2110.08817 đã làm uncertainty + cơ chế từ chối** trên MRI gan đa pha (F1 0,62→0,71 khi chỉ xét 70% ca tự tin nhất).
+> Khoảng trống vẫn còn nhưng **hẹp hơn**, và phải phát biểu chính xác hơn: công trình đó dùng **dữ liệu riêng tư 400 bệnh nhân**, chỉ **3 lớp ác tính**, và **không báo chỉ số calibration nào**. Trên chính LLD-MMRI (công khai, 7 lớp, có leaderboard) thì vẫn chưa có công bố nào báo calibration hay selective prediction — đã kiểm toàn văn SDR-Former, không có từ nào về uncertainty.
+> Slide 9 phát biểu theo bản đã hiệu chỉnh này. **Định vị của dự án vẫn đứng vững, nhưng câu chữ trong Spec Sheet đang quá mạnh.**
+
+**Dang dở:**
+- [ ] **Chưa xem render thật** — phiên này không có công cụ trình duyệt/screenshot. Đã kiểm cấu trúc, chưa kiểm thị giác.
+- [ ] Chưa chạy `impeccable-finish-reviewer` (subagent) vì người dùng không yêu cầu spawn agent.
+- [ ] Spec Sheet chưa được sửa theo 2 mục trên (cần người dùng duyệt — AGENTS.md §10 cấm agent tự đổi Spec Sheet).
+
+**Điểm vào phiên sau:**
+1. Mở `slides/overview.html` bằng trình duyệt, bấm qua 13 slide, kiểm tràn nội dung ở màn hình thật và thử in ra PDF.
+2. Duyệt và sửa `MRI_Classification_Spec_Sheet.md` theo hai mục lệch ở trên.
+3. Sprint 1 vẫn chưa bắt đầu.
+
+**Cảnh báo cho tool sau:**
+- `DESIGN.md` giờ là ràng buộc cho **cả web app và report**, không riêng slide. Đọc trước khi đụng UI.
+- **Không có con số nào của dự án này trên slide** và phải giữ nguyên như vậy cho tới khi có kết quả thật.
+- `.body` dùng `overflow:auto` có chủ ý: nếu nội dung tràn thì hiện thanh cuộn để người trình bày thấy khi tập dượt, thay vì nuốt mất một dòng ngay giữa buổi báo cáo. Đừng đổi lại thành `hidden`.

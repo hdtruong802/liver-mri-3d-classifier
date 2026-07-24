@@ -1,0 +1,16 @@
+{
+  "detector": {
+    "ignoreRules": [
+      "single-font"
+    ],
+    "ignoreFiles": [],
+    "ignoreValues": [
+      {
+        "rule": "overused-font",
+        "value": "arial",
+        "createdAt": "2026-07-24T03:40:00.681Z",
+        "reason": "Arial là fallback CUỐI trong stack font hệ thống, không phải font thương hiệu được chọn. Stack ưu tiên Segoe UI / system-ui / Noto Sans. Ràng buộc: slide phải mở được ngoại tuyến bằng double-click (không CDN, không webfont) và hiển thị đủ dấu thanh tiếng Việt ở cỡ nhỏ."
+      }
+    ]
+  }
+}
