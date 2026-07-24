@@ -35,12 +35,17 @@
   --serif:Cambria,"Times New Roman","Liberation Serif","Noto Serif",Georgia,serif;
   --sans:"Segoe UI",system-ui,-apple-system,"Noto Sans","Liberation Sans",Arial,sans-serif;
 
-  --display:clamp(2.41rem,3.61vw,2.85rem);
-  --headline:clamp(1.53rem,2.29vw,1.8rem);
-  --title:clamp(.95rem,1.42vw,1.12rem);
-  --body:clamp(.95rem,1.42vw,1.12rem);
-  --label:clamp(.72rem,1.08vw,.85rem);
-  --data:clamp(1.19rem,1.78vw,1.4rem);
+  /* Đơn vị khung: cạnh nhỏ hơn của khung 16:9, để MỌI thứ co theo khung
+     thay vì theo bề rộng cửa sổ. Chặn trên bằng rem là nguyên nhân tràn
+     nội dung trên màn thấp (1366x768) — đừng đưa nó trở lại. */
+  --u:min(1vw,1.778vh);
+
+  --display:max(2.15rem,calc(2.78 * var(--u)));
+  --headline:max(1.36rem,calc(1.76 * var(--u)));
+  --data:max(1.08rem,calc(1.37 * var(--u)));
+  --title:max(.86rem,calc(1.09 * var(--u)));
+  --body:max(.86rem,calc(1.09 * var(--u)));
+  --label:max(.655rem,calc(.83 * var(--u)));
 }
 *{box-sizing:border-box;margin:0;padding:0}
 html,body{height:100%}
@@ -59,19 +64,19 @@ body{
 .slide{
   position:absolute;inset:0;display:none;
   grid-template-rows:auto auto 1fr auto;
-  padding:clamp(18px,2.4vw,var(--xl));
+  padding:max(14px,calc(2.4 * var(--u)));
   background:var(--ground);
 }
 .slide.is-active{display:grid}
 .slide::before{
   content:"";position:absolute;
-  inset:clamp(9px,1.2vw,20px);
+  inset:calc(1.2 * var(--u));
   border:1px solid var(--rule-2);
   pointer-events:none;
 }
 .slide::after{
   content:"";position:absolute;
-  inset:clamp(13px,1.7vw,27px);
+  inset:calc(1.7 * var(--u));
   border:1px solid var(--rule);
   pointer-events:none;
 }
@@ -97,7 +102,10 @@ body{
 .marks .on i{background:var(--key);height:2px}
 
 /* ---------- body ---------- */
-.body{padding-top:clamp(12px,1.8vw,var(--lg));min-height:0;overflow:auto}
+/* overflow:hidden có chủ ý — không bao giờ hiện thanh trượt giữa buổi trình
+   chiếu. Đổi lại, nội dung PHẢI vừa khung: mọi cỡ chữ và khoảng cách đều đo
+   theo --u nên tỉ lệ giữ nguyên ở mọi độ phân giải 16:9. */
+.body{padding-top:calc(1.6 * var(--u));min-height:0;overflow:hidden}
 
 h1,h2{
   font-family:var(--serif);font-weight:400;
@@ -107,7 +115,7 @@ h1,h2{
 h2{max-width:31ch}
 h2::after{
   content:"";display:block;width:82px;height:1px;
-  background:var(--key);margin-top:var(--md);
+  background:var(--key);margin-top:calc(.9 * var(--u));
 }
 h3{
   font-family:var(--serif);font-size:var(--title);font-weight:400;
@@ -116,15 +124,15 @@ h3{
 p{max-width:62ch}
 .lede{
   font-family:var(--serif);font-size:var(--headline);font-weight:400;
-  line-height:1.35;max-width:36ch;margin-top:var(--lg);color:var(--line);
+  line-height:1.35;max-width:36ch;margin-top:calc(1.5 * var(--u));color:var(--line);
 }
-.sub{color:var(--line-2);margin-top:var(--md);max-width:58ch}
+.sub{color:var(--line-2);margin-top:calc(1.0 * var(--u));max-width:62ch}
 .quiet{color:var(--line-2)}
-.mt{margin-top:var(--lg)}
-.mt-sm{margin-top:var(--md)}
-.stack>*+*{margin-top:var(--md)}
-.cols{display:grid;grid-template-columns:1fr 1fr;gap:clamp(18px,2.8vw,var(--xl));align-items:start}
-.cols-3{display:grid;grid-template-columns:repeat(3,1fr);gap:clamp(14px,2.2vw,var(--lg));align-items:start}
+.mt{margin-top:calc(1.6 * var(--u))}
+.mt-sm{margin-top:calc(1.0 * var(--u))}
+.stack>*+*{margin-top:calc(1.0 * var(--u))}
+.cols{display:grid;grid-template-columns:1fr 1fr;gap:calc(2.6 * var(--u));align-items:start}
+.cols-3{display:grid;grid-template-columns:repeat(3,1fr);gap:calc(1.9 * var(--u));align-items:start}
 
 /* ---------- the atlas device: numbered key + leader line ---------- */
 sup.key{
@@ -134,7 +142,7 @@ sup.key{
 }
 .legend{
   font-family:var(--serif);font-size:var(--label);color:var(--line-2);
-  display:flex;flex-wrap:wrap;gap:var(--xs) var(--lg);
+  display:flex;flex-wrap:wrap;gap:var(--xs) var(--lg);max-width:74ch;
 }
 .legend b{color:var(--key);font-weight:400;font-style:normal;margin-right:7px}
 .legend a,.refs a{color:var(--line);text-decoration:underline;text-decoration-color:var(--rule-2);text-decoration-thickness:1px;text-underline-offset:2px}
@@ -142,15 +150,15 @@ sup.key{
 .legend a:focus-visible,.refs a:focus-visible{outline:2px solid var(--key);outline-offset:2px}
 
 ul{list-style:none}
-ul.marked li{position:relative;padding-left:var(--lg);margin-top:var(--sm);max-width:52ch}
+ul.marked li{position:relative;padding-left:calc(1.5 * var(--u));margin-top:calc(.5 * var(--u));max-width:52ch}
 ul.marked li::before{
   content:"";position:absolute;left:0;top:.72em;
   width:16px;height:1px;background:var(--rule-2);
 }
 
 /* ---------- taxonomy: shape + text ---------- */
-.tax{display:grid;grid-template-columns:1fr 1fr;gap:var(--md) var(--xl)}
-.tax li{display:flex;align-items:baseline;gap:var(--sm);margin-top:var(--xs)}
+.tax{display:grid;grid-template-columns:1fr 1fr;gap:calc(1.0 * var(--u)) calc(2.4 * var(--u))}
+.tax li{display:flex;align-items:baseline;gap:calc(.5 * var(--u));margin-top:calc(.3 * var(--u))}
 .mark{flex:none;width:10px;height:10px;display:inline-block;transform:translateY(1px)}
 .mark-mal{background:var(--key);border:1px solid var(--key)}
 .mark-ben{background:transparent;border:1px solid var(--alt)}
@@ -162,14 +170,14 @@ caption{
   text-align:left;font-family:var(--serif);font-style:italic;
   font-size:var(--label);color:var(--line-2);padding-bottom:var(--sm);
 }
-th,td{padding:var(--sm) var(--md);border-bottom:1px solid var(--rule);
-  font-size:var(--data);font-weight:400;text-align:right}
+th,td{padding:calc(.5 * var(--u)) calc(1.0 * var(--u));border-bottom:1px solid var(--rule);
+  font-size:var(--data);font-weight:400;text-align:right;color:var(--line-2)}
 th{font-family:var(--serif);font-style:italic;font-size:var(--label);
   font-weight:400;color:var(--line-2);border-bottom:1px solid var(--rule-2);white-space:nowrap}
 th:first-child,td:first-child{text-align:left;padding-left:0}
 th:last-child,td:last-child{padding-right:0}
 td.name{font-size:var(--body)}
-tr.lead td{color:var(--key)}
+tr.lead td{color:var(--line)}
 
 /* ---------- "no data" language ---------- */
 .chip{
@@ -181,7 +189,7 @@ tr.lead td{color:var(--key)}
 .concept{border:1px dashed var(--line-3);padding:var(--md)}
 .concept svg{display:block;width:100%;height:auto}
 
-.panel{border:1px solid var(--rule);background:var(--plate);padding:var(--lg)}
+.panel{border:1px solid var(--rule);background:var(--plate);padding:22px}
 .num{font-variant-numeric:tabular-nums}
 .big{font-family:var(--serif);font-size:var(--headline);font-variant-numeric:tabular-nums;color:var(--line)}
 em.term{font-style:normal;color:var(--key)}
@@ -192,12 +200,12 @@ em.term{font-style:normal;color:var(--key)}
   padding-top:var(--sm);border-top:1px solid var(--rule);
   font-family:var(--serif);font-size:var(--label);color:var(--line-2);
 }
-.foot .src{max-width:82ch}
+.foot .src{max-width:74ch}
 .foot .no{color:var(--line-3);font-variant-numeric:tabular-nums;white-space:nowrap;font-style:italic}
 
 /* ---------- refs ---------- */
 .refs{font-size:var(--label);line-height:1.5}
-.refs li{padding-left:var(--lg);position:relative;margin-top:var(--sm);max-width:none}
+.refs li{padding-left:calc(1.6 * var(--u));position:relative;margin-top:calc(.55 * var(--u));max-width:none}
 .refs li b{position:absolute;left:0;color:var(--key);font-family:var(--serif);font-weight:400}
 .refs .url{color:var(--line-3);word-break:break-all}
 
@@ -233,7 +241,10 @@ em.term{font-style:normal;color:var(--key)}
   .nav{display:none}
 }
 
-.nav{position:fixed;right:12px;bottom:12px;display:flex;gap:var(--xs);z-index:5}
+.nav{position:fixed;left:50%;transform:translateX(-50%);bottom:10px;display:flex;gap:var(--xs);z-index:5;
+  opacity:0;pointer-events:none;transition:opacity .25s ease}
+.nav.is-on,.nav:hover,.nav:focus-within{opacity:1;pointer-events:auto}
+@media (prefers-reduced-motion:reduce){.nav{transition:none}}
 .nav button{
   font:inherit;font-family:var(--serif);font-size:var(--label);
   background:var(--plate);color:var(--line);border:1px solid var(--rule-2);
@@ -256,7 +267,7 @@ em.term{font-style:normal;color:var(--key)}
     <p class="lede">Bảy lớp tổn thương gan. Tám thì MRI. Và một câu hỏi mà bảng xếp hạng không trả lời.</p>
     <p class="sub">Tổng quan dự án: nghiên cứu cá nhân, 6 tuần, PyTorch/MONAI, Kaggle, Claude/Codex</p>
   </div>
-  <div class="foot"><span class="src">Mọi số liệu trong bài đều là kết quả đã công bố của nhóm khác, có chú số dẫn nguồn</span><span class="no">1 / 13</span></div>
+  <div class="foot"><span class="src">Mọi số liệu trong bài đều là kết quả đã công bố của nhóm khác, có chú số dẫn nguồn</span><span class="no">1 / 14</span></div>
 </section>
 
 <!-- 2 -->
@@ -264,57 +275,66 @@ em.term{font-style:normal;color:var(--key)}
   <div class="head"><span class="ruo">Research Use Only: chưa kiểm định lâm sàng</span><span class="plate-no">Bản khắc II</span></div>
   <nav class="marks" aria-label="Tiến trình"><span class="on"><i></i>Bài toán</span><span><i></i>Dataset</span><span><i></i>SOTA</span><span><i></i>Ứng dụng</span></nav>
   <div class="body">
-    <h2>Bảy lớp tổn thương, phân biệt trực tiếp trên khối 3D</h2>
-    <p class="sub">Đầu vào là <em class="term">khối 3D đa pha</em><sup class="key">1</sup>: tám thì MRI của cùng một tổn thương, đã căn chỉnh về cùng khung toạ độ. Model đọc cả khối, không hạ xuống từng lát 2D. <strong>Không làm segmentation:</strong> vùng tổn thương đã khoanh sẵn, việc cần làm là gọi đúng tên nó.</p>
-    <div class="cols mt">
-      <div class="tax">
-        <div>
-          <div class="cat">Ác tính, 3 lớp</div>
-          <ul>
-            <li><span class="mark mark-mal"></span><span>HCC: ung thư biểu mô tế bào gan (hepatocellular carcinoma)</span></li>
-            <li><span class="mark mark-mal"></span><span>ICC: ung thư đường mật trong gan (intrahepatic cholangiocarcinoma)</span></li>
-            <li><span class="mark mark-mal"></span><span>Di căn gan (liver metastases)</span></li>
-          </ul>
-        </div>
-        <div>
-          <div class="cat">Lành tính, 4 lớp</div>
-          <ul>
-            <li><span class="mark mark-ben"></span><span>Nang gan (hepatic cysts)</span></li>
-            <li><span class="mark mark-ben"></span><span>U máu (hepatic hemangioma)</span></li>
-            <li><span class="mark mark-ben"></span><span>FNH: tăng sản thể nốt khu trú (focal nodular hyperplasia)</span></li>
-            <li><span class="mark mark-ben"></span><span>Áp-xe gan (hepatic abscess)</span></li>
-          </ul>
-        </div>
+    <h2>Bảy lớp tổn thương, ba ác tính và bốn lành tính</h2>
+    <p class="sub">Phân loại ở mức tổn thương, không phải mức bệnh nhân. Vùng tổn thương đã được khoanh sẵn trong dataset, nên việc cần làm là gọi đúng tên nó. <strong>Không làm segmentation.</strong></p>
+    <div class="tax mt">
+      <div>
+        <div class="cat">Ác tính, 3 lớp</div>
+        <ul>
+          <li><span class="mark mark-mal"></span><span>HCC: ung thư biểu mô tế bào gan (hepatocellular carcinoma)</span></li>
+          <li><span class="mark mark-mal"></span><span>ICC: ung thư đường mật trong gan (intrahepatic cholangiocarcinoma)</span></li>
+          <li><span class="mark mark-mal"></span><span>Di căn gan (liver metastases)</span></li>
+        </ul>
       </div>
-      <div class="stack">
-        <div>
-          <div class="cat">Cấu trúc, 4 thì</div>
-          <ul class="marked">
-            <li>T2WI</li>
-            <li>DWI, ảnh khuếch tán</li>
-            <li>T1 in-phase</li>
-            <li>T1 out-phase</li>
-          </ul>
-        </div>
-        <div>
-          <div class="cat">Động học ngấm thuốc, 4 thì</div>
-          <ul class="marked">
-            <li>Trước thuốc</li>
-            <li>Thì động mạch</li>
-            <li>Thì tĩnh mạch cửa</li>
-            <li>Thì muộn</li>
-          </ul>
-          <p class="quiet mt-sm">Bốn thì này mang tín hiệu LI-RADS: ngấm mạnh thì động mạch rồi thải thuốc thì tĩnh mạch.</p>
-        </div>
+      <div>
+        <div class="cat">Lành tính, 4 lớp</div>
+        <ul>
+          <li><span class="mark mark-ben"></span><span>Nang gan (hepatic cysts)</span></li>
+          <li><span class="mark mark-ben"></span><span>U máu (hepatic hemangioma)</span></li>
+          <li><span class="mark mark-ben"></span><span>FNH: tăng sản thể nốt khu trú (focal nodular hyperplasia)</span></li>
+          <li><span class="mark mark-ben"></span><span>Áp-xe gan (hepatic abscess)</span></li>
+        </ul>
       </div>
     </div>
   </div>
-  <div class="foot"><span class="legend"><span><b>1.</b><a href="https://github.com/LMMMEng/LLD-MMRI-Dataset" target="_blank" rel="noopener">LLD-MMRI Dataset</a>, LLD-MMRI2023 Challenge, MICCAI 2023</span></span><span class="no">2 / 13</span></div>
+  <div class="foot"><span class="legend"><span><b>1.</b><a href="https://github.com/LMMMEng/LLD-MMRI-Dataset" target="_blank" rel="noopener">LLD-MMRI Dataset</a>, LLD-MMRI2023 Challenge, MICCAI 2023</span></span><span class="no">2 / 14</span></div>
 </section>
 
 <!-- 3 -->
 <section class="slide" aria-label="Bản khắc 3">
   <div class="head"><span class="ruo">Research Use Only: chưa kiểm định lâm sàng</span><span class="plate-no">Bản khắc III</span></div>
+  <nav class="marks" aria-label="Tiến trình"><span class="on"><i></i>Bài toán</span><span><i></i>Dataset</span><span><i></i>SOTA</span><span><i></i>Ứng dụng</span></nav>
+  <div class="body">
+    <h2>Tám thì MRI của cùng một tổn thương, đã căn chỉnh sẵn</h2>
+    <p class="sub">Dataset công bố tám thì đã đưa về cùng khung toạ độ<sup class="key">1</sup>. Model đọc cả khối 3D đa pha, không hạ xuống từng lát 2D.</p>
+    <div class="cols mt">
+      <div>
+        <div class="cat">Cấu trúc, 4 thì</div>
+        <ul class="marked">
+          <li>T2WI</li>
+          <li>DWI, ảnh khuếch tán</li>
+          <li>T1 in-phase</li>
+          <li>T1 out-phase</li>
+        </ul>
+      </div>
+      <div>
+        <div class="cat">Động học ngấm thuốc, 4 thì</div>
+        <ul class="marked">
+          <li>Trước thuốc</li>
+          <li>Thì động mạch</li>
+          <li>Thì tĩnh mạch cửa</li>
+          <li>Thì muộn</li>
+        </ul>
+        <p class="quiet mt-sm">Bốn thì này mang tín hiệu LI-RADS: ngấm mạnh thì động mạch rồi thải thuốc thì tĩnh mạch.</p>
+      </div>
+    </div>
+  </div>
+  <div class="foot"><span class="legend"><span><b>1.</b><a href="https://github.com/LMMMEng/LLD-MMRI-Dataset" target="_blank" rel="noopener">LLD-MMRI Dataset</a>, LLD-MMRI2023 Challenge, MICCAI 2023</span></span><span class="no">3 / 14</span></div>
+</section>
+
+<!-- 4 -->
+<section class="slide" aria-label="Bản khắc 4">
+  <div class="head"><span class="ruo">Research Use Only: chưa kiểm định lâm sàng</span><span class="plate-no">Bản khắc IV</span></div>
   <nav class="marks" aria-label="Tiến trình"><span class="on"><i></i>Bài toán</span><span><i></i>Dataset</span><span><i></i>SOTA</span><span><i></i>Ứng dụng</span></nav>
   <div class="body">
     <h2>Câu hỏi không phải “đúng bao nhiêu phần trăm”, mà “có đáng tin không”</h2>
@@ -338,12 +358,12 @@ em.term{font-style:normal;color:var(--key)}
       </div>
     </div>
   </div>
-  <div class="foot"><span class="src">Sơ đồ tự vẽ, không lấy từ nguồn nào, không mang dữ liệu</span><span class="no">3 / 13</span></div>
+  <div class="foot"><span class="src">Sơ đồ tự vẽ, không lấy từ nguồn nào, không mang dữ liệu</span><span class="no">4 / 14</span></div>
 </section>
 
-<!-- 4 -->
-<section class="slide" aria-label="Bản khắc 4">
-  <div class="head"><span class="ruo">Research Use Only: chưa kiểm định lâm sàng</span><span class="plate-no">Bản khắc IV</span></div>
+<!-- 5 -->
+<section class="slide" aria-label="Bản khắc 5">
+  <div class="head"><span class="ruo">Research Use Only: chưa kiểm định lâm sàng</span><span class="plate-no">Bản khắc V</span></div>
   <nav class="marks" aria-label="Tiến trình"><span><i></i>Bài toán</span><span class="on"><i></i>Dataset</span><span><i></i>SOTA</span><span><i></i>Ứng dụng</span></nav>
   <div class="body">
     <h2>LLD-MMRI là bộ MRI gan đa pha công khai đầu tiên có đủ 7 lớp</h2>
@@ -356,7 +376,7 @@ em.term{font-style:normal;color:var(--key)}
       <div class="panel">
         <div class="cat">Chuỗi ảnh</div>
         <p class="big mt-sm">8 thì MRI<sup class="key">1</sup></p>
-        <p class="quiet mt-sm">Bốn thì cấu trúc và bốn thì động, liệt kê đầy đủ ở bản khắc II. Dataset công bố các thì đã căn chỉnh sẵn về cùng khung toạ độ.</p>
+        <p class="quiet mt-sm">Bốn thì cấu trúc và bốn thì động, liệt kê đầy đủ ở bản khắc III. Dataset công bố các thì đã căn chỉnh sẵn về cùng khung toạ độ.</p>
       </div>
       <div class="panel">
         <div class="cat">Nhãn kèm theo</div>
@@ -366,12 +386,12 @@ em.term{font-style:normal;color:var(--key)}
     </div>
     <p class="sub mt">Truy cập qua form đăng ký research-use. Đây là nền của MICCAI LLD-MMRI Challenge 2023, nghĩa là có sẵn một bảng xếp hạng công khai để đối chiếu, điều rất hiếm với dữ liệu MRI gan.</p>
   </div>
-  <div class="foot"><span class="legend"><span><b>1.</b><a href="https://github.com/LMMMEng/LLD-MMRI-Dataset" target="_blank" rel="noopener">LLD-MMRI Dataset</a>, LLD-MMRI2023 Challenge, MICCAI 2023</span></span><span class="no">4 / 13</span></div>
+  <div class="foot"><span class="legend"><span><b>1.</b><a href="https://github.com/LMMMEng/LLD-MMRI-Dataset" target="_blank" rel="noopener">LLD-MMRI Dataset</a>, LLD-MMRI2023 Challenge, MICCAI 2023</span></span><span class="no">5 / 14</span></div>
 </section>
 
-<!-- 5 -->
-<section class="slide" aria-label="Bản khắc 5">
-  <div class="head"><span class="ruo">Research Use Only: chưa kiểm định lâm sàng</span><span class="plate-no">Bản khắc V</span></div>
+<!-- 6 -->
+<section class="slide" aria-label="Bản khắc 6">
+  <div class="head"><span class="ruo">Research Use Only: chưa kiểm định lâm sàng</span><span class="plate-no">Bản khắc VI</span></div>
   <nav class="marks" aria-label="Tiến trình"><span><i></i>Bài toán</span><span class="on"><i></i>Dataset</span><span><i></i>SOTA</span><span><i></i>Ứng dụng</span></nav>
   <div class="body">
     <h2>Không có bộ công khai thứ hai cùng taxonomy: đó là giới hạn của cả lĩnh vực</h2>
@@ -392,12 +412,12 @@ em.term{font-style:normal;color:var(--key)}
       </div>
     </div>
   </div>
-  <div class="foot"><span class="legend"><span><b>2.</b>Macdonald J.A., Zhu Z., et al. Duke Liver Dataset. <i>Radiol Artif Intell</i> 2023. <a href="https://doi.org/10.1148/ryai.220275" target="_blank" rel="noopener">doi:10.1148/ryai.220275</a> · n = 105</span></span><span class="no">5 / 13</span></div>
+  <div class="foot"><span class="legend"><span><b>2.</b>Macdonald J.A., Zhu Z., et al. Duke Liver Dataset. <i>Radiol Artif Intell</i> 2023. <a href="https://doi.org/10.1148/ryai.220275" target="_blank" rel="noopener">doi:10.1148/ryai.220275</a> · n = 105</span></span><span class="no">6 / 14</span></div>
 </section>
 
-<!-- 6 -->
-<section class="slide" aria-label="Bản khắc 6">
-  <div class="head"><span class="ruo">Research Use Only: chưa kiểm định lâm sàng</span><span class="plate-no">Bản khắc VI</span></div>
+<!-- 7 -->
+<section class="slide" aria-label="Bản khắc 7">
+  <div class="head"><span class="ruo">Research Use Only: chưa kiểm định lâm sàng</span><span class="plate-no">Bản khắc VII</span></div>
   <nav class="marks" aria-label="Tiến trình"><span><i></i>Bài toán</span><span class="on"><i></i>Dataset</span><span><i></i>SOTA</span><span><i></i>Ứng dụng</span></nav>
   <div class="body">
     <h2>Dữ liệu đủ để nghiên cứu, không đủ để tự tin</h2>
@@ -421,12 +441,12 @@ em.term{font-style:normal;color:var(--key)}
       </div>
     </div>
   </div>
-  <div class="foot"><span class="src">Cỡ tập theo LLD-MMRI2023 · giao thức là thiết kế của dự án này, chưa thực thi</span><span class="no">6 / 13</span></div>
+  <div class="foot"><span class="src">Cỡ tập theo LLD-MMRI2023 · giao thức là thiết kế của dự án này, chưa thực thi</span><span class="no">7 / 14</span></div>
 </section>
 
-<!-- 7 -->
-<section class="slide" aria-label="Bản khắc 7">
-  <div class="head"><span class="ruo">Research Use Only: chưa kiểm định lâm sàng</span><span class="plate-no">Bản khắc VII</span></div>
+<!-- 8 -->
+<section class="slide" aria-label="Bản khắc 8">
+  <div class="head"><span class="ruo">Research Use Only: chưa kiểm định lâm sàng</span><span class="plate-no">Bản khắc VIII</span></div>
   <nav class="marks" aria-label="Tiến trình"><span><i></i>Bài toán</span><span><i></i>Dataset</span><span class="on"><i></i>SOTA</span><span><i></i>Ứng dụng</span></nav>
   <div class="body">
     <h2>Bảng xếp hạng challenge dừng lại ở F1 0,83</h2>
@@ -449,12 +469,12 @@ em.term{font-style:normal;color:var(--key)}
       </div>
     </div>
   </div>
-  <div class="foot"><span class="legend"><span><b>3.</b><a href="https://github.com/LMMMEng/LLD-MMRI2023/blob/main/assets/test_leaderboard.md" target="_blank" rel="noopener">LLD-MMRI2023 test leaderboard</a>, MICCAI 2023 · n = 104 · số của các đội dự thi, không phải của dự án này</span></span><span class="no">7 / 13</span></div>
+  <div class="foot"><span class="legend"><span><b>3.</b><a href="https://github.com/LMMMEng/LLD-MMRI2023/blob/main/assets/test_leaderboard.md" target="_blank" rel="noopener">LLD-MMRI2023 test leaderboard</a>, MICCAI 2023 · n = 104 · số của các đội dự thi, không phải của dự án này</span></span><span class="no">8 / 14</span></div>
 </section>
 
-<!-- 8 -->
-<section class="slide" aria-label="Bản khắc 8">
-  <div class="head"><span class="ruo">Research Use Only: chưa kiểm định lâm sàng</span><span class="plate-no">Bản khắc VIII</span></div>
+<!-- 9 -->
+<section class="slide" aria-label="Bản khắc 9">
+  <div class="head"><span class="ruo">Research Use Only: chưa kiểm định lâm sàng</span><span class="plate-no">Bản khắc IX</span></div>
   <nav class="marks" aria-label="Tiến trình"><span><i></i>Bài toán</span><span><i></i>Dataset</span><span class="on"><i></i>SOTA</span><span><i></i>Ứng dụng</span></nav>
   <div class="body">
     <h2>Đổi backbone chỉ còn mua được vài điểm phần trăm</h2>
@@ -477,12 +497,12 @@ em.term{font-style:normal;color:var(--key)}
       </div>
     </div>
   </div>
-  <div class="foot"><span class="legend"><span><b>4.</b>Lou M., et al. SDR-Former. <i>Neural Networks</i> 185 (2025) 107228. <a href="https://arxiv.org/abs/2402.17246" target="_blank" rel="noopener">arXiv:2402.17246</a> · n = 104 · khác tập test của bản khắc VII, không so chéo hai bảng</span></span><span class="no">8 / 13</span></div>
+  <div class="foot"><span class="legend"><span><b>4.</b>Lou M., et al. SDR-Former. <i>Neural Networks</i> 185 (2025) 107228. <a href="https://arxiv.org/abs/2402.17246" target="_blank" rel="noopener">arXiv:2402.17246</a> · n = 104 · khác tập test của bản khắc VIII, không so chéo hai bảng</span></span><span class="no">9 / 14</span></div>
 </section>
 
-<!-- 9 -->
-<section class="slide" aria-label="Bản khắc 9">
-  <div class="head"><span class="ruo">Research Use Only: chưa kiểm định lâm sàng</span><span class="plate-no">Bản khắc IX</span></div>
+<!-- 10 -->
+<section class="slide" aria-label="Bản khắc 10">
+  <div class="head"><span class="ruo">Research Use Only: chưa kiểm định lâm sàng</span><span class="plate-no">Bản khắc X</span></div>
   <nav class="marks" aria-label="Tiến trình"><span><i></i>Bài toán</span><span><i></i>Dataset</span><span class="on"><i></i>SOTA</span><span><i></i>Ứng dụng</span></nav>
   <div class="body">
     <h2>Khoảng trống hẹp hơn thoạt nhìn, và vẫn còn trống</h2>
@@ -508,12 +528,12 @@ em.term{font-style:normal;color:var(--key)}
       </div>
     </div>
   </div>
-  <div class="foot"><span class="legend"><span><b>5.</b>Wang P., et al. Deep learning pipeline for liver lesions with uncertainty estimation. <a href="https://arxiv.org/abs/2110.08817" target="_blank" rel="noopener">arXiv:2110.08817</a> (2021) · n = 400, dữ liệu riêng tư, 3 lớp</span></span><span class="no">9 / 13</span></div>
+  <div class="foot"><span class="legend"><span><b>5.</b>Wang P., et al. Deep learning pipeline for liver lesions with uncertainty estimation. <a href="https://arxiv.org/abs/2110.08817" target="_blank" rel="noopener">arXiv:2110.08817</a> (2021) · n = 400, dữ liệu riêng tư, 3 lớp</span></span><span class="no">10 / 14</span></div>
 </section>
 
-<!-- 10 -->
-<section class="slide" aria-label="Bản khắc 10">
-  <div class="head"><span class="ruo">Research Use Only: chưa kiểm định lâm sàng</span><span class="plate-no">Bản khắc X</span></div>
+<!-- 11 -->
+<section class="slide" aria-label="Bản khắc 11">
+  <div class="head"><span class="ruo">Research Use Only: chưa kiểm định lâm sàng</span><span class="plate-no">Bản khắc XI</span></div>
   <nav class="marks" aria-label="Tiến trình"><span><i></i>Bài toán</span><span><i></i>Dataset</span><span><i></i>SOTA</span><span class="on"><i></i>Ứng dụng</span></nav>
   <div class="body">
     <h2>Đầu ra không phải một nhãn, mà một nhãn kèm mức tin cậy</h2>
@@ -536,12 +556,12 @@ em.term{font-style:normal;color:var(--key)}
       </div>
     </div>
   </div>
-  <div class="foot"><span class="src">Đặc tả thiết kế của dự án này · chưa có bản chạy được</span><span class="no">10 / 13</span></div>
+  <div class="foot"><span class="src">Đặc tả thiết kế của dự án này · chưa có bản chạy được</span><span class="no">11 / 14</span></div>
 </section>
 
-<!-- 11 -->
-<section class="slide" aria-label="Bản khắc 11">
-  <div class="head"><span class="ruo">Research Use Only: chưa kiểm định lâm sàng</span><span class="plate-no">Bản khắc XI</span></div>
+<!-- 12 -->
+<section class="slide" aria-label="Bản khắc 12">
+  <div class="head"><span class="ruo">Research Use Only: chưa kiểm định lâm sàng</span><span class="plate-no">Bản khắc XII</span></div>
   <nav class="marks" aria-label="Tiến trình"><span><i></i>Bài toán</span><span><i></i>Dataset</span><span><i></i>SOTA</span><span class="on"><i></i>Ứng dụng</span></nav>
   <div class="body">
     <h2>Giá trị nằm ở chỗ model biết khi nào nên im lặng</h2>
@@ -559,12 +579,12 @@ em.term{font-style:normal;color:var(--key)}
       </div>
     </div>
   </div>
-  <div class="foot"><span class="src">Định vị sản phẩm của dự án này · không phải tuyên bố về hiệu năng</span><span class="no">11 / 13</span></div>
+  <div class="foot"><span class="src">Định vị sản phẩm của dự án này · không phải tuyên bố về hiệu năng</span><span class="no">12 / 14</span></div>
 </section>
 
-<!-- 12 -->
-<section class="slide" aria-label="Bản khắc 12">
-  <div class="head"><span class="ruo">Research Use Only: chưa kiểm định lâm sàng</span><span class="plate-no">Bản khắc XII</span></div>
+<!-- 13 -->
+<section class="slide" aria-label="Bản khắc 13">
+  <div class="head"><span class="ruo">Research Use Only: chưa kiểm định lâm sàng</span><span class="plate-no">Bản khắc XIII</span></div>
   <nav class="marks" aria-label="Tiến trình"><span><i></i>Bài toán</span><span><i></i>Dataset</span><span><i></i>SOTA</span><span class="on"><i></i>Ứng dụng</span></nav>
   <div class="body">
     <h2>Hiện tại dự án chưa có một con số nào của riêng mình</h2>
@@ -585,12 +605,12 @@ em.term{font-style:normal;color:var(--key)}
       </div>
     </div>
   </div>
-  <div class="foot"><span class="src">Trạng thái tính đến 24-07-2026</span><span class="no">12 / 13</span></div>
+  <div class="foot"><span class="src">Trạng thái tính đến 24-07-2026</span><span class="no">13 / 14</span></div>
 </section>
 
-<!-- 13 -->
-<section class="slide" aria-label="Bản khắc 13">
-  <div class="head"><span class="ruo">Research Use Only: chưa kiểm định lâm sàng</span><span class="plate-no">Bản khắc XIII</span></div>
+<!-- 14 -->
+<section class="slide" aria-label="Bản khắc 14">
+  <div class="head"><span class="ruo">Research Use Only: chưa kiểm định lâm sàng</span><span class="plate-no">Bản khắc XIV</span></div>
   <div></div>
   <div class="body">
     <h3 style="font-size:var(--headline)">Chú giải nguồn</h3>
@@ -608,7 +628,7 @@ em.term{font-style:normal;color:var(--key)}
     </ul>
     <p class="quiet mt-sm" style="font-size:var(--label);max-width:none">Mọi nguồn trên đã được mở và đối chiếu trực tiếp. Số liệu nào không xác minh được đều đã bị loại khỏi bài hoặc đánh dấu rõ.</p>
   </div>
-  <div class="foot"><span class="src">Research Use Only: chưa kiểm định lâm sàng</span><span class="no">13 / 13</span></div>
+  <div class="foot"><span class="src">Research Use Only: chưa kiểm định lâm sàng</span><span class="no">14 / 14</span></div>
 </section>
 
 </div>
@@ -643,6 +663,20 @@ em.term{font-style:normal;color:var(--key)}
   });
   prev.addEventListener('click', function(){ show(i - 1); });
   next.addEventListener('click', function(){ show(i + 1); });
+
+  // Nút điều hướng chỉ hiện khi có tương tác, rồi tự ẩn. Trong lúc trình chiếu
+  // không nên có nút nào nằm trên bản khắc.
+  var navEl = document.querySelector('.nav'), hideTimer;
+  function wake(){
+    navEl.classList.add('is-on');
+    clearTimeout(hideTimer);
+    hideTimer = setTimeout(function(){
+      if (!navEl.contains(document.activeElement)) navEl.classList.remove('is-on');
+    }, 2200);
+  }
+  document.addEventListener('mousemove', wake, {passive:true});
+  document.addEventListener('keydown', wake);
+  wake();
   var start = parseInt((location.hash || '').slice(1), 10);
   show(isNaN(start) ? 0 : start - 1);
 })();

@@ -136,7 +136,7 @@ Nền mực sâu với nét sáng ấm, hai sắc dữ liệu. Cặp hoàng th�
 
 **The Two-Number Rule.** Hệ thống này chỉ có hai loại số. **Loại A** là số đã công bố của người khác: hiển thị bằng Nét Khắc, chữ số bảng, và **bắt buộc** mang một chú số dẫn về chú giải ở chân bề mặt, kèm cỡ mẫu `n=`. **Loại B** là số của dự án này: **chưa tồn tại, và không bao giờ được vẽ ra**. Nơi cần minh hoạ một khái niệm, dùng sơ đồ không có trục số kèm nhãn "Minh hoạ khái niệm: chưa có dữ liệu". Vi phạm quy tắc này là lỗi nghiêm trọng nhất hệ thống có thể mắc.
 
-**The Plate Key Rule.** Hoàng Thổ thuộc về chú số. Không dùng nó để làm đẹp một tiêu đề, một đường viền, hay một trạng thái hover không liên quan đến trích nguồn. Sức mạnh của thiết bị này nằm ở chỗ khi thấy màu hoàng thổ, người xem biết ngay đó là một con trỏ tới nguồn.
+**The Plate Key Rule.** Hoàng Thổ có **đúng ba chỗ được dùng**, không có chỗ thứ tư: (1) chú số và chú giải nguồn, (2) đường nhấn dưới tiêu đề bề mặt, (3) mốc phần đang hoạt động. Sức mạnh của thiết bị này nằm ở chỗ khi thấy hoàng thổ trong vùng nội dung, người xem biết ngay đó là con trỏ tới nguồn. Bản dựng đầu còn tô hoàng thổ cho hàng dẫn đầu của bảng số, tức bốn nghĩa trên một màu — đã sửa: **hàng dẫn đầu nhấn bằng độ sáng nét** (Nét Khắc trên nền các hàng khác dùng Nét Phụ), đúng ngữ pháp bản khắc và không tiêu tốn màu chú số.
 
 **The Never-Colour-Alone Rule.** Không thông tin nào được mã hoá chỉ bằng màu. Ác/lành, mức tin cậy, trạng thái `defer`, xác minh/chưa xác minh — mỗi thứ luôn đi kèm nhãn chữ, hoặc kiểu nét (liền so với đứt), hoặc hình dạng (đặc so với rỗng). Bài kiểm tra: in ra máy in đen trắng; nếu mất thông tin thì thiết kế sai.
 
@@ -235,7 +235,7 @@ Kẻ là 1px, trừ mốc phần đang hoạt động (2px Hoàng Thổ) — đ�
 - Không viền ngoài. Một Kẻ Đậm dưới hàng đầu cột, hairline giữa các hàng.
 - Đầu cột: chân phương nghiêng, màu Nét Phụ. Số: sans, chữ số bảng, canh phải.
 - **Cột hoặc chú thích cho biết "đo trên tập nào" là bắt buộc** trong mọi bảng so sánh giữa các công trình. Thiếu nó là trình bày sai lệch.
-- Hàng dẫn đầu dùng Hoàng Thổ **và** một nhãn chữ; màu không bao giờ đứng một mình.
+- Các hàng dùng Nét Phụ; **hàng dẫn đầu dùng Nét Khắc** (sáng hơn) **và** một nhãn chữ. Không dùng Hoàng Thổ ở đây (The Plate Key Rule).
 
 ### Chip "chưa có dữ liệu"
 - Viền 1px **nét đứt** màu Nét Mờ, chữ chân phương nghiêng.

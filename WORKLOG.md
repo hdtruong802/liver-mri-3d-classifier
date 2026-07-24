@@ -453,3 +453,44 @@ Hai ngoại lệ đăng ký kèm lý do (`single-font`, `overused-font=arial`): 
 **Cảnh báo cho tool sau:**
 - **Đừng thu hẹp khoảng cách giữa Data và Body.** Đã có luật riêng cho nó trong DESIGN.md kèm lý do.
 - Viết nội dung có backtick vào file thì **đừng dùng chuỗi nháy kép trong bash** — phiên này bị shell nuốt mất ba đoạn `` ` `` và làm hỏng âm thầm một `.replace()`. Dùng Write/Edit, hoặc heredoc nháy đơn.
+
+
+## S-009 · 2026-07-24 18:30 · claude-code
+
+**Mục tiêu phiên:** Sửa 2 lỗi người dùng thấy khi mở file: nội dung tràn gây thanh trượt khi F11, và nút Trước/Sau đè số trang.
+
+**Nhánh / commit:** `main` · `8169af0` → *(commit đang chờ)*
+
+**Đã đụng file:**
+- `slides/overview.html` — sửa lớn: đơn vị đo, tách bản khắc, vị trí nút, hệ màu bảng.
+- `DESIGN.md` — đồng bộ Plate Key Rule.
+
+**Quyết định & lý do:**
+- **Lỗi tràn là do sai kiến trúc, không phải chỉnh vặt.** Cỡ chữ chặn trên bằng `rem` trong khi khung slide co theo màn hình → trên màn thấp (1366×768) chữ giữ nguyên cỡ tối đa nên tràn. Sửa gốc: thêm đơn vị khung `--u: min(1vw, 1.778vh)` và cho **mọi** cỡ chữ + khoảng cách đo theo nó. Giờ tỉ lệ giữ nguyên ở mọi độ phân giải 16:9.
+- **Bỏ `overflow:auto`, quay lại `overflow:hidden`.** Trước đây tôi để `auto` như một lưới an toàn, nhưng đó chính là thứ sinh ra thanh trượt người dùng thấy. Với nội dung đã đo theo khung thì không cần lưới đó nữa — và không bao giờ được có thanh trượt giữa buổi trình chiếu.
+- **Nút điều hướng chuyển xuống giữa dưới + tự ẩn sau 2,2s.** Trước ở góc phải, đè lên số trang. Giờ ở giữa (giữa hai chân), `opacity:0` mặc định, chỉ hiện khi di chuột hoặc bấm phím. Trong lúc trình chiếu không có nút nào nằm trên bản khắc.
+- **Tách bản khắc II thành hai** (7 lớp / 8 thì). Đo bằng Puppeteer thấy II chỉ dư 47px trong khi các bản khác dư 200–400px — phân bổ lệch đúng như người dùng nói. Tách ra: 7 lớp là không gian đầu ra, 8 thì là không gian đầu vào, hai ý khác nhau. Deck từ 13 lên **14 bản khắc**, đánh số lại toàn bộ + sửa 3 tham chiếu chéo.
+- **Bỏ hoàng thổ khỏi hàng dẫn đầu của bảng số.** Ảnh chụp lộ ra tôi đang dùng hoàng thổ cho 4 việc (chú số, gạch tiêu đề, mốc phần, hàng dẫn đầu) — vi phạm chính `The Plate Key Rule` tôi viết. Hàng dẫn đầu giờ nhấn bằng **độ sáng nét** (Nét Khắc so với Nét Phụ) cộng nhãn chữ. DESIGN.md sửa lại: hoàng thổ có đúng 3 chỗ.
+
+**Đã KIỂM ĐỊNH BẰNG MẮT lần đầu:** tìm thấy Puppeteer + Chrome trong cache npx (`npx impeccable` kéo về), viết script đo overflow từng bản khắc và chụp màn hình. Kết quả đo ở 1366×768 / 1920×1080 / 1280×720: **cả 14 bản khắc vừa khung**, chỗ dư tối thiểu 92px. Nút không đè số trang cũng không đè chú giải (kiểm bằng bounding-box). Đã xem tận mắt bản khắc III, V, IX — render đúng.
+
+**Bẫy phương pháp gặp phải:**
+- Phép đo `scrollHeight − clientHeight` cho grid **luôn ra 0**, vô dụng. Phải đo bằng `getBoundingClientRect().bottom` của phần tử thấp nhất so với đáy `.body`.
+- Ảnh chụp đầu tiên thấy bản khắc **trống trơn** → tưởng script tách làm hỏng HTML. Thực ra HTML hỏng thật (thiếu một `</div>`, nesting lệch làm trình duyệt nuốt nội dung), **nhưng** ảnh trống còn có nguyên nhân thứ hai chồng lên: chụp trúng lúc animation ở `opacity:0`. Phải `emulateMediaFeatures` reduced-motion mới chụp đúng. Hai lỗi khác nhau che nhau — bài học: khi thấy trống, kiểm cả HTML lẫn thời điểm chụp.
+- Tách section bằng regex + comment trùng số (`<!-- 3 -->` hai lần) làm **mất một bản khắc**. Phải lấy lại "câu hỏi nghiên cứu" từ `git show HEAD:` rồi chèn lại. Sau mỗi thao tác regex trên HTML: đếm cân bằng `<div>` cho mọi section.
+- Detector **không giải được `max()` trong padding** → đọc thành 0, báo `cramped-padding`. Panel phải dùng padding cố định (22px), không dùng `max(16px, calc(...))`.
+
+**Kết quả / số liệu:** 14 bản khắc, gate PASS, `detect` 0 finding. Đã xem 5 ảnh render.
+
+**Dang dở:**
+- [ ] Chưa xem mắt thường 9 bản khắc còn lại (mới xem III, V, IX + đo tự động cả 14).
+- [ ] Chưa thử in PDF thật.
+- [ ] Spec Sheet vẫn chưa sửa theo S-005.
+- [ ] Chưa push.
+
+**Điểm vào phiên sau:** xem nốt các bản khắc chưa chụp (nhất là 7, 8, 10 nhiều chữ) và thử in PDF. Ảnh render lưu ở scratchpad, không commit.
+
+**Cảnh báo cho tool sau:**
+- **Có Puppeteer + Chrome trong cache npx** ở `~/AppData/Local/npm-cache/_npx/1a4eb60c8f6b0f89/`. Dùng được để chụp/đo slide. Đây là đường tự kiểm bằng mắt khi phiên không có công cụ trình duyệt sẵn.
+- **Mọi cỡ chữ và khoảng cách trong slide đo theo `--u`**, không dùng px cố định (trừ padding panel, vì detector). Đưa `rem` chặn-trên trở lại = tràn nội dung trên màn thấp.
+- Deck giờ **14 bản khắc**, không phải 13. Tham chiếu chéo trong bài trỏ tới III (8 thì), VIII (leaderboard), XIV (chú giải).
