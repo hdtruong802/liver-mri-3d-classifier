@@ -1,0 +1,19 @@
+# Cấu hình tooling cho liver-mri-3d-classifier.
+# Chạy code bằng `python -m src.<module>` từ gốc repo (src/ là package).
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "SIM"]
+ignore = ["B008"]  # cho phép default gọi hàm trong signature (dùng ở argparse/typer nếu cần)
+
+[tool.ruff.lint.per-file-ignores]
+"tests/*" = ["S101"]  # assert trong test là hợp lệ
+
+[tool.pytest.ini_options]
+pythonpath = ["."]
+testpaths = ["tests"]
+addopts = "-q"

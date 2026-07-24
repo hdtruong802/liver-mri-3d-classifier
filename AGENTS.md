@@ -166,14 +166,16 @@ Pin version trong `requirements.txt` (train) và `webapp/backend/requirements.tx
 | **Quality gate** (trước khi rời tool) | Windows: `powershell -NoProfile -ExecutionPolicy Bypass -File scripts/quality-gate.ps1`; Bash thật: `sh scripts/quality-gate.sh` | sẵn sàng |
 | Cài Impeccable (một lần / máy) | `npx impeccable install --providers=claude,codex,cursor --scope=project` | ✅ đã chạy 2026-07-24 |
 | Quét UI thủ công (mọi tool, kể cả Antigravity) | `npx impeccable detect --json <dir>` | sẵn sàng |
-| Cài môi trường train | `pip install -r requirements.txt` | chưa có file |
+| Cài môi trường train | `pip install -r requirements.txt` | sẵn sàng (W2 ngày 1) |
+| Validate split official (đã khoá, không sinh) | `python -c "from src.data.splits import Splits; Splits('splits').validate()"` | sẵn sàng (W2 ngày 1) |
+| Sinh manifest bệnh nhân | `python -m src.data.build_manifest --config configs/data.yaml` | sẵn sàng (W2 ngày 1), cần `LLDMMRI_DATA_ROOT` trỏ tới data thật |
 | Tiền xử lý (chạy 1 lần, cache) | `python -m src.preprocess.build_cache --config configs/preprocess.yaml` | chưa có |
-| Sinh split 5-fold | `python -m src.data.make_splits --out splits/` | chưa có |
 | Train | `python -m src.train.run --config configs/<name>.yaml` | chưa có |
 | Đánh giá | `python -m src.eval.run --ckpt <path> --split val` | chưa có |
 | Test (chạm 1 lần!) | `python -m src.eval.run --ckpt <path> --split test --i-know-this-is-final` | chưa có |
 | Chạy web app | `uvicorn webapp.backend.main:app --reload` | chưa có |
-| Test | `pytest -q` | chưa có |
+| Test | `pytest -q` | sẵn sàng (27 test, W2 ngày 1) |
+| Lint | `ruff check src tests` · `ruff format src tests` | sẵn sàng (W2 ngày 1) |
 
 ---
 

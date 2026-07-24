@@ -1,0 +1,24 @@
+# Cấu hình dữ liệu LLD-MMRI. KHÔNG hardcode path trong code (AGENTS.md §7).
+# Ghi đè data_root bằng env LLDMMRI_DATA_ROOT (vd Kaggle: /kaggle/input/lldmmridataset).
+
+data_root: data/lldmmridataset          # thư mục chứa lld/
+annotation_rel: lld/LLD_MMRI_Annotation.json
+images_rel: lld/images                   # chỉ đọc thư mục này; BỎ lld/labels (mask) + lld/.cache
+splits_dir: splits
+
+# 8 thì MRI. `name` = tên trong annotation JSON; `file` = token trong tên file ảnh.
+# Chú ý: annotation dùng "In Phase"/"Out Phase" (có dấu cách), tên file là "InPhase"/"OutPhase".
+phases:
+  - {name: "C-pre",     file: "C-pre"}
+  - {name: "C+A",       file: "C+A"}
+  - {name: "C+V",       file: "C+V"}
+  - {name: "C+Delay",   file: "C+Delay"}
+  - {name: "T2WI",      file: "T2WI"}
+  - {name: "DWI",       file: "DWI"}
+  - {name: "In Phase",  file: "InPhase"}
+  - {name: "Out Phase", file: "OutPhase"}
+
+# Đuôi tên file ảnh: {patient}_{lesion}_{file_token}{suffix}
+image_suffix: "_0000.nii.gz"
+
+seed: 42

@@ -802,3 +802,35 @@ Hai ngoại lệ đăng ký kèm lý do (`single-font`, `overused-font=arial`): 
 **Điểm vào phiên sau:** W2 ngày 1 — scaffold `src/` + reader; `make_splits.py` chỉ **nạp + validate** `splits/` (không sinh ngẫu nhiên).
 
 **Cảnh báo cho tool sau:** `splits/` **KHOÁ** — quality gate chặn thay đổi (cần `ALLOW_SPLIT_CHANGE=1`, chỉ dùng lần tạo đầu này). `splits/test_official.txt` = held-out chạm **đúng 1 lần** (AGENTS.md §3.4). Map ID luôn **chuẩn hoá theo chữ số**.
+
+
+## S-022 · 2026-07-24 17:55 · claude-code
+
+**Mục tiêu phiên:** Bắt đầu W2 ngày 1 (docs/W2_plan.md) — scaffold `src/utils` + `src/data` (annotation/splits/images/dataset/manifest) + test chống leakage.
+
+**Nhánh / commit:** `main` · `b844c15` → *(commit đang chờ)*
+
+**Đã đụng file:**
+- `pyproject.toml` — TẠO: cấu hình ruff (line-length 100, target py311) + pytest.
+- `requirements.txt` — TẠO: pin version stack train (numpy/pandas/PyYAML/SimpleITK/nibabel/sklearn/scipy/torch/monai) + ruff/pytest.
+- `configs/data.yaml` — TẠO: cấu hình data_root (qua env `LLDMMRI_DATA_ROOT`), map 8 pha (tên annotation ↔ token file), splits_dir.
+- `src/utils/{seed,ids,io,logging}.py` — TẠO: `set_seed()` một chỗ duy nhất; `normalize_pid()` chuẩn hoá ID theo chữ số; đọc YAML/JSON/file split; `CsvLogger` flush mỗi dòng (Kaggle session ngắt bất cứ lúc nào).
+- `src/data/{taxonomy,annotation,images,splits,dataset,build_manifest}.py` — TẠO: đọc annotation gốc (bỏ `labels/` mask + `.cache/`), gộp bbox 2D→3D theo slice_idx, quét ảnh map `(patient_key, phase_token)→path`, **nạp + validate** (không sinh) split official ở `splits/`, dataset reader (torch import lười), sinh `data/manifest.csv`.
+- `tests/{test_ids,test_no_leakage,test_annotation,test_images,test_seed}.py` — TẠO: 27 test, gồm đủ leakage test bắt buộc (trainval∩test=∅, mỗi BN val đúng 1 fold/5, test-104 không lọt fold nào).
+- `AGENTS.md` §6 — cập nhật bảng lệnh (validate split, build_manifest, pytest, ruff → "sẵn sàng").
+
+**Quyết định & lý do:**
+- `T4.1` đổi vai trò `make_splits` thành **validate-only** — vì split đã official + tái lập (S-021), không còn sinh ngẫu nhiên.
+- Tách `dataset.py` thành `load_sample()` thuần numpy/nibabel + `LLDMMRIDataset` (torch import lười trong `__init__`) — cho phép toàn bộ `src/data` import được dù máy chưa cài torch/monai (đã verify).
+- `test_annotation.py` dùng **fixture JSON tối giản** (không phải file 18MB thật) — test logic độc lập với việc có data thật trên máy hay không.
+
+**Kết quả / số liệu:** `pytest -q` → **27 passed**. `ruff check` + `ruff format --check` → pass (0 lỗi). `Splits('splits').validate()` chạy trên `splits/` thật → pass (394/104/498, 5 fold, không leak).
+
+**Dang dở:**
+- [ ] Chưa test `build_manifest.py` / `load_sample()` end-to-end trên data thật (máy này chưa có `LLDMMRI_DATA_ROOT`) — cần chạy trên Kaggle hoặc máy có mount data.
+- [ ] Gate geometry ảnh↔annotation (EDA, T2.1) vẫn treo — việc tiếp theo.
+- [ ] `ruff` cài qua pip không nằm trên PATH hệ thống → quality-gate.ps1 tự SKIP bước ruff (không phải FAIL). Đã tự chạy `python -m ruff` thủ công và pass. Cân nhắc thêm Scripts dir vào PATH hoặc sửa gate dùng `python -m ruff` — chưa làm vì ngoài phạm vi phiên.
+
+**Điểm vào phiên sau:** W2 ngày 2 (EDA) — viết `notebooks/01_eda.ipynb`, chạy `build_manifest` trên data thật, và **GATE geometry bắt buộc** (đối chiếu shape/spacing/orientation ảnh thật với annotation, overlay bbox lên slice) trước khi tin ROI-crop.
+
+**Cảnh báo cho tool sau:** `src/data/build_manifest.py` và `LLDMMRIDataset` chưa chạy thử trên data thật — logic đã unit-test qua fixture nhưng chưa end-to-end. `ruff` không trên PATH ở máy này (dùng `python -m ruff`).
