@@ -134,6 +134,37 @@ p{max-width:62ch}
 .cols{display:grid;grid-template-columns:1fr 1fr;gap:calc(2.6 * var(--u));align-items:start}
 .cols-3{display:grid;grid-template-columns:repeat(3,1fr);gap:calc(1.9 * var(--u));align-items:start}
 
+/* ---------- phase plate: one centered, readable comparison ---------- */
+.phase-slide .body{
+  display:grid;align-content:center;
+  padding:calc(1.4 * var(--u)) 0 calc(4.0 * var(--u));
+}
+.phase-content{
+  width:min(100%,calc(68 * var(--u)));margin-inline:auto;
+}
+.phase-content h2{
+  max-width:24ch;font-size:calc(3.05 * var(--u));
+}
+.phase-content .sub{
+  max-width:56ch;font-size:calc(1.18 * var(--u));
+}
+.phase-grid{
+  display:grid;grid-template-columns:.9fr 1.1fr;
+  gap:calc(3.2 * var(--u));align-items:start;
+}
+.phase-grid .cat{
+  font-size:var(--title);margin-bottom:calc(.7 * var(--u));
+}
+.phase-grid ul.marked li{
+  font-size:var(--data);line-height:1.32;
+  padding-left:calc(1.7 * var(--u));margin-top:calc(.62 * var(--u));
+}
+.phase-grid ul.marked li::before{top:.68em}
+.phase-note{
+  max-width:38ch;margin-top:calc(1.4 * var(--u));
+  font-size:var(--body);line-height:1.55;
+}
+
 /* ---------- the atlas device: numbered key + leader line ---------- */
 sup.key{
   font-family:var(--serif);font-size:.68em;color:var(--key);
@@ -301,31 +332,33 @@ em.term{font-style:normal;color:var(--key)}
 </section>
 
 <!-- 3 -->
-<section class="slide" aria-label="Bản khắc 3">
+<section class="slide phase-slide" aria-label="Bản khắc 3">
   <div class="head"><span class="ruo">Research Use Only: chưa kiểm định lâm sàng</span><span class="plate-no">Bản khắc III</span></div>
   <nav class="marks" aria-label="Tiến trình"><span class="on"><i></i>Bài toán</span><span><i></i>Dataset</span><span><i></i>SOTA</span><span><i></i>Ứng dụng</span></nav>
   <div class="body">
-    <h2>Tám thì MRI của cùng một tổn thương, đã căn chỉnh sẵn</h2>
-    <p class="sub">Dataset công bố tám thì đã đưa về cùng khung toạ độ<sup class="key">1</sup>. Model đọc cả khối 3D đa pha, không hạ xuống từng lát 2D.</p>
-    <div class="cols mt">
-      <div>
-        <div class="cat">Cấu trúc, 4 thì</div>
-        <ul class="marked">
-          <li>T2WI</li>
-          <li>DWI, ảnh khuếch tán</li>
-          <li>T1 in-phase</li>
-          <li>T1 out-phase</li>
-        </ul>
-      </div>
-      <div>
-        <div class="cat">Động học ngấm thuốc, 4 thì</div>
-        <ul class="marked">
-          <li>Trước thuốc</li>
-          <li>Thì động mạch</li>
-          <li>Thì tĩnh mạch cửa</li>
-          <li>Thì muộn</li>
-        </ul>
-        <p class="quiet mt-sm">Bốn thì này mang tín hiệu LI-RADS: ngấm mạnh thì động mạch rồi thải thuốc thì tĩnh mạch.</p>
+    <div class="phase-content">
+      <h2>Tám thì MRI của cùng một tổn thương, đã căn chỉnh sẵn</h2>
+      <p class="sub">Dataset công bố tám thì đã đưa về cùng khung toạ độ<sup class="key">1</sup>. Model đọc cả khối 3D đa pha, không hạ xuống từng lát 2D.</p>
+      <div class="phase-grid mt">
+        <div>
+          <div class="cat">Cấu trúc, 4 thì</div>
+          <ul class="marked">
+            <li>T2WI</li>
+            <li>DWI, ảnh khuếch tán</li>
+            <li>T1 in-phase</li>
+            <li>T1 out-phase</li>
+          </ul>
+        </div>
+        <div>
+          <div class="cat">Động học ngấm thuốc, 4 thì</div>
+          <ul class="marked">
+            <li>Trước thuốc</li>
+            <li>Thì động mạch</li>
+            <li>Thì tĩnh mạch cửa</li>
+            <li>Thì muộn</li>
+          </ul>
+          <p class="quiet phase-note">Bốn thì này mang tín hiệu LI-RADS: ngấm mạnh thì động mạch rồi thải thuốc thì tĩnh mạch.</p>
+        </div>
       </div>
     </div>
   </div>

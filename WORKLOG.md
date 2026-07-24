@@ -494,3 +494,28 @@ Hai ngoại lệ đăng ký kèm lý do (`single-font`, `overused-font=arial`): 
 - **Có Puppeteer + Chrome trong cache npx** ở `~/AppData/Local/npm-cache/_npx/1a4eb60c8f6b0f89/`. Dùng được để chụp/đo slide. Đây là đường tự kiểm bằng mắt khi phiên không có công cụ trình duyệt sẵn.
 - **Mọi cỡ chữ và khoảng cách trong slide đo theo `--u`**, không dùng px cố định (trừ padding panel, vì detector). Đưa `rem` chặn-trên trở lại = tràn nội dung trên màn thấp.
 - Deck giờ **14 bản khắc**, không phải 13. Tham chiếu chéo trong bài trỏ tới III (8 thì), VIII (leaderboard), XIV (chú giải).
+
+## S-010 · 2026-07-24 11:58 · codex
+
+**Mục tiêu phiên:** Chỉnh bản khắc III trong `slides/overview.html` để chữ dễ đọc hơn và khối nội dung cân đối như phản hồi người dùng.
+
+**Nhánh / commit:** `main` · `7d80aad` → *(commit đang chờ)*
+
+**Đã động file:**
+- `slides/overview.html` — tạo layout chuyên biệt cho bản khắc III.
+- `WORKLOG.md` — ghi nhận phiên chỉnh giao diện này.
+
+**Quyết định & lý do:**
+- Gom tiêu đề, mô tả và hai nhóm thì MRI vào một khối có bề rộng giới hạn, đặt giữa vùng thân bản khắc — phiên bản cũ trải hai cột trên gần hết chiều ngang nên khối phải bị loãng và lệch về góc trên-trái.
+- Nâng riêng danh sách thì MRI lên cấp chữ `data`, còn nhãn nhóm dùng cấp `title` — đây là thông tin người xem cần quét nhanh từ xa. Không đổi thang chữ toàn bộ deck vì S-009 đã xác minh những bản dày nội dung cần thang hiện tại để vừa khung.
+- Hai cột dùng tỷ lệ 0,9 : 1,1 — nhóm động học có nhãn dài hơn và có ghi chú LI-RADS, nên hai cột không tương đương về độ dài nội dung.
+
+**Kết quả / số liệu:** `detect.mjs --scope layout slides/overview.html` và CLI Impeccable cục bộ trên `slides` đều trả `[]`; `git diff --check` sạch; số thẻ `<div>` mở/đóng đều là 93.
+
+**Dang dở:**
+- [ ] Không có việc treo trong mã. `bash scripts/quality-gate.sh` không chạy được vì máy chưa cài WSL distribution; đã chạy phần detector tương đương bằng binary Impeccable trong npm cache.
+- [ ] Chrome/Edge headless trên máy này lỗi GPU khi chụp ảnh, nên chưa thể đối chiếu render tự động sau chỉnh sửa.
+
+**Điểm vào phiên sau:** Mở `slides/overview.html#3` trong Chrome, kiểm tra trực quan bản khắc III ở 100% zoom và trình chiếu 16:9; nếu cần, kiểm tra lại các bản dày chữ VII, VIII, X sau khi có môi trường screenshot hoạt động.
+
+**Cảnh báo cho tool sau:** Chỉ bản khắc III mang lớp `phase-slide`; giữ cỡ chữ lớn và độ rộng bị giới hạn ở scope này, không áp dụng mù quáng sang toàn bộ deck vì các bản bảng số liệu cần không gian khác.
