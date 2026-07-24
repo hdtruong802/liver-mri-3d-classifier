@@ -937,3 +937,20 @@ Hai ngoại lệ đăng ký kèm lý do (`single-font`, `overused-font=arial`): 
 **Điểm vào phiên sau:** Mở slide 1, 5 và 11 bằng trình duyệt local ở ba viewport để xác nhận trực quan typography và bảng nguồn sau khi tăng cỡ chữ.
 
 **Cảnh báo cho tool sau:** Giữ thanh mục lục tĩnh trong HTML để nó hiện đúng cả khi in; không chuyển sang sinh bằng JavaScript. Nếu sửa mapping, phải duy trì đúng một `aria-current="step"` trên mỗi slide.
+
+
+## S-027 · 2026-07-24 19:15 · codex
+
+**Mục tiêu phiên:** Rút gọn chú thích minh hoạ thừa ở slide 3/6 và sửa khoảng cách trong hai khối so sánh calibration ở slide 6.
+
+**Nhánh / commit:** `main` · `ffc5cf4` → *(commit đang chờ)*
+
+**Đã động file:**
+- `slides/overview.html` — bỏ nhãn “Sơ đồ khái niệm, chưa có dữ liệu kết quả của dự án” ở slide 3 và “Minh hoạ khái niệm, không mang số liệu dự án” ở slide 6; đặt badge Model A/B trên dòng riêng, thêm khoảng cách dưới badge và buộc tiêu đề là block riêng.
+- `WORKLOG.md` — append entry này.
+
+**Quyết định & lý do:** Hai sơ đồ đã tự diễn đạt đủ bằng tiêu đề, nhãn và nội dung xung quanh nên bỏ chú thích lặp lại. Trong slide 6, badge và tiêu đề trước đây nằm chung inline flow, khiến title chạm badge; layout mới tách ba lớp rõ ràng: badge → tiêu đề → diễn giải.
+
+**Kết quả / số liệu:** `impeccable detect --scope layout slides/overview.html` trả về rỗng; kiểm tra tĩnh xác nhận hai nhãn đã bị xoá và quy tắc layout mới có mặt.
+
+**Cảnh báo cho tool sau:** Giữ `display:block` cho `.compare-item strong` và khoảng cách dưới `.compare-item .tag`; nếu trả chúng về inline, lỗi dính badge/title ở slide 6 sẽ quay lại.
