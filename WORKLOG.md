@@ -421,3 +421,35 @@ Hai ngoại lệ đăng ký kèm lý do (`single-font`, `overused-font=arial`): 
 - **Bản canon MICCAI đã bị loại sau khi dựng thành bản chạy được, không phải bị bỏ qua.** Nó còn trong git ở `54513ac`. Đừng đề xuất quay về nó như thể đó là lựa chọn an toàn chưa ai nghĩ tới — đã ghi vào `PRODUCT.md`.
 - **Nền tối cần phòng chiếu có giảm sáng.** Đây là đánh đổi đã chấp nhận có ý thức, ghi trong `DESIGN.md` mục Overview. Nếu buổi báo cáo diễn ra trong phòng bật đèn đầy đủ thì đây là rủi ro thật, không phải lỗi thiết kế cần sửa lén.
 - `.impeccable/config.json` giờ chỉ còn **một** ignore duy nhất và nó có lý do. Giữ nguyên tình trạng đó: mỗi ignore thêm vào phải kèm `--reason`, và phải gỡ khi hết hiệu lực.
+
+
+## S-008 · 2026-07-24 17:05 · claude-code
+
+**Mục tiêu phiên:** Xử lý finding `flat-type-hierarchy` do hook Impeccable báo sau khi commit S-007.
+
+**Nhánh / commit:** `main` · `0563e2c` → *(commit đang chờ)*
+
+**Đã đụng file:**
+- `slides/overview.html` — dựng lại toàn bộ thang chữ.
+- `DESIGN.md` — đồng bộ token, viết lại mục Hierarchy thành bảng, thêm 2 named rule.
+
+**Quyết định & lý do:**
+- **Finding là lỗi thật, không phải false positive.** Thang cũ dồn cục ở giữa: `title` 1,3rem — `data` 1,3rem — `body` 1,2rem. Ba bậc trong khoảng 8%. Tệ nhất là **`data` không phân biệt được với `body`**, trong khi `PRODUCT.md` nói số liệu là nhân vật chính. Đây đúng là loại lỗi detector bắt được mà mắt người dựng thì không, vì tôi nhìn từng vai trò riêng lẻ chứ không nhìn cả thang.
+- **Dựng lại thang theo tỉ lệ đều ≥1,25**, kiểm ở **cả hai đầu `clamp()`** chứ không chỉ ở giá trị max — bản cũ chỉ đúng ở một đầu.
+- **Giảm từ 6 cỡ xuống 5 cỡ.** Hook gợi ý "ít cỡ hơn, tương phản mạnh hơn". Cho `title` và `body` **cùng cỡ**, phân biệt bằng chân phương so với sans cộng màu. Hệ thống đã dùng họ chữ làm kênh phân biệt nên đây không phải thủ thuật mới.
+- **Ghi thành `The Data-Outranks-Prose Rule` và `The Family-Not-Size Rule`** trong DESIGN.md, kèm cả con số sai của bản cũ, để phiên sau không vô tình thu hẹp lại.
+
+**Kết quả / số liệu:** thang mới — tỉ lệ giữa các bậc kề nhau: 1,58 · 1,29 · 1,25 · 1,32 ở đầu max, và 1,58 · 1,29 · 1,25 · 1,32 ở đầu min. `detect` 0 finding, gate PASS.
+
+**Bài học quy trình:** CLI `impeccable detect` báo **0 finding** trong khi hook báo `flat-type-hierarchy`. Hai đường soi không trùng nhau hoàn toàn. **Đừng coi `quality-gate.sh` PASS là đủ** — hook sau khi ghi file bắt được thứ CLI bỏ qua. Nếu về sau muốn gate chặt hơn, đây là chỗ cần điều tra.
+
+**Dang dở:**
+- [ ] Vẫn chưa xem render thật. Thang chữ vừa đổi khá nhiều, càng cần nhìn mắt thường.
+- [ ] Spec Sheet vẫn chưa sửa theo S-005.
+- [ ] Chưa push.
+
+**Điểm vào phiên sau:** mở `slides/overview.html` kiểm thang chữ mới, nhất là bảng số ở bản khắc VII và VIII — số giờ to hơn chữ chạy một bậc đầy đủ, cần xem có làm vỡ layout bảng không.
+
+**Cảnh báo cho tool sau:**
+- **Đừng thu hẹp khoảng cách giữa Data và Body.** Đã có luật riêng cho nó trong DESIGN.md kèm lý do.
+- Viết nội dung có backtick vào file thì **đừng dùng chuỗi nháy kép trong bash** — phiên này bị shell nuốt mất ba đoạn `` ` `` và làm hỏng âm thầm một `.replace()`. Dùng Write/Edit, hoặc heredoc nháy đơn.

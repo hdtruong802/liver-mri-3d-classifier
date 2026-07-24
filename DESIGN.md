@@ -14,44 +14,44 @@ colors:
 typography:
   display:
     fontFamily: "Cambria, Times New Roman, Liberation Serif, Noto Serif, Georgia, serif"
-    fontSize: "clamp(1.75rem, 3.5vw, 2.85rem)"
+    fontSize: "clamp(2.41rem, 3.61vw, 2.85rem)"
     fontWeight: 400
     lineHeight: 1.16
     letterSpacing: "0.002em"
   headline:
     fontFamily: "Cambria, Times New Roman, Liberation Serif, Noto Serif, Georgia, serif"
-    fontSize: "clamp(1.2rem, 2.2vw, 1.75rem)"
+    fontSize: "clamp(1.53rem, 2.29vw, 1.8rem)"
     fontWeight: 400
     lineHeight: 1.35
     letterSpacing: "normal"
   title:
     fontFamily: "Cambria, Times New Roman, Liberation Serif, Noto Serif, Georgia, serif"
-    fontSize: "clamp(1rem, 1.6vw, 1.3rem)"
+    fontSize: "clamp(0.95rem, 1.42vw, 1.12rem)"
     fontWeight: 400
     lineHeight: 1.3
     letterSpacing: "normal"
   body:
     fontFamily: "Segoe UI, system-ui, -apple-system, Noto Sans, Liberation Sans, Arial, sans-serif"
-    fontSize: "clamp(0.92rem, 1.45vw, 1.2rem)"
+    fontSize: "clamp(0.95rem, 1.42vw, 1.12rem)"
     fontWeight: 400
     lineHeight: 1.55
     letterSpacing: "normal"
   data:
     fontFamily: "Segoe UI, system-ui, -apple-system, Noto Sans, Liberation Sans, Arial, sans-serif"
-    fontSize: "clamp(1rem, 1.6vw, 1.3rem)"
+    fontSize: "clamp(1.19rem, 1.78vw, 1.4rem)"
     fontWeight: 400
     lineHeight: 1.25
     letterSpacing: "normal"
     fontFeature: "tnum"
   label:
     fontFamily: "Segoe UI, system-ui, -apple-system, Noto Sans, Liberation Sans, Arial, sans-serif"
-    fontSize: "clamp(0.7rem, 1vw, 0.85rem)"
+    fontSize: "clamp(0.72rem, 1.08vw, 0.85rem)"
     fontWeight: 400
     lineHeight: 1.35
     letterSpacing: "0.02em"
   caption:
     fontFamily: "Cambria, Times New Roman, Liberation Serif, Noto Serif, Georgia, serif"
-    fontSize: "clamp(0.7rem, 1vw, 0.85rem)"
+    fontSize: "clamp(0.72rem, 1.08vw, 0.85rem)"
     fontWeight: 400
     lineHeight: 1.45
     letterSpacing: "normal"
@@ -153,19 +153,35 @@ Dùng cho chữ chạy và **mọi con số**. Số liệu cần rõ ràng hơn 
 **Character:** Cặp chân phương và sans chia nhau theo chức năng chứ không theo cấp bậc: chân phương nói *về* dữ liệu (tiêu đề, chú giải, nhãn), sans *là* dữ liệu. Ràng buộc quyết định cho cả hai stack là **tiếng Việt có dấu phải hiển thị đúng khi ngoại tuyến** — không CDN, không webfont. Cambria có bộ dấu tiếng Việt tốt trên Windows; Times New Roman, Liberation Serif và Noto Serif phủ các nền tảng còn lại. Arial ở cuối stack sans là chốt chặn, không phải lựa chọn thẩm mỹ (đã đăng ký ngoại lệ `overused-font=arial` kèm lý do trong `.impeccable/config.json`).
 
 ### Hierarchy
-- **Display** (chân phương, 400, clamp 1.75–2.85rem, lh 1.16): tiêu đề bề mặt. Là **một câu khẳng định**, không phải nhãn danh từ.
-- **Headline** (chân phương, 400, clamp 1.2–1.75rem, lh 1.35): câu dẫn, và con số đơn lẻ khi nó là nội dung chính.
-- **Title** (chân phương, 400, clamp 1–1.3rem, lh 1.3): tiêu đề mục trong bề mặt.
-- **Body** (sans, 400, clamp 0.92–1.2rem, lh 1.55): chữ chạy. Giới hạn 62ch.
-- **Data** (sans, 400, clamp 1–1.3rem, `tnum`): mọi con số trong bảng và hình.
-- **Label** (sans, 400, clamp 0.7–0.85rem, tracking 0.02em): dải RUO, siêu dữ liệu đầu bề mặt.
-- **Caption** (chân phương nghiêng, 400, clamp 0.7–0.85rem): chú giải nguồn, chú thích bảng, đầu cột, nhãn nhóm, chip.
+
+Thang chữ dựng theo tỉ lệ **≥1,25 giữa mọi bậc kề nhau**, giữ đều ở cả hai đầu `clamp()`.
+Sáu vai trò nhưng chỉ **năm cỡ**: Title và Body cố ý bằng cỡ nhau, phân biệt bằng họ chữ.
+
+| Vai trò | Họ | Cỡ (min → max) | Tỉ lệ với bậc dưới |
+|---|---|---|---|
+| **Display** | chân phương | 2,41 → 2,85rem | 1,58 |
+| **Headline** | chân phương | 1,53 → 1,80rem | 1,29 |
+| **Data** | sans, `tnum` | 1,19 → 1,40rem | 1,25 |
+| **Title** | chân phương | 0,95 → 1,12rem | — cùng cỡ Body |
+| **Body** | sans | 0,95 → 1,12rem | 1,32 |
+| **Label / Caption** | sans / chân phương | 0,72 → 0,85rem | — |
+
+- **Display**: tiêu đề bề mặt. Là **một câu khẳng định**, không phải nhãn danh từ.
+- **Headline**: câu dẫn, và con số đơn lẻ khi nó là nội dung chính.
+- **Data**: mọi con số trong bảng và hình.
+- **Title**: tiêu đề mục trong bề mặt.
+- **Body**: chữ chạy, giới hạn 62ch.
+- **Label**: dải RUO, siêu dữ liệu đầu bề mặt. **Caption**: chú giải nguồn, chú thích bảng, đầu cột, chip.
 
 ### Named Rules
 
 **The Assertion Rule.** Tiêu đề phải là một mệnh đề có thể đúng hoặc sai — "SOTA trên LLD-MMRI đã bão hoà", không phải "Kết quả SOTA". Người xem đọc tiêu đề trước; nếu tiêu đề chỉ là nhãn thì bề mặt đã lãng phí dòng quan trọng nhất của nó.
 
 **The Tabular Rule.** Mọi con số dùng `font-variant-numeric: tabular-nums` và canh theo dấu thập phân. Số nhảy cột khi so sánh là lỗi đọc, không phải lỗi thẩm mỹ.
+
+**The Data-Outranks-Prose Rule.** Bậc **Data lớn hơn Body đúng một tỉ lệ đầy đủ** (1,25). Đây không phải chi tiết thẩm mỹ mà là hệ quả trực tiếp của luận điểm dự án: số liệu là nhân vật chính, nên nó phải *nhìn* ra như vậy. Bản dựng đầu đặt Data 1,3rem và Body 1,2rem — chênh 8%, mắt không phân biệt được, và detector đã bắt đúng là `flat-type-hierarchy`. Đừng thu hẹp lại khoảng cách này.
+
+**The Family-Not-Size Rule.** Title và Body cùng cỡ, phân biệt bằng chân phương so với sans và bằng màu. Thêm một bậc cỡ nữa chỉ để tách hai vai trò này sẽ làm thang chữ dồn cục trở lại.
 
 **The No-Uppercase Rule.** `text-transform: uppercase` **không được dùng ở đâu trong hệ thống này**. Lý do là tiếng Việt, không phải sở thích: dấu thanh và dấu phụ chồng lên nhau khi đặt trên chữ hoa (Ế, Ữ, Ậ, Ổ), bị chèn ép ở cỡ nhỏ và mất hẳn khi chiếu trên máy chiếu nhạt màu. Muốn tạo cảm giác "nhãn" thì dùng cỡ chữ, kiểu nghiêng chân phương, và màu.
 
