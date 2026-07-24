@@ -65,12 +65,15 @@ else
       note "hoặc đọc report và sửa tay (Antigravity)."
     fi
   done
-  # LƯU Ý: gate này dựa vào exit code của `detect`. Sau lần chạy thật đầu tiên,
-  # hãy xác nhận `detect` có trả exit code khác 0 khi phát hiện lỗi hay không.
-  # Nếu nó luôn trả 0, đổi sang đếm trong JSON, ví dụ:
-  #   COUNT=$(jq '[.. | .issues? // empty | length] | add // 0' .impeccable/detect-report.json)
-  #   [ "${COUNT:-0}" -gt 0 ] && fail "..."
-  # Ghi lại kết luận vào WORKLOG khi đã kiểm chứng.
+  # ĐÃ KIỂM CHỨNG 2026-07-24 (impeccable v0.9.x, chạy trên HTML lỗi cố ý):
+  #   exit 0 = sạch · exit 2 = có finding.
+  #   detect-report.json là MẢNG PHẲNG các object:
+  #   { antipattern, name, description, severity, category, file, line, snippet }
+  # Gate hiện fail trên MỌI severity. Nếu muốn chỉ chặn "error" và cho qua
+  # "warning", thay bằng (cần jq):
+  #   ERRS=$(jq '[.[] | select(.severity=="error")] | length' .impeccable/detect-report.json)
+  #   [ "${ERRS:-0}" -gt 0 ] && fail "..."
+  # Khuyến nghị: giữ nguyên chặt như hiện tại cho tới khi có UI thật rồi đo lại.
 fi
 
 # ---------------------------------------------------------------------------

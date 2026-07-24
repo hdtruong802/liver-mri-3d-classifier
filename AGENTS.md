@@ -60,7 +60,8 @@ Chi tiết đầy đủ, không lặp lại ở đây:
 | `MRI_Classification_Spec_Sheet.md` | Chốt kỹ thuật (khoa học) | Người dùng duyệt; agent đề xuất diff |
 | `liver_mri_3d_classification_plan.md` | Kế hoạch & lộ trình | Người dùng duyệt; agent đề xuất diff |
 | `docs/MULTI_TOOL_WORKFLOW.md` | Giao thức chống xung đột giữa 4 tool, tích hợp Impeccable | Mọi tool |
-| `PRODUCT.md` / `DESIGN.md` | Ràng buộc sản phẩm & thiết kế | *(chưa tạo — sinh bởi `/impeccable init`)* |
+| `PRODUCT.md` | Sự thật sản phẩm: người dùng, mục đích, ràng buộc, nguyên tắc, a11y | Mọi tool |
+| `DESIGN.md` | Thế giới thị giác & design system | *(chưa tạo — xuất hiện khi chạy `/impeccable shape`, KHÔNG phải từ `init`)* |
 | `scripts/quality-gate.sh` | Quality gate chung cho mọi tool | Mọi tool |
 
 **Quy tắc chống trùng lặp:** nếu một thông tin đã có trong Spec Sheet hoặc Plan, AGENTS.md chỉ **link tới**, không chép lại. Nếu bạn (agent) thấy nội dung bị chép ra nhiều chỗ → xoá bản chép, giữ link, ghi vào WORKLOG.
@@ -158,7 +159,8 @@ Pin version trong `requirements.txt` (train) và `webapp/backend/requirements.tx
 |---|---|---|
 | **Bật quality gate** (một lần / máy) | `git config core.hooksPath .githooks` | sẵn sàng |
 | **Quality gate** (trước khi rời tool) | `bash scripts/quality-gate.sh` | sẵn sàng |
-| Cài Impeccable (một lần / máy) | `npx impeccable install --providers=claude,codex,cursor --scope=project` | chưa chạy |
+| Cài Impeccable (một lần / máy) | `npx impeccable install --providers=claude,codex,cursor --scope=project` | ✅ đã chạy 2026-07-24 |
+| Quét UI thủ công (mọi tool, kể cả Antigravity) | `npx impeccable detect --json <dir>` | sẵn sàng |
 | Cài môi trường train | `pip install -r requirements.txt` | chưa có file |
 | Tiền xử lý (chạy 1 lần, cache) | `python -m src.preprocess.build_cache --config configs/preprocess.yaml` | chưa có |
 | Sinh split 5-fold | `python -m src.data.make_splits --out splits/` | chưa có |
@@ -241,7 +243,7 @@ Ba thứ có mặt người dùng — **web app** (`webapp/`), **HTML slide** (`
 
 **Bắt buộc, với mọi tool, kể cả tool không có `/impeccable`:**
 
-1. **Đọc [`DESIGN.md`](DESIGN.md) và [`PRODUCT.md`](PRODUCT.md) trước khi viết dòng UI đầu tiên.** Hai file này là ràng buộc, không phải gợi ý. *(Chưa tồn tại cho tới khi chạy `/impeccable init` — xem `docs/MULTI_TOOL_WORKFLOW.md` §7.)*
+1. **Đọc [`PRODUCT.md`](PRODUCT.md) trước khi viết dòng UI đầu tiên** — đặc biệt mục *Product Principles*, *Brand Commitments*, *Evidence on Hand*, *Accessibility & Inclusion*. Đây là ràng buộc, không phải gợi ý. Khi [`DESIGN.md`](DESIGN.md) đã tồn tại thì đọc cả nó. *(DESIGN.md xuất hiện lần đầu khi chạy `/impeccable shape`, không phải từ `init` — xem `docs/MULTI_TOOL_WORKFLOW.md` §7.1.)*
 2. **Giọng: công cụ y tế nghiêm túc.** Không gradient rực rỡ, không hiệu ứng khoe kỹ thuật, không micro-interaction vui vẻ. Người dùng là bác sĩ chẩn đoán hình ảnh và người review nghiên cứu.
 3. **Số liệu là nhân vật chính.** Xác suất, mức bất định và cờ `defer` phải nổi bật nhất trên màn hình. Không hiệu ứng nào được cạnh tranh với chúng.
 4. **Màu chỉ mang thông tin, không trang trí.** Thông tin **không bao giờ** chỉ mã hoá bằng màu — luôn kèm nhãn chữ hoặc hình dạng (yêu cầu a11y, và bác sĩ mù màu là chuyện có thật).

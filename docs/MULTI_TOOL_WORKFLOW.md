@@ -161,24 +161,30 @@ Mở rộng từ `AGENTS.md` §9.
 ```bash
 # Cài skill cho 3 tool có hỗ trợ. Antigravity không có trong danh sách provider.
 npx impeccable install --providers=claude,codex,cursor --scope=project
-
-# Một lần duy nhất, trong Claude Code (hoặc Codex/Cursor) — sinh PRODUCT.md + DESIGN.md
-/impeccable init
 ```
 
-### 7.1 Định hướng cho `/impeccable init`
+Lệnh này chép **nguyên bộ skill vào ba chỗ**: `.claude/skills/`, `.cursor/skills/`, `.agents/skills/` (payload cho Codex) — 377 file, ~8.7MB, ba bản y hệt nhau. Chúng đã được `.gitignore`; máy mới chỉ cần chạy lại lệnh trên. Hook cài vào `.cursor/hooks.json`, `.codex/hooks.json` (commit được) và `.claude/settings.local.json` (§5.3).
 
-`init` sẽ hỏi về sản phẩm và thẩm mỹ. Dự án này là **công cụ y tế research**, không phải landing page — trả lời theo hướng dưới đây, và sau khi file sinh ra thì đọc lại `DESIGN.md` để đảm bảo nó không lạc giọng:
+> ⚠️ **Skill mới cài chưa dùng được trong session Claude Code đang mở.** Registry skill nạp lúc khởi động — phải **khởi động lại Claude Code** thì `/impeccable` mới nhận.
 
-- **Đối tượng:** bác sĩ chẩn đoán hình ảnh và người review nghiên cứu. Không phải người tiêu dùng.
-- **Giọng:** nghiêm túc, tiết chế, đáng tin. **Không** gradient rực rỡ, không hiệu ứng khoe kỹ thuật, không micro-interaction vui vẻ.
-- **Ưu tiên hàng đầu:** đọc đúng số dưới áp lực. Xác suất, mức bất định và cờ `defer` phải là thứ nổi bật nhất trên màn hình — không bị hiệu ứng nào cạnh tranh.
-- **Màu có ý nghĩa lâm sàng, dùng dè:** màu chỉ được mang thông tin (ác/lành, mức tin cậy, trạng thái defer). Không dùng màu để trang trí. Palette phải phân biệt được với người mù màu — thông tin không bao giờ chỉ mã hoá bằng màu, luôn kèm nhãn chữ hoặc hình.
-- **RUO bắt buộc hiển thị:** mọi màn hình có kết quả phải có dòng *Research Use Only — không dùng cho chẩn đoán lâm sàng*, ở vị trí không thể bỏ sót.
-- **Không bao giờ trình bày kết quả như một chẩn đoán chắc chắn.** Mức bất định là nội dung hạng nhất, không phải chú thích nhỏ.
-- **Motion:** chỉ dùng để giải thích thay đổi trạng thái (đang xử lý → có kết quả). Tôn trọng `prefers-reduced-motion`.
+### 7.1 `init` sinh cái gì — và không sinh cái gì
 
-Sau khi `init` xong: **đọc kỹ `DESIGN.md` và sửa tay** bất kỳ chỗ nào lạc giọng. File này sẽ chi phối mọi UI về sau, kể cả của Antigravity (§9.1) — sai giọng ở đây thì sai cả ba deliverable.
+**`/impeccable init` chỉ viết `PRODUCT.md`.** Nó **không** viết `DESIGN.md`, và cố ý **không hỏi gì về thẩm mỹ** (màu, font, phong cách). Đây là điểm rất dễ hiểu nhầm.
+
+`DESIGN.md` được tạo ở bước sau, theo một trong hai đường:
+- **`new-work`** — tự động chạy bên trong `/impeccable shape` hoặc `/impeccable craft` khi việc bạn yêu cầu thực sự cần một thế giới thị giác. Đây là đường đi bình thường của dự án này.
+- **`/impeccable document`** — ghi lại design system của một giao diện **đã có sẵn**. Chỉ dùng nếu bạn đã tự dựng UI trước rồi mới muốn khai báo nó.
+
+Hệ quả về thứ tự: **đừng đi tìm `DESIGN.md` ngay sau `init`.** Nó sẽ xuất hiện lần đầu khi bạn chạy `/impeccable shape <bề mặt>`.
+
+### 7.2 Ràng buộc thiết kế nằm ở đâu
+
+Vì `init` không nhận đầu vào thẩm mỹ, ràng buộc giọng và thị giác của dự án được giữ ở **hai chỗ, cả hai đều commit**:
+
+- [`../PRODUCT.md`](../PRODUCT.md) — mục **Product Principles**, **Brand Commitments** và **Accessibility & Inclusion** đã ghi các ràng buộc cứng: mức bất định luôn đi kèm số, `defer` là kết quả hợp lệ, RUO trên mọi bề mặt, thông tin không bao giờ chỉ mã hoá bằng màu, tiếng Việt có dấu. Impeccable đọc file này khi dựng thế giới thị giác.
+- [`../AGENTS.md`](../AGENTS.md) §12 — 8 ràng buộc thiết kế áp cho **mọi tool**, kể cả tool không có `/impeccable` (§9.1).
+
+**Khi `DESIGN.md` xuất hiện lần đầu: đọc kỹ và sửa tay** chỗ nào lạc giọng. Đây là công cụ y tế research, không phải landing page — không gradient rực rỡ, không hiệu ứng khoe kỹ thuật, không micro-interaction vui vẻ. Từ lúc đó, `DESIGN.md` chi phối cả ba deliverable.
 
 ---
 
@@ -218,7 +224,7 @@ Slide và report **dùng chung `DESIGN.md` với web app** — ba deliverable ph
 **Commit** (đây là ngữ cảnh thiết kế dùng chung cho cả 4 tool, mất là mất trí nhớ thiết kế):
 ```
 PRODUCT.md
-DESIGN.md
+DESIGN.md                      (xuất hiện lần đầu khi chạy shape/craft — §7.1)
 .impeccable/config.json
 .impeccable/design.json
 .impeccable/critique/*.md
@@ -227,7 +233,10 @@ DESIGN.md
 .codex/hooks.json
 ```
 
-**Không commit:** `.claude/settings.local.json` (§5.3) và toàn bộ khối ephemeral ở §8.4.
+**Không commit:**
+- `.claude/settings.local.json` — §5.3.
+- **Payload skill: `.claude/skills/impeccable/`, `.cursor/skills/impeccable/`, `.agents/skills/impeccable/`** — 377 file × 3 bản, ~8.7MB. Cài lại bằng `npx impeccable install`. Đánh đổi: version Impeccable **không được pin trong git**; nếu cần khoá, ghi số version vào WORKLOG chứ đừng commit 8.7MB.
+- Toàn bộ khối ephemeral ở §8.4.
 
 `.impeccable/critique/*.md` **phải commit** — đó là biên bản review thiết kế, sẽ dùng lại khi viết phần Limitations của report.
 
@@ -300,6 +309,7 @@ Script: [`../scripts/quality-gate.sh`](../scripts/quality-gate.sh). Hook: [`../.
 
 Gate hiện kiểm:
 1. **Impeccable detect** trên `webapp/frontend/`, `slides/`, `reports/` (bỏ qua thư mục chưa tồn tại).
+   Đã kiểm chứng 2026-07-24 trên HTML lỗi cố ý: `detect` trả **exit 0 khi sạch, exit 2 khi có finding**, và `--json` in ra mảng phẳng các object `{antipattern, name, description, severity, category, file, line, snippet}`. Gate dựa vào exit code này, hiện **fail trên mọi severity** — cách nới lỏng (chỉ chặn `error`) ghi trong comment của script.
 2. **`splits/` bất biến** — chặn nếu bị sửa mà không có `ALLOW_SPLIT_CHANGE=1`.
 3. **Không lọt file cấm** — `.nii`, `.nii.gz`, `.dcm`, `.pt`, `.pth` trong vùng staged.
 
