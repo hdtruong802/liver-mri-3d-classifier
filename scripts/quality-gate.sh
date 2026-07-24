@@ -107,16 +107,21 @@ else
 fi
 
 # ---------------------------------------------------------------------------
-# 4. Lint Python — chỉ chạy khi ruff đã có
+# 4. Lint Python — chỉ chạy khi ruff đã có và chỉ truyền thư mục hiện hữu.
 # ---------------------------------------------------------------------------
-if command -v ruff >/dev/null 2>&1 && [ -d src ]; then
-  if ruff check src webapp scripts 2>/dev/null; then
+RUFF_TARGETS=()
+for d in src webapp scripts; do
+  [ -d "$d" ] && RUFF_TARGETS+=("$d")
+done
+
+if command -v ruff >/dev/null 2>&1 && [ "${#RUFF_TARGETS[@]}" -gt 0 ]; then
+  if ruff check "${RUFF_TARGETS[@]}" 2>/dev/null; then
     pass "ruff check"
   else
     fail "ruff check"
   fi
 else
-  skip "ruff — chưa cài hoặc chưa có src/"
+  skip "ruff — chưa cài hoặc chưa có thư mục Python"
 fi
 
 echo "---------------------------------------------"

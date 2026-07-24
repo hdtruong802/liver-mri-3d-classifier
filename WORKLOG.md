@@ -858,3 +858,30 @@ Hai ngoại lệ đăng ký kèm lý do (`single-font`, `overused-font=arial`): 
 **Điểm vào phiên sau:** Không đổi so với S-022 — W2 ngày 2 (EDA + gate geometry).
 
 **Cảnh báo cho tool sau:** **Luôn `git ls-files <dir>` (không chỉ `ls` + `git status`) để xác nhận file thực sự được track**, đặc biệt sau khi tạo thư mục mới trùng tên với rule trong `.gitignore` (data/raw/checkpoints/artifacts...). `git add` không báo lỗi khi ignore âm thầm loại bỏ file — commit "thành công" vẫn có thể thiếu file.
+
+
+## S-024 · 2026-07-24 18:40 · codex
+
+**Mục tiêu phiên:** Rút `slides/overview.html` thành overview 11 slide độc lập cho hướng MRI 3D đa pha hiện tại.
+
+**Nhánh / commit:** `main` · `39f7568` → *(commit đang chờ)*
+
+**Đã đụng file:**
+- `slides/overview.html` — rút 14 xuống 11 bản khắc; gộp taxonomy–phase; thay biểu đồ risk–coverage mock bằng luồng trustworthiness không số; viết lại dataset, protocol, SOTA, đóng góp, đầu ra và nguồn.
+- `scripts/quality-gate.{ps1,sh}` — chỉ truyền các thư mục Python đang tồn tại vào `ruff`, tránh fail khi `webapp/` chưa được tạo.
+- `WORKLOG.md` — append entry này.
+
+**Quyết định & lý do:**
+- Deck chỉ giới thiệu hướng MRI hiện tại: phân loại 7 lớp trên MRI 3D đa pha, calibration và selective prediction — để phù hợp mục đích overview 10 phút, không lẫn lịch sử scope, CT/binary hay feedback mentor.
+- Giữ Duke ở vai trò OOD probe không có nhãn loại tổn thương; external coarse-label chỉ là đề xuất cần audit protocol — để không suy diễn thành external classification đã chạy.
+- Không giữ số 5/13/23 hay trục risk–coverage giả lập — sơ đồ mới có nét đứt và nhãn “chưa có dữ liệu dự án”.
+- Sửa cả PowerShell và Bash gate — cùng một điều kiện lint phải cho kết quả nhất quán khi project chưa có `webapp/`.
+
+**Kết quả / số liệu:** 11 slide; footer liên tục 1/11 đến 11/11; `impeccable detect` và `powershell -NoProfile -ExecutionPolicy Bypass -File scripts/quality-gate.ps1` đều PASS. Không có kết quả train/eval MRI được thêm vào deck.
+
+**Dang dở:**
+- [ ] Chưa có screenshot QA trực tiếp tại 1280×720, 1366×768 và 1920×1080: browser automation bị policy chặn mở `file://` local; không dùng workaround. Cấu trúc responsive và detector đã được kiểm tra tĩnh.
+
+**Điểm vào phiên sau:** Mở `slides/overview.html` trong trình duyệt local của người dùng để xác nhận trực quan ba viewport trước khi dùng deck trình bày.
+
+**Cảnh báo cho tool sau:** Đây là overview hướng MRI, không phải progress report: không thêm lịch sử đổi scope, feedback mentor, binary CT, scaffold/code hoặc kết quả chưa xác minh. Mọi số liệu minh hoạ mới phải tránh trục/số mock và được gắn nhãn rõ.

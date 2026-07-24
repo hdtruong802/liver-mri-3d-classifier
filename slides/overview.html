@@ -235,6 +235,12 @@ tr.lead td{color:var(--line)}
 }
 .concept{border:1px dashed var(--line-3);padding:var(--md)}
 .concept svg{display:block;width:100%;height:auto}
+.trust-flow{display:grid;grid-template-columns:repeat(4,1fr);gap:0;align-items:stretch}
+.trust-step{position:relative;padding:12px 16px;border-left:1px dashed var(--rule-2)}
+.trust-step:first-child{border-left:0}
+.trust-step strong{display:block;font-family:var(--serif);font-size:var(--title);font-weight:400;line-height:1.25}
+.trust-step span{display:block;margin-top:var(--xs);font-size:var(--label);line-height:1.4;color:var(--line-2)}
+.trust-step.defer{border-top:1px dashed var(--line-3)}
 
 .panel{border:1px solid var(--rule);background:var(--plate);padding:22px}
 .num{font-variant-numeric:tabular-nums}
@@ -273,7 +279,9 @@ em.term{font-style:normal;color:var(--key)}
   .slide.is-active>*{animation:none}
   .body{display:block;padding:var(--lg) 0 0}
   .slide:not(.phase-slide):not(.citation-slide) .body>*{width:100%}
-  .cols,.cols-3,.tax{grid-template-columns:1fr}
+  .cols,.cols-3,.tax,.trust-flow{grid-template-columns:1fr}
+  .trust-step{border-left:0;border-top:1px dashed var(--rule-2)}
+  .trust-step:first-child{border-top:0}
   .nav{display:none}
 }
 
@@ -314,11 +322,11 @@ em.term{font-style:normal;color:var(--key)}
   <div class="head"><span class="ruo">Research Use Only: chưa kiểm định lâm sàng</span><span class="plate-no">Bản khắc I</span></div>
   <div></div>
   <div class="body">
-    <h1>Phân loại u gan trên MRI 3D đa pha, với xác suất biết tự nhận mình sai</h1>
-    <p class="lede">7 lớp tổn thương gan. 8 thì MRI. Và một câu hỏi mà bảng xếp hạng không trả lời.</p>
-    <p class="sub">Tổng quan dự án: nghiên cứu cá nhân, 6 tuần, PyTorch/MONAI</p>
+    <h1>Phân loại 7 lớp u gan trên MRI 3D đa pha, với xác suất biết khi nào cần <em class="term">defer</em></h1>
+    <p class="lede">Một nhãn dự đoán chỉ có ý nghĩa khi xác suất đi kèm được hiệu chỉnh và ca không chắc có thể được chuyển lại cho người đọc.</p>
+    <p class="sub">Tổng quan hướng nghiên cứu · Research Use Only · không dùng để chẩn đoán lâm sàng</p>
   </div>
-  <div class="foot"><span class="src">Mọi số liệu trong bài đều là kết quả đã công bố của nhóm khác, có chú số dẫn nguồn</span><span class="no">1 / 14</span></div>
+  <div class="foot"><span class="src">Các số liệu công bố đều có chú số dẫn nguồn; deck không trình bày kết quả thực nghiệm của dự án</span><span class="no">1 / 11</span></div>
 </section>
 
 <!-- 2 -->
@@ -326,29 +334,21 @@ em.term{font-style:normal;color:var(--key)}
   <div class="head"><span class="ruo">Research Use Only: chưa kiểm định lâm sàng</span><span class="plate-no">Bản khắc II</span></div>
   <nav class="marks" aria-label="Tiến trình"><span class="on"><i></i>Bài toán</span><span><i></i>Dataset</span><span><i></i>SOTA</span><span><i></i>Ứng dụng</span></nav>
   <div class="body">
-    <h2>7 lớp tổn thương, 3 ác tính và 4 lành tính</h2>
-    <p class="sub">Phân loại ở mức tổn thương, không phải mức bệnh nhân. Vùng tổn thương đã được khoanh sẵn trong dataset, nên việc cần làm là gọi đúng tên nó. <strong>Không làm segmentation.</strong></p>
-    <div class="tax mt">
-      <div>
-        <div class="cat">Ác tính, 3 lớp</div>
-        <ul>
-          <li><span class="mark mark-mal"></span><span>HCC: ung thư biểu mô tế bào gan (hepatocellular carcinoma)</span></li>
-          <li><span class="mark mark-mal"></span><span>ICC: ung thư đường mật trong gan (intrahepatic cholangiocarcinoma)</span></li>
-          <li><span class="mark mark-mal"></span><span>Di căn gan (liver metastases)</span></li>
-        </ul>
+    <h2>Cùng một tổn thương thay đổi theo nhiều thì MRI</h2>
+    <div class="cols mt">
+      <div class="stack">
+        <h3>Tín hiệu không đứng yên</h3>
+        <p>Hình thái, khuếch tán và động học ngấm thuốc cho những lát cắt thông tin khác nhau về cùng một tổn thương.</p>
+        <p class="quiet">Vì thế, một ảnh đơn lẻ hoặc một nhãn đơn lẻ không diễn đạt được toàn bộ mức độ chắc chắn của dự đoán.</p>
       </div>
-      <div>
-        <div class="cat">Lành tính, 4 lớp</div>
-        <ul>
-          <li><span class="mark mark-ben"></span><span>Nang gan (hepatic cysts)</span></li>
-          <li><span class="mark mark-ben"></span><span>U máu (hepatic hemangioma)</span></li>
-          <li><span class="mark mark-ben"></span><span>FNH: tăng sản thể nốt khu trú (focal nodular hyperplasia)</span></li>
-          <li><span class="mark mark-ben"></span><span>Áp-xe gan (hepatic abscess)</span></li>
-        </ul>
+      <div class="stack">
+        <h3>Câu hỏi nghiên cứu</h3>
+        <p>Model không chỉ cần gọi đúng lớp, mà còn cần trả lời xác suất đó đáng tin đến đâu và khi nào nên <em class="term">defer</em>.</p>
+        <div class="chip">Minh hoạ khái niệm, chưa có dữ liệu dự án</div>
       </div>
     </div>
   </div>
-  <div class="foot"><span class="legend"><span><b>1.</b><a href="https://github.com/LMMMEng/LLD-MMRI-Dataset" target="_blank" rel="noopener">LLD-MMRI Dataset</a>, LLD-MMRI2023 Challenge, MICCAI 2023</span></span><span class="no">2 / 14</span></div>
+  <div class="foot"><span class="src">Định vị bài toán nghiên cứu · không phải tuyên bố về hiệu năng lâm sàng</span><span class="no">2 / 11</span></div>
 </section>
 
 <!-- 3 -->
@@ -357,32 +357,29 @@ em.term{font-style:normal;color:var(--key)}
   <nav class="marks" aria-label="Tiến trình"><span class="on"><i></i>Bài toán</span><span><i></i>Dataset</span><span><i></i>SOTA</span><span><i></i>Ứng dụng</span></nav>
   <div class="body">
     <div class="phase-content">
-      <h2>8 thì MRI của cùng một tổn thương, đã căn chỉnh sẵn</h2>
-      <p class="sub">Dataset công bố 8 thì đã đưa về cùng khung toạ độ<sup class="key">1</sup>. Model đọc cả khối 3D đa pha, không hạ xuống từng lát 2D.</p>
+      <h2>Đầu vào là 8 thì MRI, đầu ra là 7 lớp tổn thương</h2>
+      <p class="sub">Mỗi ca là một vùng tổn thương trên khối 3D đa pha đã căn chỉnh; bài toán là phân loại ở mức tổn thương, không phải segmentation.<sup class="key">1</sup></p>
       <div class="phase-grid mt">
         <div>
-          <div class="cat">Cấu trúc, 4 thì</div>
+          <div class="cat">Đầu ra, 7 lớp</div>
           <ul class="marked">
-            <li>T2WI</li>
-            <li>DWI, ảnh khuếch tán</li>
-            <li>T1 in-phase</li>
-            <li>T1 out-phase</li>
+            <li>HCC · ICC · di căn</li>
+            <li>Nang · u máu</li>
+            <li>FNH · áp-xe</li>
           </ul>
         </div>
         <div>
-          <div class="cat">Động học ngấm thuốc, 4 thì</div>
+          <div class="cat">Đầu vào, 8 thì MRI</div>
           <ul class="marked">
-            <li>Trước thuốc</li>
-            <li>Thì động mạch</li>
-            <li>Thì tĩnh mạch cửa</li>
-            <li>Thì muộn</li>
+            <li>T2WI · DWI · T1 in-phase · T1 out-phase</li>
+            <li>Trước thuốc · động mạch · tĩnh mạch cửa · muộn</li>
           </ul>
-          <p class="quiet phase-note">Bốn thì này mang tín hiệu LI-RADS: ngấm mạnh thì động mạch rồi thải thuốc thì tĩnh mạch.</p>
+          <p class="quiet phase-note">Bốn thì động học bổ sung thông tin về mẫu ngấm thuốc theo thời gian.</p>
         </div>
       </div>
     </div>
   </div>
-  <div class="foot"><span class="legend"><span><b>1.</b><a href="https://github.com/LMMMEng/LLD-MMRI-Dataset" target="_blank" rel="noopener">LLD-MMRI Dataset</a>, LLD-MMRI2023 Challenge, MICCAI 2023</span></span><span class="no">3 / 14</span></div>
+  <div class="foot"><span class="legend"><span><b>1.</b><a href="https://github.com/LMMMEng/LLD-MMRI-Dataset" target="_blank" rel="noopener">LLD-MMRI Dataset</a>, LLD-MMRI2023 Challenge, MICCAI 2023</span></span><span class="no">3 / 11</span></div>
 </section>
 
 <!-- 4 -->
@@ -390,41 +387,26 @@ em.term{font-style:normal;color:var(--key)}
   <div class="head"><span class="ruo">Research Use Only: chưa kiểm định lâm sàng</span><span class="plate-no">Bản khắc IV</span></div>
   <nav class="marks" aria-label="Tiến trình"><span class="on"><i></i>Bài toán</span><span><i></i>Dataset</span><span><i></i>SOTA</span><span><i></i>Ứng dụng</span></nav>
   <div class="body">
-    <h2>Câu hỏi không phải “đúng bao nhiêu phần trăm”, mà “có đáng tin không”</h2>
-    <div class="cols mt">
-      <div class="stack">
-        <p>Một model báo <span class="num">80%</span> ác tính. Trong 100 ca nó báo như vậy, có đúng khoảng 80 ca ác thật không? Đó là <em class="term">calibration</em>.</p>
-        <p>Và khi model không chắc, nó có biết im lặng để chuyển bác sĩ không? Đó là <em class="term">selective prediction</em>.</p>
-        <p class="quiet">Hai câu hỏi này quyết định việc một model có dùng được trên lâm sàng hay không. Accuracy thì không.</p>
+    <h2>LLD-MMRI đặt bài toán trên nền dữ liệu phù hợp</h2>
+    <div class="cols-3 mt">
+      <div class="panel">
+        <div class="cat">Quy mô</div>
+        <p class="big mt-sm">498 bệnh nhân<sup class="key">1</sup></p>
+        <p class="quiet mt-sm">Một tổn thương được gán nhãn cho mỗi bệnh nhân.</p>
       </div>
-      <div class="concept">
-        <div class="chip">Ví dụ minh hoạ: dữ liệu giả lập, không phải kết quả dự án</div>
-        <svg viewBox="0 0 360 210" role="img" aria-label="Biểu đồ số giả lập, không phải kết quả dự án: khi coverage tăng từ 50% lên 100%, số ca sai trên 100 ca giả lập tăng từ 5 lên 23.">
-          <text x="48" y="18" font-family="Cambria,serif" font-size="11" fill="#A9B2B8">Sai / 100 ca giả lập</text>
-          <line x1="50" y1="30" x2="50" y2="166" stroke="#44535D" stroke-width="1"/>
-          <line x1="50" y1="166" x2="330" y2="166" stroke="#44535D" stroke-width="1"/>
-          <line x1="50" y1="125" x2="330" y2="125" stroke="#2E3A42" stroke-width="1"/>
-          <line x1="50" y1="82" x2="330" y2="82" stroke="#2E3A42" stroke-width="1"/>
-          <text x="32" y="169" text-anchor="end" font-family="Segoe UI,Arial,sans-serif" font-size="11" fill="#8B949B">0</text>
-          <text x="32" y="128" text-anchor="end" font-family="Segoe UI,Arial,sans-serif" font-size="11" fill="#8B949B">10</text>
-          <text x="32" y="85" text-anchor="end" font-family="Segoe UI,Arial,sans-serif" font-size="11" fill="#8B949B">20</text>
-          <path d="M78 145 L190 111 L302 68" fill="none" stroke="#E8E4DA" stroke-width="2" stroke-dasharray="7 5"/>
-          <circle cx="78" cy="145" r="4" fill="#10161B" stroke="#E8E4DA" stroke-width="2"/>
-          <circle cx="190" cy="111" r="4" fill="#10161B" stroke="#E8E4DA" stroke-width="2"/>
-          <circle cx="302" cy="68" r="4" fill="#10161B" stroke="#E8E4DA" stroke-width="2"/>
-          <text x="78" y="136" text-anchor="middle" font-family="Segoe UI,Arial,sans-serif" font-size="12" fill="#E8E4DA">5</text>
-          <text x="190" y="102" text-anchor="middle" font-family="Segoe UI,Arial,sans-serif" font-size="12" fill="#E8E4DA">13</text>
-          <text x="302" y="59" text-anchor="middle" font-family="Segoe UI,Arial,sans-serif" font-size="12" fill="#E8E4DA">23</text>
-          <text x="78" y="185" text-anchor="middle" font-family="Segoe UI,Arial,sans-serif" font-size="11" fill="#A9B2B8">50%</text>
-          <text x="190" y="185" text-anchor="middle" font-family="Segoe UI,Arial,sans-serif" font-size="11" fill="#A9B2B8">75%</text>
-          <text x="302" y="185" text-anchor="middle" font-family="Segoe UI,Arial,sans-serif" font-size="11" fill="#A9B2B8">100%</text>
-          <text x="190" y="204" text-anchor="middle" font-family="Cambria,serif" font-size="11" fill="#A9B2B8">Coverage được model tự quyết</text>
-        </svg>
-        <p class="quiet" style="font-size:var(--label);margin-top:var(--sm);max-width:none">Số <span class="num">5</span>, <span class="num">13</span>, <span class="num">23</span> là <strong>dữ liệu giả lập</strong>, chỉ diễn giải trade-off: giảm coverage bằng cách <em class="term">defer</em> nhiều hơn có thể giảm sai số trên các ca còn lại. Không dùng để suy luận hiệu năng của dự án này.</p>
+      <div class="panel">
+        <div class="cat">Dữ liệu ảnh</div>
+        <p class="big mt-sm">MRI đa pha<sup class="key">1</sup></p>
+        <p class="quiet mt-sm">Tám thì/chuỗi đưa về một khung toạ độ công bố.</p>
+      </div>
+      <div class="panel">
+        <div class="cat">Vùng quan tâm</div>
+        <p class="big mt-sm">ROI / bbox<sup class="key">1</sup></p>
+        <p class="quiet mt-sm">Cho phép đánh giá tập trung vào phân loại tổn thương.</p>
       </div>
     </div>
   </div>
-  <div class="foot"><span class="src">Sơ đồ tự vẽ, không lấy từ nguồn nào, không mang dữ liệu</span><span class="no">4 / 14</span></div>
+  <div class="foot"><span class="legend"><span><b>1.</b><a href="https://github.com/LMMMEng/LLD-MMRI-Dataset" target="_blank" rel="noopener">LLD-MMRI Dataset</a>, LLD-MMRI2023 Challenge, MICCAI 2023</span></span><span class="no">4 / 11</span></div>
 </section>
 
 <!-- 5 -->
@@ -432,26 +414,22 @@ em.term{font-style:normal;color:var(--key)}
   <div class="head"><span class="ruo">Research Use Only: chưa kiểm định lâm sàng</span><span class="plate-no">Bản khắc V</span></div>
   <nav class="marks" aria-label="Tiến trình"><span><i></i>Bài toán</span><span class="on"><i></i>Dataset</span><span><i></i>SOTA</span><span><i></i>Ứng dụng</span></nav>
   <div class="body">
-    <h2>LLD-MMRI là bộ MRI gan đa pha công khai đầu tiên có đủ 7 lớp</h2>
-    <div class="cols-3 mt">
-      <div class="panel">
-        <div class="cat">Quy mô</div>
-        <p class="big mt-sm">498 bệnh nhân<sup class="key">1</sup></p>
-        <p class="quiet mt-sm">316 train · 78 validation · 104 test. Mỗi bệnh nhân một tổn thương.</p>
+    <h2>Ba câu hỏi quyết định giá trị của model</h2>
+    <div class="cols mt">
+      <div class="stack">
+        <h3>Phân loại</h3>
+        <p>Model nhận diện bảy loại tổn thương tốt đến đâu trên MRI 3D đa pha?</p>
+        <h3>Calibration</h3>
+        <p>Xác suất dự đoán có khớp với tần suất đúng thực tế hay không?</p>
       </div>
-      <div class="panel">
-        <div class="cat">Chuỗi ảnh</div>
-        <p class="big mt-sm">8 thì MRI<sup class="key">1</sup></p>
-        <p class="quiet mt-sm">Bốn thì cấu trúc và bốn thì động, liệt kê đầy đủ ở bản khắc III. Dataset công bố các thì đã căn chỉnh sẵn về cùng khung toạ độ.</p>
-      </div>
-      <div class="panel">
-        <div class="cat">Nhãn kèm theo</div>
-        <p class="big mt-sm">3 mức<sup class="key">1</sup></p>
-        <p class="quiet mt-sm">Khối voxel đầy đủ, bounding box tổn thương, và ROI đã cắt sẵn theo box.</p>
+      <div class="stack">
+        <h3>Selective prediction</h3>
+        <p>Khi chỉ nhận các ca đủ chắc và <em class="term">defer</em> phần còn lại, rủi ro thay đổi như thế nào?</p>
+        <p class="quiet">Đây là các câu hỏi sẽ được kiểm định thực nghiệm; deck không suy luận sẵn kết quả.</p>
       </div>
     </div>
   </div>
-  <div class="foot"><span class="legend"><span><b>1.</b><a href="https://github.com/LMMMEng/LLD-MMRI-Dataset" target="_blank" rel="noopener">LLD-MMRI Dataset</a>, LLD-MMRI2023 Challenge, MICCAI 2023</span></span><span class="no">5 / 14</span></div>
+  <div class="foot"><span class="src">Câu hỏi nghiên cứu của dự án · chưa có dữ liệu kết quả</span><span class="no">5 / 11</span></div>
 </section>
 
 <!-- 6 -->
@@ -459,25 +437,24 @@ em.term{font-style:normal;color:var(--key)}
   <div class="head"><span class="ruo">Research Use Only: chưa kiểm định lâm sàng</span><span class="plate-no">Bản khắc VI</span></div>
   <nav class="marks" aria-label="Tiến trình"><span><i></i>Bài toán</span><span class="on"><i></i>Dataset</span><span><i></i>SOTA</span><span><i></i>Ứng dụng</span></nav>
   <div class="body">
-    <h2>Không có bộ công khai thứ hai cùng taxonomy: đó là giới hạn của cả lĩnh vực</h2>
+    <h2>Trustworthiness biến xác suất thành một quyết định có điều kiện</h2>
     <div class="cols mt">
       <div class="stack">
-        <h3>Hệ quả trực tiếp</h3>
-        <p>Muốn kiểm chứng model trên nguồn dữ liệu khác, không thể giữ nguyên 7 lớp. Bắt buộc phải <em class="term">hạ về nhãn thô</em> (ác so với lành) rồi mới so được.</p>
-        <p class="quiet">Đây không phải lựa chọn cho tiện. Không tồn tại bộ MRI gan đa pha công khai nào khác gán nhãn cùng 7 loại tổn thương này.</p>
+        <p>Chuỗi ảnh đa pha tạo ra phân bố lớp; calibration kiểm tra liệu xác suất của phân bố đó có đáng tin.</p>
+        <p class="quiet">Selective prediction sau đó dùng tín hiệu bất định để giữ lại ca đủ chắc hoặc trả về <em class="term">defer</em>.</p>
       </div>
-      <div class="stack">
-        <h3>Duke Liver Dataset dùng làm gì</h3>
-        <p><span class="num">2.146</span> chuỗi ảnh từ <span class="num">105</span> bệnh nhân xơ gan, 17 nhóm thì và loại tương phản.<sup class="key">2</sup></p>
-        <ul class="marked">
-          <li>Có mask gan, nhưng chỉ cho 310 chuỗi</li>
-          <li><strong>Không có nhãn loại tổn thương</strong></li>
-        </ul>
-        <p class="quiet">Vì vậy Duke chỉ dùng để dò độ bền của model trước dữ liệu lạ (OOD), không dùng để đo độ chính xác phân loại.</p>
+      <div class="concept">
+        <div class="chip">Luồng khái niệm · chưa có dữ liệu dự án</div>
+        <div class="trust-flow mt-sm" role="img" aria-label="Luồng khái niệm: MRI đa pha, phân loại bảy lớp, calibration, sau đó nhận kết quả hoặc defer.">
+          <div class="trust-step"><strong>MRI đa pha</strong><span>khối 3D, 8 thì</span></div>
+          <div class="trust-step"><strong>7 lớp</strong><span>phân bố xác suất</span></div>
+          <div class="trust-step"><strong>Calibration</strong><span>hiệu chỉnh độ tin cậy</span></div>
+          <div class="trust-step defer"><strong>Kết quả / defer</strong><span>chỉ nhận ca đủ chắc</span></div>
+        </div>
       </div>
     </div>
   </div>
-  <div class="foot"><span class="legend"><span><b>2.</b>Macdonald J.A., Zhu Z., et al. Duke Liver Dataset. <i>Radiol Artif Intell</i> 2023. <a href="https://doi.org/10.1148/ryai.220275" target="_blank" rel="noopener">doi:10.1148/ryai.220275</a> · n = 105</span></span><span class="no">6 / 14</span></div>
+  <div class="foot"><span class="src">Sơ đồ tự vẽ, không mang dữ liệu hay kết quả dự án</span><span class="no">6 / 11</span></div>
 </section>
 
 <!-- 7 -->
@@ -485,28 +462,27 @@ em.term{font-style:normal;color:var(--key)}
   <div class="head"><span class="ruo">Research Use Only: chưa kiểm định lâm sàng</span><span class="plate-no">Bản khắc VII</span></div>
   <nav class="marks" aria-label="Tiến trình"><span><i></i>Bài toán</span><span class="on"><i></i>Dataset</span><span><i></i>SOTA</span><span><i></i>Ứng dụng</span></nav>
   <div class="body">
-    <h2>Dữ liệu đủ để nghiên cứu, không đủ để tự tin</h2>
+    <h2>Giao thức đánh giá phải giữ xác suất trung thực</h2>
     <div class="cols mt">
       <div class="stack">
-        <h3>Ba giới hạn phải nói trước</h3>
+        <h3>Khóa protocol trước đánh giá</h3>
         <ul class="marked">
-          <li><strong>498 bệnh nhân là ít</strong> cho một bài 7 lớp. Mạng 3D lớn sẽ overfit.</li>
-          <li><strong>Tập test 104 ca là rất ít.</strong> Mỗi ca sai kéo accuracy đi gần một điểm phần trăm, nên chênh lệch vài điểm giữa hai model có thể chỉ là nhiễu.</li>
-          <li><strong>Áp-xe và FNH hiếm.</strong> Vài ca trong một fold thì mọi con số cho riêng lớp đó đều rất rộng.</li>
+          <li>Chia dữ liệu <strong>theo bệnh nhân</strong>; mọi thì của một ca luôn cùng một split.</li>
+          <li><strong>5-fold cross-validation</strong> phục vụ chọn mô hình và ngưỡng trên train/validation.</li>
+          <li>Không dùng test để chọn model, threshold hoặc fit calibration.</li>
         </ul>
       </div>
       <div class="stack">
-        <h3>Giao thức chống tự lừa mình</h3>
+        <h3>Báo cáo sau cùng</h3>
         <ul class="marked">
-          <li>Chia dữ liệu <strong>ở mức bệnh nhân</strong>, có kiểm thử tự động xác nhận không bệnh nhân nào nằm ở hai bên.</li>
-          <li><strong>5-fold cross-validation</strong> để chọn model, không chọn trên tập test.</li>
-          <li><strong>Tập test 104 ca chạm đúng một lần</strong>, sau khi mọi ngưỡng đã khoá trên validation.</li>
-          <li>Mọi con số báo kèm <strong>khoảng tin cậy 95%</strong>.</li>
+          <li><strong>Test-104 được khóa kín</strong> và chỉ đánh giá một lần sau khi protocol đã chốt.</li>
+          <li>Mọi metric được báo cùng <strong>khoảng tin cậy 95%</strong> bằng bootstrap mức bệnh nhân.</li>
+          <li>Kiểm tra giao tập bệnh nhân và thống kê tiền xử lý để ngăn leakage.</li>
         </ul>
       </div>
     </div>
   </div>
-  <div class="foot"><span class="src">Cỡ tập theo LLD-MMRI2023 · giao thức là thiết kế của dự án này, chưa thực thi</span><span class="no">7 / 14</span></div>
+  <div class="foot"><span class="src">Giao thức dự kiến · chưa có kết quả train/eval để báo cáo</span><span class="no">7 / 11</span></div>
 </section>
 
 <!-- 8 -->
@@ -514,7 +490,7 @@ em.term{font-style:normal;color:var(--key)}
   <div class="head"><span class="ruo">Research Use Only: chưa kiểm định lâm sàng</span><span class="plate-no">Bản khắc VIII</span></div>
   <nav class="marks" aria-label="Tiến trình"><span><i></i>Bài toán</span><span><i></i>Dataset</span><span class="on"><i></i>SOTA</span><span><i></i>Ứng dụng</span></nav>
   <div class="body">
-    <h2>Bảng xếp hạng challenge dừng lại ở F1 0,83</h2>
+    <h2>SOTA trả lời F1 và Kappa, chưa trả lời độ tin cậy</h2>
     <div class="cols mt" style="grid-template-columns:1.35fr 1fr">
       <table>
         <caption>MICCAI LLD-MMRI Challenge 2023 · 24 đội · tập test 104 ca<sup class="key">3</sup></caption>
@@ -523,18 +499,17 @@ em.term{font-style:normal;color:var(--key)}
           <tr class="lead"><td class="name">1 · WorkingisAllyouneed</td><td>0,8322</td><td>0,7801</td><td>0,8062</td></tr>
           <tr><td class="name">2 · NPUBXY</td><td>0,8078</td><td>0,7660</td><td>0,7869</td></tr>
           <tr><td class="name">3 · LinGroup</td><td>0,7860</td><td>0,7435</td><td>0,7647</td></tr>
-          <tr><td class="name">21 · Baseline của ban tổ chức</td><td>0,6083</td><td>0,5414</td><td>0,5748</td></tr>
-          <tr><td class="name">24 · Đội cuối bảng</td><td>0,2562</td><td>0,1840</td><td>0,2201</td></tr>
+          <tr><td class="name">Baseline ban tổ chức</td><td>0,6083</td><td>0,5414</td><td>0,5748</td></tr>
         </tbody>
       </table>
       <div class="stack">
-        <p>Xếp hạng lấy <strong>trung bình của F1 và Kappa</strong>. Không có hạng mục nào cho độ tin cậy của xác suất.</p>
-        <p class="quiet">Khoảng cách từ baseline lên quán quân là <span class="num">0,22</span> điểm F1. Khoảng cách từ quán quân lên hạng nhì chỉ <span class="num">0,024</span>, trên một tập 104 ca thì đó là khoảng hai đến ba ca.</p>
-        <p><strong>Đây là lý do không đua leaderboard.</strong> Phần dễ cải thiện đã bị lấy hết; phần còn lại nằm trong khoảng nhiễu.</p>
+        <p>Leaderboard chấm <strong>trung bình F1 và Kappa</strong>. Đây là đo lường cần thiết cho phân loại, nhưng chưa kiểm tra chất lượng của xác suất.</p>
+        <p class="quiet">Không có ECE, Brier score, reliability diagram hay risk–coverage trong bảng xếp hạng công bố.</p>
+        <p><strong>Khoảng trống nghiên cứu là trustworthiness, không phải chỉ thêm một điểm F1.</strong></p>
       </div>
     </div>
   </div>
-  <div class="foot"><span class="legend"><span><b>3.</b><a href="https://github.com/LMMMEng/LLD-MMRI2023/blob/main/assets/test_leaderboard.md" target="_blank" rel="noopener">LLD-MMRI2023 test leaderboard</a>, MICCAI 2023 · n = 104 · số của các đội dự thi, không phải của dự án này</span></span><span class="no">8 / 14</span></div>
+  <div class="foot"><span class="legend"><span><b>3.</b><a href="https://github.com/LMMMEng/LLD-MMRI2023/blob/main/assets/test_leaderboard.md" target="_blank" rel="noopener">LLD-MMRI2023 test leaderboard</a>, MICCAI 2023 · n = 104 · số của các đội dự thi, không phải của dự án này</span></span><span class="no">8 / 11</span></div>
 </section>
 
 <!-- 9 -->
@@ -542,27 +517,25 @@ em.term{font-style:normal;color:var(--key)}
   <div class="head"><span class="ruo">Research Use Only: chưa kiểm định lâm sàng</span><span class="plate-no">Bản khắc IX</span></div>
   <nav class="marks" aria-label="Tiến trình"><span><i></i>Bài toán</span><span><i></i>Dataset</span><span class="on"><i></i>SOTA</span><span><i></i>Ứng dụng</span></nav>
   <div class="body">
-    <h2>Đổi backbone chỉ còn mua được vài điểm phần trăm</h2>
-    <div class="cols mt" style="grid-template-columns:1.35fr 1fr">
-      <table>
-        <caption>So sánh có kiểm soát trên bộ MR 8 thì · tập test 104 tổn thương<sup class="key">4</sup></caption>
-        <thead><tr><th>Phương pháp</th><th>ACC</th><th>F1</th><th>AUC</th><th>Kappa</th></tr></thead>
-        <tbody>
-          <tr class="lead"><td class="name">SDR-Former <span style="color:var(--line-2)">(cao nhất bảng)</span></td><td>0,7885</td><td>0,7910</td><td>0,9536</td><td>0,7467</td></tr>
-          <tr><td class="name">SNN-H2Former</td><td>0,7788</td><td>0,7745</td><td>0,9478</td><td>0,7263</td></tr>
-          <tr><td class="name">DenseNet-121</td><td>0,7404</td><td>0,7171</td><td>0,9346</td><td>0,6797</td></tr>
-          <tr><td class="name">ResNet-50</td><td>0,6923</td><td>0,6898</td><td>0,9298</td><td>0,6244</td></tr>
-          <tr><td class="name">STIC</td><td>0,6346</td><td>0,6254</td><td>0,8969</td><td>0,5572</td></tr>
-        </tbody>
-      </table>
+    <h2>Đóng góp dự kiến: đo đúng, biết từ chối, và kiểm tra độ bền</h2>
+    <div class="cols mt">
       <div class="stack">
-        <p>Từ ResNet-50 lên kiến trúc chuyên dụng nhất: <span class="num">+0,10</span> ACC. Từ á quân lên quán quân trong bảng này: <span class="num">+0,01</span>.</p>
-        <p class="quiet">DenseNet-121, kiến trúc dự án này dùng làm sàn tham chiếu, đứng ở giữa bảng. Đủ tốt để làm mốc đo, không phải để đua.</p>
-        <div class="chip">Bài báo không nói rõ F1 và AUC có macro hay không</div>
+        <ul class="marked">
+          <li><strong>Fusion đa pha</strong> và phân tích mức đóng góp của từng thì MRI.</li>
+          <li><strong>Calibration</strong> cho phân bố xác suất bảy lớp.</li>
+          <li><strong>Selective prediction</strong> với đường reliability và risk–coverage.</li>
+        </ul>
+      </div>
+      <div class="stack">
+        <ul class="marked">
+          <li><strong>External coarse-label:</strong> chỉ đánh giá HCC-vs-non-HCC sau khi audit metadata và protocol.</li>
+          <li><strong>Duke OOD:</strong> dùng riêng để thăm dò domain shift, không phải external classification test vì không có nhãn loại tổn thương.<sup class="key">2</sup></li>
+          <li><strong>Phase importance:</strong> kiểm tra quyết định có phụ thuộc hợp lý vào thông tin đa pha.</li>
+        </ul>
       </div>
     </div>
   </div>
-  <div class="foot"><span class="legend"><span><b>4.</b>Lou M., et al. SDR-Former. <i>Neural Networks</i> 185 (2025) 107228. <a href="https://arxiv.org/abs/2402.17246" target="_blank" rel="noopener">arXiv:2402.17246</a> · n = 104 · khác tập test của bản khắc VIII, không so chéo hai bảng</span></span><span class="no">9 / 14</span></div>
+  <div class="foot"><span class="legend"><span><b>2.</b>Macdonald J.A., Zhu Z., et al. Duke Liver Dataset. <i>Radiol Artif Intell</i> 2023. <a href="https://doi.org/10.1148/ryai.220275" target="_blank" rel="noopener">doi:10.1148/ryai.220275</a></span><span class="no">9 / 11</span></div>
 </section>
 
 <!-- 10 -->
@@ -570,130 +543,49 @@ em.term{font-style:normal;color:var(--key)}
   <div class="head"><span class="ruo">Research Use Only: chưa kiểm định lâm sàng</span><span class="plate-no">Bản khắc X</span></div>
   <nav class="marks" aria-label="Tiến trình"><span><i></i>Bài toán</span><span><i></i>Dataset</span><span class="on"><i></i>SOTA</span><span><i></i>Ứng dụng</span></nav>
   <div class="body">
-    <h2>Khoảng trống hẹp hơn thoạt nhìn, và vẫn còn trống</h2>
-    <div class="cols-3 mt">
+    <h2>Đầu ra nghiên cứu phải đặt bất định ở vị trí trung tâm</h2>
+    <div class="cols mt">
       <div class="stack">
-        <h3>Đã có người làm</h3>
-        <p>Một công trình 2021 đã gắn ước lượng bất định vào phân loại tổn thương gan trên MRI đa pha, có cơ chế từ chối.<sup class="key">5</sup></p>
-        <p class="quiet">Chỉ xét <span class="num">70%</span> ca tự tin nhất: F1 trung bình từ <span class="num">0,62</span> lên <span class="num">0,71</span>; độ nhạy HCC ở mức đặc hiệu 80% từ <span class="num">0,84</span> lên <span class="num">0,92</span>.</p>
-      </div>
-      <div class="stack">
-        <h3>Nhưng khác ở ba chỗ</h3>
+        <h3>Model và báo cáo</h3>
         <ul class="marked">
-          <li>Dữ liệu <strong>riêng tư</strong>, 400 bệnh nhân, không ai lặp lại được</li>
-          <li>Chỉ <strong>3 lớp ác tính</strong>, không phải 7 lớp lành và ác</li>
-          <li><strong>Không báo chỉ số calibration nào</strong>: không ECE, không Brier, không temperature scaling</li>
+          <li>Phân bố <strong>xác suất của từng lớp</strong> và mức bất định.</li>
+          <li>Quyết định <strong>nhận kết quả hoặc defer</strong>, cùng lý do/giới hạn.</li>
+          <li>Heatmap để hỗ trợ kiểm tra vùng ảnh tác động đến dự đoán.</li>
         </ul>
       </div>
       <div class="stack">
-        <h3>Phần còn trống</h3>
-        <p>Trên chính LLD-MMRI, bộ công khai 7 lớp có bảng xếp hạng, <strong>chưa có công bố nào báo calibration hoặc selective prediction.</strong></p>
-        <p class="quiet">Bảng xếp hạng chỉ chấm F1 và Kappa. Bài báo SOTA hiện tại không nhắc tới bất định ở bất kỳ đâu.</p>
-        <p><strong>Đó là chỗ dự án này đứng.</strong></p>
+        <h3>Demo Research Use Only</h3>
+        <ul class="marked">
+          <li>Trình bày xác suất, uncertainty, <em class="term">defer</em>, heatmap và giới hạn theo từng ca.</li>
+          <li>Không thay thế bác sĩ, không hiển thị kết quả như một chẩn đoán.</li>
+          <li>Mọi màn hình kết quả đều mang nhãn <strong>Research Use Only</strong>.</li>
+        </ul>
       </div>
     </div>
   </div>
-  <div class="foot"><span class="legend"><span><b>5.</b>Wang P., et al. Deep learning pipeline for liver lesions with uncertainty estimation. <a href="https://arxiv.org/abs/2110.08817" target="_blank" rel="noopener">arXiv:2110.08817</a> (2021) · n = 400, dữ liệu riêng tư, 3 lớp</span></span><span class="no">10 / 14</span></div>
+  <div class="foot"><span class="src">Đầu ra dự kiến của nghiên cứu · không phải tuyên bố về tính sẵn sàng lâm sàng</span><span class="no">10 / 11</span></div>
 </section>
 
 <!-- 11 -->
-<section class="slide dense-slide" aria-label="Bản khắc 11">
+<section class="slide dense-slide citation-slide" aria-label="Bản khắc 11">
   <div class="head"><span class="ruo">Research Use Only: chưa kiểm định lâm sàng</span><span class="plate-no">Bản khắc XI</span></div>
-  <nav class="marks" aria-label="Tiến trình"><span><i></i>Bài toán</span><span><i></i>Dataset</span><span><i></i>SOTA</span><span class="on"><i></i>Ứng dụng</span></nav>
-  <div class="body">
-    <h2>Đầu ra không phải một nhãn, mà một nhãn kèm mức tin cậy</h2>
-    <div class="cols mt">
-      <div class="stack">
-        <h3>Web app trả về</h3>
-        <ul class="marked">
-          <li>Lớp dự đoán và <strong>xác suất từng lớp</strong> trong 7 lớp</li>
-          <li><strong>Xác suất ác tính</strong> gộp, con số bác sĩ hỏi trước tiên</li>
-          <li><strong>Mức bất định</strong>: entropy và độ lệch giữa các model trong ensemble</li>
-          <li><strong>Cờ <em class="term">defer</em></strong> khi độ tin cậy dưới ngưỡng đã khoá</li>
-          <li><strong>Heatmap Grad-CAM 3D</strong>, để kiểm model có nhìn đúng khối u không</li>
-        </ul>
-      </div>
-      <div class="stack">
-        <h3>Ràng buộc kỹ thuật</h3>
-        <p>Nhận NIfTI hoặc DICOM series. Backend FastAPI, frontend.</p>
-        <p class="quiet">Nút thắt tốc độ là bước căn chỉnh ảnh, không phải bước chạy model. Chạy trên vùng cắt quanh tổn thương thay vì cả khối gan để giữ thời gian phản hồi ở mức vài giây.</p>
-        <div class="chip">Chưa xây dựng, thuộc giai đoạn cuối của dự án</div>
-      </div>
-    </div>
-  </div>
-  <div class="foot"><span class="src">Đặc tả thiết kế của dự án này · chưa có bản chạy được</span><span class="no">11 / 14</span></div>
-</section>
-
-<!-- 12 -->
-<section class="slide" aria-label="Bản khắc 12">
-  <div class="head"><span class="ruo">Research Use Only: chưa kiểm định lâm sàng</span><span class="plate-no">Bản khắc XII</span></div>
-  <nav class="marks" aria-label="Tiến trình"><span><i></i>Bài toán</span><span><i></i>Dataset</span><span><i></i>SOTA</span><span class="on"><i></i>Ứng dụng</span></nav>
-  <div class="body">
-    <h2>Giá trị nằm ở chỗ model biết khi nào nên im lặng</h2>
-    <div class="cols mt">
-      <div class="stack">
-        <h3>Phục vụ ai</h3>
-        <p><strong>Hướng tới bác sĩ chẩn đoán hình ảnh</strong>, ở vai trò người đọc thứ hai: không thay thế, không đưa ra chẩn đoán.</p>
-        <p class="quiet">Ở giai đoạn hiện tại, người dùng thật của bản demo là hội đồng và người review nghiên cứu. Bản demo được thiết kế cho việc đánh giá công trình, không cho việc đọc ca bệnh.</p>
-      </div>
-      <div class="stack">
-        <h3>Phục vụ thế nào</h3>
-        <p>Model tự quyết những ca nó thực sự chắc, và <strong>chủ động chuyển ca khó cho bác sĩ</strong> thay vì đoán bừa rồi báo một con số đẹp.</p>
-        <p class="lede" style="margin-top:var(--md);font-size:var(--title);max-width:42ch">“Model tự xử được bao nhiêu phần trăm số ca, trong khi vẫn giữ sai số dưới ngưỡng cho phép?”</p>
-        <p class="quiet">Một model chỉ báo accuracy không có cách nào trả lời câu này.</p>
-      </div>
-    </div>
-  </div>
-  <div class="foot"><span class="src">Định vị sản phẩm của dự án này · không phải tuyên bố về hiệu năng</span><span class="no">12 / 14</span></div>
-</section>
-
-<!-- 13 -->
-<section class="slide" aria-label="Bản khắc 13">
-  <div class="head"><span class="ruo">Research Use Only: chưa kiểm định lâm sàng</span><span class="plate-no">Bản khắc XIII</span></div>
-  <nav class="marks" aria-label="Tiến trình"><span><i></i>Bài toán</span><span><i></i>Dataset</span><span><i></i>SOTA</span><span class="on"><i></i>Ứng dụng</span></nav>
-  <div class="body">
-    <h2>Hiện tại dự án chưa có một con số nào của riêng mình</h2>
-    <div class="cols mt">
-      <div class="stack">
-        <p class="lede" style="margin-top:0">Mọi số trong bài này đều là kết quả đã công bố của nhóm khác, có chú số dẫn về nguồn ở chân từng bản khắc.</p>
-        <p>Dự án chưa có dữ liệu trong tay, chưa huấn luyện, chưa có checkpoint, chưa có kết quả. Quyền truy cập LLD-MMRI đang chờ duyệt.</p>
-      </div>
-      <div class="stack">
-        <h3>Cam kết khi có kết quả</h3>
-        <ul class="marked">
-          <li>Mọi con số kèm <strong>khoảng tin cậy 95%</strong>, lấy mẫu lại ở mức bệnh nhân</li>
-          <li>Không báo kết quả tốt nhất trong nhiều lần chạy</li>
-          <li>Báo cả mức tụt khi đổi sang nguồn dữ liệu khác</li>
-          <li>Công khai split, seed, config và notebook</li>
-        </ul>
-        <div class="chip">Research Use Only: không dùng cho chẩn đoán lâm sàng</div>
-      </div>
-    </div>
-  </div>
-  <div class="foot"><span class="src">Trạng thái tính đến 24-07-2026</span><span class="no">13 / 14</span></div>
-</section>
-
-<!-- 14 -->
-<section class="slide dense-slide citation-slide" aria-label="Bản khắc 14">
-  <div class="head"><span class="ruo">Research Use Only: chưa kiểm định lâm sàng</span><span class="plate-no">Bản khắc XIV</span></div>
   <div></div>
   <div class="body">
     <h3 style="font-size:var(--headline)">Chú giải nguồn</h3>
     <ul class="refs mt-sm">
-      <li><b>1</b>LLD-MMRI: An Open-access Dataset for Liver Lesion Diagnosis on Multi-phase MRI, và LLD-MMRI2023 Challenge, MICCAI 2023. Cỡ tập 316/78/104.
+      <li><b>1</b>LLD-MMRI: <em>An Open-access Dataset for Liver Lesion Diagnosis on Multi-phase MRI</em>, và LLD-MMRI2023 Challenge, MICCAI 2023.
         <span class="url"><a href="https://github.com/LMMMEng/LLD-MMRI-Dataset" target="_blank" rel="noopener">github.com/LMMMEng/LLD-MMRI-Dataset</a> · <a href="https://github.com/LMMMEng/LLD-MMRI2023" target="_blank" rel="noopener">github.com/LMMMEng/LLD-MMRI2023</a></span></li>
-      <li><b>2</b>Macdonald J.A., Zhu Z. và cộng sự. <em>Duke Liver Dataset: A Publicly Available Liver MRI Dataset with Liver Segmentation Masks and Series Labels.</em> Radiology: Artificial Intelligence.
+      <li><b>2</b>Macdonald J.A., Zhu Z. và cộng sự. <em>Duke Liver Dataset: A Publicly Available Liver MRI Dataset with Liver Segmentation Masks and Series Labels.</em> <em>Radiology: Artificial Intelligence</em>.
         <span class="url"><a href="https://doi.org/10.1148/ryai.220275" target="_blank" rel="noopener">doi.org/10.1148/ryai.220275</a> · <a href="https://zenodo.org/records/7774566" target="_blank" rel="noopener">zenodo.org/records/7774566</a></span></li>
-      <li><b>3</b>LLD-MMRI2023 test leaderboard, 24 đội.
+      <li><b>3</b>LLD-MMRI2023 test leaderboard, MICCAI 2023.
         <span class="url"><a href="https://github.com/LMMMEng/LLD-MMRI2023/blob/main/assets/test_leaderboard.md" target="_blank" rel="noopener">github.com/LMMMEng/LLD-MMRI2023/blob/main/assets/test_leaderboard.md</a></span></li>
-      <li><b>4</b>Lou M., Ying H., Liu X., Zhou H.-Y., Zhang Y., Yu Y. <em>SDR-Former: A Siamese Dual-Resolution Transformer for Liver Lesion Classification Using 3D Multi-Phase Imaging.</em> arXiv:2402.17246. Bản tạp chí: Neural Networks, vol. 185, 2025.
+      <li><b>4</b>Lou M., Ying H., Liu X., Zhou H.-Y., Zhang Y., Yu Y. <em>SDR-Former: A Siamese Dual-Resolution Transformer for Liver Lesion Classification Using 3D Multi-Phase Imaging.</em> <em>Neural Networks</em> 185 (2025) 107228.
         <span class="url"><a href="https://arxiv.org/abs/2402.17246" target="_blank" rel="noopener">arxiv.org/abs/2402.17246</a> · <a href="https://doi.org/10.1016/j.neunet.2025.107228" target="_blank" rel="noopener">doi.org/10.1016/j.neunet.2025.107228</a></span></li>
-      <li><b>5</b>Wang P., Wu Y., Lai B., Zhou X.-Y., Lu L., Liu W., Zhou H., Huang L., Xiao J., Harrison A.P., Jia N., Hu H. <em>A deep learning pipeline for localization, differentiation, and uncertainty estimation of liver lesions using multi-phasic and multi-sequence MRI.</em> arXiv:2110.08817.
+      <li><b>5</b>Wang P. và cộng sự. <em>A deep learning pipeline for localization, differentiation, and uncertainty estimation of liver lesions using multi-phasic and multi-sequence MRI.</em> arXiv:2110.08817.
         <span class="url"><a href="https://arxiv.org/abs/2110.08817" target="_blank" rel="noopener">arxiv.org/abs/2110.08817</a></span></li>
     </ul>
-    <p class="quiet mt-sm" style="font-size:var(--label);max-width:none">Mọi nguồn trên đã được mở và đối chiếu trực tiếp. Số liệu nào không xác minh được đều đã bị loại khỏi bài hoặc đánh dấu rõ.</p>
   </div>
-  <div class="foot"><span class="src">Research Use Only: chưa kiểm định lâm sàng</span><span class="no">14 / 14</span></div>
+  <div class="foot"><span class="src">Research Use Only: chưa kiểm định lâm sàng</span><span class="no">11 / 11</span></div>
 </section>
 
 </div>

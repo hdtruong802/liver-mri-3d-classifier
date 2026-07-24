@@ -147,9 +147,11 @@ else {
     Write-Result OK 'no patient-data/checkpoint file'
 }
 
-# 4. Python lint only when ruff and src/ exist.
-if ((Get-Command ruff -ErrorAction SilentlyContinue) -and (Test-Path -LiteralPath 'src' -PathType Container)) {
-    & ruff check src webapp scripts
+# 4. Python lint only when ruff and at least one Python surface exist.
+$ruffTargets = @('src', 'webapp', 'scripts') |
+    Where-Object { Test-Path -LiteralPath $_ -PathType Container }
+if ((Get-Command ruff -ErrorAction SilentlyContinue) -and $ruffTargets.Count -gt 0) {
+    & ruff check @ruffTargets
     if ($LASTEXITCODE -eq 0) {
         Write-Result OK 'ruff check'
     }
@@ -159,7 +161,7 @@ if ((Get-Command ruff -ErrorAction SilentlyContinue) -and (Test-Path -LiteralPat
     }
 }
 else {
-    Write-Result SKIP 'ruff - not installed or src/ does not exist'
+    Write-Result SKIP 'ruff - not installed or no Python surface exists'
 }
 
 Write-Host '---------------------------------------------'
