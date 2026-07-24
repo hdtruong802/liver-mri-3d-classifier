@@ -912,3 +912,28 @@ Hai ngoại lệ đăng ký kèm lý do (`single-font`, `overused-font=arial`): 
 **Điểm vào phiên sau:** Mở `slides/overview.html` bằng trình duyệt local của người dùng để duyệt trực quan ba viewport trước buổi trình bày.
 
 **Cảnh báo cho tool sau:** Ảnh `cmir-8-107-f5.jpg` là asset CC BY 2.5; phải giữ attribution trong `slides/assets/ATTRIBUTION.md` và slide nguồn. Duke chỉ là OOD probe, không là external classification test; mọi output mock phải tiếp tục ghi rõ là minh hoạ không có dữ liệu dự án.
+
+
+## S-026 · 2026-07-24 19:00 · codex
+
+**Mục tiêu phiên:** Cân lại bố cục `slides/overview.html` để đọc từ xa hơn, sửa va chạm ảnh/chữ ở slide mở đầu và khôi phục mốc phần theo tiến trình thuyết trình.
+
+**Nhánh / commit:** `main` · `a071e00` → *(commit đang chờ)*
+
+**Đã động file:**
+- `slides/overview.html` — tăng thang chữ và vùng nội dung từ 73 lên 86 đơn vị tỷ lệ; giảm khoảng trống thân slide; thêm 11 thanh mục lục tĩnh; tách hero slide 1 thành hai cột trong CSS grid; thêm ngoại lệ chữ nguồn nhỏ hơn ở slide 11.
+- `WORKLOG.md` — append entry này.
+
+**Quyết định & lý do:**
+- Thanh mục lục có 5 phần: Bài toán (1–3), Dataset (4), SOTA (5–7), Ứng dụng (8–10), Nguồn (11). Mỗi slide có đúng một mục active, hiển thị bằng nhãn chữ sáng, chữ đậm và đoạn kẻ 2px để không chỉ dựa vào màu.
+- Hero không còn dùng ảnh đặt `position:absolute`; copy và MRI được đặt ở hai cột độc lập. Vì vậy ảnh không thể lấn lên tiêu đề ở các viewport trình chiếu.
+- Không đổi thông tin khoa học, số liệu công bố, nguồn, attribution, RUO hay các hành vi hash/keyboard/print.
+
+**Kết quả / số liệu:** `impeccable detect --scope layout slides/overview.html` trả về rỗng; quality gate PowerShell PASS; kiểm tra cấu trúc PASS (11 slide, 11 section-nav, 11 `aria-current="step"`, không còn legacy absolute hero).
+
+**Dang dở:**
+- [ ] Chrome headless hiện trả mã thoát 0 nhưng không tạo screenshot ở thư mục tạm của môi trường, nên chưa có ảnh render tự động tại 1280×720, 1366×768 và 1920×1080. CSS đã được rà tĩnh theo các breakpoint; cần mở local bằng Chrome thông thường để review quang học cuối nếu muốn chốt cho buổi trình bày.
+
+**Điểm vào phiên sau:** Mở slide 1, 5 và 11 bằng trình duyệt local ở ba viewport để xác nhận trực quan typography và bảng nguồn sau khi tăng cỡ chữ.
+
+**Cảnh báo cho tool sau:** Giữ thanh mục lục tĩnh trong HTML để nó hiện đúng cả khi in; không chuyển sang sinh bằng JavaScript. Nếu sửa mapping, phải duy trì đúng một `aria-current="step"` trên mỗi slide.
