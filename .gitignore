@@ -6,9 +6,12 @@
 
 # -----------------------------------------------------------------------------
 # DỮ LIỆU BỆNH NHÂN — tuyệt đối không vào git
+# Neo `/` ở đầu để CHỈ khớp thư mục gốc repo. Không neo sẽ khớp mọi thư mục
+# trùng tên ở bất kỳ cấp nào (vd `src/data/`) và nuốt mất code — đã xảy ra thật
+# (WORKLOG S-022/S-023: src/data/*.py bị .gitignore nuốt, chưa từng vào git).
 # -----------------------------------------------------------------------------
-data/
-raw/
+/data/
+/raw/
 *.nii
 *.nii.gz
 *.dcm
