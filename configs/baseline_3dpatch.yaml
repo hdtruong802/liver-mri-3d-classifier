@@ -53,6 +53,10 @@ train:
   #     loss mới đi 1.96 -> 1.64 (ngẫu nhiên = ln 7 = 1.946). Mới chỉ khởi động.
   # accum 8 -> 2 cho ~78 bước/epoch, gấp 4 lần, **cùng thời gian mỗi epoch** (số lần
   # forward/backward không đổi). Hiệu dụng 4 cũng hợp lý hơn với 312 mẫu so với 16.
+  # KẾT QUẢ (S-041): macro-F1 val 0.2647 với accum 2 so với 0.2725 với accum 8, cùng
+  # best_epoch 11. Gấp 4 lần số bước KHÔNG đổi gì — giả thuyết "thiếu bước cập nhật"
+  # bị bác bỏ. Giữ 2 vì không tệ hơn và hợp với cỡ dataset, nhưng đừng kỳ vọng gì ở
+  # nút này. Baseline ổn định quanh 0.26–0.27; đòn bẩy thật là backbone pretrained (W4).
   # Lệch khuyến nghị "hiệu dụng 16–32" ở AGENTS.md §7 — chỗ đó viết cho ràng buộc
   # VRAM, không phải cho kích thước dataset; đã ghi lý do vào WORKLOG.
   accum_steps: 2

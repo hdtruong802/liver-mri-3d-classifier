@@ -1658,3 +1658,62 @@ Và bản InstanceNorm "sập" ở 4 epoch = **80 bước**. Với một cấu h
 - **Đừng chẩn đoán từ 4 epoch khi mỗi epoch chỉ có 20 bước cập nhật.** Hai chẩn đoán sai liên tiếp (S-036 "BatchNorm hỏng", S-039 "InstanceNorm sập vì pooling") đều sinh ra từ chỗ này. Số bước cập nhật = mẫu / (batch × accum) — tính nó trước khi diễn giải bất kỳ đường cong nào.
 - Phép thử overfit ở mục 1b dùng lr và tần suất cập nhật **khác** run thật (1e-3, step mỗi batch). Nó trả lời "kiến trúc có học nổi không", **không** trả lời "cấu hình train này tốt không". Đừng đọc quá phạm vi đó — đúng lỗi tôi vừa mắc theo chiều ngược lại.
 
+
+
+## S-041 · 2026-07-27 18:40 · claude-code
+
+**Mục tiêu phiên:** Đọc kết quả run `accum_steps: 2` và chốt trạng thái baseline W2.
+
+**Nhánh / commit:** `main` · `577f0d1` → *(commit đang chờ)*
+
+### Kết quả
+
+```
+{'fold': 1, 'best_macro_f1': 0.26469, 'best_epoch': 11, 'seed': 1337,
+ 'run_dir': '/kaggle/working/runs/baseline_3dpatch/fold1_4c2cf705'}
+```
+
+| run | norm | accum | bước/epoch | macro-F1 val | best epoch |
+|---|---|---|---|---|---|
+| S-036 | batch | 8 | ~20 | **0.2725** | 11 |
+| S-041 | batch | 2 | ~78 | **0.2647** | 11 |
+
+Gấp 4 lần số bước cập nhật ⇒ **không đổi gì**. Chênh 0.008 trên 82 ca val nằm gọn trong nhiễu (thêm nữa DenseNet 3D là non-deterministic trên CUDA). Cùng `best_epoch = 11` ở cả hai run.
+
+### Giả thuyết thứ ba cũng bị bác bỏ
+
+Ba chẩn đoán, ba lần sai:
+
+1. S-036 — "BatchNorm với batch 2 làm val loss phân kỳ" → sai, đổi sang InstanceNorm tệ hơn hẳn.
+2. S-039 — "InstanceNorm sập vì global average pooling" → sai, phép thử overfit cho accuracy 1.00.
+3. S-040 — "model thiếu bước cập nhật" → sai, gấp 4 lần bước không đổi kết quả.
+
+Điểm chung: cả ba đều là **suy luận từ đường cong**, và cả ba đều tốn một run để bác bỏ. Bài học ghi vào đây để không lặp lại: baseline này ổn định quanh **0.26–0.27** và không bị chặn bởi thứ gì trong đám hyperparam tôi đã thử.
+
+### Và tôi đã kéo dự án ra ngoài phạm vi W2
+
+`docs/W2_plan.md` mục "Không phải việc của W2" ghi rõ: W2 chỉ cần **1 fold ra số mốc**; tune model thuộc W4 (comparison protocol, Spec Sheet §3), CV + CI thuộc W3. Ba run vừa rồi là săn hyperparam ở tuần không dành cho việc đó — scope creep do tôi tạo ra, không phải do người dùng yêu cầu.
+
+Các đòn bẩy thật sự cho chất lượng model đã nằm sẵn trong plan W4: **backbone pretrained** (MedicalNet ResNet-3D / Models Genesis — 312 mẫu train from scratch là điều kiện khó nhất), fusion v1 phase-attention, xử lý lớp hiếm. Không có lý do gì để đoán tiếp ở W2.
+
+**Đã đụng file:**
+- `WORKLOG.md` — entry này.
+- `configs/baseline_3dpatch.yaml` — giữ `accum_steps: 2` (không tệ hơn, và hiệu dụng 4 hợp với 312 mẫu hơn), ghi rõ hai run cho cùng kết quả.
+
+**Quyết định & lý do:**
+- **Chốt baseline W2 ở macro-F1 val ≈ 0.26–0.27 (fold 1, seed 1337) và DỪNG tune.** Hai cấu hình khác nhau cho cùng con số ⇒ đây là mốc ổn định, đủ để làm điểm so cho W3/W4. Phương án đã loại: thử tiếp `lr`, `group`, giảm augment — mỗi cái một run 25 phút, và ba lần trước đã cho thấy tỉ lệ trúng của kiểu đoán này.
+- **Sang W3 theo đúng plan:** `src/eval/bootstrap.py` (CI mức bệnh nhân ≥2000 lần), chạy đủ 5-fold, bảng CV có CI. Đó mới là deliverable, và có CI rồi thì mọi so sánh sau này mới có nghĩa — chênh 0.008 như trên hiện không thể phân biệt với nhiễu vì **chưa có CI**.
+
+**Kết quả / số liệu:** macro-F1 val fold 1 = **0.2647** (accum 2) và **0.2725** (accum 8). `pytest` 145 passed, 8 skipped.
+
+**Dang dở:**
+- [ ] **Chưa xem đường cong `train_log.csv` của run này.** Cần biết train loss cuối cùng dừng ở đâu để phân biệt underfit / overfit — dữ kiện này thuộc về W4, khi chọn giữa pretrained và giảm capacity.
+- [ ] Baseline 2.5D (T6.1) — cắt được, W2_plan xếp nó vào "task cắt được nếu trễ".
+- [ ] `norm: group(8)` — ứng viên còn treo, để W4 làm cùng bảng ablation, không chạy lẻ.
+
+**Điểm vào phiên sau:** Bắt đầu W3 — `src/eval/metrics.py` đã có, viết `src/eval/bootstrap.py` (bootstrap mức bệnh nhân, stratified, ≥2000 lần), rồi `src/eval/run.py` đọc `val_probs_best.npz` đã lưu sẵn. Chạy được 5-fold mà **không cần train lại** cho fold 1.
+
+**Cảnh báo cho tool sau:**
+- **Đừng tune baseline ở W2.** Ba run đã chứng minh baseline ổn định ~0.27 và không nhạy với các hyperparam đã thử. Đòn bẩy thật (pretrained backbone) nằm ở W4 và đã có trong plan.
+- **Không so hai con số khi chưa có CI.** 0.2725 với 0.2647 nhìn khác nhau nhưng trên 82 ca val thì không phân biệt được. Đây chính là lý do AGENTS.md §3.5 bắt mọi số phải kèm CI — và là việc đầu tiên của W3.
+
