@@ -1251,3 +1251,27 @@ yx:  14 phiếu ( 8%) · độ tán trong mặt phẳng 17.8 mm
 **Điểm vào phiên sau:** Hoàn tất notebook 02 trên Kaggle; khi nhận output cache, ghi slug/version vào config + WORKLOG rồi dựng baseline DenseNet121-3D trên `CachedLesionDataset`.
 
 **Cảnh báo cho tool sau:** Audit W2 cố ý nói cache **chưa nghiệm thu**; đừng sửa nó để tuyên bố train-ready chỉ vì build đã bắt đầu. Nếu có kết quả cache, ghi vào WORKLOG/report W6 theo quyết định snapshot.
+
+
+## S-033 · 2026-07-27 · codex
+
+**Mục tiêu phiên:** Ghi định danh cache LLD-MMRI đã tạo trên Kaggle vào cấu hình tái lập.
+
+**Nhánh / commit:** `main` · `fb1698e` → *(commit đang chờ)*
+
+**Đã đụng file:**
+- `configs/preprocess.yaml` — ghi `kaggle_dataset_slug: "marcohoang/lld-mmri-3"` và `kaggle_dataset_version: 1`.
+- `WORKLOG.md` — append entry S-033.
+
+**Quyết định & lý do:**
+- Lưu slug/version dưới dạng YAML thật, không chỉ comment — notebook/train sau này có thể đọc được; dataset được quan sát là Private, nên vẫn phù hợp ràng buộc không phát tán cache.
+
+**Kết quả / số liệu:** Trang Kaggle `LLD-MMRI-3D` hiển thị Private, Version 1, 2,71 GB và thư mục `cache` có 501 file; số này phù hợp với 498 `.npz` theo bệnh nhân cộng file metadata/log. Việc kiểm no-NaN/shape của toàn bộ cache vẫn dựa vào output notebook 02 mục 5, chưa được thay thế bởi metadata trang web.
+
+**Dang dở:**
+- [ ] Lưu/kiểm output notebook 02 mục 2, 3 và 5: overlay `xy`, shape/finiteness smoke test, 498 cache files và không lỗi.
+- [ ] Test suite local cần được chạy lại sau khi cài môi trường từ `requirements.txt` (pytest hiện chưa có).
+
+**Điểm vào phiên sau:** Dùng `marcohoang/lld-mmri-3` version 1 làm Kaggle input cho notebook baseline, mount cache rồi dựng `CachedLesionDataset` theo fold 1.
+
+**Cảnh báo cho tool sau:** Version 1 xác nhận cache tồn tại nhưng không tự chứng minh mọi tensor không NaN/Inf; chỉ gọi data train-ready sau tiêu chí notebook 02 mục 5.

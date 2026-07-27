@@ -2,9 +2,9 @@
 # Mọi hyperparam ở đây, code chỉ đọc (AGENTS.md §8). Chạy một lần rồi cache
 # thành Kaggle Dataset có version (AGENTS.md §7).
 #
-# Ghi lại sau khi build (để tái lập):
-#   kaggle_dataset_slug:  <điền>
-#   kaggle_dataset_version: <điền>
+# Cache đã tạo sau build (Kaggle Dataset phải giữ Private theo license dữ liệu):
+kaggle_dataset_slug: "marcohoang/lld-mmri-3"
+kaggle_dataset_version: 1
 
 # --- Thứ tự trục: bbox.x ứng với trục 0 ('xy') hay trục 1 ('yx') của mảng ---
 # Phán quyết trên toàn bộ 498 bệnh nhân (WORKLOG S-031), đo độ hội tụ của tâm tổn
