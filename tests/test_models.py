@@ -46,6 +46,13 @@ def test_config_yaml_matches_model_contract():
     assert config["model"]["num_classes"] == NUM_CLASSES
     assert config["model"]["in_channels"] == IN_CHANNELS
     assert 1 <= config["fold"] <= 5
+
+    # BatchNorm với batch nhỏ làm val loss phân kỳ (WORKLOG S-036). Nếu ai đó đổi
+    # norm về "batch" thì phải đồng thời nâng batch_size lên mức BN dùng được.
+    if config["model"].get("norm", "batch") == "batch":
+        assert config["data"]["batch_size"] >= 8, (
+            "BatchNorm cần batch >= 8; với khối 3D thì dùng norm: instance"
+        )
     # Batch hiệu dụng phải nằm trong 16–32 theo ràng buộc Kaggle (AGENTS.md §7).
     effective = config["data"]["batch_size"] * config["train"]["accum_steps"]
     assert 16 <= effective <= 32

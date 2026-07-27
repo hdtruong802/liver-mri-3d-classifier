@@ -20,6 +20,9 @@ model:
   in_channels: 8              # 8 pha ghép kênh = early-concat v0
   num_classes: 7
   dropout_prob: 0.2
+  # instance, KHÔNG phải batch: batch_size=2 (ràng buộc VRAM) làm BatchNorm ước
+  # lượng thống kê quá nhiễu -> val loss phân kỳ dù train chưa fit (WORKLOG S-036).
+  norm: instance
 
 data:
   # VRAM ~16GB với khối [8,96,96,48]: batch nhỏ + tích luỹ gradient (AGENTS.md §7).

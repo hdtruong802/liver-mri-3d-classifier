@@ -1367,3 +1367,72 @@ DataLoader  : train=312 val=82 (=394) · batch (4,8,96,96,48) float32
 - **Dòng `repo commit` KHÔNG chứng minh code nào đang chạy** nếu chưa xoá `sys.modules`. Đây là bẫy đã ăn trọn một vòng sửa-chạy-vẫn-lỗi. Mọi notebook mới phải copy đoạn xoá `sys.modules` từ cell 0 của notebook 03.
 - Đừng thêm đường dẫn tương đối mới vào config mà không cho qua `resolve_repo_path`.
 
+
+
+## S-036 · 2026-07-27 15:35 · claude-code
+
+**Mục tiêu phiên:** Nhận kết quả baseline fold 1 đầu tiên và đọc nó.
+
+**Nhánh / commit:** `main` · `4858a26` → *(commit đang chờ)*
+
+### SỐ MỐC ĐẦU TIÊN CỦA DỰ ÁN
+
+Chạy trên Kaggle, notebook 03, code tại commit `e0c312f`, `configs/baseline_3dpatch.yaml` **trước** thay đổi của phiên này (`norm` chưa có ⇒ BatchNorm mặc định).
+
+```
+fold 1 · seed 1337 · train=312 val=82 · device=cuda · amp=True
+densenet121_3d · 11.403.463 tham số
+class weights (từ train): [0.891, 1.238, 1.351, 1.393, 1.351, 1.592, 0.446]
+
+best macro-F1 val = 0.2725 @ epoch 11
+EARLY STOP ở epoch 26 (15 epoch không cải thiện)
+~20s/epoch
+```
+
+⚠️ **Đây là số mốc 1-fold/1-seed, KHÔNG có CI, không phải kết quả báo cáo** (AGENTS.md §3.5).
+
+### Đường cong nói gì
+
+| | epoch 1 | epoch 11 (best) | epoch 26 |
+|---|---|---|---|
+| train loss | 1.961 | 1.774 | 1.641 |
+| val loss | 1.989 | 2.471 | 2.589 |
+| macro-F1 val | 0.099 | **0.273** | 0.253 |
+
+- Chance của 7 lớp: macro-F1 ≈ 0.10, CE ≈ ln7 = 1.946. Model **có** học (0.27 > 0.10).
+- Nhưng train loss chỉ giảm 1.96 → 1.64: **chưa fit nổi tập train**.
+- Trong khi đó val loss **tăng 30%**. Đây KHÔNG phải overfit kinh điển — overfit thì train loss phải lao xuống gần 0.
+
+### Chẩn đoán: BatchNorm với batch_size=2
+
+DenseNet121 của MONAI mặc định `norm="batch"`. Với batch 2 mẫu:
+- lúc **train**, BN chuẩn hoá bằng thống kê của chính batch → loss trông bình thường;
+- lúc **eval**, BN dùng running stats gộp từ hàng trăm batch 2-mẫu → thống kê nhiễu, phân phối lệch hẳn so với lúc train.
+
+Chữ ký khớp chính xác: train ổn / val phân kỳ *dù model chưa fit*. Đây là lý do nnU-Net và phần lớn pipeline 3D y tế dùng InstanceNorm — khối 3D buộc batch phải nhỏ vì VRAM.
+
+**Lỗi thiết kế của phiên S-034:** đặt `batch_size: 2` theo ràng buộc VRAM mà không đổi normalization cho khớp.
+
+**Đã đụng file:**
+- `src/models/densenet3d.py` — thêm tham số `norm`, mặc định **`instance`** (không phải `batch`); docstring ghi rõ bằng chứng.
+- `configs/baseline_3dpatch.yaml` — `norm: instance`.
+- `tests/test_models.py` — test chặn: nếu config đặt `norm: batch` thì bắt buộc `batch_size >= 8`.
+
+**Quyết định & lý do:**
+- **Chỉ đổi đúng MỘT biến (`norm`)**, giữ nguyên lr/batch/accum/epochs/augment. Đổi nhiều thứ cùng lúc thì lần chạy tới không nói được cái nào có tác dụng. Phương án đã loại: nâng batch_size lên 8 — cũng chữa được BN nhưng tốn VRAM và làm giảm số optimizer step.
+- Giữ effective batch 16 (2 × 8): với 312 mẫu train là ~20 optimizer step/epoch. Ít, nhưng theo dõi trước, chưa đổi.
+
+**Kết quả / số liệu:** `pytest` 120 passed, 8 skipped. ruff sạch. **Chưa chạy lại với `instance`** — chưa biết chẩn đoán có đúng không.
+
+**Dang dở:**
+- [ ] Chạy lại fold 1 với `norm: instance` và so với **0.2725**. Rẻ: ~20s/epoch, tối đa 20 phút.
+- [ ] Rủi ro chưa kiểm được ở local: không có MONAI để xác minh `DenseNet121(..., norm=...)` đúng tên tham số ở phiên bản MONAI trên Kaggle. Nếu sai sẽ `TypeError` ngay cell smoke test (rẻ, phát hiện sớm).
+- [ ] Baseline 2.5D (T6.1) — cắt được nếu trễ.
+- [ ] `src/data/transforms.py` giờ ĐÃ chạy thật lần đầu trên Kaggle (fold 1 train xong) nhưng 9 test của nó vẫn skip ở local.
+
+**Điểm vào phiên sau:** Kaggle notebook 03 → Restart & Run All. Cell 1 phải qua (kiểm `norm=instance` hợp lệ), rồi so macro-F1 với 0.2725. Nếu val loss hết phân kỳ ⇒ chẩn đoán đúng, ghi vào WORKLOG rồi mới tính chuyện tune tiếp.
+
+**Cảnh báo cho tool sau:**
+- **Đừng so số mới với 0.2725 như một cuộc đua.** 0.2725 là mốc của một cấu hình có lỗi thiết kế đã biết; giá trị của nó là làm chứng cho chẩn đoán BN, không phải làm chuẩn để vượt.
+- W2 chỉ cần *một* số mốc. Tune sâu là việc W4 (comparison protocol, Spec Sheet §3). Đừng biến W2 thành cuộc săn hyperparam.
+
