@@ -76,7 +76,7 @@ Pha CT chứng minh có thể xây pipeline với split đúng, CI, external tes
 6. Khóa protocol/model/threshold trước khi chạy test đúng một lần.
 7. Nối model thật vào FastAPI/web app, failure analysis, reproducibility pack và báo cáo cuối.
 
-## 6. Timeline và nguồn nội bộ
+## 6. Timeline
 
 | Thời điểm | Mốc |
 |---|---|
