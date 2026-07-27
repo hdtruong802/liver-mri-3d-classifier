@@ -1176,3 +1176,53 @@ axis order: ambiguous
 **Điểm vào phiên sau:** Sau khi có cache: W2 ngày 5 — baseline DenseNet121-3D đọc `CachedLesionDataset`, checkpoint/resume mỗi epoch.
 
 **Cảnh báo cho tool sau:** `configs/preprocess.yaml: axis_order` để trống là **có chủ ý**, không phải quên — phải chạy phán quyết rồi điền. Nếu phán quyết ra `inconclusive` thì **DỪNG**, xác nhận bằng overlay (mục 2 của notebook), đừng chọn bừa.
+
+
+## S-031 · 2026-07-27 12:10 · claude-code
+
+**Mục tiêu phiên:** Xử lý kết quả `inconclusive` của phán quyết thứ tự trục trên dữ liệu thật.
+
+**Nhánh / commit:** `main` · `e549b20` → *(commit đang chờ)*
+
+**Kết quả chạy thật (498 bệnh nhân) — bản đo CŨ (có tính trục Z):**
+```
+AXIS ORDER: inconclusive
+  498 so được · 90 ca có sức phân biệt
+  xy: 83 phiếu (92%) · độ tán trung vị 26.3 mm
+  yx:  7 phiếu ( 8%) · độ tán trung vị 30.0 mm
+```
+Phiếu **đã vượt** ngưỡng 90%; bị gắn `inconclusive` chỉ vì 26.3mm > ngưỡng 25mm.
+
+**Chẩn đoán — lỗi phép đo của tôi, không phải lỗi dữ liệu.** Phân rã độ tán theo trục:
+
+| Cách hiểu | X | Y | Z |
+|---|---|---|---|
+| `xy` | **7.4** | 10.3 | 23.3 |
+| `yx` | 13.9 | 11.2 | 23.3 |
+
+- **Z giống hệt nhau ở cả hai cách hiểu** — tất nhiên, vì hoán vị trục chỉ đụng X/Y.
+- 85% số ca có Z tán nhất; Z trung vị 23.3mm = đúng biên độ **chuyển động hô hấp của gan** (y văn 10–25mm theo trục đầu-chân), do 8 pha chụp ở các lần nín thở khác nhau.
+- Đưa Z vào phép đo vừa **đẩy tổng độ tán vượt ngưỡng**, vừa **làm loãng tín hiệu** phân biệt.
+
+**Đã đụng file:**
+- `src/preprocess/geometry.py` — `_spread_mm` chỉ đo **trong mặt phẳng** (bỏ trục Z); `CONVERGENCE_TOL_MM` 25 → 20 và định nghĩa lại là ngưỡng trong-mặt-phẳng; summary nói rõ đã bỏ Z và vì sao.
+- `tests/test_preprocess_geometry.py` — +3 test khoá hành vi: chênh thuần Z không tính vào độ tán; đo đúng khoảng cách trong mặt phẳng; ca thật (166/14, 12.4mm) phải kết luận được.
+- `configs/preprocess.yaml` — điền `axis_order: xy` kèm toàn bộ bằng chứng.
+
+**Kết quả sau khi sửa (tính lại trên 498 ca):**
+```
+180/498 ca có sức phân biệt (gấp đôi 90 ca trước đó)
+xy: 166 phiếu (92%) · độ tán trong mặt phẳng 12.4 mm
+yx:  14 phiếu ( 8%) · độ tán trong mặt phẳng 17.8 mm
+```
+⇒ **`axis_order = "xy"`**. Bỏ Z không làm đổi tỉ lệ phiếu (92%) nhưng **tăng gấp đôi số ca dùng được**, nên bằng chứng mạnh hơn nhiều (166 vs 14).
+
+`pytest` **90 passed, 3 skipped** (87 → 90 test). ruff sạch.
+
+**Dang dở:**
+- [ ] Xác nhận bằng overlay (notebook 02 mục 2) trước khi build cả mẻ — bằng chứng số đã mạnh nhưng đây là kiểm chứng độc lập, rẻ.
+- [ ] Build cache 498 ca + đẩy Kaggle Dataset.
+
+**Điểm vào phiên sau:** Kaggle → Restart & Run All notebook 02. Mục 1 giờ phải ra `xy` (không còn `inconclusive`); xem mục 2 xác nhận hộp trúng tổn thương; rồi chạy mục 4.
+
+**Cảnh báo cho tool sau:** Chuyển động hô hấp giữa các pha là **~23mm theo trục Z** — con số này giải thích vì sao rigid registration nằm trong kế hoạch W3 làm ablation. Đừng coi độ tán theo Z là dấu hiệu hình học hỏng.

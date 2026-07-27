@@ -158,3 +158,43 @@ def test_verdict_inconclusive_when_winner_still_scattered():
         median_spread_mm={"xy": 120.0, "yx": 300.0},
     )
     assert v.verdict == "inconclusive"
+
+
+# --- Phép đo phải bỏ trục Z (S-031) -----------------------------------------
+
+
+def test_spread_ignores_z_axis():
+    """Chênh lệch thuần theo Z KHÔNG được tính vào độ tán.
+
+    Hoán vị thứ tự trục chỉ đụng X/Y; Z giống hệt nhau ở cả hai cách hiểu và bị
+    chuyển động hô hấp chi phối (~23mm trên dữ liệu thật). Tính Z vào chỉ làm
+    loãng tín hiệu phân biệt.
+    """
+    from src.preprocess.geometry import _spread_mm
+
+    points = [np.array([0.0, 0.0, 0.0]), np.array([0.0, 0.0, 100.0])]
+    assert _spread_mm(points) == pytest.approx(0.0)
+
+
+def test_spread_measures_in_plane_distance():
+    from src.preprocess.geometry import _spread_mm
+
+    points = [np.array([0.0, 0.0, 5.0]), np.array([3.0, 4.0, 999.0])]
+    assert _spread_mm(points) == pytest.approx(5.0)  # 3-4-5, Z bị bỏ qua
+
+
+def test_breathing_motion_alone_does_not_block_verdict():
+    """Ca thật: phiếu áp đảo + độ tán trong mặt phẳng hợp lý -> phải KẾT LUẬN được.
+
+    Trước đây tính cả Z nên tổng độ tán 26.3mm vượt ngưỡng 25mm và bị gắn
+    'inconclusive' dù phiếu đã 92% (WORKLOG S-031).
+    """
+    from src.preprocess.geometry import AxisOrderVerdict
+
+    v = AxisOrderVerdict(
+        n_compared=498,
+        n_decisive=180,
+        votes={"xy": 166, "yx": 14},
+        median_spread_mm={"xy": 12.4, "yx": 17.8},
+    )
+    assert v.verdict == "xy"

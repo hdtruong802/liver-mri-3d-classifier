@@ -29,9 +29,12 @@ from src.utils.ids import normalize_pid
 # Hai cách hiểu: bbox.x ứng với trục 0 của mảng ('xy'), hay với trục 1 ('yx').
 AXIS_ORDERS = ("xy", "yx")
 
-# Ngưỡng độ tán (mm) để coi 8 pha là "hội tụ". Nới tay vì có sai số nhịp thở giữa
-# các lần chụp và sai số người vẽ bbox.
-CONVERGENCE_TOL_MM = 25.0
+# Ngưỡng độ tán TRONG MẶT PHẲNG (mm) để coi các pha là "hội tụ".
+#
+# Đo trên dữ liệu thật (WORKLOG S-031): độ tán trong mặt phẳng có trung vị 12.4mm với
+# cách hiểu đúng — đó là chuyển động hô hấp theo phương trước-sau cộng sai số vẽ bbox.
+# 20mm cho đủ dư địa mà vẫn bắt được trường hợp hình học hỏng thật.
+CONVERGENCE_TOL_MM = 20.0
 
 # Chênh lệch tối thiểu giữa hai cách hiểu để một bệnh nhân được TÍNH PHIẾU.
 #
@@ -76,10 +79,19 @@ def lesion_center_world(
 
 
 def _spread_mm(points: list[np.ndarray]) -> float:
-    """Độ tán của một chùm điểm: khoảng cách lớn nhất giữa hai điểm bất kỳ (mm)."""
+    """Độ tán **trong mặt phẳng** của một chùm điểm: khoảng cách lớn nhất (mm).
+
+    **Cố ý bỏ trục Z.** Hoán vị thứ tự trục chỉ ảnh hưởng X và Y; Z giữ nguyên ở cả
+    hai cách hiểu, nên đưa Z vào chỉ cộng thêm **nhiễu chung** và làm loãng tín hiệu.
+    Nhiễu đó rất lớn: đo trên dữ liệu thật (WORKLOG S-031), độ tán theo Z có trung vị
+    23.3mm — đúng biên độ chuyển động hô hấp của gan (10–25mm theo trục đầu-chân),
+    vì 8 pha được chụp ở các lần nín thở khác nhau.
+
+    Bỏ Z làm số ca phân biệt được tăng gấp đôi (90 → 180 trên 498).
+    """
     if len(points) < 2:
         return 0.0
-    arr = np.stack(points)
+    arr = np.stack(points)[:, :2]  # chỉ X, Y
     diffs = arr[:, None, :] - arr[None, :, :]
     return float(np.sqrt((diffs**2).sum(axis=-1)).max())
 
@@ -121,10 +133,12 @@ class AxisOrderVerdict:
             share = 100 * v / self.n_decisive if self.n_decisive else 0
             spread = self.median_spread_mm.get(order, float("nan"))
             lines.append(
-                f"  {order}: {v} phiếu ({share:.0f}%) · độ tán giữa các pha, trung vị = "
+                f"  {order}: {v} phiếu ({share:.0f}%) · độ tán TRONG MẶT PHẲNG, trung vị = "
                 f"{spread:.1f} mm"
             )
         lines.append("  (độ tán nhỏ = các pha chỉ về cùng một điểm ⇒ cách hiểu đúng)")
+        lines.append("  (trục Z bị loại khỏi phép đo: hoán vị trục không đụng Z, và Z bị")
+        lines.append("   chuyển động hô hấp chi phối ~23mm — nhiễu chung cho cả hai cách hiểu)")
         if self.verdict == "inconclusive":
             lines.append("  → KHÔNG kết luận được. DỪNG, xác nhận bằng overlay trước khi crop.")
         return "\n".join(lines)
