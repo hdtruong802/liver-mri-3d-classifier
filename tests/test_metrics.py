@@ -83,6 +83,53 @@ def test_classification_metrics_returns_expected_keys():
     assert all(isinstance(v, float) for v in metrics.values())
 
 
+def test_macro_f1_matches_sklearn_when_all_classes_present():
+    """Metric chính phải trùng KHÍT với thứ leaderboard official dùng.
+
+    `main/metrics.py` của LLD-MMRI2023 gọi thẳng
+    ``sklearn.metrics.f1_score(y_true, y_pred, average='macro')``. Nếu bản của ta lệch
+    dù chỉ chút ít thì mọi so sánh với con số 0.6083 đều vô nghĩa.
+    """
+    sklearn_metrics = pytest.importorskip("sklearn.metrics")
+    rng = np.random.default_rng(0)
+
+    for _ in range(20):
+        y_true = np.concatenate([np.arange(7), rng.integers(0, 7, 100)])
+        y_pred = rng.integers(0, 7, y_true.size)
+        expected = sklearn_metrics.f1_score(y_true, y_pred, average="macro")
+        assert macro_f1(y_true, y_pred) == pytest.approx(expected)
+
+
+def test_macro_f1_differs_from_sklearn_only_when_a_class_is_wholly_absent():
+    """Điều kiện tương đương, ghi lại rõ ràng thay vì để người sau tự vấp.
+
+    sklearn lấy trung bình trên các lớp có mặt trong ``y_true ∪ y_pred``; bản của ta
+    luôn lấy trung bình trên đủ 7 lớp, tính lớp vắng mặt là F1 = 0. Hai cách chỉ khác
+    nhau khi một lớp **không xuất hiện ở cả nhãn thật lẫn dự đoán** — với val fold
+    thật (78–82 ca, đủ 7 lớp) thì trường hợp này không xảy ra.
+    """
+    sklearn_metrics = pytest.importorskip("sklearn.metrics")
+    y_true = np.array([0, 0, 1, 1])  # vắng lớp 2..6
+    y_pred = np.array([0, 1, 1, 1])
+
+    assert sklearn_metrics.f1_score(y_true, y_pred, average="macro") == pytest.approx(0.7, abs=0.05)
+    assert macro_f1(y_true, y_pred) == pytest.approx(
+        sklearn_metrics.f1_score(y_true, y_pred, average="macro") * 2 / 7
+    )
+
+
+def test_cohen_kappa_matches_sklearn():
+    """official dùng ``sklearn.metrics.cohen_kappa_score`` không tham số."""
+    sklearn_metrics = pytest.importorskip("sklearn.metrics")
+    rng = np.random.default_rng(1)
+
+    for _ in range(20):
+        y_true = np.concatenate([np.arange(7), rng.integers(0, 7, 80)])
+        y_pred = rng.integers(0, 7, y_true.size)
+        expected = sklearn_metrics.cohen_kappa_score(y_true, y_pred)
+        assert cohen_kappa(y_true, y_pred) == pytest.approx(expected)
+
+
 def test_empty_input_does_not_crash():
     empty = np.zeros(0, dtype=int)
     assert accuracy(empty, empty) == 0.0

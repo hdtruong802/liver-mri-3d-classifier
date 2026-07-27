@@ -13,7 +13,10 @@ from src.data.transforms import (
     RandomFlip,
     RandomIntensity,
     RandomRot90InPlane,
+    RandomRotateSmall,
+    RandomTranslate3D,
     build_train_transform,
+    resolve_axes,
 )
 
 pytest.importorskip("torch", reason="transform chạy trên tensor torch")
@@ -81,6 +84,99 @@ def test_compose_applies_in_order():
     assert calls == ["a", "b"]
 
 
+def test_resolve_axes_maps_names_to_tensor_dims():
+    assert resolve_axes(["x", "y", "z"]) == (1, 2, 3)
+    assert resolve_axes(None) == (1, 2)  # mặc định: chỉ trong mặt phẳng
+
+
+def test_resolve_axes_rejects_typos():
+    """`flip_axes: [w]` phải nổ ngay, đừng lặng lẽ bỏ qua một trục."""
+    with pytest.raises(ValueError, match="không hợp lệ"):
+        resolve_axes(["x", "w"])
+
+
+def test_flip_can_include_z_when_config_says_so():
+    """Recipe official lật cả trục z (randomflip_z, p=0.5)."""
+    original = _z_index_volume()
+    out = RandomFlip(prob=1.0, axes=resolve_axes(["x", "y", "z"]))({"image": original.clone()})[
+        "image"
+    ]
+    assert torch.equal(out, torch.flip(original, dims=(1, 2, 3)))
+
+
+# --- Xoay góc nhỏ (thay rot90) ----------------------------------------------
+
+
+def test_small_rotation_keeps_shape_and_is_finite():
+    """`reshape=False` -> shape không đổi; nếu đổi thì batch vỡ giữa epoch."""
+    original = torch.randn(8, 32, 32, 12)
+    out = RandomRotateSmall(degrees=10, prob=1.0)({"image": original.clone()})["image"]
+
+    assert out.shape == original.shape
+    assert torch.isfinite(out).all()
+
+
+def test_small_rotation_does_not_touch_z():
+    """Xoay quanh trục z: khối 'giá trị = chỉ số z' phải gần như y nguyên."""
+    original = _z_index_volume(shape=(2, 24, 24, 5))
+    out = RandomRotateSmall(degrees=10, prob=1.0)({"image": original.clone()})["image"]
+
+    # Vùng lõi không bị góc ảnh quay ra ngoài chạm tới -> phải khớp đúng chỉ số z.
+    core = out[:, 6:18, 6:18, :]
+    assert torch.allclose(core, original[:, 6:18, 6:18, :], atol=1e-4)
+
+
+def test_small_rotation_is_identical_across_phases():
+    """Biến đổi hình học phải đồng nhất cho cả 8 pha."""
+    base = torch.randn(1, 24, 24, 4)
+    original = base.repeat(8, 1, 1, 1)
+    out = RandomRotateSmall(degrees=10, prob=1.0)({"image": original.clone()})["image"]
+
+    for channel in range(1, 8):
+        assert torch.allclose(out[channel], out[0])
+
+
+def test_small_rotation_zero_degrees_is_identity():
+    original = torch.randn(2, 16, 16, 4)
+    out = RandomRotateSmall(degrees=0, prob=1.0)({"image": original.clone()})["image"]
+    assert torch.equal(out, original)
+
+
+# --- Tịnh tiến (thay random_crop của official) -------------------------------
+
+
+def test_translate_keeps_shape():
+    original = torch.randn(8, 32, 32, 12)
+    out = RandomTranslate3D(max_shift=(8, 8, 4), prob=1.0)({"image": original.clone()})["image"]
+    assert out.shape == original.shape
+
+
+def test_translate_preserves_voxel_values_it_keeps():
+    """Chỉ dịch và đệm 0 — giá trị giữ lại không được biến dạng."""
+    original = torch.arange(2 * 8 * 8 * 4).reshape(2, 8, 8, 4).float()
+    out = RandomTranslate3D(max_shift=(3, 3, 1), prob=1.0)({"image": original.clone()})["image"]
+
+    kept = out[out != 0]
+    assert torch.isin(kept, original).all()
+
+
+def test_translate_zero_shift_is_identity():
+    original = torch.randn(2, 8, 8, 4)
+    out = RandomTranslate3D(max_shift=(0, 0, 0), prob=1.0)({"image": original.clone()})["image"]
+    assert torch.equal(out, original)
+
+
+def test_translate_actually_moves_content():
+    torch.manual_seed(3)
+    original = torch.ones(1, 8, 8, 4)
+    shifted = [
+        RandomTranslate3D(max_shift=(4, 4, 2), prob=1.0)({"image": original.clone()})["image"]
+        for _ in range(10)
+    ]
+    # Ít nhất một lần phải sinh vùng đệm 0 -> tức là có dịch thật.
+    assert any(float(out.min()) == 0.0 for out in shifted)
+
+
 def test_build_train_transform_none_when_no_augment_config():
     assert build_train_transform(None) is None
     assert build_train_transform({}) is None
@@ -95,3 +191,37 @@ def test_build_train_transform_from_config():
     assert len(transform.transforms) == 3
     out = transform(_item())
     assert out["image"].shape[0] == 8
+
+
+def test_build_train_transform_from_official_recipe_config():
+    """Đúng khối augment trong `configs/baseline_3dpatch.yaml` sau khi theo recipe."""
+    transform = build_train_transform(
+        {
+            "flip_prob": 0.5,
+            "flip_axes": ["x", "y", "z"],
+            "rotate_degrees": 10,
+            "translate_voxels": [8, 8, 4],
+            "rot90_prob": 0,
+            "intensity_prob": 0,
+        }
+    )
+    assert isinstance(transform, Compose)
+    kinds = [type(t).__name__ for t in transform.transforms]
+    assert kinds == ["RandomFlip", "RandomRotateSmall", "RandomTranslate3D"]
+
+    out = transform({"image": torch.randn(8, 24, 24, 8)})["image"]
+    assert out.shape == (8, 24, 24, 8)
+    assert torch.isfinite(out).all()
+
+
+def test_config_file_augment_block_builds_and_runs():
+    """Chốt chặn: khối augment thật trong config phải dựng và chạy được."""
+    from src.utils.io import load_yaml, repo_root
+
+    config = load_yaml(repo_root() / "configs" / "baseline_3dpatch.yaml")
+    transform = build_train_transform(config["data"]["augment"])
+
+    assert transform is not None
+    out = transform({"image": torch.randn(8, 24, 24, 8)})["image"]
+    assert out.shape == (8, 24, 24, 8)
+    assert torch.isfinite(out).all()

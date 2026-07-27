@@ -37,41 +37,52 @@ data:
   batch_size: 2
   num_workers: 2
   pin_memory: true
+  # Augment theo recipe official: lật cả 3 trục p=0.5, xoay ±10°, random-crop tịnh
+  # tiến. rot90 và nhiễu cường độ là thứ TA tự thêm, official không dùng -> tắt, giữ
+  # code lại để ablate ở W4 (WORKLOG S-043).
   augment:
-    flip_prob: 0.5            # chỉ lật trong mặt phẳng — xem src/data/transforms.py
-    rot90_prob: 0.5
-    intensity_prob: 0.5
-    intensity_shift: 0.1
-    intensity_scale: 0.1
+    flip_prob: 0.5
+    flip_axes: [x, y, z]      # official: randomflip_x/_y/_z, mỗi trục p=0.5
+    rotate_degrees: 10        # official: ndimage.rotate(angle=random(-10, 10))
+    translate_voxels: [8, 8, 4]   # tương đương random_crop 128->112 của official
+    rot90_prob: 0             # TẮT — xoay 90° không phải biến đổi giải phẫu hợp lệ
+    intensity_prob: 0         # TẮT — official không dùng
 
+# ---------------------------------------------------------------------------
+# Toàn bộ khối này bám theo baseline official LLD-MMRI2023 (macro-F1 0.6083 trên
+# test-104): LMMMEng/LLD-MMRI2023, `main/README.md` + `main/train.py`.
+# KHÔNG có con số nào ở đây do tự nghĩ ra. Sửa thì phải kèm lý do trong WORKLOG,
+# và `tests/test_protocol_conformance.py` sẽ chặn nếu trôi khỏi recipe.
+# ---------------------------------------------------------------------------
 train:
-  epochs: 60
-  # batch hiệu dụng = 2 × 2 = 4. Hạ từ 8 (hiệu dụng 16) sau khi có bằng chứng model
-  # đang bị THIẾU BƯỚC CẬP NHẬT, chứ không phải thiếu khả năng học (WORKLOG S-040):
-  #   - phép thử overfit: 160 bước ở lr 1e-3 là thuộc lòng 8 mẫu -> kiến trúc ổn;
-  #   - run thật: 312 mẫu / (2×8) = ~20 bước/epoch, 26 epoch = ~520 bước, mà train
-  #     loss mới đi 1.96 -> 1.64 (ngẫu nhiên = ln 7 = 1.946). Mới chỉ khởi động.
-  # accum 8 -> 2 cho ~78 bước/epoch, gấp 4 lần, **cùng thời gian mỗi epoch** (số lần
-  # forward/backward không đổi). Hiệu dụng 4 cũng hợp lý hơn với 312 mẫu so với 16.
-  # KẾT QUẢ (S-041): macro-F1 val 0.2647 với accum 2 so với 0.2725 với accum 8, cùng
-  # best_epoch 11. Gấp 4 lần số bước KHÔNG đổi gì — giả thuyết "thiếu bước cập nhật"
-  # bị bác bỏ. Giữ 2 vì không tệ hơn và hợp với cỡ dataset, nhưng đừng kỳ vọng gì ở
-  # nút này. Baseline ổn định quanh 0.26–0.27; đòn bẩy thật là backbone pretrained (W4).
-  # Lệch khuyến nghị "hiệu dụng 16–32" ở AGENTS.md §7 — chỗ đó viết cho ràng buộc
-  # VRAM, không phải cho kích thước dataset; đã ghi lý do vào WORKLOG.
-  accum_steps: 2
-  lr: 0.0003
-  weight_decay: 0.00001
+  # official: --epochs 300, best checkpoint của họ ở epoch 216/300.
+  # Ta từng để 60 + early stop patience 15 -> dừng ở epoch 26, tức là cắt ngang lúc
+  # công thức tham chiếu còn chưa đi được 1/8 chặng đường (WORKLOG S-043).
+  epochs: 300
+  warmup_epochs: 5            # official: --warmup-epochs 5
+  warmup_lr: 0.000001         # official: --warmup-lr 1e-6
+  lr: 0.0001                  # official: --lr 1e-4  (ta đang để 3e-4)
+  min_lr: 0.00001             # official: --min-lr 1e-5, scheduler cosine
+  # official: --weight-decay 0.05. Ta đang để 1e-5 — chênh 5000 lần.
+  # Đi kèm bắt buộc: bias và tham số norm bị loại khỏi decay
+  # (src/train/run.py::build_param_groups), giống mặc định của timm mà official dùng.
+  weight_decay: 0.05
+  # official: batch 4 × 2 GPU = 8. Ta: batch_size 2 (giới hạn VRAM) × 4 = 8.
+  accum_steps: 4
+  # TẮT. official không early stop, chỉ train đủ 300 epoch rồi lấy checkpoint tốt nhất.
+  early_stop_patience: 0
   amp: true                   # tự tắt khi chạy CPU
   # Bật cudnn.deterministic, NHƯNG đừng hiểu là tái lập bit-exact: docstring của
   # MONAI ghi rõ DenseNet với spatial_dims=3 là non-deterministic trên CUDA. Seed cố
   # định cho phép lặp lại *thí nghiệm*, không phải lặp lại từng chữ số. Báo cáo phải
   # nói đúng điều này, và đó là một lý do nữa để mọi số đều kèm CI (AGENTS.md §3.5).
   deterministic: true
-  early_stop_patience: 15     # theo macro-F1 val
   resume: true                # chạy lại cùng lệnh = tiếp tục từ last.pt
 
 loss:
   name: cross_entropy
-  class_weights: balanced     # none | balanced (tính CHỈ từ nhãn train)
-  label_smoothing: 0.0
+  # official dùng nn.CrossEntropyLoss() TRẦN: --smoothing mặc định 0, không class
+  # weight, không balanced sampler. Class weighting là thứ TA tự thêm — tắt để tái
+  # lập đúng recipe, và nó nằm trong bảng ablation loss của W4.
+  class_weights: none         # none | balanced (tính CHỈ từ nhãn train)
+  label_smoothing: 0.0        # official: --smoothing 0

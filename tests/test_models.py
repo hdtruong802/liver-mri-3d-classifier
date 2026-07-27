@@ -74,12 +74,10 @@ def test_config_yaml_matches_model_contract():
         name, args = norm
         assert name in {"instance", "group"}
         assert args.get("affine") is True, f"{name} không affine = mất scale/shift học được"
-    # Batch hiệu dụng: trần 32 là ràng buộc VRAM (AGENTS.md §7); sàn 2 chỉ để bắt
-    # config vô nghĩa. KHÔNG ép sàn 16 nữa — với 312 mẫu train, hiệu dụng lớn đồng
-    # nghĩa quá ít bước cập nhật mỗi epoch, đúng thứ đã làm baseline ì (S-040).
+    # Batch hiệu dụng: trần 32 là ràng buộc VRAM (AGENTS.md §7).
+    # Giá trị chính xác do `tests/test_protocol_conformance.py` khoá theo recipe
+    # official. Ở đây từng có thêm ràng buộc "≥ 40 bước cập nhật/epoch" — nó mã hoá
+    # giả thuyết "thiếu bước cập nhật" của S-040, mà giả thuyết đó **đã bị bác bỏ**
+    # bằng thực nghiệm ở S-041 (gấp 4 lần số bước, kết quả không đổi).
     effective = config["data"]["batch_size"] * config["train"]["accum_steps"]
     assert 2 <= effective <= 32
-    steps_per_epoch = 312 // effective
-    assert steps_per_epoch >= 40, (
-        f"chỉ {steps_per_epoch} bước cập nhật/epoch — quá ít để model đi được đâu"
-    )

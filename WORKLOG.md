@@ -1771,3 +1771,87 @@ Không phải chuyện hyperparam. Là chuyện con số báo ra có nghĩa gì.
 - **Đừng báo macro-F1 của best-epoch như một điểm ước lượng.** Trên 82 ca val nó là max của vài chục lần bốc nhiễu. Báo kèm CI, và đối chiếu với `val_probs_last.npz`.
 - **Train loss so với ln(số lớp) là dữ kiện đầu tiên phải nhìn**, trước mọi diễn giải về overfit. 1.58 so với 1.946 nghĩa là model gần như chưa học được gì trên tập train — mọi câu chuyện về regularization/normalization đều vô nghĩa cho tới khi con số đó xuống thật.
 
+
+
+## S-043 · 2026-07-27 20:30 · claude-code
+
+**Mục tiêu phiên:** Người dùng yêu cầu khảo sát/nghiên cứu và lập plan chi tiết trước khi train tiếp, chấm dứt kiểu vừa train vừa sửa.
+
+**Nhánh / commit:** `main` · `fdef36c` → *(commit đang chờ)*
+
+### Phát hiện gốc: có một mốc đối chiếu mà tôi chưa bao giờ tra
+
+PDF của challenge nằm sẵn trong `docs/` từ đầu và tôi chưa đọc. Leaderboard chính thức:
+
+| | macro-F1 (test-104) | Kappa |
+|---|---|---|
+| Đội nhất | 0.8322 | 0.7801 |
+| **Baseline official** | **0.6083** | 0.5414 |
+| Hạng 20–24 | 0.5047–0.6076 | |
+| **Của ta** | **0.2647** (val fold 1) | |
+
+Metric của họ là `sklearn.f1_score(average='macro')` — **khớp `src/eval/metrics.py`**, đã thêm test đối chiếu trực tiếp. Baseline của họ **không dùng pretrained**.
+
+⇒ Trực giác "có gì đó sai" là đúng, nhưng ba chẩn đoán cụ thể (S-036 BatchNorm, S-039 InstanceNorm, S-040 số bước cập nhật) đều trượt vì tôi debug mà không biết ngưỡng đạt được là bao nhiêu.
+
+### Bảng đối chiếu protocol — đọc từ code baseline official
+
+Nguồn: `LMMMEng/LLD-MMRI2023` (`main/README.md`, `main/train.py`, `main/datasets/`).
+
+| | Official (0.6083) | Của ta trước phiên này |
+|---|---|---|
+| epochs | **300**, best @ **216** | 60, early stop @ 26 |
+| early stopping | không có | patience 15 |
+| lr | 1e-4 | 3e-4 |
+| **weight decay** | **0.05** | **1e-5** (chênh 5000 lần) |
+| warmup | 5 epoch, warmup-lr 1e-6 | không có |
+| min_lr cosine | 1e-5 | 0 |
+| loss | `nn.CrossEntropyLoss()` trần | CE + class weights |
+| batch hiệu dụng | 8 (4 × 2 GPU) | 4 |
+| augment | flip x/y/z · xoay **±10°** · random crop | flip x/y · **rot90** · nhiễu cường độ |
+| chuẩn hoá | min-max [0,1] | clip pct + z-score |
+| input | 112×112×14 (resize patch) | 96×96×48 (ROI mm-space) |
+
+**Chẩn đoán lại toàn bộ chuỗi debug:** mọi đường cong tôi diễn giải đều đến từ model chạy 26/300 epoch, weight decay nhỏ hơn 5000 lần, augmentation sai kiểu. Không đường cong nào trong đó đủ điều kiện kết luận gì về normalization.
+
+**Đã đụng file:**
+- `configs/baseline_3dpatch.yaml` — toàn bộ khối `train` + `data.augment` theo recipe official, mỗi dòng kèm trích nguồn. Cũng phát hiện và sửa **khoá `early_stop_patience` bị lặp** (YAML lặng lẽ lấy giá trị cuối).
+- `src/data/transforms.py` — `RandomRotateSmall` (±10°, `reshape=False`, `order=1`), `RandomTranslate3D` (thay `random_crop`, giữ nguyên shape), `resolve_axes` cho `flip_axes` cấu hình được. `rot90` và nhiễu cường độ **giữ lại nhưng tắt** để ablate ở W4.
+- `src/train/run.py` — `build_param_groups()` **loại bias/norm khỏi weight decay** (bắt buộc khi wd=0.05; timm mặc định làm vậy, thiếu bước này thì decay đè lên tham số affine của BatchNorm); `build_scheduler()` warmup tuyến tính + cosine `SequentialLR`.
+- `src/eval/bootstrap.py` — MỚI. Bootstrap **mức bệnh nhân, stratified, ≥2000 lần**, chặn ngay tại API nếu ai đó truyền ít hơn.
+- `src/eval/run.py` — MỚI. CLI thuần, CPU: bảng metric ± CI từng fold + **gộp out-of-fold** (394 bệnh nhân thay vì 82) + cột best/last để đo thiên lệch chọn epoch. Có cổng chặn leakage: một bệnh nhân xuất hiện ở val của hai fold thì raise, không âm thầm đếm hai lần.
+- `tests/test_protocol_conformance.py` — MỚI. Khoá config theo recipe official, gồm test bắt khoá YAML trùng lặp.
+- `tests/test_bootstrap.py`, `test_eval_run.py` — MỚI. `tests/test_metrics.py` +3 test đối chiếu sklearn.
+- `tests/test_transforms.py` — +13 test cho transform mới.
+- `notebooks/03_train_baseline.ipynb` — mục **1c** mới: đo thật 2 epoch rồi ngoại suy 300 epoch, **raise nếu vượt 4 giờ**.
+- `AGENTS.md` §5 — sửa giả định "n≈500 → tránh transformer" + thêm bảng mốc đối chiếu ngoài; §6 — lệnh eval.
+
+**Quyết định & lý do (chốt với người dùng trước khi làm):**
+- **Áp nguyên khối recipe official**, không sửa từng biến. Đây không phải đoán mà là tái lập công thức có số công bố; ablate khác biệt của ta *sau* khi đạt mốc.
+- **Giữ DenseNet121-3D.** Protocol miễn phí (chỉ config), model tốn ~400 dòng và lệch Spec Sheet. Leaderboard cho thấy hạng 20–24 nằm trong 0.505–0.608 với đủ loại kiến trúc ⇒ ~0.6 không phải đặc quyền của UniFormer.
+- **Giữ cache mm-space.** Cách cắt ROI (cửa sổ cố định 144mm³ so với cắt sát bbox rồi resize — tổn thương 20mm chỉ chiếm ~13% bề rộng của ta) là **giả thuyết 2**, có luật kích hoạt rõ ràng.
+
+**Luật quyết định, chốt TRƯỚC khi chạy** (chống hợp lý hoá hậu nghiệm):
+
+| Kết quả run 1 | Kết luận | Việc tiếp theo |
+|---|---|---|
+| ≥ 0.50 | protocol là nguyên nhân chính | chạy fold 2–5, dựng bảng CV + CI |
+| 0.35–0.50 | protocol giải thích phần lớn | chạy nốt 5 fold rồi thử giả thuyết 2 |
+| < 0.35 | protocol **không** phải nguyên nhân chính | dừng train, dựng cache lesion-tight |
+| train loss > 1.5 sau 100 epoch | model không fit nổi ở mọi chế độ | xét port UniFormer-S 3D |
+
+**Kết quả / số liệu:** `pytest` **177 passed, 8 skipped** (145 → 185 test). ruff sạch. Chưa chạy GPU.
+
+**Dang dở:**
+- [ ] Kaggle: chạy mục 0 → 1c lấy ước lượng giây/epoch. Rủi ro chưa đo: `scipy.ndimage.rotate` chạy CPU trên khối lớn gấp 2,5 lần official, nằm trên đường tới hạn.
+- [ ] Nếu trong ngân sách → chạy fold 1 (~1,5–2,5 giờ), so với mốc 0.2647 theo luật quyết định.
+- [ ] Sau đó fold 2–5, **mỗi session một fold** (300 epoch × 5 có thể vượt 12 giờ).
+
+**Điểm vào phiên sau:** Kaggle notebook 03 → Restart & Run All. Mục 1c là cổng chặn cuối; chỉ chạy cell train khi nó báo trong ngân sách. Trong lúc chờ, `python -m src.eval.run --run-dir <thư mục run>` chạy được ngay trên CPU với output cũ.
+
+**Cảnh báo cho tool sau:**
+- **Có mốc đối chiếu ngoài rồi — dùng nó.** Bảng leaderboard nằm ở `AGENTS.md` §5. Đừng debug chất lượng model mà không đối chiếu trước; ba run GPU đã mất vì đúng lỗi đó.
+- **`tests/test_protocol_conformance.py` là cố ý cứng.** Nó fail nghĩa là config đã trôi khỏi công thức đã kiểm chứng. Sửa config thì phải sửa cả test kèm lý do, đừng nới test cho qua.
+- **weight decay 0.05 chỉ đúng khi có `build_param_groups`.** Bỏ bước loại bias/norm ra thì cùng con số đó cho một chế độ train hoàn toàn khác.
+- Cột `best` trong bảng eval **lệch lạc quan** (chọn epoch trên chính tập val); luôn đọc kèm cột `last`.
+

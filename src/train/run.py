@@ -100,6 +100,59 @@ def _build_loaders(config: dict[str, Any], fold: int) -> tuple[Any, Any, list[in
     return train_loader, val_loader, train_labels
 
 
+def build_param_groups(model: Any, weight_decay: float) -> list[dict[str, Any]]:
+    """Tách bias và tham số norm ra khỏi weight decay.
+
+    Bắt buộc phải có khi `weight_decay` lớn. Recipe official dùng **wd = 0.05** thông
+    qua timm, và `timm.optim.create_optimizer_v2` mặc định loại mọi tham số 1 chiều
+    (bias, weight/bias của BatchNorm) khỏi decay. Nếu ta gọi thẳng
+    ``AdamW(model.parameters(), weight_decay=0.05)`` thì decay đè lên cả tham số affine
+    của BatchNorm — kéo scale của chúng về 0 và làm hỏng chuẩn hoá. Cùng một con số
+    0.05 nhưng cho ra hai chế độ train hoàn toàn khác nhau (WORKLOG S-043).
+
+    Quy ước nhận dạng: tham số **1 chiều** là bias/norm. Đơn giản, và đúng với mọi
+    kiến trúc conv/norm/linear đang dùng.
+    """
+    decay: list[Any] = []
+    no_decay: list[Any] = []
+    for param in model.parameters():
+        if not param.requires_grad:
+            continue
+        (no_decay if param.ndim <= 1 else decay).append(param)
+    return [
+        {"params": decay, "weight_decay": weight_decay},
+        {"params": no_decay, "weight_decay": 0.0},
+    ]
+
+
+def build_scheduler(optimizer: Any, train_config: dict[str, Any], epochs: int) -> Any:
+    """Warmup tuyến tính rồi cosine — theo recipe official (warmup 5 epoch, min-lr 1e-5).
+
+    Trước đây chỉ có cosine trần từ epoch 1. Warmup có mặt trong recipe official
+    (``--warmup-epochs 5``, ``--warmup-lr 1e-6``) nên đưa vào cho khớp.
+    """
+    import torch
+
+    warmup_epochs = int(train_config.get("warmup_epochs", 0))
+    min_lr = float(train_config.get("min_lr", 0.0))
+    cosine_epochs = max(1, epochs - warmup_epochs)
+    cosine = torch.optim.lr_scheduler.CosineAnnealingLR(
+        optimizer, T_max=cosine_epochs, eta_min=min_lr
+    )
+    if warmup_epochs <= 0:
+        return cosine
+
+    base_lr = float(train_config.get("lr", 3e-4))
+    warmup_lr = float(train_config.get("warmup_lr", 1e-6))
+    start_factor = max(warmup_lr / base_lr, 1e-8) if base_lr > 0 else 1.0
+    warmup = torch.optim.lr_scheduler.LinearLR(
+        optimizer, start_factor=start_factor, end_factor=1.0, total_iters=warmup_epochs
+    )
+    return torch.optim.lr_scheduler.SequentialLR(
+        optimizer, schedulers=[warmup, cosine], milestones=[warmup_epochs]
+    )
+
+
 def _build_criterion(config: dict[str, Any], train_labels: list[int], device: Any) -> Any:
     """Cross-entropy, tuỳ chọn trọng số lớp tính **chỉ từ nhãn train**."""
     import torch
@@ -179,13 +232,13 @@ def train(config_path: str | Path, fold_override: int | None = None) -> dict[str
     logger.info("model=%s | %d tham số", config["model"]["name"], count_parameters(model))
 
     criterion = _build_criterion(config, train_labels, device)
+    weight_decay = float(train_config.get("weight_decay", 1e-5))
     optimizer = torch.optim.AdamW(
-        model.parameters(),
+        build_param_groups(model, weight_decay),
         lr=float(train_config.get("lr", 3e-4)),
-        weight_decay=float(train_config.get("weight_decay", 1e-5)),
     )
     epochs = int(train_config.get("epochs", 60))
-    scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=epochs)
+    scheduler = build_scheduler(optimizer, train_config, epochs)
     scaler = make_amp_scaler(amp)
 
     start_epoch = 1
