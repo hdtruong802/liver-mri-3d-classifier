@@ -278,6 +278,20 @@ def train(config_path: str | Path, fold_override: int | None = None) -> dict[str
                 time.time() - started,
             )
 
+            # Xác suất val của epoch CUỐI, ghi đè mỗi epoch. Không phải bản sao thừa
+            # của `val_probs_best.npz`: epoch "tốt nhất" được chọn bằng macro-F1 trên
+            # đúng 82 ca val, mà dãy macro-F1 của fold 1 dao động 0.115–0.265 không
+            # xu hướng (WORKLOG S-042) — chọn max của 26 lần bốc như vậy là chọn
+            # nhiễu, và con số báo ra lệch lạc quan. Giữ cả hai để W3 đối chiếu được
+            # "ước lượng theo best-epoch" với "ước lượng không qua chọn lọc".
+            np.savez_compressed(
+                output_dir / "val_probs_last.npz",
+                probs=val_out["probs"],
+                labels=val_out["labels"],
+                patient_ids=np.array(val_out["patient_ids"]),
+                epoch=epoch,
+            )
+
             improved = metrics["macro_f1"] > best_score
             if improved:
                 best_score = metrics["macro_f1"]

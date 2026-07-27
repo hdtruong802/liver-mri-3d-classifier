@@ -1717,3 +1717,57 @@ Các đòn bẩy thật sự cho chất lượng model đã nằm sẵn trong pl
 - **Đừng tune baseline ở W2.** Ba run đã chứng minh baseline ổn định ~0.27 và không nhạy với các hyperparam đã thử. Đòn bẩy thật (pretrained backbone) nằm ở W4 và đã có trong plan.
 - **Không so hai con số khi chưa có CI.** 0.2725 với 0.2647 nhìn khác nhau nhưng trên 82 ca val thì không phân biệt được. Đây chính là lý do AGENTS.md §3.5 bắt mọi số phải kèm CI — và là việc đầu tiên của W3.
 
+
+
+## S-042 · 2026-07-27 19:05 · claude-code
+
+**Mục tiêu phiên:** Đọc đường cong đầy đủ của run `accum_steps: 2` (fold1_4c2cf705).
+
+**Nhánh / commit:** `main` · `2f7617d` → *(commit đang chờ)*
+
+### Ba dữ kiện mà con số tóm tắt che mất
+
+**1. Model chưa bao giờ fit nổi tập train.**
+```
+epoch 1:  train 1.9619    epoch 26: train 1.5820
+```
+Ngẫu nhiên = ln 7 = 1.946. Sau 26 epoch (~2000 bước với accum 2), train loss mới đi được 0.38 dưới mức đoán bừa. Trong khi phép thử overfit đưa **8 mẫu** về 0.009 chỉ với 160 bước.
+
+⇒ **Bác bỏ dứt điểm chẩn đoán S-036.** Tôi đọc "val loss tăng" thành overfitting; một model chưa fit nổi tập train thì không thể đang overfit theo nghĩa thông thường. Cả hướng suy luận đó sai từ đầu.
+
+**2. Val loss cao hơn mức ngẫu nhiên ngay từ epoch 1** (2.2326 > 1.946), rồi dao động 2.22 – 3.57. Model đoán **sai một cách tự tin** trên val ngay từ đầu: đặc trưng học được không chuyển sang val.
+
+**3. macro-F1 val dao động không xu hướng — và đây là vấn đề nghiêm trọng nhất.**
+```
+0.141 0.163 0.146 0.115 0.159 0.164 0.149 0.159 0.189 0.147 [0.265] 0.216
+0.145 0.175 0.234 0.219 0.186 0.208 0.236 0.192 0.191 0.215 0.209 0.193 0.239 0.255
+```
+Epoch 11 không phải cực trị thật, nó là **lần bốc may nhất trong 26 lần**.
+
+### Hệ quả về tính hợp lệ: 0.2647 là con số lệch lạc quan
+
+Chọn epoch tốt nhất theo macro-F1 trên **82 ca val** là chọn nhiễu. Đây đúng là bệnh lý mà AGENTS.md §3.5 cấm dưới tên *best-of-many-seeds*, chỉ khác là *best-of-many-epochs*. Cả hai mốc đã ghi (0.2725 và 0.2647) đều mang thiên lệch này, và cả hai đều nằm gọn trong dải dao động của chính chúng — **không có bằng chứng nào cho thấy hai cấu hình đó khác nhau**.
+
+Không phải chuyện hyperparam. Là chuyện con số báo ra có nghĩa gì.
+
+**Đã đụng file:**
+- `src/train/run.py` — lưu thêm `val_probs_last.npz` (ghi đè mỗi epoch). Để W3 đối chiếu ước lượng theo best-epoch với ước lượng **không qua chọn lọc**. Không tốn thêm gì; các fold 2–5 của W3 sẽ có sẵn cả hai.
+- `WORKLOG.md` — entry này.
+
+**Quyết định & lý do:**
+- **Không đề xuất run mới cho fold 1.** Đường cong cho thấy nút thắt không nằm ở hyperparam: model không fit nổi 312 mẫu trong khi fit 8 mẫu dễ dàng. Ứng viên hợp lý nhất là **augmentation quá mạnh** — `rot90` in-plane sinh 4 hướng × 4 tổ hợp lật = 16 biến thể, mà xoay 90° trên lát cắt ngang bụng không phải biến đổi giải phẫu hợp lệ (gan có hướng cố định). Ghi lại làm ứng viên cho **bảng ablation W4**, không chạy lẻ ở W2. Đã đoán sai ba lần, không đoán lần thứ tư.
+- Giữ nguyên toàn bộ config. Baseline W2 chốt ở ≈0.27 **kèm cảnh báo thiên lệch chọn lọc**.
+
+**Kết quả / số liệu:** Đường cong đầy đủ ghi ở trên. `pytest` 145 passed, 8 skipped.
+
+**Dang dở:**
+- [ ] W3: `src/eval/bootstrap.py` → CI cho fold 1 từ `val_probs_best.npz` đã có (chạy CPU, không tốn GPU).
+- [ ] W3: train fold 2–5 (~25 phút/fold) → bảng CV có CI.
+- [ ] W4: ablation augmentation (đặc biệt `rot90_prob`), backbone pretrained, `norm: group(8)`.
+
+**Điểm vào phiên sau:** Viết `src/eval/bootstrap.py` và chạy trên `val_probs_best.npz` của fold 1. CI đó sẽ định lượng đúng dải nhiễu vừa quan sát — dự đoán: rất rộng trên 82 bệnh nhân.
+
+**Cảnh báo cho tool sau:**
+- **Đừng báo macro-F1 của best-epoch như một điểm ước lượng.** Trên 82 ca val nó là max của vài chục lần bốc nhiễu. Báo kèm CI, và đối chiếu với `val_probs_last.npz`.
+- **Train loss so với ln(số lớp) là dữ kiện đầu tiên phải nhìn**, trước mọi diễn giải về overfit. 1.58 so với 1.946 nghĩa là model gần như chưa học được gì trên tập train — mọi câu chuyện về regularization/normalization đều vô nghĩa cho tới khi con số đó xuống thật.
+
