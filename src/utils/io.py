@@ -36,9 +36,77 @@ def read_id_class_file(path: str | Path) -> list[tuple[str, int]]:
     return rows
 
 
+CACHE_META_NAME = "cache_meta.json"
+
+
 def resolve_cache_dir(config: dict[str, Any]) -> Path:
     """Thư mục cache đã tiền xử lý: env ``LLDMMRI_CACHE_DIR`` thắng, sau đó config."""
     return Path(os.environ.get("LLDMMRI_CACHE_DIR") or config["cache_dir"])
+
+
+def find_cache_dir(
+    search_roots: Sequence[str | Path],
+    max_depth: int = 4,
+    min_npz: int = 1,
+) -> Path | None:
+    """Lùng thư mục cache dưới các gốc cho trước; ``None`` nếu không thấy.
+
+    Cùng triết lý với `discover_data_root`: **không đoán sơ đồ mount của Kaggle**,
+    cứ tìm bằng nội dung thật. Hai lượt:
+
+    1. thư mục nào chứa ``cache_meta.json`` — bằng chứng chắc chắn nhất;
+    2. thư mục nào chứa ít nhất ``min_npz`` file ``.npz`` — cứu được trường hợp
+       cache được đóng gói lại mà rơi mất file metadata.
+
+    Ưu tiên theo **độ sâu tăng dần**: mount nông thường là bản chính, các thư mục
+    lồng sâu hơn dễ là bản sao/giải nén tạm.
+    """
+    roots = [Path(root) for root in search_roots if Path(root).is_dir()]
+
+    for depth in range(max_depth + 1):
+        prefix = ["*"] * depth
+        for base in roots:
+            for hit in sorted(base.glob("/".join([*prefix, CACHE_META_NAME]))):
+                if hit.is_file():
+                    return hit.parent
+
+    for depth in range(max_depth + 1):
+        prefix = ["*"] * depth
+        for base in roots:
+            for hit in sorted(base.glob("/".join([*prefix, "*.npz"]))):
+                if len(list(hit.parent.glob("*.npz"))) >= min_npz:
+                    return hit.parent
+    return None
+
+
+def describe_tree(root: str | Path, max_depth: int = 2, max_entries: int = 30) -> list[str]:
+    """Liệt kê nông nội dung một thư mục — để thông báo lỗi nói được *đang thấy gì*.
+
+    Một dòng "không thấy cache" mà không kèm thực tế đang mount cái gì thì bắt người
+    dùng phải tự mò; đây là phần bù cho điều đó. Thư mục hiện kèm số file bên trong.
+    """
+    base = Path(root)
+    if not base.is_dir():
+        return [f"{base} — không tồn tại"]
+
+    lines: list[str] = []
+    for depth in range(max_depth + 1):
+        for entry in sorted(base.glob("/".join(["*"] * (depth + 1)))):
+            if entry.is_dir():
+                children = list(entry.iterdir())
+                suffix_counts: dict[str, int] = {}
+                for child in children:
+                    suffix_counts[child.suffix or "<dir>"] = (
+                        suffix_counts.get(child.suffix or "<dir>", 0) + 1
+                    )
+                detail = ", ".join(f"{n}{s}" for s, n in sorted(suffix_counts.items()))
+                lines.append(f"{entry}/  ({len(children)} mục: {detail or 'rỗng'})")
+            else:
+                lines.append(f"{entry}  ({entry.stat().st_size / 1e6:.1f} MB)")
+            if len(lines) >= max_entries:
+                lines.append("... (còn nữa)")
+                return lines
+    return lines or [f"{base} — rỗng"]
 
 
 def resolve_output_dir(config: dict[str, Any]) -> Path:
