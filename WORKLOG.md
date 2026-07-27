@@ -1104,3 +1104,41 @@ Kết quả EDA thật người dùng chạy — **phân bố lớp khớp offic
 **Điểm vào phiên sau:** Kaggle → **Restart & Run All**. Kiểm dòng `repo commit:` đầu output phải khớp commit mới nhất. Rồi lấy output mục 5 (gate geometry).
 
 **Cảnh báo cho tool sau:** Notebook Kaggle **phải clone lại mỗi lần chạy**; `if not exists(): clone` là cái bẫy đã làm mất 3 phiên. Luôn in commit hash ở cell đầu.
+
+
+## S-029 · 2026-07-24 21:40 · claude-code
+
+**Mục tiêu phiên:** Ghi nhận GATE GEOMETRY **PASS** trên dữ liệu thật; xử lý phần còn treo (thứ tự trục).
+
+**Nhánh / commit:** `main` · `8d098e5` → *(commit đang chờ)*
+
+**KẾT QUẢ GATE GEOMETRY (dữ liệu thật, 5 bệnh nhân × 8 pha):**
+```
+GATE GEOMETRY: PASS (40/40 phase-check đạt)
+axis order: ambiguous
+```
+- **`spacing_hdr == spacing_ann` ở cả 40 check** ⇒ bản wanglab **KHÔNG resample ảnh**. Toạ độ bbox trong annotation **dùng thẳng được**, không cần map qua affine. Đây là điều kiện tiên quyết cho `build_cache` — nay đã thông.
+- `slice_idx` và bbox đều nằm trong biên ⇒ annotation khớp ảnh.
+
+**Hai phát hiện quan trọng từ output (chưa lường trước):**
+1. **Số slice khác nhau giữa các pha trong CÙNG một bệnh nhân.** MR-398189: pha động 512×512×**88** @2.6mm, T2WI 512×512×**24** @9mm, DWI 256×256×24 @9mm. MR104842: pha động ×**50** @4mm, T2WI/DWI/In/Out ×**20** @10mm. ⇒ 8 pha **không cùng lưới**; registration + resample về grid chung là **bắt buộc** (đúng như Spec Sheet chốt).
+2. **Nhóm In/Out Phase KHÔNG cố định.** 4 ca đầu: In/Out đi cùng pha động (88/72 slice, 2.6mm). MR104842: In/Out đi cùng nhóm T2WI (20 slice, 10mm). ⇒ thiết kế fusion v2 "tách structural vs dynamic" (Spec Sheet §3) **không hardcode nhóm được**, phải suy từ metadata từng ca. Ghi lại để W4 không dẫm.
+
+**Đã đụng file:**
+- `src/data/geometry_gate.py` — thêm `disambiguate_axis_order()` + `AxisOrderEvidence`: phân định trục bằng **ảnh không vuông** (khi ảnh vuông thì bbox lọt cả hai chiều nên vô định). Phát hiện mâu thuẫn thì báo `conflict` chứ không đoán.
+- `scripts/kaggle_geometry_report.py` — TẠO: báo cáo một lệnh cho T2.2 (phân bố lớp · ca thiếu pha · gate · thứ tự trục · lưới từng pha · kích thước lesion + crop size). Chỉ đọc header, không nạp pixel. Ép stdout UTF-8 để chạy được cả trên console Windows.
+- `tests/test_geometry_gate.py` — +4 test: vô định khi ảnh vuông, phân định được `xy` và `yx` bằng ảnh không vuông, báo `conflict`.
+
+**Quyết định & lý do:**
+- **`axis order: ambiguous` là kết quả đúng, không phải lỗi** — mọi ảnh mẫu đều vuông (512², 256², 384²) nên bbox lọt cả hai cách hiểu. Không được đoán: crop sai trục sẽ lệch 90°.
+- Giải bằng **bằng chứng khách quan** (quét tìm ảnh không vuông) thay vì bắt người dùng nhìn overlay đoán bằng mắt. Nếu toàn bộ 498 ca đều vuông thì mới phải dùng tầng 3 (overlay).
+
+**Kết quả / số liệu:** `pytest` **67 passed** (63 → 67). ruff sạch (26 file).
+
+**Dang dở:**
+- [ ] **Thứ tự trục** — chạy `scripts/kaggle_geometry_report.py` để phân định.
+- [ ] T2.2 chốt tham số tiền xử lý (chờ output script trên).
+
+**Điểm vào phiên sau:** Trên Kaggle chạy `!cd /kaggle/working/repo && python scripts/kaggle_geometry_report.py --limit 0`, lấy toàn bộ output để chốt T2.2 rồi sang W2 ngày 3 (`build_cache`).
+
+**Cảnh báo cho tool sau:** 8 pha **không cùng lưới** (số slice và spacing khác nhau trong cùng bệnh nhân) — mọi code giả định 8 pha stack thẳng được là SAI. Nhóm In/Out Phase thay đổi theo ca, không hardcode.

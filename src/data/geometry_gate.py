@@ -222,6 +222,92 @@ def run_gate(
     return GateReport(checks=checks)
 
 
+@dataclass
+class AxisOrderEvidence:
+    """Bằng chứng phân định thứ tự trục, thu từ các ảnh KHÔNG vuông."""
+
+    n_scanned: int
+    n_non_square: int
+    votes_xy: int
+    votes_yx: int
+    examples: list[str] = field(default_factory=list)
+
+    @property
+    def verdict(self) -> str:
+        """'xy' (bbox.x ↔ shape[0]) · 'yx' · 'conflict' · 'no_evidence'."""
+        if self.votes_xy and self.votes_yx:
+            return "conflict"
+        if self.votes_xy:
+            return "xy"
+        if self.votes_yx:
+            return "yx"
+        return "no_evidence"
+
+    def summary(self) -> str:
+        lines = [
+            f"AXIS ORDER: {self.verdict}",
+            f"  quét {self.n_scanned} phase-entry, {self.n_non_square} ảnh không vuông",
+            f"  phiếu xy (x↔shape[0]): {self.votes_xy} | phiếu yx (x↔shape[1]): {self.votes_yx}",
+        ]
+        lines.extend(f"  {e}" for e in self.examples[:10])
+        if self.verdict == "no_evidence":
+            lines.append("  → mọi ảnh đều vuông; phải xác nhận bằng overlay (tầng 3)")
+        if self.verdict == "conflict":
+            lines.append("  → MÂU THUẪN: trục không nhất quán giữa các ca. DỪNG, điều tra.")
+        return "\n".join(lines)
+
+
+def disambiguate_axis_order(
+    patient_ids: list[str],
+    annotation: Annotation,
+    image_index: ImageIndex,
+    phase_config: list[dict[str, str]],
+    stop_after: int = 25,
+) -> AxisOrderEvidence:
+    """Phân định thứ tự trục bằng các ảnh **không vuông** trong mặt phẳng.
+
+    Khi ảnh vuông (512×512) thì bbox lọt cả hai cách hiểu ⇒ không kết luận được.
+    Nhưng nếu tồn tại ảnh dạng 512×448, chỉ **một** cách hiểu khiến bbox nằm trong
+    biên ⇒ đó là bằng chứng khách quan, không cần nhìn mắt.
+
+    Chỉ đọc header (không nạp pixel), dừng sớm khi đã đủ `stop_after` bằng chứng.
+    """
+    n_scanned = n_non_square = votes_xy = votes_yx = 0
+    examples: list[str] = []
+
+    for pid in patient_ids:
+        for phase in phase_config:
+            key = normalize_pid(pid)
+            path = image_index.get((key, phase["file"]))
+            if path is None:
+                continue
+            try:
+                shape, _ = _load_header(path)
+                box = annotation.bbox3d(pid, phase["name"])
+            except (KeyError, ValueError):
+                continue
+
+            n_scanned += 1
+            dim0, dim1 = (shape + (0, 0))[:2]
+            if dim0 == dim1:
+                continue
+            n_non_square += 1
+
+            fits_xy = box.x_max <= dim0 and box.y_max <= dim1
+            fits_yx = box.x_max <= dim1 and box.y_max <= dim0
+            if fits_xy and not fits_yx:
+                votes_xy += 1
+                examples.append(f"xy: {pid}/{phase['name']} shape={shape} x_max={box.x_max:.0f}")
+            elif fits_yx and not fits_xy:
+                votes_yx += 1
+                examples.append(f"yx: {pid}/{phase['name']} shape={shape} x_max={box.x_max:.0f}")
+
+            if votes_xy + votes_yx >= stop_after:
+                return AxisOrderEvidence(n_scanned, n_non_square, votes_xy, votes_yx, examples)
+
+    return AxisOrderEvidence(n_scanned, n_non_square, votes_xy, votes_yx, examples)
+
+
 def bbox_overlay_slice(
     patient_id: str,
     phase_name: str,
