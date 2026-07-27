@@ -37,8 +37,8 @@ Hệ quả trực tiếp lên sản phẩm: **mức bất định là nội dung
 
 - **Ràng buộc dự án:** 1 người, 6 tuần, 3 sprint. Web app thuộc Sprint 3 — sau khi đã có model và kết quả.
 - **Huấn luyện:** Kaggle Notebook, session ≤ 12h, VRAM ~16GB, có thể bị ngắt bất kỳ lúc nào. Kaggle không phải server, không host API ở đó.
-- **Luồng dùng demo:** người review mở web app → chọn một ca demo dựng sẵn hoặc upload NIfTI / DICOM series (zip) cho các pha → chờ vài giây → đọc kết quả.
-- **Ca demo dựng sẵn (3–5 ca) là đường đi chính**, không phải phương án dự phòng: buổi trình bày có thể mạng chậm hoặc host lạnh, và người review thường không mang dữ liệu MRI theo.
+- **Luồng dùng demo:** người review mở web app → chọn một ca demo dựng sẵn hoặc tải thử đúng 8 file `.nii` của cùng một bệnh nhân → chờ vài giây → đọc kết quả. Phase được nhận diện từ tên file, không dựa vào thứ tự chọn.
+- **Ca demo dựng sẵn (3–5 ca) là đường đi chính**, không phải phương án dự phòng: dùng prediction OOF từ validation, không dùng Test-104; dữ liệu và artefact thô luôn ở storage private, ngoài Git.
 - **Latency:** nút thắt là registration/tiền xử lý, không phải forward pass. Demo chạy trên lesion-crop, rigid-only, bỏ N4 → vài giây trên CPU.
 - **Triển khai:** local + ngrok, hoặc Docker trên Hugging Face Spaces / Render free tier. **Chưa chốt.**
 - **Slide và report dùng chung một bộ nội dung**, dựng theo chuẩn hội nghị rồi rút gọn cho nội bộ. Slide phải đọc được từ xa trong phòng họp; report đọc trên màn hình trong thời gian dài.
@@ -48,6 +48,8 @@ Hệ quả trực tiếp lên sản phẩm: **mức bất định là nội dung
 **Model làm gì:** phân loại 7 lớp tổn thương gan (HCC, ICC, di căn, nang, u máu, FNH, áp-xe — 3 ác, 4 lành) ở mức ROI, trên volume 3D đa pha 8 thì MRI.
 
 **Web app trả về:** lớp dự đoán · xác suất từng lớp · xác suất ác tính · mức bất định (entropy, ensemble std) · cờ `defer` · heatmap Grad-CAM 3D trên vài lát chính.
+
+**Contract demo dự kiến, chưa triển khai:** V1 chỉ nhận đúng 8 file `.nii` cho C-pre, C+A, C+V, C+Delay, T2WI, DWI, In Phase và Out Phase. DICOM series (ZIP) là mở rộng sau, không thuộc V1.
 
 **Ràng buộc kỹ thuật đã khoá:**
 - Backend FastAPI, frontend tự code. **Không Streamlit, không Gradio, không framework demo dựng sẵn.**

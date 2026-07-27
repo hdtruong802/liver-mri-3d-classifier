@@ -211,7 +211,7 @@ Calibration/selective/stats chạy ở eval (CPU) — không tốn GPU. Chỉ tr
 **1. Mục tiêu & Definition of Done**
 Mục tiêu: nối **model đã khoá** vào web app tự code, đóng gói tái lập, và viết báo cáo cuối trung thực.
 DoD:
-- [ ] FastAPI backend load model **1 lần** lúc startup; `POST /predict` (NIfTI/DICOM → class + probs + uncertainty + malignant_prob + defer + heatmap).
+- [ ] FastAPI backend load model **1 lần** lúc startup; `POST /predict` dự kiến nhận đúng 8 file `.nii` theo phase → class + probs + uncertainty + malignant_prob + defer + heatmap. DICOM ZIP là mở rộng sau.
 - [ ] Frontend HTML/JS thuần: upload, slice-viewer `<canvas>`, prob bar, uncertainty gauge, cờ **defer**, **RUO hiển thị mọi màn hình có kết quả**.
 - [ ] Grad-CAM 3D + phase-importance trả overlay; sanity check (nhìn đúng vùng u).
 - [ ] Failure analysis: confusion matrix + case sai theo lớp.
@@ -221,9 +221,9 @@ DoD:
 **2. Task (thứ tự phụ thuộc)**
 1. *(Khởi động sớm — làm song song cuối W5)* `webapp/backend/` skeleton: FastAPI `main.py`, `requirements.txt` **tách khỏi** train stack, wiring preprocessing rút gọn (rigid-only + crop, **bỏ N4**).
 2. `src/xai/gradcam3d.py` + `src/xai/phase_importance.py` → overlay base64 PNG vài lát chính.
-3. `POST /predict` trả JSON đầy đủ (probs/uncertainty/malignant_prob/defer/heatmap); `defer=true` khi confidence < ngưỡng coverage đã hiệu chỉnh.
+3. `POST /predict` dự kiến nhận picker đa tệp gồm đúng 8 file `.nii`, nhận diện phase theo tên file và trả JSON đầy đủ (probs/uncertainty/malignant_prob/defer/heatmap); `defer=true` khi confidence < ngưỡng coverage đã hiệu chỉnh.
 4. `webapp/frontend/` — HTML/CSS/JS thuần (§12 AGENTS.md + PRODUCT.md): số liệu là nhân vật chính, màu không phải kênh thông tin duy nhất, RUO nổi bật, tôn trọng `prefers-reduced-motion`.
-5. Precompute 3–5 ca demo (mượt khi host chậm).
+5. Precompute 3–5 ca demo từ prediction OOF trên validation (mượt khi host chậm, không dùng Test-104 và không commit dữ liệu/artefact bệnh nhân).
 6. Failure analysis + `reports/W6_REPORT.md` (hoặc report cuối) có CI + limitations; README + hướng dẫn chạy.
 7. **Quality gate + Impeccable detector** trên UI trước khi chốt (§12).
 

@@ -183,11 +183,11 @@ h1,h2,h3{letter-spacing:-.025em;line-height:1.08}h1,h2{font-size:var(--display);
   <nav class="section-nav" aria-label="Phần nội dung"><span class="section-item"><i></i>Bài toán</span><span class="section-item"><i></i>Dataset</span><span class="section-item"><i></i>SOTA</span><span class="section-item active" aria-current="step"><i></i>Ứng dụng</span><span class="section-item"><i></i>Nguồn</span></nav>
   <div class="body"><div class="content">
     <p class="eyebrow">TÓM TẮT BÀI TOÁN</p>
-    <h2>Một file MRI đa pha chỉ có ích khi đầu ra nói rõ điều gì đáng tin, và khi nào cần defer.</h2>
-    <div class="io-recap" role="img" aria-label="Minh hoạ luồng từ file NIfTI đa pha MRI_8phase.nii gồm tám thì MRI, qua model 3D đa pha, đến xác suất theo lớp, mức bất định, heatmap và trạng thái defer.">
+    <h2>Tám file MRI của cùng một bệnh nhân chỉ có ích khi đầu ra nói rõ điều gì đáng tin, và khi nào cần defer.</h2>
+    <div class="io-recap" role="img" aria-label="Minh hoạ luồng từ tám file NIfTI .nii của cùng một bệnh nhân, một file cho mỗi phase MRI, qua model 3D đa pha, đến xác suất theo lớp, mức bất định, heatmap và trạng thái defer.">
       <div class="input-study">
-        <div class="nifti-file"><i class="file-glyph" aria-hidden="true"></i><strong>MRI_8phase.nii</strong><span>NIfTI đa pha</span></div>
-        <figure class="phase-sheet"><img src="assets/synthetic-mri-8phase-contact-sheet.png" alt="Minh hoạ tổng hợp tám lát MRI bụng cùng một trường nhìn, không phải ảnh bệnh nhân."><div class="phase-labels" aria-hidden="true"><span>C-pre</span><span>C+A</span><span>C+V</span><span>C+Delay</span><span>T2WI</span><span>DWI</span><span>In Phase</span><span>Out Phase</span></div><figcaption>Minh hoạ khái niệm: dữ liệu tổng hợp, không phải dữ liệu LLD-MMRI.</figcaption></figure>
+        <div class="nifti-file"><i class="file-glyph" aria-hidden="true"></i><strong>1 ca · 8 file .nii</strong><span>Cùng một bệnh nhân</span></div>
+        <figure class="phase-sheet"><img src="assets/synthetic-mri-8phase-contact-sheet.png" alt="Minh hoạ tổng hợp tám lát MRI bụng cùng một trường nhìn, không phải ảnh bệnh nhân."><div class="phase-labels" aria-hidden="true"><span>C-pre.nii</span><span>C+A.nii</span><span>C+V.nii</span><span>C+Delay.nii</span><span>T2WI.nii</span><span>DWI.nii</span><span>InPhase.nii</span><span>OutPhase.nii</span></div><figcaption>Minh hoạ khái niệm: 8 file `.nii` cùng một ca, không phải dữ liệu LLD-MMRI.</figcaption></figure>
       </div>
       <div class="io-arrow" aria-hidden="true">→</div>
       <div class="model-bridge"><i class="model-mark" aria-hidden="true">3D</i><span class="plate-label">Model đa pha</span><strong>Đọc cả khối ảnh quanh ROI.</strong><p>Không suy luận từ một lát đơn lẻ.</p></div>

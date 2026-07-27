@@ -1930,3 +1930,27 @@ Cũng xác nhận: warmup chạy đúng (lr đi 2.08e-05 → 4.06e-05, tức đa
 
 **Cảnh báo cho tool sau:** Notebook chưa theo dõi `notebooks/notebookf104ced082.ipynb` là thay đổi ngoài phạm vi, đã được người dùng yêu cầu giữ nguyên; không stage, commit hay xoá nó.
 
+## S-046 · 2026-07-27 17:51 · codex
+
+**Mục tiêu phiên:** Đồng bộ tài liệu và slide recap với input thật: một ca gồm 8 file `.nii`.
+
+**Nhánh / commit:** `main` · `06c85a4` → *(commit đang chờ)*
+
+**Đã động file:**
+- `slides/overview.html` — slide 11 dùng “1 ca · 8 file .nii”, gắn tên file cho đủ 8 phase và bỏ mô tả một file NIfTI đa pha.
+- `PRODUCT.md`, `docs/MRI_Classification_Spec_Sheet.md`, `docs/liver_mri_3d_classification_plan.md`, `docs/plan.md` — ghi contract thiết kế V1: picker đa tệp `.nii`, nhận diện phase theo tên, demo OOF validation, DICOM ZIP là mở rộng sau.
+
+**Quyết định & lý do:**
+- V1 được ghi nhận là đúng 8 file `.nii` cho mỗi bệnh nhân, không phải `MRI_8phase.nii` — vì đây là cấu trúc input thực tế đã xác nhận.
+- Chỉ sửa slide/tài liệu; không tạo `webapp/`, endpoint, UI, API hay test thực thi — để contract được chốt trước khi triển khai.
+- Ca demo được quy định là 3–5 prediction OOF trên validation, không dùng Test-104 và không commit dữ liệu/artefact bệnh nhân — giữ tính hợp lệ nghiên cứu và license.
+
+**Kết quả / số liệu:** Quality gate PASS: Impeccable detect cho `slides/` và `reports/`, kiểm tra split, patient-data/checkpoint đều pass. Kiểm tra tĩnh: 12 slide, 12 chỉ số `/ 12`, đủ 8 nhãn file `.nii`, không còn `MRI_8phase.nii`.
+
+**Dang dở:**
+- Không có UI/API để chạy ở phiên này; các contract trên là thiết kế cho Sprint 3.
+
+**Điểm vào phiên sau:** Khi bắt đầu Sprint 3, triển khai từ contract đã chốt trong `PRODUCT.md` và `docs/liver_mri_3d_classification_plan.md` §8.1–8.2.
+
+**Cảnh báo cho tool sau:** Notebook chưa theo dõi `notebooks/notebookf104ced082.ipynb` là thay đổi ngoài phạm vi, đã được người dùng yêu cầu giữ nguyên; không stage, commit hay xoá nó.
+
