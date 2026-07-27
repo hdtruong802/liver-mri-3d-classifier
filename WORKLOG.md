@@ -1855,3 +1855,53 @@ Nguồn: `LMMMEng/LLD-MMRI2023` (`main/README.md`, `main/train.py`, `main/datase
 - **weight decay 0.05 chỉ đúng khi có `build_param_groups`.** Bỏ bước loại bias/norm ra thì cùng con số đó cho một chế độ train hoàn toàn khác.
 - Cột `best` trong bảng eval **lệch lạc quan** (chọn epoch trên chính tập val); luôn đọc kèm cột `last`.
 
+
+
+## S-044 · 2026-07-27 21:10 · claude-code
+
+**Mục tiêu phiên:** Xử lý kết quả cổng chặn đo thời gian ở mục 1c.
+
+**Nhánh / commit:** `main` · `818cc14` → *(commit đang chờ)*
+
+### Cổng chặn hoạt động đúng như thiết kế
+
+```
+batch hiệu dụng 8 · ~39 bước/epoch · lr 0.0001 · wd 0.05 · warmup 5 epoch
+epoch thử 1: 63.0s | train 1.9618 | val 1.9484 | lr 2.08e-05
+epoch thử 2: 56.5s | train 1.9291 | val 1.8963 | lr 4.06e-05
+~56.5s/epoch × 300 epoch = 4.71 giờ  -> RuntimeError, chặn lại
+```
+Lần đầu tiên một vấn đề về ngân sách bị bắt **trước** khi tốn run, không phải sau.
+
+Cũng xác nhận: warmup chạy đúng (lr đi 2.08e-05 → 4.06e-05, tức đang bò lên 1e-4 trong 5 epoch), `build_param_groups` và scheduler mới không nổ.
+
+### Nhưng đọc kỹ con số thì có hai chuyện
+
+**1. Ngưỡng 4 giờ là con số tôi tự bịa, không phải ràng buộc thật.** Ràng buộc thật: Kaggle cắt session ở 12h (AGENTS.md §7) và quota GPU ~30h/tuần. Một fold 4,71h thì **vừa thoải mái**. Vấn đề thật nằm ở chỗ khác: **5 fold × 4,71h ≈ 23,5 giờ**, ăn gần hết quota tuần.
+
+**2. 56,5s/epoch so với ~20s trước đây — GPU đang ngồi chờ CPU.** Phần tính toán GPU vẫn ~20s; ~36s còn lại là augmentation (`scipy.ndimage.rotate` trên khối `[8,96,96,48]`) chạy trong DataLoader worker. Đây là lãng phí thuần tuý, sửa được mà **không đụng một chữ nào trong recipe official**.
+
+**Đã đụng file:**
+- `configs/baseline_3dpatch.yaml` — `num_workers` 2 → **4** (Kaggle có 4 vCPU), thêm `persistent_workers: true` và `prefetch_factor: 4`. Mặc định DataLoader **dựng lại toàn bộ worker sau mỗi epoch**; với ~39 bước/epoch thì chi phí đó chiếm tỉ lệ lớn, và recipe là 300 epoch = 300 lần dựng lại.
+- `src/train/run.py` — `_build_loaders` → **`build_loaders`** (công khai), thêm hai khoá worker (có guard vì chúng nổ khi `num_workers=0`).
+- `notebooks/03_train_baseline.ipynb` mục 1c — dùng thẳng `build_loaders` thay vì tự dựng loader; ngân sách đổi thành **6 giờ/fold** (từ ràng buộc session 12h) kèm cảnh báo riêng cho tổng 5 fold so với quota tuần; thông báo lỗi nêu rõ thứ tự xử lý: **kỹ thuật trước, recipe sau**.
+- `tests/test_build_loaders.py` — MỚI, 6 test.
+
+**Quyết định & lý do:**
+- **Chỉ tối ưu hoá kỹ thuật, không đụng recipe.** `num_workers`/`persistent_workers`/`prefetch_factor` không thay đổi một phép toán nào trong train. Hạ `rotate_order` hay giảm `epochs` thì có — và chúng nằm ở cuối danh sách, chỉ dùng khi hết cách, kèm ghi WORKLOG.
+- **Probe phải dùng đúng `build_loaders` của train thật.** Trước đó cell 1c tự dựng DataLoader; như vậy nó đo một thứ khác với thứ sẽ chạy, mà dự đoán đúng run thật là toàn bộ lý do nó tồn tại.
+- **Ngân sách phải truy được về ràng buộc thật.** Một ngưỡng bịa ra sẽ hoặc chặn nhầm (như lần này) hoặc cho qua nhầm.
+
+**Kết quả / số liệu:** `pytest` **177 passed, 9 skipped** (test mới cần torch nên skip ở local). ruff sạch. Ước lượng chưa đo lại — mục 1c sẽ tự trả lời ở lần chạy tới. Dự kiến: phần phụ thuộc CPU giảm khoảng một nửa ⇒ ~38s/epoch ⇒ ~3,2 giờ/fold ⇒ ~16 giờ cho 5 fold.
+
+**Dang dở:**
+- [ ] Chạy lại mục 1c để xác nhận đã trong ngân sách.
+- [ ] Nếu đạt → chạy fold 1, so với mốc 0.2647 theo luật quyết định ở S-043.
+- [ ] Nếu vẫn vượt: `rotate_order` 1 → 0, hoặc `rotate_prob` < 1.0. **Cả hai đều là lệch recipe**, phải ghi WORKLOG.
+
+**Điểm vào phiên sau:** Kaggle notebook 03 → Restart & Run All. Mục 1c in thêm dòng `workers ... persistent ... prefetch ...` để đối chiếu.
+
+**Cảnh báo cho tool sau:**
+- **Phân biệt tối ưu hoá kỹ thuật với lệch recipe.** Số worker không đụng phép toán train; số epoch, góc xoay, order nội suy thì có. Chỉ nhóm thứ hai mới cần ghi là sai khác so với baseline official.
+- Nếu `num_workers: 4` gây lỗi shared memory trên Kaggle, hạ xuống 3 — đó vẫn là tối ưu hoá kỹ thuật, không phải lệch recipe.
+

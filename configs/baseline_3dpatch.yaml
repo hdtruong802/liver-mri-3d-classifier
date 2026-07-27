@@ -35,7 +35,13 @@ model:
 data:
   # VRAM ~16GB với khối [8,96,96,48]: batch nhỏ + tích luỹ gradient (AGENTS.md §7).
   batch_size: 2
-  num_workers: 2
+  # Augmentation (xoay ±10° bằng scipy) chạy trên CPU trong worker và là nút cổ chai:
+  # đo thật cho 56,5s/epoch, trong khi phần GPU chỉ ~20s — GPU ngồi chờ CPU
+  # (WORKLOG S-044). Kaggle có 4 vCPU. Ba khoá dưới đây là tối ưu hoá THUẦN KỸ THUẬT,
+  # không đụng gì tới phép toán train.
+  num_workers: 4
+  persistent_workers: true    # mặc định DataLoader dựng lại worker MỖI epoch × 300 epoch
+  prefetch_factor: 4
   pin_memory: true
   # Augment theo recipe official: lật cả 3 trục p=0.5, xoay ±10°, random-crop tịnh
   # tiến. rot90 và nhiễu cường độ là thứ TA tự thêm, official không dùng -> tắt, giữ

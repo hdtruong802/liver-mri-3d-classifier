@@ -77,8 +77,18 @@ def run_dir(config: dict[str, Any], fold: int) -> Path:
     return resolve_output_dir(config) / f"fold{fold}_{digest}"
 
 
-def _build_loaders(config: dict[str, Any], fold: int) -> tuple[Any, Any, list[int]]:
-    """Dựng DataLoader train/val cho một fold; trả kèm nhãn train (để tính class weight)."""
+def build_loaders(config: dict[str, Any], fold: int) -> tuple[Any, Any, list[int]]:
+    """Dựng DataLoader train/val cho một fold; trả kèm nhãn train (để tính class weight).
+
+    Công khai (không còn `_` ở đầu) vì cell đo thời gian trong notebook **phải** dùng
+    đúng hàm này. Probe mà tự dựng loader theo cách khác thì con số nó đo được không
+    dự đoán được run thật — mà dự đoán run thật chính là toàn bộ mục đích của nó.
+
+    `persistent_workers` là thứ đáng chú ý ở đây: mặc định DataLoader **tạo lại toàn
+    bộ worker sau mỗi epoch**. Fold này chỉ có ~39 bước/epoch nên chi phí khởi động
+    worker chiếm tỉ lệ lớn, và recipe official là 300 epoch — tức là 300 lần dựng lại
+    (WORKLOG S-044).
+    """
     from torch.utils.data import DataLoader
 
     data_config = config.get("data") or {}
@@ -92,7 +102,14 @@ def _build_loaders(config: dict[str, Any], fold: int) -> tuple[Any, Any, list[in
 
     batch_size = int(data_config.get("batch_size", 2))
     num_workers = int(data_config.get("num_workers", 2))
-    common = {"num_workers": num_workers, "pin_memory": bool(data_config.get("pin_memory", True))}
+    common: dict[str, Any] = {
+        "num_workers": num_workers,
+        "pin_memory": bool(data_config.get("pin_memory", True)),
+    }
+    if num_workers > 0:
+        # Hai khoá này chỉ hợp lệ khi có worker thật; truyền lúc num_workers=0 sẽ nổ.
+        common["persistent_workers"] = bool(data_config.get("persistent_workers", True))
+        common["prefetch_factor"] = int(data_config.get("prefetch_factor", 4))
     train_loader = DataLoader(train_ds, batch_size=batch_size, shuffle=True, **common)
     val_loader = DataLoader(val_ds, batch_size=batch_size, shuffle=False, **common)
 
@@ -200,7 +217,7 @@ def train(config_path: str | Path, fold_override: int | None = None) -> dict[str
         monai_version = "không có"
     logger.info("torch %s | monai %s", torch.__version__, monai_version)
 
-    train_loader, val_loader, train_labels = _build_loaders(config, fold)
+    train_loader, val_loader, train_labels = build_loaders(config, fold)
     logger.info(
         "fold %d | train=%d val=%d | device=%s | amp=%s",
         fold,
