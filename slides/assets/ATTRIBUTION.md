@@ -10,3 +10,10 @@
 - **Thay đổi:** Thu nhỏ để nhúng vào slide; không thay đổi nội dung ảnh.
 
 Asset này là minh hoạ công khai, không phải dữ liệu LLD-MMRI và không phải ca bệnh/kết quả của dự án.
+
+## `synthetic-mri-8phase-contact-sheet.png`
+
+- **Nguồn:** Ảnh tổng hợp do OpenAI Image Generation tạo cho slide recap Input → Output.
+- **Mô tả:** Contact sheet MRI bụng gồm tám lát tổng hợp của cùng một trường nhìn, dùng làm minh hoạ cho input NIfTI đa pha.
+- **Không phải:** Dữ liệu bệnh nhân, ảnh LLD-MMRI, hay kết quả thực nghiệm của dự án.
+- **Thay đổi:** Nhãn phase được thêm bằng HTML trong `slides/overview.html`, không nằm trong ảnh raster.

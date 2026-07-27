@@ -1905,3 +1905,28 @@ Cũng xác nhận: warmup chạy đúng (lr đi 2.08e-05 → 4.06e-05, tức đa
 - **Phân biệt tối ưu hoá kỹ thuật với lệch recipe.** Số worker không đụng phép toán train; số epoch, góc xoay, order nội suy thì có. Chỉ nhóm thứ hai mới cần ghi là sai khác so với baseline official.
 - Nếu `num_workers: 4` gây lỗi shared memory trên Kaggle, hạ xuống 3 — đó vẫn là tối ưu hoá kỹ thuật, không phải lệch recipe.
 
+## S-045 · 2026-07-27 17:41 · codex
+
+**Mục tiêu phiên:** Thêm slide recap Input → Output gần cuối deck overview.
+
+**Nhánh / commit:** `main` · `ef1625b` → *(commit đang chờ)*
+
+**Đã động file:**
+- `slides/overview.html` — thêm slide 11, minh hoạ `MRI_8phase.nii` → model 3D đa pha → output có uncertainty và `defer`; đổi toàn bộ chỉ số deck sang 12 slide.
+- `slides/assets/synthetic-mri-8phase-contact-sheet.png` — asset MRI bụng tổng hợp 8 ô, không có dữ liệu hay định danh bệnh nhân.
+- `slides/assets/ATTRIBUTION.md` — ghi provenance và giới hạn dùng của asset tổng hợp.
+
+**Quyết định & lý do:**
+- Dùng một file NIfTI đa pha mang tên `MRI_8phase.nii` như quy ước minh hoạ trên slide, không thay đổi data loader hay định dạng lưu trữ thật.
+- Đặt nhãn phase bằng HTML thay vì trong ảnh raster để các tên C-pre, C+A, C+V, C+Delay, T2WI, DWI, In Phase, Out Phase luôn chính xác và đọc được.
+- Asset được gắn nhãn rõ là dữ liệu tổng hợp; không có xác suất, nhãn chẩn đoán hay số kết quả giả lập.
+
+**Kết quả / số liệu:** Quality gate PASS: Impeccable detect cho `slides/` và `reports/`, kiểm tra split, patient-data/checkpoint đều pass. Kiểm tra tĩnh: 12 slide, 12 chỉ số `/ 12`, đủ 8 phase. Browser không cho mở URL `file://`, nên không dùng cách vòng qua chính sách đó.
+
+**Dang dở:**
+- Không có việc treo cho phần slide.
+
+**Điểm vào phiên sau:** Mở `slides/overview.html#11` trong trình duyệt local của người dùng nếu cần xem lại bằng mắt trên màn hình/máy chiếu thực tế.
+
+**Cảnh báo cho tool sau:** Notebook chưa theo dõi `notebooks/notebookf104ced082.ipynb` là thay đổi ngoài phạm vi, đã được người dùng yêu cầu giữ nguyên; không stage, commit hay xoá nó.
+
