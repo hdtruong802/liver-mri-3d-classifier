@@ -1275,3 +1275,53 @@ yx:  14 phiếu ( 8%) · độ tán trong mặt phẳng 17.8 mm
 **Điểm vào phiên sau:** Dùng `marcohoang/lld-mmri-3` version 1 làm Kaggle input cho notebook baseline, mount cache rồi dựng `CachedLesionDataset` theo fold 1.
 
 **Cảnh báo cho tool sau:** Version 1 xác nhận cache tồn tại nhưng không tự chứng minh mọi tensor không NaN/Inf; chỉ gọi data train-ready sau tiêu chí notebook 02 mục 5.
+
+
+## S-034 · 2026-07-27 15:05 · claude-code
+
+**Mục tiêu phiên:** Data đã xong (cache 498 ca nghiệm thu) → dựng nốt mảnh còn thiếu của W2: model baseline + vòng train + metric.
+
+**Nhánh / commit:** `main` · `f0b7162` → *(commit đang chờ)*
+
+**Nghiệm thu cache — đọc từ notebook Kaggle đã chạy** (`notebooks/notebookf104ced082.ipynb`, untracked, bản 02 có output):
+```
+axis order  : xy (không còn inconclusive) · 166/180 phiếu (92%) · tán trong mặt phẳng 12.4mm
+build       : HOÀN TẤT xong 498, bỏ qua 0, LỖI 0 · 24 phút
+cache       : 498 file .npz · shape (8,96,96,48) · finite=True
+DataLoader  : train=312 val=82 (=394) · batch (4,8,96,96,48) float32
+```
+⇒ Ba mục "dang dở" của S-031/S-032/S-033 (overlay, 498 file, smoke test) **đã đóng**. Cache là train-ready theo đúng tiêu chí notebook 02 mục 5.
+
+**Đã đụng file:**
+- `src/models/densenet3d.py`, `src/models/__init__.py` — MỚI; DenseNet121-3D (MONAI) 8 kênh → 7 lớp = early-concat v0; registry `build_model(config)` để W2-ngày-6/W4 thêm biến thể mà không sửa vòng train.
+- `src/data/transforms.py` — MỚI; flip/rot90 **chỉ trong mặt phẳng**, nhiễu cường độ per-phase. Torch thuần, không dùng MONAI transform.
+- `src/train/loop.py`, `src/train/run.py`, `src/train/__init__.py` — MỚI; vòng train + entrypoint.
+- `src/eval/metrics.py`, `src/eval/__init__.py` — MỚI; macro-F1/κ/balanced-acc/confusion, numpy thuần, hàm **thuần** tách khỏi train.
+- `src/utils/io.py` — thêm `resolve_cache_dir` + `resolve_output_dir` (chuyển từ `build_cache`, để `src/train` dùng chung mà không phải import qua preprocess).
+- `src/preprocess/build_cache.py` — bỏ bản `resolve_cache_dir` cục bộ, import từ `utils.io`, re-export giữ tương thích.
+- `configs/baseline_3dpatch.yaml` — MỚI; toàn bộ hyperparam.
+- `notebooks/03_train_baseline.ipynb` — MỚI; lớp mỏng gọi `src/`, tự tìm cache bằng `cache_meta.json` thay vì đoán đường mount.
+- `tests/test_models.py`, `test_transforms.py`, `test_train_loop.py`, `test_metrics.py` — MỚI (+20 test).
+- `AGENTS.md` §6 — điền dòng lệnh train (cùng commit tạo entrypoint, theo §6).
+
+**Quyết định & lý do:**
+- **Augment không đụng trục Z.** Z là hướng đầu-chân, lát 3.0mm so với 1.5mm trong mặt phẳng; lật/xoay quanh Z sinh giải phẫu không có thật. Có test khoá bằng khối "giá trị = chỉ số Z".
+- **Biến đổi hình học đồng nhất cho cả 8 pha; nhiễu cường độ thì per-phase.** Hình học lệch nhau sẽ phá chính tín hiệu động học cần học; còn dao động cường độ giữa các lần chụp là chuyện máy MRI thật vẫn làm.
+- **`class_weights: balanced`, tính CHỈ từ nhãn train.** Áp-xe/FNH quá hiếm, CE trần sẽ bỏ hẳn chúng — mà macro-F1 phạt đúng chỗ đó. Đếm cả val là leakage.
+- **Lưu `val_probs_best.npz`** (xác suất, không chỉ nhãn) — W3 bootstrap CI và W5 calibration/selective dùng lại được mà **không phải train lại**.
+- **`last.pt` ghi SAU khi xử lý best**, ghi nguyên tử (`.tmp` → `replace`). Kaggle cắt session giữa lúc ghi là chuyện bình thường.
+- Loại MONAI dict-transform: ba phép augment này quá đơn giản để cần tới nó, và torch thuần thì test được mà không cần cài MONAI.
+
+**Kết quả / số liệu:** `pytest` **105 passed, 8 skipped** (93 → 113 test; skip = cần torch/monai, máy local chưa cài). `ruff check` sạch, `ruff format` đã chạy. Quality gate PowerShell **PASS** (ruff bị SKIP trong gate vì không thấy binary trên PATH — đã chạy tay qua `python -m ruff`). **Chưa có số train** — chưa chạy trên Kaggle.
+
+**Dang dở:**
+- [ ] **Chạy notebook 03 trên Kaggle** để lấy macro-F1 val fold 1 (T5.3). Đây là DoD cuối cùng còn treo của W2.
+- [ ] Baseline 2.5D (T6.1) — `src/models/backbone2p5d.py`, tái dùng đúng vòng train này. Cắt được nếu trễ (W2_plan §"Task cắt được").
+- [ ] `src/data/transforms.py` chưa từng chạy thật: 9 test của nó bị skip toàn bộ ở local (không có torch). Kaggle sẽ là lần đầu chúng chạy.
+
+**Điểm vào phiên sau:** Kaggle → notebook 03 → Add data `marcohoang/lld-mmri-3` (version 1) → Run All. Mục 1 phải ra `[2,8,96,96,48] → [2,7]`; mục 2 train fold 1; chép số ở mục 3 vào WORKLOG.
+
+**Cảnh báo cho tool sau:**
+- `configs/baseline_3dpatch.yaml` là **baseline**, không phải model chính. Model chính chốt ở W4 sau CV 5-fold + CI. Đừng báo số 1-fold như kết quả cuối (AGENTS.md §3.5).
+- Vòng train chỉ đọc `train_fold*/val_fold*`. Không có đường nào chạm test-104 — giữ nguyên như vậy.
+- `notebooks/notebookf104ced082.ipynb` là bản Kaggle **có output 1.3MB**, cố ý **không commit** (quy ước notebook phải strip output). Số liệu của nó đã được chép vào entry này; xoá file được.

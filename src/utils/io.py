@@ -36,6 +36,20 @@ def read_id_class_file(path: str | Path) -> list[tuple[str, int]]:
     return rows
 
 
+def resolve_cache_dir(config: dict[str, Any]) -> Path:
+    """Thư mục cache đã tiền xử lý: env ``LLDMMRI_CACHE_DIR`` thắng, sau đó config."""
+    return Path(os.environ.get("LLDMMRI_CACHE_DIR") or config["cache_dir"])
+
+
+def resolve_output_dir(config: dict[str, Any]) -> Path:
+    """Thư mục ghi của một run: env ``LLDMMRI_OUTPUT_DIR`` thắng, sau đó config.
+
+    Trên Kaggle, ổ ghi được duy nhất là output dir (AGENTS.md §7) — nên đường dẫn
+    ghi phải đi qua đây, không hardcode ``/kaggle/working`` rải rác trong code.
+    """
+    return Path(os.environ.get("LLDMMRI_OUTPUT_DIR") or config["output_dir"])
+
+
 def discover_data_root(
     config: dict[str, Any],
     search_roots: Sequence[str | Path] | None = None,

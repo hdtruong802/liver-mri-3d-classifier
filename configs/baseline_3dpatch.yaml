@@ -1,0 +1,49 @@
+# Baseline 3D-patch — mốc so sánh đầu tiên của dự án (W2 ngày 5).
+# Mọi hyperparam ở đây, code chỉ đọc (AGENTS.md §8).
+#
+#   python -m src.train.run --config configs/baseline_3dpatch.yaml --fold 1
+#
+# Đây KHÔNG phải model chính. Model chính chốt ở W4 sau khi có CV 5-fold + CI.
+
+seed: 1337
+fold: 1                       # 1..5; ghi đè bằng --fold
+splits_dir: splits
+
+# Đường dẫn ghi/đọc đi qua config, không hardcode /kaggle/... (AGENTS.md §7).
+cache_dir: artifacts/cache            # env LLDMMRI_CACHE_DIR thắng
+                                      #   Kaggle: /kaggle/input/lld-mmri-3/cache
+output_dir: artifacts/runs/baseline_3dpatch   # env LLDMMRI_OUTPUT_DIR thắng
+                                              #   Kaggle: /kaggle/working/runs/...
+
+model:
+  name: densenet121_3d
+  in_channels: 8              # 8 pha ghép kênh = early-concat v0
+  num_classes: 7
+  dropout_prob: 0.2
+
+data:
+  # VRAM ~16GB với khối [8,96,96,48]: batch nhỏ + tích luỹ gradient (AGENTS.md §7).
+  batch_size: 2
+  num_workers: 2
+  pin_memory: true
+  augment:
+    flip_prob: 0.5            # chỉ lật trong mặt phẳng — xem src/data/transforms.py
+    rot90_prob: 0.5
+    intensity_prob: 0.5
+    intensity_shift: 0.1
+    intensity_scale: 0.1
+
+train:
+  epochs: 60
+  accum_steps: 8              # batch hiệu dụng = 2 × 8 = 16
+  lr: 0.0003
+  weight_decay: 0.00001
+  amp: true                   # tự tắt khi chạy CPU
+  deterministic: true
+  early_stop_patience: 15     # theo macro-F1 val
+  resume: true                # chạy lại cùng lệnh = tiếp tục từ last.pt
+
+loss:
+  name: cross_entropy
+  class_weights: balanced     # none | balanced (tính CHỈ từ nhãn train)
+  label_smoothing: 0.0

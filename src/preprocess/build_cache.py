@@ -30,17 +30,12 @@ from src.preprocess.geometry import AXIS_ORDERS, bbox_center_voxel, voxel_to_wor
 from src.preprocess.grid import make_reference_image
 from src.preprocess.normalize import clip_and_zscore
 from src.preprocess.resample import read_image, resample_to_grid, to_numpy
-from src.utils.io import load_yaml, resolve_data_root
+from src.utils.io import load_yaml, resolve_cache_dir, resolve_data_root
 from src.utils.logging import CsvLogger, get_logger
 
 logger = get_logger(__name__)
 
-
-def resolve_cache_dir(config: dict[str, Any]) -> Path:
-    """Thư mục cache: env ``LLDMMRI_CACHE_DIR`` thắng, sau đó config."""
-    import os
-
-    return Path(os.environ.get("LLDMMRI_CACHE_DIR") or config["cache_dir"])
+__all__ = ["build_cache", "process_patient", "resolve_cache_dir"]
 
 
 def _git_commit() -> str:

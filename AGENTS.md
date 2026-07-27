@@ -171,11 +171,11 @@ Pin version trong `requirements.txt` (train) và `webapp/backend/requirements.tx
 | Sinh manifest bệnh nhân | `python -m src.data.build_manifest --config configs/data.yaml` | sẵn sàng (W2 ngày 1), cần `LLDMMRI_DATA_ROOT` trỏ tới data thật |
 | Báo cáo geometry + **phán quyết thứ tự trục** | `python scripts/kaggle_geometry_report.py --limit 0` | sẵn sàng (W2 ngày 2) |
 | Tiền xử lý (chạy 1 lần, cache) | `python -m src.preprocess.build_cache --config configs/preprocess.yaml` | sẵn sàng (W2 ngày 3); **cần điền `axis_order` trong config trước** |
-| Train | `python -m src.train.run --config configs/<name>.yaml` | chưa có |
-| Đánh giá | `python -m src.eval.run --ckpt <path> --split val` | chưa có |
+| Train baseline 3D-patch (1 fold) | `python -m src.train.run --config configs/baseline_3dpatch.yaml --fold 1` | sẵn sàng (W2 ngày 5); resume tự động từ `last.pt`; cần `LLDMMRI_CACHE_DIR` trỏ tới cache |
+| Đánh giá | `python -m src.eval.run --ckpt <path> --split val` | chưa có (metric đã có ở `src/eval/metrics.py`; CLI + bootstrap CI là W3) |
 | Test (chạm 1 lần!) | `python -m src.eval.run --ckpt <path> --split test --i-know-this-is-final` | chưa có |
 | Chạy web app | `uvicorn webapp.backend.main:app --reload` | chưa có |
-| Test | `pytest -q` | sẵn sàng (90 test; 3 test cần torch sẽ tự skip nếu chưa cài) |
+| Test | `pytest -q` | sẵn sàng (113 test; 8 test cần torch/monai sẽ tự skip nếu chưa cài) |
 | Lint | `ruff check src tests` · `ruff format src tests` | sẵn sàng (W2 ngày 1) |
 
 ---
