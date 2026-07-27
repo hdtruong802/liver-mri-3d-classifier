@@ -1599,3 +1599,62 @@ Val loss tăng ở bản BN có thể chỉ là overfit thường gặp của 11
 - macro-F1 **đứng yên tuyệt đối** qua nhiều epoch = model đoán một lớp duy nhất, không phải "học chậm". Kèm train loss ≈ ln(số lớp) thì chắc chắn.
 - Mốc so sánh hợp lệ hiện tại vẫn là **0.2725 (BatchNorm)**.
 
+
+
+## S-040 · 2026-07-27 18:05 · claude-code
+
+**Mục tiêu phiên:** Đọc bảng phép thử overfit và chốt thay đổi cho run kế tiếp bằng bằng chứng.
+
+**Nhánh / commit:** `main` · `c285efa` → *(commit đang chờ)*
+
+### Bảng đo (Kaggle, 8 mẫu trải 7 lớp, 160 bước, lr 1e-3, không augment/class-weight)
+
+```
+norm              loss đầu  loss cuối    acc  kết luận
+batch                2.225      0.009   1.00  HỌC ĐƯỢC
+instance+affine      2.242      0.581   1.00  HỌC ĐƯỢC
+group(8)             3.282      0.010   1.00  HỌC ĐƯỢC
+```
+
+### Bảng này bác bỏ chẩn đoán của tôi ở S-039
+
+Tôi kết luận InstanceNorm **sập vì global average pooling xoá mất tín hiệu**. Sai: IN đạt accuracy 1.00 trên phép thử. Nó **chậm hơn ~60 lần** (loss cuối 0.581 so với 0.009) chứ không mất khả năng học. Cơ chế tôi mô tả có thể góp phần làm chậm, nhưng "sập" là cách đọc quá tay từ một run 4 epoch.
+
+`batch` và `group` khoẻ **ngang nhau** — phép thử không tách được hai cái này.
+
+### Điều bảng nói to hơn: model đang thiếu BƯỚC CẬP NHẬT, không thiếu khả năng học
+
+Đặt cạnh nhau:
+
+| | số bước | lr | kết quả |
+|---|---|---|---|
+| phép thử overfit (8 mẫu) | 160 | 1e-3 | loss 0.009, thuộc lòng |
+| run thật BatchNorm (312 mẫu) | ~520 (26 epoch × 20) | 3e-4 | loss 1.96 → **1.64** |
+
+Ngẫu nhiên là ln 7 = 1.946. Sau 520 bước, train loss mới nhích được 0.32 — model **mới chỉ khởi động**, chưa hề đến giai đoạn overfit mà tôi đã diễn giải ở S-036. Nguyên nhân số học rất đơn giản: 312 mẫu / (batch 2 × accum 8) = **~20 bước cập nhật mỗi epoch**.
+
+Và bản InstanceNorm "sập" ở 4 epoch = **80 bước**. Với một cấu hình chậm gấp 60 lần, 80 bước chưa nói lên được gì. Cả hai kết luận trước của tôi đều rút ra từ một chế độ tối ưu hoá quá yếu để phán xét bất cứ điều gì.
+
+**Đã đụng file:**
+- `configs/baseline_3dpatch.yaml` — `accum_steps` 8 → **2** (hiệu dụng 16 → 4, ~78 bước/epoch, gấp 4). `norm` giữ `batch`. Ghi cả bảng đo vào comment.
+- `AGENTS.md` §7 — sửa khuyến nghị: **batch hiệu dụng chọn theo kích thước dataset, không theo VRAM**. VRAM chỉ quyết định `batch_size`; `accum_steps` là lựa chọn tối ưu hoá và tăng nó **không** làm epoch nhanh hơn.
+- `tests/test_models.py` — bỏ ràng buộc "hiệu dụng 16–32", thay bằng: trần 32 (VRAM) và **≥ 40 bước cập nhật/epoch**.
+
+**Quyết định & lý do:**
+- **Đổi đúng MỘT thứ: `accum_steps`.** Giữ `norm: batch` (có số thật) để lần chạy này so được thẳng với mốc 0.2725. Phương án đã loại: đổi `norm` sang `group` — cũng đáng thử, nhưng gộp hai thay đổi thì không biết cái nào có tác dụng, và bảng đo cho thấy norm không phải nút thắt.
+- **Không đổi `lr`.** Cũng là một cách tăng tốc, nhưng thêm biến thứ hai. Nếu 78 bước/epoch vẫn ì thì lr là nút tiếp theo.
+- Cùng thời gian mỗi epoch: số lần forward/backward không đổi, chỉ đổi tần suất `optimizer.step()`. Run vẫn ~25 phút.
+
+**Kết quả / số liệu:** `pytest` **145 passed, 8 skipped**. ruff sạch. Chưa chạy run mới.
+
+**Dang dở:**
+- [ ] Chạy fold 1 với `accum_steps: 2`, so với **0.2725**.
+- [ ] `norm: group(8)` — ứng viên tiếp theo, chạy **riêng** sau khi chốt chế độ tối ưu hoá.
+- [ ] Baseline 2.5D (T6.1).
+
+**Điểm vào phiên sau:** Kaggle notebook 03 → Restart & Run All (giờ chạy hết, gồm cả cell train). Run ghi vào thư mục hash mới. Cell cuối in thẳng "mốc cũ 0.2725 / lần này".
+
+**Cảnh báo cho tool sau:**
+- **Đừng chẩn đoán từ 4 epoch khi mỗi epoch chỉ có 20 bước cập nhật.** Hai chẩn đoán sai liên tiếp (S-036 "BatchNorm hỏng", S-039 "InstanceNorm sập vì pooling") đều sinh ra từ chỗ này. Số bước cập nhật = mẫu / (batch × accum) — tính nó trước khi diễn giải bất kỳ đường cong nào.
+- Phép thử overfit ở mục 1b dùng lr và tần suất cập nhật **khác** run thật (1e-3, step mỗi batch). Nó trả lời "kiến trúc có học nổi không", **không** trả lời "cấu hình train này tốt không". Đừng đọc quá phạm vi đó — đúng lỗi tôi vừa mắc theo chiều ngược lại.
+

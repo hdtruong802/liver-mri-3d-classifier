@@ -23,11 +23,13 @@ model:
   # Bằng chứng đã có, KHÔNG phải phỏng đoán (WORKLOG S-036 → S-039):
   #   batch            -> macro-F1 val 0.2725 @ epoch 11   (chạy thật, fold 1)
   #   instance+affine  -> SẬP: đoán 1 lớp, macro-F1 0.0668 đứng yên, loss = ln 7
-  #   group            -> chưa có số
-  # InstanceNorm sập vì đuôi DenseNet là norm5 -> relu -> global average pooling:
-  # IN ép mean từng kênh của từng mẫu về 0, mà pooling lại đọc đúng cái mean đó.
-  # Giữ `batch` vì đây là lựa chọn duy nhất có số thật. Mục 1b của notebook 03 đo
-  # cả ba trong ~90 giây; đổi dòng này khi bảng đó cho bằng chứng ngược lại.
+  #   group            -> chưa có số trên tập thật
+  # Phép thử overfit 8 mẫu (notebook mục 1b, WORKLOG S-040) — loss cuối sau 160 bước:
+  #   batch 0.009 · group(8) 0.010 · instance+affine 0.581   (cả ba đều acc 1.00)
+  # => InstanceNorm KHÔNG hỏng cấu trúc như tôi đã kết luận vội, chỉ chậm hơn ~60 lần.
+  #    batch và group khoẻ ngang nhau, phép thử này không tách được hai cái đó.
+  # Giữ `batch` vì là lựa chọn duy nhất có số trên tập thật (0.2725). Đổi `norm` là
+  # thí nghiệm riêng, đừng gộp chung với thay đổi nào khác.
   norm: batch
 
 data:
@@ -44,7 +46,16 @@ data:
 
 train:
   epochs: 60
-  accum_steps: 8              # batch hiệu dụng = 2 × 8 = 16
+  # batch hiệu dụng = 2 × 2 = 4. Hạ từ 8 (hiệu dụng 16) sau khi có bằng chứng model
+  # đang bị THIẾU BƯỚC CẬP NHẬT, chứ không phải thiếu khả năng học (WORKLOG S-040):
+  #   - phép thử overfit: 160 bước ở lr 1e-3 là thuộc lòng 8 mẫu -> kiến trúc ổn;
+  #   - run thật: 312 mẫu / (2×8) = ~20 bước/epoch, 26 epoch = ~520 bước, mà train
+  #     loss mới đi 1.96 -> 1.64 (ngẫu nhiên = ln 7 = 1.946). Mới chỉ khởi động.
+  # accum 8 -> 2 cho ~78 bước/epoch, gấp 4 lần, **cùng thời gian mỗi epoch** (số lần
+  # forward/backward không đổi). Hiệu dụng 4 cũng hợp lý hơn với 312 mẫu so với 16.
+  # Lệch khuyến nghị "hiệu dụng 16–32" ở AGENTS.md §7 — chỗ đó viết cho ràng buộc
+  # VRAM, không phải cho kích thước dataset; đã ghi lý do vào WORKLOG.
+  accum_steps: 2
   lr: 0.0003
   weight_decay: 0.00001
   amp: true                   # tự tắt khi chạy CPU
