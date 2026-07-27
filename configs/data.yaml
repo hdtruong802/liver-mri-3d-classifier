@@ -11,6 +11,11 @@ data_root_candidates:
   - /kaggle/input/datasets/marcohoang/lldmmridataset
   - /kaggle/input/lldmmridataset
 
+# Nếu không ứng viên nào khớp: tự lùng annotation_rel dưới các thư mục này (giới hạn
+# độ sâu). Nhờ vậy không cần biết trước sơ đồ mount của Kaggle — đã đoán sai 2 lần.
+data_root_search:
+  - /kaggle/input
+
 annotation_rel: lld/LLD_MMRI_Annotation.json
 images_rel: lld/images                   # chỉ đọc thư mục này; BỎ lld/labels (mask) + lld/.cache
 splits_dir: splits

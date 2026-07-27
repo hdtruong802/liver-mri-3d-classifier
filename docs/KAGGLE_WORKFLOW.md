@@ -70,8 +70,12 @@ Kaggle → *Create* → *New Notebook*. Rồi:
 ### 2.2. Cell bootstrap (dán vào cell đầu tiên)
 
 ```python
-# 1. Lấy code từ GitHub
+# 1. Lấy code từ GitHub — LUÔN xoá rồi clone lại.
+#    KHÔNG dùng `if not exists(): clone` — sau lần chạy đầu repo sẽ không bao giờ
+#    được cập nhật, và mọi bản sửa đã push đều không tới được session (WORKLOG S-028).
+!rm -rf /kaggle/working/repo
 !git clone -q https://github.com/hdtruong802/liver-mri-3d-classifier.git /kaggle/working/repo
+!git -C /kaggle/working/repo log -1 --format="repo commit: %h %s"
 
 import sys
 sys.path.insert(0, "/kaggle/working/repo")
@@ -96,11 +100,12 @@ print("OK: code + splits đã sẵn sàng")
 > thật, rồi hoặc đặt `os.environ["LLDMMRI_DATA_ROOT"] = "<path>"`, hoặc thêm vào
 > `data_root_candidates` trong `configs/data.yaml` (cách này bền hơn — commit là xong).
 
-**Cập nhật code giữa chừng?** Chạy lại cell bootstrap sau khi `git pull`:
-```python
-!cd /kaggle/working/repo && git pull -q
-import importlib, src; importlib.reload(src)   # hoặc Restart & Run All cho chắc
-```
+**Cập nhật code giữa chừng?** **Restart & Run All** — cell bootstrap tự clone lại bản
+mới nhất. Đừng chỉ `git pull` rồi chạy tiếp: module Python đã import vẫn nằm trong bộ
+nhớ, và biến môi trường đặt ở lần chạy trước cũng vậy.
+
+> Luôn kiểm dòng `repo commit:` in ra ở đầu. Nếu nó không khớp commit mới nhất trên
+> GitHub thì bạn đang chạy code cũ — mọi chẩn đoán khác đều vô nghĩa.
 
 ### 2.3. Chạy việc thật
 

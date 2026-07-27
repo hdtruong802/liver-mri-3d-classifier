@@ -1074,3 +1074,33 @@ Kết quả EDA thật người dùng chạy — **phân bố lớp khớp offic
 **Điểm vào phiên sau:** Kaggle: `!cd /kaggle/working/repo && git pull` → **Restart & Run All** (restart quan trọng). Bootstrap giờ tự dọn env sót nên chạy lại cell cũng được.
 
 **Cảnh báo cho tool sau:** Trong Jupyter, `os.environ` **sống dai hơn code** — `git pull` không dọn nó. Đừng dùng `setdefault` cho env đường dẫn trong notebook; và luôn xác minh path bằng file thật bên trong.
+
+
+## S-028 · 2026-07-24 21:00 · claude-code
+
+**Mục tiêu phiên:** Tìm lý do THẬT khiến 3 phiên sửa path đều không có tác dụng.
+
+**Nhánh / commit:** `main` · `5f1ea4a` → *(commit đang chờ)*
+
+**Đã đụng file:**
+- `notebooks/01_eda.ipynb` — bootstrap **luôn `rm -rf` rồi clone lại**; in `repo commit:` để kiểm chứng đang chạy bản nào; chẩn đoán dùng `find /kaggle/input -name LLD_MMRI_Annotation.json`.
+- `src/utils/io.py` — thêm `discover_data_root()`: tự lùng annotation dưới `data_root_search` (glob giới hạn độ sâu, không dùng `**` để khỏi duyệt 83.7GB). `resolve_data_root` chèn bước lùng vào giữa (sau ứng viên, trước fallback).
+- `configs/data.yaml` — thêm `data_root_search: [/kaggle/input]`.
+- `docs/KAGGLE_WORKFLOW.md` — sửa cell bootstrap mẫu (rm -rf + clone + in commit); thay hướng dẫn "git pull" bằng "Restart & Run All" + nhắc kiểm dòng `repo commit`.
+- `tests/test_io.py` — +5 test: lùng ở độ sâu 1 và 3, không tìm thấy, search root không tồn tại, và **resolve rơi xuống bước lùng khi mọi ứng viên đều sai**.
+
+**Quyết định & lý do:**
+- **NGUYÊN NHÂN GỐC (lỗi của tôi, mất 3 phiên mới thấy):** bootstrap viết `if not REPO.exists(): git clone`. Sau lần chạy đầu, `/kaggle/working/repo` đã tồn tại ⇒ **không bao giờ clone lại, không bao giờ pull**. Toàn bộ bản sửa S-025/026/027 đã push lên GitHub nhưng **chưa từng tới được session Kaggle** — người dùng chạy code cũ suốt. Ba phiên tôi đi sửa triệu chứng (đuôi file, danh sách path, env) trong khi bệnh nằm ở chỗ code mới không bao giờ được nạp.
+- Sửa: luôn xoá + clone lại (chắc chắn hơn `git pull` vì tránh mọi trạng thái bẩn), và **in commit hash** — bằng chứng khách quan đang chạy bản nào. Không có dòng này thì không thể phân biệt "sửa sai" với "sửa đúng nhưng chưa nạp".
+- **Thôi đoán sơ đồ mount.** Đã đoán sai 2 lần nên thêm `discover_data_root()` tự tìm file annotation. Ai đổi mount kiểu gì cũng chạy.
+- Bài học chung cho cả chuỗi S-025→028: **luôn có một dấu hiệu xác nhận môi trường đang chạy đúng bản code/dữ liệu nào** trước khi chẩn đoán bất cứ điều gì khác.
+
+**Kết quả / số liệu:** `pytest` **63 passed** (58 → 63). ruff sạch. Mô phỏng đúng cây thư mục Kaggle thật (`/kaggle/input/datasets/marcohoang/lldmmridataset` + env sót trỏ path cũ) → resolve ra data root đúng, annotation + images đều tồn tại.
+
+**Dang dở:**
+- [ ] **Gate geometry vẫn chưa có kết quả thật.**
+- [ ] T2.2 chốt tham số tiền xử lý.
+
+**Điểm vào phiên sau:** Kaggle → **Restart & Run All**. Kiểm dòng `repo commit:` đầu output phải khớp commit mới nhất. Rồi lấy output mục 5 (gate geometry).
+
+**Cảnh báo cho tool sau:** Notebook Kaggle **phải clone lại mỗi lần chạy**; `if not exists(): clone` là cái bẫy đã làm mất 3 phiên. Luôn in commit hash ở cell đầu.

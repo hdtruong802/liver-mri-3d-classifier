@@ -8,7 +8,7 @@ mục rỗng tồn tại vẫn khiến mọi bước sau thất bại âm thầm
 from pathlib import Path
 
 import pytest
-from src.utils.io import resolve_data_root
+from src.utils.io import discover_data_root, resolve_data_root
 
 ANNOTATION_REL = "lld/LLD_MMRI_Annotation.json"
 
@@ -117,3 +117,47 @@ def test_works_without_candidates_key(tmp_path: Path, monkeypatch: pytest.Monkey
     """Config cũ (không có data_root_candidates) vẫn chạy."""
     monkeypatch.delenv("LLDMMRI_DATA_ROOT", raising=False)
     assert resolve_data_root({"data_root": "x/y"}) == Path("x/y")
+
+
+# --- Tự lùng annotation: không cần đoán đúng sơ đồ mount (S-028) ---
+
+
+def test_discover_finds_root_at_depth_one(tmp_path: Path):
+    """Sơ đồ /kaggle/input/<slug>/lld/annotation.json"""
+    root = _make_root(tmp_path / "input", "lldmmridataset", with_annotation=True)
+    config = {"annotation_rel": ANNOTATION_REL, "data_root_search": [str(tmp_path / "input")]}
+    assert discover_data_root(config) == root
+
+
+def test_discover_finds_root_at_depth_three(tmp_path: Path):
+    """Sơ đồ thật của Kaggle: /kaggle/input/datasets/<owner>/<slug>/lld/annotation.json"""
+    base = tmp_path / "input"
+    root = _make_root(base / "datasets" / "marcohoang", "lldmmridataset", with_annotation=True)
+    config = {"annotation_rel": ANNOTATION_REL, "data_root_search": [str(base)]}
+    assert discover_data_root(config) == root
+
+
+def test_discover_returns_none_when_absent(tmp_path: Path):
+    (tmp_path / "input").mkdir()
+    config = {"annotation_rel": ANNOTATION_REL, "data_root_search": [str(tmp_path / "input")]}
+    assert discover_data_root(config) is None
+
+
+def test_discover_ignores_missing_search_root(tmp_path: Path):
+    config = {"annotation_rel": ANNOTATION_REL, "data_root_search": [str(tmp_path / "nope")]}
+    assert discover_data_root(config) is None
+
+
+def test_resolve_falls_back_to_discovery(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
+    """Ứng viên trong config đều sai, nhưng vẫn tìm ra data nhờ lùng — đúng tình
+    huống thật: sơ đồ mount không nằm trong danh sách đã đoán."""
+    monkeypatch.delenv("LLDMMRI_DATA_ROOT", raising=False)
+    base = tmp_path / "input"
+    root = _make_root(base / "datasets" / "someone", "ds", with_annotation=True)
+    config = {
+        "data_root": "local/fallback",
+        "data_root_candidates": [str(tmp_path / "wrong1"), str(tmp_path / "wrong2")],
+        "data_root_search": [str(base)],
+        "annotation_rel": ANNOTATION_REL,
+    }
+    assert resolve_data_root(config) == root
