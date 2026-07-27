@@ -25,7 +25,7 @@ from typing import Any
 
 import numpy as np
 
-from src.data.dataset import build_fold_datasets
+from src.data.dataset import build_fold_datasets, find_label_mismatches
 from src.data.transforms import build_train_transform
 from src.eval.metrics import classification_metrics, confusion_matrix, per_class_f1
 from src.models import build_model, count_parameters
@@ -115,6 +115,16 @@ def train(config_path: str | Path, fold_override: int | None = None) -> dict[str
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     amp = bool(train_config.get("amp", True)) and device.type == "cuda"
 
+    # Version thư viện đi vào log của chính run này: notebook Kaggle cài monai không
+    # pin (xem cell bootstrap), nên đây là chỗ duy nhất ghi lại số đã thật sự dùng.
+    try:
+        import monai
+
+        monai_version = monai.__version__
+    except ImportError:  # pragma: no cover - chỉ xảy ra khi chưa cài deep-learning stack
+        monai_version = "không có"
+    logger.info("torch %s | monai %s", torch.__version__, monai_version)
+
     train_loader, val_loader, train_labels = _build_loaders(config, fold)
     logger.info(
         "fold %d | train=%d val=%d | device=%s | amp=%s",
@@ -124,6 +134,24 @@ def train(config_path: str | Path, fold_override: int | None = None) -> dict[str
         device,
         amp,
     )
+
+    # Cổng chặn trước khi tốn GPU: nhãn trong cache phải khớp nhãn trong splits/.
+    # Lệch nhãn không làm train báo lỗi — loss vẫn giảm, metric vẫn ra số, chỉ là
+    # kết quả vô nghĩa. Vài giây kiểm ở đây rẻ hơn nhiều so với một run hỏng.
+    if config.get("verify_labels", True):
+        mismatches = find_label_mismatches(train_loader.dataset) + find_label_mismatches(
+            val_loader.dataset
+        )
+        if mismatches:
+            raise RuntimeError(
+                f"{len(mismatches)} ca có nhãn trong cache khác nhãn trong splits/ "
+                f"(vd {mismatches[:3]} dạng (id, nhãn_split, nhãn_cache)). "
+                "Cache và split không cùng một nguồn — dừng lại, đừng train."
+            )
+        logger.info(
+            "nhãn cache khớp splits/ trên toàn bộ %d ca",
+            len(train_labels) + len(val_loader.dataset),
+        )
 
     model = build_model(config["model"]).to(device)
     logger.info("model=%s | %d tham số", config["model"]["name"], count_parameters(model))
@@ -144,9 +172,22 @@ def train(config_path: str | Path, fold_override: int | None = None) -> dict[str
     epochs_without_gain = 0
 
     checkpoint_path = output_dir / "last.pt"
+    model_fingerprint = json.dumps(config["model"], sort_keys=True, ensure_ascii=False)
     if train_config.get("resume", True):
         state = load_checkpoint(checkpoint_path)
         if state is not None:
+            # Checkpoint của một kiến trúc khác thì resume là vô nghĩa: hoặc
+            # load_state_dict nổ khó hiểu, hoặc tệ hơn — khôi phục đúng
+            # `epochs_without_gain` cũ rồi early-stop ngay mà không train gì, trông
+            # như "đã chạy xong". Chặn thẳng, kèm cách xử lý.
+            previous = state.get("model_fingerprint")
+            if previous is not None and previous != model_fingerprint:
+                raise RuntimeError(
+                    f"{checkpoint_path} là checkpoint của cấu hình model khác.\n"
+                    f"  đang chạy: {model_fingerprint}\n"
+                    f"  trong ckpt: {previous}\n"
+                    "Xoá file đó, hoặc đổi output_dir, nếu thật sự muốn train lại từ đầu."
+                )
             model.load_state_dict(state["model"])
             optimizer.load_state_dict(state["optimizer"])
             scheduler.load_state_dict(state["scheduler"])
@@ -258,6 +299,7 @@ def train(config_path: str | Path, fold_override: int | None = None) -> dict[str
                     "epochs_without_gain": epochs_without_gain,
                     "fold": fold,
                     "seed": seed,
+                    "model_fingerprint": model_fingerprint,
                 },
             )
 

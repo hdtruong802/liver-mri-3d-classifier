@@ -1436,3 +1436,53 @@ Chữ ký khớp chính xác: train ổn / val phân kỳ *dù model chưa fit*.
 - **Đừng so số mới với 0.2725 như một cuộc đua.** 0.2725 là mốc của một cấu hình có lỗi thiết kế đã biết; giá trị của nó là làm chứng cho chẩn đoán BN, không phải làm chuẩn để vượt.
 - W2 chỉ cần *một* số mốc. Tune sâu là việc W4 (comparison protocol, Spec Sheet §3). Đừng biến W2 thành cuộc săn hyperparam.
 
+
+
+## S-037 · 2026-07-27 16:20 · claude-code
+
+**Mục tiêu phiên:** Người dùng yêu cầu: rà soát toàn bộ đường chạy TRƯỚC khi tốn thêm session GPU, không để lặp lại chuyện "chạy xong mới phát hiện quên sửa".
+
+**Nhánh / commit:** `main` · `b53ff9b` → *(commit đang chờ)*
+
+### 5 lỗi tìm được khi rà, tất cả đều sẽ nổ hoặc âm thầm làm hỏng kết quả
+
+**1. `norm: instance` mất affine — đã tải source MONAI 1.3.2 về đọc để xác nhận.**
+`get_norm_layer("instance")` gọi `nn.InstanceNorm3d(num_features=C)`, mà PyTorch mặc định `affine=False`. Nghĩa là bản sửa BatchNorm ở S-036 sẽ bỏ mất scale/shift học được ở **mọi** lớp norm — một suy giảm âm thầm khác. Sửa: `DEFAULT_NORM = ("instance", {"affine": True})`; config viết `norm: ["instance", {affine: true}]`; thêm `normalize_norm_spec()` vì YAML đọc ra **list** còn MONAI ghi hợp đồng là `str | tuple`.
+
+**2. Nhãn cache chưa bao giờ được đối chiếu với `splits/`.** `CachedLesionDataset` lấy nhãn từ split và **bỏ qua** nhãn trong `.npz`. Nếu build cache ghi lệch ID, train vẫn chạy trơn, loss vẫn giảm, metric vẫn ra số — toàn bộ kết quả vô nghĩa mà không có dấu hiệu nào. Đây là rủi ro nặng nhất còn sót. Sửa: `find_label_mismatches()` + cổng chặn trong `train()` (cờ `verify_labels`, mặc định bật) + kiểm ở cell smoke test.
+
+**3. Resume không kiểm kiến trúc.** `last.pt` của run BatchNorm gặp config InstanceNorm sẽ hoặc nổ khó hiểu, hoặc tệ hơn: khôi phục `epochs_without_gain=15` rồi early-stop ngay ở epoch 27 mà không train gì — trông y như "đã chạy xong". Sửa: lưu `model_fingerprint` trong checkpoint, resume mà lệch thì raise kèm cách xử lý.
+
+**4. `RandomRot90InPlane` giả định mặt phẳng vuông.** k=1/3 hoán vị X,Y; crop hiện 96×96 nên vô hại, nhưng kill-switch VRAM trong plan có phương án hạ crop xuống 64×64×32 — lúc đó shape đổi giữa epoch và vỡ collate. Sửa: mặt phẳng không vuông thì chỉ xoay 180°.
+
+**5. Notebook cài `monai` không pin, lại kéo cả dependency.** Sửa: `--no-deps` (pip tuyệt đối không đụng torch/CUDA của Kaggle). **Cố ý không pin version** — pin 1.3.2 có thể không import được với torch mới của Kaggle, và một run chết vì lý do đó tốn hơn là mất tính pin; bù lại version thật được in ra và `train()` ghi `torch X | monai Y` vào log.
+
+### Một chỗ dự án đang tự nhận sai về mình
+
+`deterministic: true` **không** cho tái lập bit-exact: docstring của chính MONAI ghi DenseNet `spatial_dims=3` là non-deterministic trên CUDA. Seed cố định cho phép lặp lại *thí nghiệm*, không phải lặp lại từng chữ số. Đã ghi vào config để báo cáo không tuyên bố quá tay — và là một lý do nữa để mọi số đều kèm CI.
+
+**Đã đụng file:**
+- `src/models/densenet3d.py` — `DEFAULT_NORM`, `normalize_norm_spec()`.
+- `src/data/dataset.py` — `find_label_mismatches()`.
+- `src/data/transforms.py` — guard mặt phẳng không vuông.
+- `src/train/run.py` — cổng chặn nhãn, `model_fingerprint` khi resume, log version torch/monai.
+- `configs/baseline_3dpatch.yaml` — `norm` dạng tuple, ghi chú về determinism.
+- `notebooks/03_train_baseline.ipynb` — cell smoke test giờ kiểm: nhãn, augment (20 lần, shape + finite), loại norm layer thực tế + affine, forward trên GPU rồi giải phóng VRAM.
+- `tests/test_label_integrity.py` (4 test) — MỚI; `tests/test_models.py` — +2 test.
+
+**Quyết định & lý do:**
+- **Tải source thư viện về đọc thay vì đoán** (`pip download --no-deps monai==1.3.2`). Local không cài được MONAI, nhưng "không kiểm được ở local" không phải lý do để đoán — chính cách này bắt được lỗi affine.
+- Những gì vẫn không kiểm được ở local (forward thật, AMP, augment trên tensor thật) thì **chuyển thành assert trong cell smoke test** — chạy trước khi tốn GPU, hỏng thì hỏng trong 1 phút.
+
+**Kết quả / số liệu:** `pytest` **126 passed, 8 skipped** (120 → 134 test). ruff sạch. Quality gate PASS. Chưa chạy lại trên Kaggle.
+
+**Dang dở:**
+- [ ] Chạy fold 1 với InstanceNorm(affine=True) và so với mốc **0.2725**.
+- [ ] Baseline 2.5D (T6.1).
+
+**Điểm vào phiên sau:** Kaggle notebook 03 → Restart & Run All. Cell 1 phải in `norm layers: {'InstanceNorm3d': N} | affine: {True}` và `nhãn cache vs splits: KHỚP TOÀN BỘ`. Chỉ khi đó cell train mới đáng chạy.
+
+**Cảnh báo cho tool sau:**
+- **Đây là quy trình bắt buộc từ nay:** trước khi bàn giao thứ gì tốn GPU, phải rà hết đường chạy; thứ nào không kiểm được ở local thì tải source thư viện về đọc, hoặc biến thành assert rẻ tiền chạy trước phần tốn kém. Người dùng đã nêu yêu cầu này sau khi mất một session vì lỗi BatchNorm.
+- Lần chạy tới đổi **hai** thứ so với mốc 0.2725: BatchNorm → InstanceNorm, và affine. Không tách được nữa vì `instance` không affine là cấu hình vô nghĩa, không đáng tốn một run để đo.
+

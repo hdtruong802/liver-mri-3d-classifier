@@ -22,7 +22,9 @@ model:
   dropout_prob: 0.2
   # instance, KHÔNG phải batch: batch_size=2 (ràng buộc VRAM) làm BatchNorm ước
   # lượng thống kê quá nhiễu -> val loss phân kỳ dù train chưa fit (WORKLOG S-036).
-  norm: instance
+  # affine PHẢI bật: nn.InstanceNorm3d mặc định affine=False, bỏ mất scale/shift
+  # học được ở MỌI lớp norm (đã đọc source MONAI 1.3.2 để xác nhận).
+  norm: ["instance", {affine: true}]
 
 data:
   # VRAM ~16GB với khối [8,96,96,48]: batch nhỏ + tích luỹ gradient (AGENTS.md §7).
@@ -42,6 +44,10 @@ train:
   lr: 0.0003
   weight_decay: 0.00001
   amp: true                   # tự tắt khi chạy CPU
+  # Bật cudnn.deterministic, NHƯNG đừng hiểu là tái lập bit-exact: docstring của
+  # MONAI ghi rõ DenseNet với spatial_dims=3 là non-deterministic trên CUDA. Seed cố
+  # định cho phép lặp lại *thí nghiệm*, không phải lặp lại từng chữ số. Báo cáo phải
+  # nói đúng điều này, và đó là một lý do nữa để mọi số đều kèm CI (AGENTS.md §3.5).
   deterministic: true
   early_stop_patience: 15     # theo macro-F1 val
   resume: true                # chạy lại cùng lệnh = tiếp tục từ last.pt

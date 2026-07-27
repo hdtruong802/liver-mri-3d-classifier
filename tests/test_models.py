@@ -6,6 +6,22 @@ torch + monai nên sẽ skip nếu chưa cài.
 
 import pytest
 from src.models import build_model
+from src.models.densenet3d import DEFAULT_NORM, normalize_norm_spec
+
+
+def test_default_norm_is_instance_with_affine():
+    """nn.InstanceNorm3d mặc định affine=False — mất scale/shift ở MỌI lớp norm.
+
+    Đã đọc source MONAI 1.3.2 để xác nhận: `get_norm_layer("instance")` gọi
+    `nn.InstanceNorm3d(num_features=C)` không kèm affine.
+    """
+    assert DEFAULT_NORM == ("instance", {"affine": True})
+
+
+def test_norm_spec_from_yaml_list_becomes_tuple():
+    """YAML không có tuple: `norm: [instance, {affine: true}]` đọc ra list."""
+    assert normalize_norm_spec(["instance", {"affine": True}]) == ("instance", {"affine": True})
+    assert normalize_norm_spec("batch") == "batch"
 
 
 def test_unknown_model_name_rejected():
@@ -49,10 +65,15 @@ def test_config_yaml_matches_model_contract():
 
     # BatchNorm với batch nhỏ làm val loss phân kỳ (WORKLOG S-036). Nếu ai đó đổi
     # norm về "batch" thì phải đồng thời nâng batch_size lên mức BN dùng được.
-    if config["model"].get("norm", "batch") == "batch":
+    norm = normalize_norm_spec(config["model"].get("norm", "batch"))
+    if norm == "batch":
         assert config["data"]["batch_size"] >= 8, (
             "BatchNorm cần batch >= 8; với khối 3D thì dùng norm: instance"
         )
+    else:
+        name, args = norm
+        assert name == "instance"
+        assert args.get("affine") is True, "InstanceNorm không affine = mất scale/shift học được"
     # Batch hiệu dụng phải nằm trong 16–32 theo ràng buộc Kaggle (AGENTS.md §7).
     effective = config["data"]["batch_size"] * config["train"]["accum_steps"]
     assert 16 <= effective <= 32

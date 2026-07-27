@@ -83,6 +83,28 @@ class CachedLesionDataset:
         return item
 
 
+def find_label_mismatches(dataset: CachedLesionDataset) -> list[tuple[str, int, int]]:
+    """Đối chiếu nhãn trong file cache với nhãn trong `splits/`.
+
+    Vì sao cần: `CachedLesionDataset` lấy nhãn từ **split** và bỏ qua nhãn lưu trong
+    ``.npz``. Nếu lúc build cache ID bị lệch (ví dụ ghi nhầm file của bệnh nhân khác),
+    model sẽ train trên nhãn sai mà **không có dấu hiệu nào** — loss vẫn giảm, metric
+    vẫn ra số, chỉ là toàn bộ kết quả vô nghĩa. Đây là kiểm tra rẻ (đọc mỗi mảng nhãn,
+    không đọc ảnh) cho một lỗi cực đắt.
+
+    Trả về danh sách ``(patient_id, nhãn_theo_split, nhãn_trong_cache)`` — rỗng là tốt.
+    """
+    mismatches: list[tuple[str, int, int]] = []
+    for path, split_label, patient_id in dataset.samples:
+        with np.load(path) as data:
+            if "label" not in data:
+                continue
+            cached_label = int(data["label"])
+        if cached_label != split_label:
+            mismatches.append((patient_id, split_label, cached_label))
+    return mismatches
+
+
 def build_fold_datasets(
     cache_dir: str | Path,
     fold_index: int,

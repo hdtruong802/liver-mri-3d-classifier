@@ -43,7 +43,13 @@ class RandomFlip:
 
 
 class RandomRot90InPlane:
-    """Xoay 0/90/180/270° trong mặt phẳng cắt ngang. Không xoay ngoài mặt phẳng."""
+    """Xoay 0/90/180/270° trong mặt phẳng cắt ngang. Không xoay ngoài mặt phẳng.
+
+    Nếu mặt phẳng **không vuông**, xoay 90°/270° sẽ hoán vị hai chiều và đổi shape —
+    batch sau đó không collate được, và lỗi chỉ nổ giữa epoch. Trường hợp đó chỉ xoay
+    180°, phép duy nhất giữ nguyên shape. Hiện crop là 96×96 nên nhánh này chưa chạm
+    tới, nhưng kill-switch VRAM trong plan có ghi phương án hạ crop.
+    """
 
     def __init__(self, prob: float = 0.5) -> None:
         self.prob = prob
@@ -52,8 +58,10 @@ class RandomRot90InPlane:
         import torch
 
         if self.prob > 0 and torch.rand(1).item() < self.prob:
-            k = int(torch.randint(1, 4, (1,)).item())
-            item["image"] = torch.rot90(item["image"], k, dims=(_AXIS_X, _AXIS_Y))
+            image = item["image"]
+            square = image.shape[_AXIS_X] == image.shape[_AXIS_Y]
+            k = int(torch.randint(1, 4, (1,)).item()) if square else 2
+            item["image"] = torch.rot90(image, k, dims=(_AXIS_X, _AXIS_Y))
         return item
 
 
