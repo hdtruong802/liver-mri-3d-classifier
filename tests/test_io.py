@@ -21,14 +21,46 @@ def _make_root(base: Path, name: str, *, with_annotation: bool) -> Path:
     return root
 
 
-def test_env_var_wins_over_everything(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
-    monkeypatch.setenv("LLDMMRI_DATA_ROOT", str(tmp_path / "from_env"))
+def test_valid_env_var_wins_over_candidates(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
+    """Env trỏ tới data thật -> thắng, kể cả khi ứng viên cũng hợp lệ."""
+    env_root = _make_root(tmp_path, "from_env", with_annotation=True)
+    cand = _make_root(tmp_path, "cand", with_annotation=True)
+    monkeypatch.setenv("LLDMMRI_DATA_ROOT", str(env_root))
     config = {
         "data_root": str(tmp_path / "local"),
-        "data_root_candidates": [str(tmp_path / "cand")],
+        "data_root_candidates": [str(cand)],
         "annotation_rel": ANNOTATION_REL,
     }
-    assert resolve_data_root(config) == tmp_path / "from_env"
+    assert resolve_data_root(config) == env_root
+
+
+def test_stale_env_var_loses_to_valid_candidate(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
+    """Bẫy có thật (S-027): env sót lại từ lần chạy trước trỏ vào chỗ không có data.
+
+    Trong Jupyter, env đặt ở lần chạy trước vẫn nằm trong process sau `git pull`.
+    Nếu tin env tuyệt đối thì giá trị cũ đè lên config mới. Phải ưu tiên ứng viên
+    thật sự chứa annotation.
+    """
+    monkeypatch.setenv("LLDMMRI_DATA_ROOT", str(tmp_path / "stale_nonexistent"))
+    real = _make_root(tmp_path, "real", with_annotation=True)
+    config = {
+        "data_root_candidates": [str(real)],
+        "annotation_rel": ANNOTATION_REL,
+    }
+    assert resolve_data_root(config) == real
+
+
+def test_env_used_as_last_resort_with_warning(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture
+):
+    """Env không xác minh được VÀ không ứng viên nào khớp -> vẫn dùng env, có cảnh báo."""
+    monkeypatch.setenv("LLDMMRI_DATA_ROOT", str(tmp_path / "only_option"))
+    config = {
+        "data_root_candidates": [str(tmp_path / "nope")],
+        "annotation_rel": ANNOTATION_REL,
+    }
+    assert resolve_data_root(config) == tmp_path / "only_option"
+    assert "CẢNH BÁO" in capsys.readouterr().out
 
 
 def test_picks_candidate_that_has_annotation(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):

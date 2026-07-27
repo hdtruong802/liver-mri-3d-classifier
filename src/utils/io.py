@@ -36,30 +36,47 @@ def read_id_class_file(path: str | Path) -> list[tuple[str, int]]:
 
 
 def resolve_data_root(config: dict[str, Any]) -> Path:
-    """Lấy data_root: ưu tiên env LLDMMRI_DATA_ROOT, sau đó config['data_root'].
+    """Tìm thư mục gốc dữ liệu, ưu tiên env rồi tới các ứng viên trong config.
 
-    Không hardcode `/kaggle/...` trong code — mọi path ghi qua đây (AGENTS.md §7).
+    Không hardcode `/kaggle/...` trong code — mọi path đi qua đây (AGENTS.md §7).
 
-    Thứ tự ưu tiên:
-    1. env ``LLDMMRI_DATA_ROOT`` (dùng nguyên, không kiểm tra — người dùng chủ động);
-    2. các ứng viên trong ``config['data_root_candidates']``, **chỉ nhận cái thật sự
-       chứa file annotation** — vì Kaggle đổi sơ đồ mount tuỳ lúc
-       (`/kaggle/input/<slug>` vs `/kaggle/input/datasets/<owner>/<slug>`);
-    3. ``config['data_root']`` (mặc định cho máy local).
+    Thứ tự:
+    1. env ``LLDMMRI_DATA_ROOT`` **nếu nó thật sự chứa annotation**;
+    2. các ứng viên trong ``config['data_root_candidates']`` (cũng phải chứa annotation)
+       — Kaggle đổi sơ đồ mount tuỳ lúc: `/kaggle/input/<slug>` vs
+       `/kaggle/input/datasets/<owner>/<slug>`;
+    3. env dù không xác minh được (tôn trọng ý định người dùng, có cảnh báo);
+    4. ``config['data_root']`` (mặc định máy local).
 
-    Bước 2 xác minh bằng sự tồn tại của annotation chứ không chỉ `is_dir()` — một
-    thư mục rỗng tồn tại vẫn khiến mọi bước sau **thất bại âm thầm** (WORKLOG S-025).
+    **Xác minh bằng sự tồn tại của annotation, không phải `is_dir()`** — thư mục rỗng
+    vẫn tồn tại và khiến mọi bước sau thất bại âm thầm (WORKLOG S-025).
+
+    Env cũng bị xác minh vì một lý do rất thực tế (WORKLOG S-027): env đặt ở lần chạy
+    trước **còn sót trong process Jupyter** sau khi `git pull`; nếu env được tin tuyệt
+    đối thì giá trị cũ sẽ đè lên config mới và ta lại đi vào đúng cái bẫy vừa sửa.
     """
+    annotation_rel = config.get("annotation_rel", "")
+
+    def has_annotation(root: str | Path) -> bool:
+        return bool(annotation_rel) and (Path(root) / annotation_rel).exists()
+
     env_root = os.environ.get("LLDMMRI_DATA_ROOT")
-    if env_root:
+    if env_root and has_annotation(env_root):
         return Path(env_root)
 
-    annotation_rel = config.get("annotation_rel", "")
     tried: list[str] = []
     for candidate in config.get("data_root_candidates") or []:
         tried.append(str(candidate))
-        if annotation_rel and (Path(candidate) / annotation_rel).exists():
+        if has_annotation(candidate):
             return Path(candidate)
+
+    if env_root:
+        print(
+            f"CẢNH BÁO: LLDMMRI_DATA_ROOT={env_root!r} không chứa {annotation_rel!r} "
+            "và không ứng viên nào khớp. Nếu đang chạy trong Jupyter, đây có thể là "
+            "env sót lại từ lần chạy trước — hãy Restart kernel."
+        )
+        return Path(env_root)
 
     root = config.get("data_root")
     if not root:

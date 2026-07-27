@@ -1,5 +1,7 @@
 # Cấu hình dữ liệu LLD-MMRI. KHÔNG hardcode path trong code (AGENTS.md §7).
-# Ghi đè data_root bằng env LLDMMRI_DATA_ROOT (vd Kaggle: /kaggle/input/lldmmridataset).
+# Đường dẫn Kaggle khai ở data_root_candidates bên dưới — thêm vào đó khi mount đổi
+# chỗ, đừng sửa rải rác trong code/notebook. Env LLDMMRI_DATA_ROOT ghi đè được, nhưng
+# cũng bị xác minh (env sót từ lần chạy trước là bẫy có thật — WORKLOG S-027).
 
 data_root: data/lldmmridataset          # mặc định cho máy local (thư mục chứa lld/)
 

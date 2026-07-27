@@ -1046,3 +1046,31 @@ Kết quả EDA thật người dùng chạy — **phân bố lớp khớp offic
 **Điểm vào phiên sau:** Trên Kaggle: `!cd /kaggle/working/repo && git pull` → Restart & Run All. Cell bootstrap giờ in `data root` đã dò được + trạng thái tồn tại của annotation/images; nếu vẫn sai sẽ in hướng dẫn `!ls /kaggle/input`.
 
 **Cảnh báo cho tool sau:** Đường dẫn Kaggle nằm ở `configs/data.yaml: data_root_candidates`, **không hardcode trong code hay notebook**. Mount chỗ mới thì thêm vào list đó (commit là xong) thay vì sửa rải rác.
+
+
+## S-027 · 2026-07-24 20:30 · claude-code
+
+**Mục tiêu phiên:** Sửa việc `resolve_data_root` vẫn trả path sai dù config đã có path đúng.
+
+**Nhánh / commit:** `main` · `fc9a4eb` → *(commit đang chờ)*
+
+**Đã đụng file:**
+- `src/utils/io.py` — `resolve_data_root`: **env cũng bị xác minh**. Thứ tự mới: env-hợp-lệ → ứng viên-hợp-lệ → env-không-xác-minh-được (kèm cảnh báo) → `data_root`.
+- `notebooks/01_eda.ipynb` — bootstrap `os.environ.pop("LLDMMRI_DATA_ROOT", None)` trước khi resolve.
+- `configs/data.yaml` — sửa comment đầu file còn trỏ path cũ.
+- `tests/test_io.py` — tách/thêm 3 test: env hợp lệ thắng ứng viên; **env sót thua ứng viên hợp lệ**; env dùng làm phương án cuối kèm cảnh báo.
+
+**Quyết định & lý do:**
+- **Nguyên nhân:** config đã đúng (path Kaggle mới là ứng viên đầu tiên), nhưng notebook CŨ có `os.environ.setdefault("LLDMMRI_DATA_ROOT", "/kaggle/input/lldmmridataset")`. Trong Jupyter, env đó **còn nguyên trong process** sau khi `git pull` — và S-026 cho env quyền tuyệt đối không kiểm tra ⇒ giá trị cũ đè lên config mới.
+- Sửa: env cũng phải chứa annotation mới được nhận. Nếu env không xác minh được nhưng cũng không ứng viên nào khớp thì vẫn dùng env **kèm cảnh báo gợi ý Restart kernel** — không fail cứng, vì trong notebook thất bại cứng khó chịu hơn là tự chữa có cảnh báo.
+- Đây là **lần thứ ba liên tiếp** cùng một loại lỗi: trạng thái tồn tại nhưng rỗng/sai được tin tưởng mà không xác minh (S-025 thư mục/đuôi file, S-026 thư mục rỗng, S-027 env sót). Nguyên tắc rút ra: **xác minh bằng nội dung thật (annotation tồn tại), không bằng sự tồn tại của biến/thư mục.**
+
+**Kết quả / số liệu:** `pytest` **58 passed** (56 → 58). ruff sạch. Mô phỏng đúng tình huống người dùng (env sót trỏ path cũ + path đúng trong ứng viên) → resolve ra path đúng.
+
+**Dang dở:**
+- [ ] **Gate geometry vẫn chưa có kết quả thật** (ba phiên liên tiếp bị chặn bởi lỗi hạ tầng, không phải vấn đề khoa học).
+- [ ] T2.2 chốt tham số tiền xử lý.
+
+**Điểm vào phiên sau:** Kaggle: `!cd /kaggle/working/repo && git pull` → **Restart & Run All** (restart quan trọng). Bootstrap giờ tự dọn env sót nên chạy lại cell cũng được.
+
+**Cảnh báo cho tool sau:** Trong Jupyter, `os.environ` **sống dai hơn code** — `git pull` không dọn nó. Đừng dùng `setdefault` cho env đường dẫn trong notebook; và luôn xác minh path bằng file thật bên trong.
