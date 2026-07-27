@@ -1534,3 +1534,68 @@ Checkpoint cũ được ghi **trước** khi trường `model_fingerprint` tồn
 - `/kaggle/working` **sống xuyên suốt một session**, không phải chạy lại là sạch. Mọi thứ ghi ra đó phải giả định có sẵn bản cũ.
 - Thư mục run đời cũ tên `fold1/` (không hash) là của bản BatchNorm S-036. Đừng đọc nhầm số trong đó thành số của bản InstanceNorm.
 
+
+
+## S-039 · 2026-07-27 17:30 · claude-code
+
+**Mục tiêu phiên:** Người dùng báo bản InstanceNorm không học. Xác định nguyên nhân và ngừng đoán.
+
+**Nhánh / commit:** `main` · `6c5fb3a` → *(commit đang chờ)*
+
+### Kết quả chạy thật — InstanceNorm SẬP
+
+```
+epoch 1/60 | train 1.9496 | val 1.9237 | macro-F1 0.0668 | 25s
+epoch 2/60 | train 1.9490 | val 1.9132 | macro-F1 0.0668 | 25s
+epoch 3/60 | train 1.9278 | val 1.9121 | macro-F1 0.0668 | 24s
+epoch 4/60 | train 1.9291 | val 1.9150 | macro-F1 0.0668 | 24s
+```
+macro-F1 **y hệt** qua 4 epoch = đoán đúng một lớp cho toàn bộ 82 ca val. train loss ≈ 1.94 = **ln 7** = mức ngẫu nhiên.
+
+So sánh cùng mốc, bản BatchNorm (S-036): 0.099 → 0.115 → 0.183 → 0.205. Rõ ràng đang học.
+
+| norm | macro-F1 val | ghi chú |
+|---|---|---|
+| batch | **0.2725** @ epoch 11 | chạy thật, fold 1 seed 1337 |
+| instance + affine | 0.0668 đứng yên | SẬP |
+| group | chưa có số | |
+
+### Nguyên nhân: InstanceNorm ngay trước global average pooling
+
+Đuôi DenseNet là `norm5 → relu → AdaptiveAvgPool(1) → linear`. `InstanceNorm3d` chuẩn hoá **từng kênh, từng mẫu** trên toàn bộ chiều không gian ⇒ mean mỗi kênh bị ép về 0. Global average pooling ngay sau đó lấy đúng đại lượng đó làm đặc trưng phân loại.
+
+nnU-Net dùng InstanceNorm thành công vì nó làm **segmentation** — không có global pooling. Tôi đã bê lập luận từ segmentation sang classification mà không kiểm chỗ khác biệt. GroupNorm không dính lỗi này (chuẩn hoá theo *nhóm* kênh, mean từng kênh trong nhóm vẫn khác nhau và sống sót qua pooling) — đó cũng là lý do GroupNorm mới là khuyến nghị chuẩn cho classification batch nhỏ.
+
+### Và chẩn đoán BatchNorm ở S-036 có thể đã sai
+
+Val loss tăng ở bản BN có thể chỉ là overfit thường gặp của 11M tham số trên 312 mẫu, không phải bệnh lý BatchNorm. Không có bằng chứng nào cho thấy BN là vấn đề; bằng chứng có được lại cho thấy BN là phương án tốt nhất đang có.
+
+### Sửa: ngừng đoán, đo trước khi tốn GPU
+
+- `src/train/sanity.py` — MỚI. `overfit_check()` nhồi 8 mẫu (trải nhiều lớp) vào model vài chục bước: model lành mạnh phải **thuộc lòng** (loss → ~0, acc → 1.0). `verdict()` đọc kết quả thành HỌC ĐƯỢC / CHẬM / SẬP, so với mốc `ln(num_classes)`. `pick_diverse_subset()` bảo đảm tập con trải nhiều lớp — lấy 8 mẫu đầu danh sách có thể trúng toàn một lớp và chứng minh sai.
+- `notebooks/03_train_baseline.ipynb` — mục **1b** mới: chạy phép thử cho **cả ba** phương án norm (~30 giây/phương án) và in bảng so sánh. Cổng chặn: nếu `norm` trong config bị xếp SẬP thì **từ chối chạy train**. Cell KHÔNG tự sửa config — config vẫn là nguồn sự thật duy nhất (AGENTS.md §8).
+- `configs/baseline_3dpatch.yaml` — trả `norm` về **`batch`**: lựa chọn duy nhất có số thật.
+- `src/models/densenet3d.py` — `DEFAULT_NORM = "batch"`; docstring ghi lại cả ba phương án kèm bằng chứng của từng cái.
+- `tests/test_models.py` — bỏ luật "BN phải có batch ≥ 8" (nó mã hoá một giả thuyết chưa được chứng minh thành ràng buộc cứng); thay bằng: `norm` phải khai báo tường minh, và instance/group phải có affine=True.
+- `tests/test_sanity.py` — MỚI, 10 test.
+- Cell smoke test giờ đối chiếu **loại norm thật sự được dựng** với thứ config nói (bắt lỗi chính tả rơi về mặc định của MONAI).
+
+**Quyết định & lý do:**
+- **Config theo bằng chứng, không theo lý thuyết.** Hai lần liên tiếp tôi đổi kiến trúc dựa trên lập luận nghe hợp lý và cả hai lần đều tệ hơn. `batch` giữ nguyên cho tới khi bảng 1b nói khác.
+- **Phép thử overfit là cổng chặn thường trực, không phải công cụ debug một lần.** Nó phân biệt "bài toán khó" với "pipeline hỏng" trong 30 giây — đúng thứ đáng ra phải có trước khi đổi `norm` lần đầu.
+- Không tự sửa config trong notebook dù biết phương án nào thắng: số báo cáo phải tái lập từ config đã commit.
+
+**Kết quả / số liệu:** `pytest` **145 passed, 8 skipped** (134 → 153 test). ruff sạch.
+
+**Dang dở:**
+- [ ] Chạy mục 0 → 1b trên Kaggle (~3 phút) lấy bảng so sánh 3 norm. **Chưa chạy train.**
+- [ ] Sau khi có bảng: chốt `norm` trong config, rồi chạy train một lần.
+- [ ] Nghi vấn còn treo, chưa đụng: 312 mẫu với effective batch 16 = ~20 lần cập nhật trọng số mỗi epoch.
+
+**Điểm vào phiên sau:** Kaggle notebook 03 → Restart & Run, **dừng sau mục 1b**, gửi bảng. Đừng chạy cell train trước khi có bảng đó.
+
+**Cảnh báo cho tool sau:**
+- **Đừng bê lập luận từ segmentation sang classification.** InstanceNorm hợp với nnU-Net vì nnU-Net không có global average pooling; DenseNet thì có. Sự khác biệt đó tốn một run 20 phút.
+- macro-F1 **đứng yên tuyệt đối** qua nhiều epoch = model đoán một lớp duy nhất, không phải "học chậm". Kèm train loss ≈ ln(số lớp) thì chắc chắn.
+- Mốc so sánh hợp lệ hiện tại vẫn là **0.2725 (BatchNorm)**.
+

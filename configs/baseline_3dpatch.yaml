@@ -20,11 +20,15 @@ model:
   in_channels: 8              # 8 pha ghép kênh = early-concat v0
   num_classes: 7
   dropout_prob: 0.2
-  # instance, KHÔNG phải batch: batch_size=2 (ràng buộc VRAM) làm BatchNorm ước
-  # lượng thống kê quá nhiễu -> val loss phân kỳ dù train chưa fit (WORKLOG S-036).
-  # affine PHẢI bật: nn.InstanceNorm3d mặc định affine=False, bỏ mất scale/shift
-  # học được ở MỌI lớp norm (đã đọc source MONAI 1.3.2 để xác nhận).
-  norm: ["instance", {affine: true}]
+  # Bằng chứng đã có, KHÔNG phải phỏng đoán (WORKLOG S-036 → S-039):
+  #   batch            -> macro-F1 val 0.2725 @ epoch 11   (chạy thật, fold 1)
+  #   instance+affine  -> SẬP: đoán 1 lớp, macro-F1 0.0668 đứng yên, loss = ln 7
+  #   group            -> chưa có số
+  # InstanceNorm sập vì đuôi DenseNet là norm5 -> relu -> global average pooling:
+  # IN ép mean từng kênh của từng mẫu về 0, mà pooling lại đọc đúng cái mean đó.
+  # Giữ `batch` vì đây là lựa chọn duy nhất có số thật. Mục 1b của notebook 03 đo
+  # cả ba trong ~90 giây; đổi dòng này khi bảng đó cho bằng chứng ngược lại.
+  norm: batch
 
 data:
   # VRAM ~16GB với khối [8,96,96,48]: batch nhỏ + tích luỹ gradient (AGENTS.md §7).

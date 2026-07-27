@@ -19,11 +19,15 @@ from typing import Any
 IN_CHANNELS = 8  # 8 pha MRI, thứ tự theo configs/data.yaml
 SPATIAL_DIMS = 3
 
-# Mặc định của dự án. KHÔNG dùng chuỗi trần "instance": MONAI gọi
-# `nn.InstanceNorm3d(num_features=C)` và PyTorch mặc định `affine=False`, nghĩa là
-# mọi lớp norm mất scale/shift học được — DenseNet vốn dựa vào tham số affine của BN.
-# nnU-Net cũng dùng InstanceNorm với affine=True vì lý do này.
-DEFAULT_NORM: tuple[str, dict[str, Any]] = ("instance", {"affine": True})
+# Mặc định của dự án — hiện là "batch" vì đó là lựa chọn DUY NHẤT có số thật
+# (macro-F1 val 0.2725, WORKLOG S-036). InstanceNorm đã được thử và **sập**: đuôi
+# DenseNet là norm5 -> relu -> global average pooling, mà InstanceNorm ép mean từng
+# kênh của từng mẫu về 0 đúng cái mean pooling sẽ đọc (S-039).
+#
+# Nếu đổi sang "instance"/"group", PHẢI viết dạng tuple kèm affine=True: MONAI gọi
+# `nn.InstanceNorm3d(num_features=C)` còn PyTorch mặc định `affine=False`, bỏ mất
+# scale/shift học được ở mọi lớp norm.
+DEFAULT_NORM: str | tuple[str, dict[str, Any]] = "batch"
 
 
 def normalize_norm_spec(norm: str | Sequence[Any]) -> str | tuple[str, dict[str, Any]]:
@@ -48,13 +52,18 @@ def build_densenet3d(
 ) -> Any:
     """Dựng DenseNet121-3D nhận ``[B, in_channels, X, Y, Z]`` → logits ``[B, num_classes]``.
 
-    ``norm`` mặc định là **instance (affine=True)**, không phải batch, và đây là lựa
-    chọn có chủ ý. Khối 3D ``[8, 96, 96, 48]`` buộc batch phải nhỏ (2–4) vì VRAM;
-    BatchNorm với batch 2 mẫu ước lượng thống kê cực nhiễu, nên running stats dùng lúc
-    eval lệch hẳn so với thống kê batch dùng lúc train. Triệu chứng đã quan sát được ở
-    lần chạy đầu (WORKLOG S-036): train loss giảm bình thường trong khi **val loss tăng
-    30%**, dù model còn chưa fit nổi tập train. InstanceNorm không phụ thuộc kích thước
-    batch — cùng lý do nnU-Net và phần lớn pipeline 3D y tế dùng nó.
+    Về lựa chọn ``norm``, đây là chỗ đã sai hai lần nên ghi lại cho rõ:
+
+    - ``batch`` — số thật duy nhất đang có (macro-F1 val 0.2725). Điểm yếu trên lý
+      thuyết: batch 2 mẫu (ràng buộc VRAM của khối 3D) làm running stats rất nhiễu.
+    - ``instance`` — nghe hợp lý vì nnU-Net dùng nó, nhưng **sập** ở bài toán này:
+      nnU-Net làm segmentation, không có global average pooling. DenseNet thì có, và
+      InstanceNorm ép mean từng kênh của từng mẫu về 0 — đúng đại lượng mà pooling
+      đọc ra làm đặc trưng phân loại (WORKLOG S-039).
+    - ``group`` — không có nhược điểm đó (chuẩn hoá theo *nhóm* kênh nên mean từng
+      kênh vẫn khác nhau), nhưng **chưa có số**.
+
+    Đo bằng mục 1b của notebook 03 (~30 giây/phương án) thay vì suy luận tiếp.
     """
     from monai.networks.nets import DenseNet121
 

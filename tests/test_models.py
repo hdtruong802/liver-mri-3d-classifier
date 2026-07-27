@@ -9,13 +9,13 @@ from src.models import build_model
 from src.models.densenet3d import DEFAULT_NORM, normalize_norm_spec
 
 
-def test_default_norm_is_instance_with_affine():
-    """nn.InstanceNorm3d mặc định affine=False — mất scale/shift ở MỌI lớp norm.
+def test_default_norm_is_the_one_with_evidence():
+    """Mặc định phải là phương án có số thật, không phải phương án nghe hợp lý.
 
-    Đã đọc source MONAI 1.3.2 để xác nhận: `get_norm_layer("instance")` gọi
-    `nn.InstanceNorm3d(num_features=C)` không kèm affine.
+    `instance` từng là mặc định và **sập** (macro-F1 0.0668 đứng yên, WORKLOG S-039);
+    `batch` là lựa chọn duy nhất đã cho macro-F1 val 0.2725.
     """
-    assert DEFAULT_NORM == ("instance", {"affine": True})
+    assert DEFAULT_NORM == "batch"
 
 
 def test_norm_spec_from_yaml_list_becomes_tuple():
@@ -63,17 +63,17 @@ def test_config_yaml_matches_model_contract():
     assert config["model"]["in_channels"] == IN_CHANNELS
     assert 1 <= config["fold"] <= 5
 
-    # BatchNorm với batch nhỏ làm val loss phân kỳ (WORKLOG S-036). Nếu ai đó đổi
-    # norm về "batch" thì phải đồng thời nâng batch_size lên mức BN dùng được.
-    norm = normalize_norm_spec(config["model"].get("norm", "batch"))
-    if norm == "batch":
-        assert config["data"]["batch_size"] >= 8, (
-            "BatchNorm cần batch >= 8; với khối 3D thì dùng norm: instance"
-        )
-    else:
+    # `norm` phải được khai báo tường minh — mặc định của MONAI là "batch" và một
+    # lựa chọn ngầm ở đây từng tốn hai run GPU để phát hiện (WORKLOG S-036, S-039).
+    assert "norm" in config["model"], "khai báo norm tường minh, đừng dựa vào mặc định"
+
+    # Với instance/group thì affine PHẢI bật: nn.InstanceNorm3d và nn.GroupNorm đều
+    # có thể chạy affine=False, và khi đó mọi lớp norm mất scale/shift học được.
+    norm = normalize_norm_spec(config["model"]["norm"])
+    if not isinstance(norm, str):
         name, args = norm
-        assert name == "instance"
-        assert args.get("affine") is True, "InstanceNorm không affine = mất scale/shift học được"
+        assert name in {"instance", "group"}
+        assert args.get("affine") is True, f"{name} không affine = mất scale/shift học được"
     # Batch hiệu dụng phải nằm trong 16–32 theo ràng buộc Kaggle (AGENTS.md §7).
     effective = config["data"]["batch_size"] * config["train"]["accum_steps"]
     assert 16 <= effective <= 32
