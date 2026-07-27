@@ -1,0 +1,42 @@
+# Tiền xử lý LLD-MMRI: resample 8 pha lên MỘT lưới mm chung quanh tổn thương.
+# Mọi hyperparam ở đây, code chỉ đọc (AGENTS.md §8). Chạy một lần rồi cache
+# thành Kaggle Dataset có version (AGENTS.md §7).
+#
+# Ghi lại sau khi build (để tái lập):
+#   kaggle_dataset_slug:  <điền>
+#   kaggle_dataset_version: <điền>
+
+# --- Thứ tự trục: bbox.x ứng với trục 0 ('xy') hay trục 1 ('yx') của mảng ---
+# KHÔNG đoán. Chạy `scripts/kaggle_geometry_report.py` mục 4 để có phán quyết,
+# rồi điền vào đây. Để trống -> build_cache DỪNG.
+axis_order:
+
+# --- Pha tham chiếu: định hướng + tâm của lưới đích ---
+# Portal-venous theo Spec Sheet §2 (pha có độ tương phản gan-tổn thương tốt nhất).
+reference_phase: "C+V"
+
+# --- Lưới đích (không gian mm) ---
+# 96×96×48 @1.5×1.5×3.0mm = 144×144×144mm. EDA: lesion p95 = 97.6×98.5×78.0mm
+# -> đủ phủ p95 kèm margin. ~5% ca lớn nhất (max 179.7mm) bị cắt cụt rìa; tâm vẫn
+# đúng. Ghi vào limitations của báo cáo.
+target_spacing: [1.5, 1.5, 3.0]
+target_size: [96, 96, 48]
+interpolator: linear          # linear | nearest | bspline
+
+# --- Chuẩn hoá cường độ ---
+# MRI không có đơn vị chuẩn như HU của CT -> phải chuẩn hoá theo từng chuỗi.
+# scope=volume: tính thống kê trên TOÀN volume gốc (trước khi crop) để giữ tương
+# phản tổn thương-so-với-gan; scope=crop thì chỉ dùng vùng đã cắt.
+# LƯU Ý LEAKAGE: thống kê lấy từ chính volume của bệnh nhân đó (per-sample), KHÔNG
+# gộp qua nhiều bệnh nhân -> không vi phạm AGENTS.md §3.3.
+normalize:
+  clip_percentile: [0.5, 99.5]
+  scope: volume               # volume | crop
+
+# --- N4 bias field correction ---
+# Rất chậm (vài phút/volume × 3984 volume). Kill-switch đã chốt: off ở v0.
+n4: false
+
+# --- Đầu ra ---
+output_dtype: float16         # 498 ca × [8,96,96,48] ≈ 3.5GB
+cache_dir: artifacts/cache    # ghi đè bằng env LLDMMRI_CACHE_DIR (Kaggle: /kaggle/working/cache)

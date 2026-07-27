@@ -1142,3 +1142,37 @@ axis order: ambiguous
 **Điểm vào phiên sau:** Trên Kaggle chạy `!cd /kaggle/working/repo && python scripts/kaggle_geometry_report.py --limit 0`, lấy toàn bộ output để chốt T2.2 rồi sang W2 ngày 3 (`build_cache`).
 
 **Cảnh báo cho tool sau:** 8 pha **không cùng lưới** (số slice và spacing khác nhau trong cùng bệnh nhân) — mọi code giả định 8 pha stack thẳng được là SAI. Nhóm In/Out Phase thay đổi theo ca, không hardcode.
+
+
+## S-030 · 2026-07-27 11:30 · claude-code
+
+**Mục tiêu phiên:** Dọn code đã bị thay thế, rồi dựng pipeline tiền xử lý để dữ liệu sẵn sàng train.
+
+**Nhánh / commit:** `main` · `ccf6f9a` → *(commit đang chờ)*
+
+**Đã đụng file:**
+- `src/data/geometry_gate.py` — xoá `disambiguate_axis_order` + `AxisOrderEvidence` (86 dòng code chết: 0/3984 ảnh không vuông nên không bao giờ kết luận được). Giữ nguyên phần lõi đã chạy PASS 3984/3984.
+- `src/data/dataset.py` — **viết lại hoàn toàn** thành `CachedLesionDataset` + `build_fold_datasets` + `build_test_dataset`. Bản cũ `np.stack` 8 volume thô, sẽ crash vì 8 pha khác shape.
+- `src/preprocess/{geometry,grid,resample,normalize,build_cache}.py` — TẠO.
+- `configs/preprocess.yaml` — TẠO; `axis_order` **để trống có chủ ý** (cổng chặn).
+- `notebooks/02_build_cache.ipynb` — TẠO: phán quyết trục → xác nhận bằng mắt → thử 3 ca → build 498 ca → kiểm cache → đẩy Kaggle Dataset.
+- `tests/{test_preprocess_geometry,test_preprocess_pipeline,test_dataset}.py` — TẠO (+27 test).
+- `scripts/kaggle_geometry_report.py` mục 4, `AGENTS.md` §6, `docs/W2_plan.md` T3.2 — cập nhật theo.
+
+**Quyết định & lý do:**
+- **Crop trong không gian mm, không phải voxel.** 8 pha khác lưới voxel (pha động 512²×88 @0.78/2.6mm, T2WI 512²×24 @9mm, DWI 256²×24) nên bbox voxel của pha này vô nghĩa với pha kia. Nhưng cả 8 chung hệ toạ độ bệnh nhân DICOM. Cách làm: tâm bbox → mm → dựng **một lưới đích** 96×96×48 @1.5×1.5×3.0mm quanh tâm → `sitk.Resample` Identity transform cho cả 8 pha. **Đây đồng thời là bước căn chỉnh** ⇒ không cần registration riêng ở v0 (đã chốt với người dùng); rigid là ablation W3.
+- **Phán quyết thứ tự trục bằng độ hội tụ toạ độ thế giới.** Annotation có bbox riêng cho từng pha; cùng tổn thương vật lý ⇒ 8 tâm phải hội tụ. Cách hiểu sai làm tán ra. Hơn hẳn nhìn mắt và heuristic cường độ.
+- **Chỉ tính phiếu từ ca có sức phân biệt thật** (`DECISIVE_MARGIN_MM=5.0`). Đo trên dữ liệu thật: sức phân biệt đến từ `origin_x - origin_y`, trung vị chỉ ~7mm và **200/498 ca dưới 5mm**. Gộp hết vào chỉ thêm nhiễu.
+- **`build_cache` TỪ CHỐI chạy khi `axis_order` trống** — thà dừng còn hơn crop sai trục rồi mọi kết quả sau đều vô nghĩa.
+- **Chuẩn hoá per-sample** (thống kê từ chính volume của bệnh nhân đó), `scope=volume` để giữ tương phản tổn thương-so-với-nhu-mô. Không gộp thống kê xuyên bệnh nhân ⇒ không vi phạm AGENTS.md §3.3.
+- **Test chống leakage cố ý KHÔNG phụ thuộc torch** — thứ quan trọng nhất phải luôn chạy được, kể cả máy chưa cài deep-learning stack.
+
+**Kết quả / số liệu:** `pytest` **87 passed, 3 skipped** (67 → 90 test; 3 skip là các test cần torch). `ruff check` + `format` sạch (35 file). Hai bug bắt được khi tự test: (1) `np.savez_compressed` tự nối `.npz` khiến ghi nguyên tử hỏng; (2) fixture nền phẳng làm p0.5 == p99.5 — code xử lý đúng (trả 0 thay vì NaN) nhưng test thì vô nghĩa, đã sửa fixture cho có nhiễu như MRI thật.
+
+**Dang dở:**
+- [ ] **Chạy `notebooks/02_build_cache.ipynb` trên Kaggle**: lấy phán quyết trục → điền `axis_order` vào `configs/preprocess.yaml` → push → build 498 ca → đẩy Kaggle Dataset.
+- [ ] Ghi slug + version của Kaggle Dataset vào config + WORKLOG.
+
+**Điểm vào phiên sau:** Sau khi có cache: W2 ngày 5 — baseline DenseNet121-3D đọc `CachedLesionDataset`, checkpoint/resume mỗi epoch.
+
+**Cảnh báo cho tool sau:** `configs/preprocess.yaml: axis_order` để trống là **có chủ ý**, không phải quên — phải chạy phán quyết rồi điền. Nếu phán quyết ra `inconclusive` thì **DỪNG**, xác nhận bằng overlay (mục 2 của notebook), đừng chọn bừa.

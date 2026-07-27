@@ -169,12 +169,13 @@ Pin version trong `requirements.txt` (train) và `webapp/backend/requirements.tx
 | Cài môi trường train | `pip install -r requirements.txt` | sẵn sàng (W2 ngày 1) |
 | Validate split official (đã khoá, không sinh) | `python -c "from src.data.splits import Splits; Splits('splits').validate()"` | sẵn sàng (W2 ngày 1) |
 | Sinh manifest bệnh nhân | `python -m src.data.build_manifest --config configs/data.yaml` | sẵn sàng (W2 ngày 1), cần `LLDMMRI_DATA_ROOT` trỏ tới data thật |
-| Tiền xử lý (chạy 1 lần, cache) | `python -m src.preprocess.build_cache --config configs/preprocess.yaml` | chưa có |
+| Báo cáo geometry + **phán quyết thứ tự trục** | `python scripts/kaggle_geometry_report.py --limit 0` | sẵn sàng (W2 ngày 2) |
+| Tiền xử lý (chạy 1 lần, cache) | `python -m src.preprocess.build_cache --config configs/preprocess.yaml` | sẵn sàng (W2 ngày 3); **cần điền `axis_order` trong config trước** |
 | Train | `python -m src.train.run --config configs/<name>.yaml` | chưa có |
 | Đánh giá | `python -m src.eval.run --ckpt <path> --split val` | chưa có |
 | Test (chạm 1 lần!) | `python -m src.eval.run --ckpt <path> --split test --i-know-this-is-final` | chưa có |
 | Chạy web app | `uvicorn webapp.backend.main:app --reload` | chưa có |
-| Test | `pytest -q` | sẵn sàng (27 test, W2 ngày 1) |
+| Test | `pytest -q` | sẵn sàng (90 test; 3 test cần torch sẽ tự skip nếu chưa cài) |
 | Lint | `ruff check src tests` · `ruff format src tests` | sẵn sàng (W2 ngày 1) |
 
 ---

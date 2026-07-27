@@ -31,8 +31,9 @@ from src.data.eda import (  # noqa: E402
     missing_phase_report,
     recommend_crop_size,
 )
-from src.data.geometry_gate import disambiguate_axis_order, run_gate  # noqa: E402
+from src.data.geometry_gate import run_gate  # noqa: E402
 from src.data.images import scan_image_index  # noqa: E402
+from src.preprocess.geometry import resolve_axis_order  # noqa: E402
 from src.utils.io import load_yaml, resolve_data_root  # noqa: E402
 
 
@@ -86,8 +87,8 @@ def main() -> None:
     gate = run_gate(scan_pids, ann, index, phases)
     print(gate.summary().split("\n\n")[0])  # chỉ dòng tổng kết, không liệt kê từng dòng
 
-    _header("4. THỨ TỰ TRỤC (dựa trên ảnh KHÔNG vuông)")
-    print(disambiguate_axis_order(scan_pids, ann, index, phases).summary())
+    _header("4. THỨ TỰ TRỤC (độ hội tụ tâm tổn thương giữa các pha, toạ độ mm)")
+    print(resolve_axis_order(scan_pids, ann, index, phases).summary())
 
     _header(f"5. LƯỚI TỪNG PHA ({len(scan_pids)} bệnh nhân)")
     print("Số slice/pha khác nhau ⇒ phải resample về grid chung trước khi fusion.")

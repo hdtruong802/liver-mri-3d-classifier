@@ -99,7 +99,8 @@ Dataset `marcohoang/lldmmridataset` (Kaggle, private, ~83.7GB, v1) = **bản raw
 
 **T3.2 — Pipeline build_cache**
 - *File:* `src/preprocess/build_cache.py`, `src/preprocess/transforms.py`, `src/preprocess/bbox3d.py` (gộp `bbox.2D_box` theo `slice_idx` → 1 ROI 3D). MONAI: resample ~1.5×1.5×3.0mm → **ROI-crop 96×96×48 từ full-volume quanh ROI 3D** → per-sequence z-score / percentile clip. **N4 tuỳ chọn** (chậm — mặc định off ở v0, bật qua config).
-- *Phụ thuộc:* T3.1, gate geometry T2.1. **Không có patch cắt sẵn** trong bản wanglab → crop từ full-volume bằng bbox (khác giả định Plan §3). **Registration vẫn hoãn W3** (pass đầu coi các pha như đã căn thô; ghi rõ trong docstring).
+- *Phụ thuộc:* T3.1, gate geometry T2.1. **Không có patch cắt sẵn** trong bản wanglab → crop từ full-volume bằng bbox (khác giả định Plan §3).
+- **Cập nhật khi triển khai (S-030):** 8 pha KHÔNG cùng lưới voxel nên không thể "resample rồi crop theo voxel". Cách làm thực tế: đổi tâm bbox sang **toạ độ mm**, dựng **một lưới đích chung** quanh tâm đó, rồi lấy mẫu cả 8 pha lên lưới ấy (`sitk.Resample` với Identity transform trong không gian thế giới). **Đây đồng thời là bước căn chỉnh** — rigid registration riêng vẫn hoãn sang W3 làm ablation bù nhịp thở.
 - *DoD + verify:* `python -m src.preprocess.build_cache --config configs/preprocess.yaml` chạy hết 498 ca, sinh cache (một file/ca hoặc tensor gộp); log CSV tiến độ; kiểm 3 ca ngẫu nhiên: shape đồng nhất `[8, 96, 96, 48]`, z-score mean≈0/std≈1 per-pha **tính trên train**.
 - *Kaggle:* chạy **offline 1 lần** → đẩy lên làm **Kaggle Dataset có version**; notebook chỉ mount. Path ghi qua config. · *Rủi ro:* N4 quá chậm → **kill-switch: bỏ N4 v0** (đã mặc định off); cache không kịp → giảm còn resample+crop+z-score.
 

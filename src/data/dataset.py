@@ -1,119 +1,118 @@
-"""Dataset reader LLD-MMRI: 8 pha + nhãn 7 lớp + bbox3D cho mỗi bệnh nhân.
+"""Dataset đọc cache đã tiền xử lý — đầu vào trực tiếp cho vòng train.
 
-Tách hai tầng:
-- `load_sample()`: thuần numpy/nibabel, không phụ thuộc torch — dùng được ở
-  EDA/manifest/script kiểm tra nhanh (T1.2 DoD).
-- `LLDMMRIDataset`: wrapper `torch.utils.data.Dataset`, import torch **lười**
-  (trong `__init__`) để module này import được cả khi chưa cài torch.
+Bản trước đọc thẳng 8 volume thô rồi `np.stack`. Cách đó **không dùng được**: 8 pha
+có lưới voxel khác nhau (pha động 512²×88, T2WI 512²×24, DWI 256²×24 — WORKLOG S-029)
+nên `np.stack` sẽ ném lỗi shape. Việc đưa 8 pha về cùng lưới thuộc về
+`src/preprocess/build_cache.py`; module này chỉ đọc kết quả đó.
 
-Chỉ đọc `images/` + annotation JSON. KHÔNG đụng `lld/labels/` (mask segmentation)
-hay `lld/.cache/` — sai bài toán (AGENTS.md §3.9: không làm segmentation).
+Nhãn và danh sách bệnh nhân lấy từ `splits/` đã khoá — không tự sinh (AGENTS.md §3.6).
 """
 
 from __future__ import annotations
 
 from collections.abc import Sequence
-from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
 import numpy as np
 
-from src.data.annotation import Annotation, BBox3D
-from src.data.images import (
-    DEFAULT_IMAGE_SUFFIXES,
-    ImageIndex,
-    phase_paths,
-    scan_image_index,
-)
+from src.data.splits import Splits
 from src.utils.ids import normalize_pid
 
 
-@dataclass(frozen=True)
-class Sample:
-    """Một mẫu: 8 volume pha (chưa resample/crop) + nhãn + bbox3D (pha đầu)."""
+class CachedLesionDataset:
+    """Đọc các patch đã tiền xử lý; trả về dict dùng được cho vòng train.
 
-    patient_id: str
-    phases: list[np.ndarray]  # mỗi phần tử: array 3D thô từ NIfTI, geometry gốc
-    label: int
-    bbox3d: BBox3D
-
-
-def _load_nifti(path: Path) -> np.ndarray:
-    import nibabel as nib
-
-    return np.asarray(nib.load(str(path)).get_fdata())
-
-
-def load_sample(
-    patient_id: str,
-    annotation: Annotation,
-    image_index: ImageIndex,
-    phase_config: list[dict[str, str]],
-) -> Sample:
-    """Nạp 1 bệnh nhân: đọc 8 file NIfTI thô + nhãn + bbox3D (pha đầu tiên).
-
-    `phase_config`: list các dict {"name": <tên annotation>, "file": <token file>},
-    đúng thứ tự `configs/data.yaml: phases`.
-    """
-    tokens = [p["file"] for p in phase_config]
-    paths = phase_paths(image_index, patient_id, tokens)
-    phases = [_load_nifti(p) for p in paths]
-
-    label = annotation.category_of(patient_id)
-    first_phase_name = phase_config[0]["name"]
-    bbox = annotation.bbox3d(patient_id, first_phase_name)
-
-    return Sample(patient_id=patient_id, phases=phases, label=label, bbox3d=bbox)
-
-
-class LLDMMRIDataset:
-    """`torch.utils.data.Dataset` cho LLD-MMRI (import torch lười trong __init__).
-
-    Trả về (theo T1.2 DoD): dict {"phases": tensor[8,...], "label": int,
-    "patient_id": str, "bbox3d": BBox3D}. Resample/crop/z-score thuộc
-    `src/preprocess/` (W2 ngày 3), KHÔNG nằm ở đây — dataset này chỉ đọc thô.
+    Trả về ``{"image": tensor[8, X, Y, Z] float32, "label": int, "patient_id": str}``.
+    `torch` được import **lười** để module vẫn nạp được khi chưa cài deep-learning stack.
     """
 
     def __init__(
         self,
-        patient_ids: list[str],
-        data_root: str | Path,
-        annotation_rel: str,
-        images_rel: str,
-        phase_config: list[dict[str, str]],
-        image_suffixes: str | Sequence[str] = DEFAULT_IMAGE_SUFFIXES,
+        cache_dir: str | Path,
+        samples: Sequence[tuple[str, int]],
         transform: Any | None = None,
     ) -> None:
-        try:
-            import torch  # noqa: F401
-        except ImportError as exc:  # pragma: no cover
-            raise ImportError(
-                "LLDMMRIDataset cần torch. Dùng load_sample() trực tiếp nếu chưa cài."
-            ) from exc
-
-        data_root = Path(data_root)
-        self.patient_ids = patient_ids
-        self.annotation = Annotation(data_root / annotation_rel)
-        self.image_index = scan_image_index(data_root / images_rel, image_suffixes)
-        self.phase_config = phase_config
+        self.cache_dir = Path(cache_dir)
         self.transform = transform
+        self.samples: list[tuple[Path, int, str]] = []
+
+        missing: list[str] = []
+        for patient_id, label in samples:
+            path = self._find_file(patient_id)
+            if path is None:
+                missing.append(patient_id)
+            else:
+                self.samples.append((path, int(label), patient_id))
+
+        if missing:
+            raise FileNotFoundError(
+                f"thiếu {len(missing)}/{len(samples)} file cache trong {self.cache_dir} "
+                f"(vd {missing[:3]}). Chạy `python -m src.preprocess.build_cache` trước."
+            )
+
+    def _find_file(self, patient_id: str) -> Path | None:
+        """Tìm file cache; khớp cả khi ID viết có/không gạch nối."""
+        direct = self.cache_dir / f"{patient_id}.npz"
+        if direct.exists():
+            return direct
+        key = normalize_pid(patient_id)
+        for candidate in self.cache_dir.glob("*.npz"):
+            if normalize_pid(candidate.stem) == key:
+                return candidate
+        return None
 
     def __len__(self) -> int:
-        return len(self.patient_ids)
+        return len(self.samples)
 
-    def __getitem__(self, idx: int) -> dict[str, Any]:
+    def __getitem__(self, index: int) -> dict[str, Any]:
         import torch
 
-        pid = self.patient_ids[idx]
-        sample = load_sample(pid, self.annotation, self.image_index, self.phase_config)
-        phases_np = np.stack(sample.phases, axis=0)  # [8, H, W, D] geometry gốc, có thể lệch nhau
-        item = {
-            "phases": torch.from_numpy(phases_np).float(),
-            "label": sample.label,
-            "patient_id": normalize_pid(pid),
-            "bbox3d": sample.bbox3d,
+        path, label, patient_id = self.samples[index]
+        with np.load(path) as data:
+            image = np.asarray(data["image"], dtype=np.float32)
+
+        item: dict[str, Any] = {
+            "image": torch.from_numpy(image),
+            "label": label,
+            "patient_id": patient_id,
         }
         if self.transform is not None:
             item = self.transform(item)
         return item
+
+
+def build_fold_datasets(
+    cache_dir: str | Path,
+    fold_index: int,
+    splits_dir: str | Path = "splits",
+    train_transform: Any | None = None,
+    val_transform: Any | None = None,
+) -> tuple[CachedLesionDataset, CachedLesionDataset]:
+    """Dựng cặp (train, val) cho một fold của CV chính thức.
+
+    `fold_index` đếm từ 1 (khớp tên file `train_fold1.txt`). Split đã khoá và đã có
+    test chống leakage ở `tests/test_no_leakage.py`.
+    """
+    splits = Splits(splits_dir)
+    if not 1 <= fold_index <= len(splits.folds):
+        raise ValueError(f"fold_index phải trong 1..{len(splits.folds)}, nhận {fold_index}")
+
+    fold = splits.folds[fold_index - 1]
+    return (
+        CachedLesionDataset(cache_dir, fold.train, train_transform),
+        CachedLesionDataset(cache_dir, fold.val, val_transform),
+    )
+
+
+def build_test_dataset(
+    cache_dir: str | Path,
+    splits_dir: str | Path = "splits",
+    transform: Any | None = None,
+) -> CachedLesionDataset:
+    """Dựng dataset cho **test-104 official**.
+
+    ⚠️ Held-out khoá kín, **chạm đúng một lần** sau khi đã khoá protocol/model/threshold.
+    Phải ghi WORKLOG trước khi dùng (AGENTS.md §3.4 và §10).
+    """
+    return CachedLesionDataset(cache_dir, Splits(splits_dir).test, transform)
