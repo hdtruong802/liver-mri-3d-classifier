@@ -1325,3 +1325,45 @@ DataLoader  : train=312 val=82 (=394) · batch (4,8,96,96,48) float32
 - `configs/baseline_3dpatch.yaml` là **baseline**, không phải model chính. Model chính chốt ở W4 sau CV 5-fold + CI. Đừng báo số 1-fold như kết quả cuối (AGENTS.md §3.5).
 - Vòng train chỉ đọc `train_fold*/val_fold*`. Không có đường nào chạm test-104 — giữ nguyên như vậy.
 - `notebooks/notebookf104ced082.ipynb` là bản Kaggle **có output 1.3MB**, cố ý **không commit** (quy ước notebook phải strip output). Số liệu của nó đã được chép vào entry này; xoá file được.
+
+
+## S-035 · 2026-07-27 15:10 · claude-code
+
+**Mục tiêu phiên:** Chạy baseline fold 1 trên Kaggle — thay vào đó sửa ba lỗi nối tiếp nhau ở khâu bootstrap/đường dẫn.
+
+**Nhánh / commit:** `main` · `7e0b4cf` → `e0c312f` (3 commit)
+
+**Ba lỗi, theo thứ tự vấp phải:**
+
+1. **`7086af3` — thông báo lỗi vô dụng.** Cell bootstrap không thấy cache thì raise `SystemExit("Không thấy cache")`, không nói **đang thấy gì**. Sửa: `find_cache_dir()` + `describe_tree()` trong `src/utils/io.py`; khi hụt thì in nguyên cây `/kaggle/input` (thư mục kèm số file theo đuôi) rồi mới dừng. Notebook trở lại đúng vai lớp mỏng gọi `src/`.
+
+2. **`e65b9b7` — đường dẫn tương đối hiểu theo CWD.** `splits_dir: splits` trong config resolve theo thư mục làm việc; trên Kaggle notebook chạy ở `/kaggle/working` còn code clone vào `/kaggle/working/repo` ⇒ `FileNotFoundError: splits/labels_trainval.txt` ngay dòng đọc split đầu tiên. Sửa: `repo_root()` + `resolve_repo_path()`; mọi đường dẫn tương đối trong config neo vào **gốc repo**. Áp cho `splits_dir`, `cache_dir`, `output_dir`; env override vẫn thắng.
+   *Vì sao ẩn lâu:* cell smoke test truyền `splits_dir=REPO/"splits"` tường minh nên chạy được — một chỗ đúng che cho chỗ sai, bug chỉ lộ ở cell train.
+
+3. **`e0c312f` — clone lại code nhưng `sys.modules` giữ bản cũ.** Sau khi sửa (2) và chạy lại, **vẫn y nguyên lỗi cũ**: cell bootstrap xoá thư mục rồi clone bản mới, nhưng module `src.*` đã import từ lần chạy trước vẫn nằm trong `sys.modules`. Dòng `repo commit` in ra commit mới ⇒ **bằng chứng giả**, nó nói về code trên đĩa chứ không phải code đang chạy. Sửa: xoá `src.*` khỏi `sys.modules` ngay sau clone (cả notebook 02 và 03), in thêm `code đang dùng: <repo_root()>` kèm `assert` khớp đường dẫn clone.
+
+**Đã đụng file:**
+- `src/utils/io.py` — thêm `find_cache_dir`, `describe_tree`, `repo_root`, `resolve_repo_path`; `resolve_cache_dir`/`resolve_output_dir` đi qua `resolve_repo_path`.
+- `src/data/dataset.py` — `build_fold_datasets`/`build_test_dataset` resolve `splits_dir` theo gốc repo.
+- `src/train/run.py` — `splits_dir` từ config resolve tương tự.
+- `notebooks/02_build_cache.ipynb`, `notebooks/03_train_baseline.ipynb` — bootstrap xoá `sys.modules`, in bằng chứng code đang chạy.
+- `tests/test_find_cache.py` (9 test), `tests/test_repo_paths.py` (6 test) — MỚI.
+
+**Quyết định & lý do:**
+- **Đường dẫn tương đối = tương đối với gốc repo, không phải CWD.** Cho kết quả giống nhau dù gọi từ notebook, CLI hay test. Phương án đã loại: bắt mọi caller truyền đường dẫn tuyệt đối — đúng nhưng dễ quên, và quên một chỗ là hỏng cả run.
+- **Test cho (2) đều đổi CWD ra ngoài repo trước khi gọi** — nếu không thì test chạy ở CWD=repo và pass cả khi code sai, đúng kiểu test không bắt được gì.
+- Không dùng `importlib.reload`: thứ tự reload phụ thuộc đồ thị import, xoá sạch `sys.modules` đơn giản và chắc hơn.
+
+**Kết quả / số liệu:** `pytest` **120 passed, 8 skipped** (113 → 135 test). ruff sạch. Quality gate PASS. **Vẫn chưa có số train** — chưa lần nào vòng train chạy tới epoch đầu tiên.
+
+**Dang dở:**
+- [ ] Chạy fold 1 trên Kaggle lấy macro-F1 val (T5.3) — DoD cuối cùng còn treo của W2. Chưa xác nhận được lỗi (3) có phải nguyên nhân cuối cùng không; bản sửa có sẵn chẩn đoán để lần chạy tới tự trả lời.
+- [ ] Baseline 2.5D (T6.1) — cắt được nếu trễ.
+- [ ] `src/data/transforms.py` vẫn chưa từng chạy thật (9 test skip ở local vì không có torch).
+
+**Điểm vào phiên sau:** Kaggle notebook 03 → **Restart & Run All** (bắt buộc restart, không chỉ Run All). Cell 0 phải in `repo commit: e0c312f...` **và** `code đang dùng: /kaggle/working/repo` **và** `có labels_trainval.txt: True`. Ba dòng đó khớp thì cell train mới đáng chạy.
+
+**Cảnh báo cho tool sau:**
+- **Dòng `repo commit` KHÔNG chứng minh code nào đang chạy** nếu chưa xoá `sys.modules`. Đây là bẫy đã ăn trọn một vòng sửa-chạy-vẫn-lỗi. Mọi notebook mới phải copy đoạn xoá `sys.modules` từ cell 0 của notebook 03.
+- Đừng thêm đường dẫn tương đối mới vào config mà không cho qua `resolve_repo_path`.
+
