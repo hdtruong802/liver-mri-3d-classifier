@@ -1486,3 +1486,51 @@ Chữ ký khớp chính xác: train ổn / val phân kỳ *dù model chưa fit*.
 - **Đây là quy trình bắt buộc từ nay:** trước khi bàn giao thứ gì tốn GPU, phải rà hết đường chạy; thứ nào không kiểm được ở local thì tải source thư viện về đọc, hoặc biến thành assert rẻ tiền chạy trước phần tốn kém. Người dùng đã nêu yêu cầu này sau khi mất một session vì lỗi BatchNorm.
 - Lần chạy tới đổi **hai** thứ so với mốc 0.2725: BatchNorm → InstanceNorm, và affine. Không tách được nữa vì `instance` không affine là cấu hình vô nghĩa, không đáng tốn một run để đo.
 
+
+
+## S-038 · 2026-07-27 16:45 · claude-code
+
+**Mục tiêu phiên:** Sửa lỗi resume nạp checkpoint của kiến trúc cũ — lỗ hổng nằm trong chính bản vá S-037.
+
+**Nhánh / commit:** `main` · `1e4d8c2` → *(commit đang chờ)*
+
+**Đã xác nhận chạy được trên Kaggle (torch 2.10.0+cu128 · monai 1.6.0):**
+```
+nhãn cache khớp splits/ trên toàn bộ 394 ca      <- cổng chặn S-037 hoạt động
+model=densenet121_3d | 11.403.463 tham số        <- khớp bản BN (IN affine=True cùng số tham số)
+```
+Cell smoke test qua ⇒ `norm=("instance", {"affine": True})` **hợp lệ với MONAI 1.6.0**, không chỉ 1.3.2 như bản đã đọc source.
+
+**Lỗi:** `RuntimeError` giữa `model.load_state_dict(state["model"])` — `last.pt` của run BatchNorm (cùng session Kaggle, `/kaggle/working` không bị xoá) bị nạp vào model InstanceNorm.
+
+**Lỗ hổng nằm ở đâu:** chốt kiểm fingerprint thêm ở S-037 viết là
+```python
+if previous is not None and previous != model_fingerprint:   # <- `is not None`
+```
+Checkpoint cũ được ghi **trước** khi trường `model_fingerprint` tồn tại ⇒ `previous is None` ⇒ chốt bỏ qua ⇒ lọt thẳng vào `load_state_dict`. Ý định "tương thích ngược với checkpoint đời cũ" chính là chỗ thủng. **Không biết thì phải từ chối, không được mặc định là khớp.**
+
+**Sửa hai lớp:**
+1. **Lưới thật (cấu trúc):** `run_dir(config, fold)` = `fold{N}_{sha1(khối model)[:8]}`. Hai kiến trúc khác nhau **không bao giờ dùng chung thư mục**, nên tình huống này không còn phát sinh được. Hash **chỉ** khối `model:` — đổi `lr`/`epochs` vẫn resume được, vì mất tiến trình một run dài trên Kaggle là mất thật. Lợi ích kèm theo: kết quả bản BN và bản IN nằm cạnh nhau, so được, không đè nhau.
+2. **Lưới hai (chốt kiểm):** bỏ `is not None` — fingerprint vắng mặt cũng bị coi là không khớp.
+
+**Đã đụng file:**
+- `src/train/run.py` — `model_fingerprint()`, `run_dir()`; `train()` dùng `run_dir`; chốt kiểm chặt lại; trả thêm `run_dir` trong kết quả.
+- `notebooks/03_train_baseline.ipynb` — cell đọc số dùng `run_dir()`, in kèm mốc cũ 0.2725 để so ngay tại chỗ.
+- `tests/test_run_dir.py` — MỚI, 8 test: BN ≠ IN, IN affine ≠ IN không affine, fold khác nhau, đổi lr/epochs vẫn cùng thư mục, hash ổn định và không phụ thuộc thứ tự khoá.
+
+**Quyết định & lý do:**
+- **Chặn bằng cấu trúc thay vì bằng kiểm tra.** Một chốt kiểm chỉ tốt bằng người viết ra nó — S-037 là bằng chứng. Tách thư mục theo hash làm cho lỗi không xảy ra được, thay vì bắt nó khi đã xảy ra. Chốt kiểm vẫn giữ làm lưới hai.
+- Không hash toàn bộ config: sẽ mất resume mỗi lần chỉnh một hyperparam vặt.
+
+**Kết quả / số liệu:** `pytest` **134 passed, 8 skipped** (126 → 142 test). ruff sạch. Vẫn **chưa có số của bản InstanceNorm**.
+
+**Dang dở:**
+- [ ] Chạy fold 1 với InstanceNorm(affine=True), so với mốc 0.2725.
+- [ ] Baseline 2.5D (T6.1).
+
+**Điểm vào phiên sau:** Kaggle notebook 03 → Restart & Run All. Run mới sẽ ghi vào `runs/baseline_3dpatch/fold1_<hash>/`, không đụng `fold1/` cũ. Cell cuối in thẳng "mốc cũ / lần này".
+
+**Cảnh báo cho tool sau:**
+- `/kaggle/working` **sống xuyên suốt một session**, không phải chạy lại là sạch. Mọi thứ ghi ra đó phải giả định có sẵn bản cũ.
+- Thư mục run đời cũ tên `fold1/` (không hash) là của bản BatchNorm S-036. Đừng đọc nhầm số trong đó thành số của bản InstanceNorm.
+

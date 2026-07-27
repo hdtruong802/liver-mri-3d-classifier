@@ -18,6 +18,7 @@ Chưa chạm test-104: script này chỉ đọc `train_fold*/val_fold*` (AGENTS.
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import time
 from pathlib import Path
@@ -53,6 +54,27 @@ CSV_FIELDS = [
     "lr",
     "seconds",
 ]
+
+
+def model_fingerprint(model_config: dict[str, Any]) -> str:
+    """Chuỗi định danh kiến trúc — đổi kiến trúc là đổi chuỗi này."""
+    return json.dumps(model_config, sort_keys=True, ensure_ascii=False)
+
+
+def run_dir(config: dict[str, Any], fold: int) -> Path:
+    """Thư mục của một run: ``fold{N}_{hash kiến trúc}``.
+
+    Hash **chỉ tính trên khối ``model:``**, có chủ ý. Đây là cách chặn tận gốc việc
+    checkpoint của kiến trúc này bị nạp vào kiến trúc khác — thứ đã xảy ra thật khi
+    `last.pt` của bản BatchNorm gặp bản InstanceNorm (WORKLOG S-038). Chốt kiểm tra
+    lúc resume vẫn giữ, nhưng nó là lưới thứ hai; lưới thứ nhất là hai run khác
+    kiến trúc thì **không bao giờ dùng chung thư mục**.
+
+    Không hash cả config: đổi `lr` hay `epochs` vẫn phải resume được, vì trên Kaggle
+    mất tiến trình của một run dài là mất thật.
+    """
+    digest = hashlib.sha1(model_fingerprint(config["model"]).encode("utf-8")).hexdigest()[:8]
+    return resolve_output_dir(config) / f"fold{fold}_{digest}"
 
 
 def _build_loaders(config: dict[str, Any], fold: int) -> tuple[Any, Any, list[int]]:
@@ -104,7 +126,7 @@ def train(config_path: str | Path, fold_override: int | None = None) -> dict[str
     seed = int(config.get("seed", 1337))
     set_seed(seed, deterministic=bool(train_config.get("deterministic", True)))
 
-    output_dir = resolve_output_dir(config) / f"fold{fold}"
+    output_dir = run_dir(config, fold)
     output_dir.mkdir(parents=True, exist_ok=True)
     # Chụp lại đúng config đã dùng (dạng JSON) — để đọc lại số cũ mà không phải
     # đoán xem YAML lúc đó có gì.
@@ -172,21 +194,28 @@ def train(config_path: str | Path, fold_override: int | None = None) -> dict[str
     epochs_without_gain = 0
 
     checkpoint_path = output_dir / "last.pt"
-    model_fingerprint = json.dumps(config["model"], sort_keys=True, ensure_ascii=False)
+    fingerprint = model_fingerprint(config["model"])
     if train_config.get("resume", True):
         state = load_checkpoint(checkpoint_path)
         if state is not None:
             # Checkpoint của một kiến trúc khác thì resume là vô nghĩa: hoặc
-            # load_state_dict nổ khó hiểu, hoặc tệ hơn — khôi phục đúng
-            # `epochs_without_gain` cũ rồi early-stop ngay mà không train gì, trông
-            # như "đã chạy xong". Chặn thẳng, kèm cách xử lý.
+            # load_state_dict nổ với một trang lỗi khó đọc, hoặc tệ hơn — khôi phục
+            # đúng `epochs_without_gain` cũ rồi early-stop ngay mà không train gì,
+            # trông y như "đã chạy xong".
+            #
+            # `get(...)` trả None với checkpoint đời cũ (ghi trước khi có trường này).
+            # KHÔNG được coi None là "chắc khớp" — đó đúng là lỗ hổng đã để lọt một
+            # checkpoint BatchNorm vào model InstanceNorm (WORKLOG S-038). Không biết
+            # thì phải từ chối.
             previous = state.get("model_fingerprint")
-            if previous is not None and previous != model_fingerprint:
+            if previous != fingerprint:
+                shown = previous if previous is not None else "(không ghi — checkpoint đời cũ)"
                 raise RuntimeError(
-                    f"{checkpoint_path} là checkpoint của cấu hình model khác.\n"
-                    f"  đang chạy: {model_fingerprint}\n"
-                    f"  trong ckpt: {previous}\n"
-                    "Xoá file đó, hoặc đổi output_dir, nếu thật sự muốn train lại từ đầu."
+                    f"{checkpoint_path} không phải checkpoint của cấu hình model này.\n"
+                    f"  đang chạy : {fingerprint}\n"
+                    f"  trong ckpt: {shown}\n"
+                    "Xoá file đó nếu muốn train lại từ đầu. Bình thường thì không nên gặp "
+                    "lỗi này: mỗi kiến trúc đã có thư mục riêng theo hash (xem run_dir)."
                 )
             model.load_state_dict(state["model"])
             optimizer.load_state_dict(state["optimizer"])
@@ -299,7 +328,7 @@ def train(config_path: str | Path, fold_override: int | None = None) -> dict[str
                     "epochs_without_gain": epochs_without_gain,
                     "fold": fold,
                     "seed": seed,
-                    "model_fingerprint": model_fingerprint,
+                    "model_fingerprint": fingerprint,
                 },
             )
 
@@ -310,7 +339,13 @@ def train(config_path: str | Path, fold_override: int | None = None) -> dict[str
         csv_logger.close()
 
     logger.info("XONG fold %d | best macro-F1 val = %.4f @ epoch %d", fold, best_score, best_epoch)
-    return {"fold": fold, "best_macro_f1": best_score, "best_epoch": best_epoch, "seed": seed}
+    return {
+        "fold": fold,
+        "best_macro_f1": best_score,
+        "best_epoch": best_epoch,
+        "seed": seed,
+        "run_dir": str(output_dir),
+    }
 
 
 def main() -> None:
