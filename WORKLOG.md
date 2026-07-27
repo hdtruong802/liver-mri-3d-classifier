@@ -1930,6 +1930,29 @@ Cũng xác nhận: warmup chạy đúng (lr đi 2.08e-05 → 4.06e-05, tức đa
 
 **Cảnh báo cho tool sau:** Notebook chưa theo dõi `notebooks/notebookf104ced082.ipynb` là thay đổi ngoài phạm vi, đã được người dùng yêu cầu giữ nguyên; không stage, commit hay xoá nó.
 
+## S-047 · 2026-07-27 18:07 · codex
+
+**Mục tiêu phiên:** Thêm prototype giao diện output cho slide 11, minh hoạ trạng thái `defer`.
+
+**Nhánh / commit:** `main` · `88ad2d7` → *(commit đang chờ)*
+
+**Đã động file:**
+- `slides/overview.html` — thay output dạng danh sách ở slide 11 bằng prototype HTML/CSS có viewer heatmap tổng hợp, probability, malignant probability, uncertainty và `defer`.
+- `WORKLOG.md` — ghi bàn giao phiên.
+
+**Quyết định & lý do:**
+- Dựng prototype bằng HTML/CSS và tái dùng contact sheet MRI tổng hợp — giữ slide dễ đọc, không tạo web app/API hay asset chứa dữ liệu bệnh nhân.
+- Chọn trạng thái `defer` và không hiển thị nhãn dự đoán, phần trăm hay giá trị mô hình — uncertainty và việc cần review là luận điểm chính, đồng thời tránh tạo kết quả dự án giả.
+
+**Kết quả / số liệu:** Quality gate PASS; Impeccable detect cho `slides/` và `reports/` đều pass. Kiểm tra tĩnh: 12 slide, 12 chỉ số `/ 12`, không còn `MRI_8phase.nii`; prototype có đủ probability, malignant probability, uncertainty, heatmap và `defer`.
+
+**Dang dở:**
+- Không có việc treo cho phần slide.
+
+**Điểm vào phiên sau:** Mở `slides/overview.html#11` trong trình duyệt local nếu cần kiểm tra hiển thị thực tế trên máy chiếu.
+
+**Cảnh báo cho tool sau:** Notebook chưa theo dõi `notebooks/notebookf104ced082.ipynb` là thay đổi ngoài phạm vi, đã được người dùng yêu cầu giữ nguyên; không stage, commit hay xoá nó.
+
 ## S-046 · 2026-07-27 17:51 · codex
 
 **Mục tiêu phiên:** Đồng bộ tài liệu và slide recap với input thật: một ca gồm 8 file `.nii`.
