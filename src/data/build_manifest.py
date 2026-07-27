@@ -13,7 +13,7 @@ import csv
 from pathlib import Path
 
 from src.data.annotation import Annotation
-from src.data.images import scan_image_index
+from src.data.images import DEFAULT_IMAGE_SUFFIXES, scan_image_index
 from src.data.splits import Splits
 from src.data.taxonomy import CLASS_NAMES
 from src.utils.ids import normalize_pid
@@ -42,7 +42,7 @@ def build_manifest(config_path: str | Path) -> Path:
     ann = Annotation(annotation_path)
     splits = Splits(config["splits_dir"])
     splits.validate()
-    index = scan_image_index(images_dir, config.get("image_suffix", "_0000.nii.gz"))
+    index = scan_image_index(images_dir, config.get("image_suffixes", DEFAULT_IMAGE_SUFFIXES))
 
     out_path = Path("data/manifest.csv")
     out_path.parent.mkdir(parents=True, exist_ok=True)

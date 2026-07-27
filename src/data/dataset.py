@@ -12,6 +12,7 @@ hay `lld/.cache/` — sai bài toán (AGENTS.md §3.9: không làm segmentation)
 
 from __future__ import annotations
 
+from collections.abc import Sequence
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -19,7 +20,12 @@ from typing import Any
 import numpy as np
 
 from src.data.annotation import Annotation, BBox3D
-from src.data.images import ImageIndex, phase_paths, scan_image_index
+from src.data.images import (
+    DEFAULT_IMAGE_SUFFIXES,
+    ImageIndex,
+    phase_paths,
+    scan_image_index,
+)
 from src.utils.ids import normalize_pid
 
 
@@ -76,7 +82,7 @@ class LLDMMRIDataset:
         annotation_rel: str,
         images_rel: str,
         phase_config: list[dict[str, str]],
-        image_suffix: str = "_0000.nii.gz",
+        image_suffixes: str | Sequence[str] = DEFAULT_IMAGE_SUFFIXES,
         transform: Any | None = None,
     ) -> None:
         try:
@@ -89,7 +95,7 @@ class LLDMMRIDataset:
         data_root = Path(data_root)
         self.patient_ids = patient_ids
         self.annotation = Annotation(data_root / annotation_rel)
-        self.image_index = scan_image_index(data_root / images_rel, image_suffix)
+        self.image_index = scan_image_index(data_root / images_rel, image_suffixes)
         self.phase_config = phase_config
         self.transform = transform
 

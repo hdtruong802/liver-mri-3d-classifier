@@ -19,6 +19,11 @@ phases:
   - {name: "Out Phase", file: "OutPhase"}
 
 # Đuôi tên file ảnh: {patient}_{lesion}_{file_token}{suffix}
-image_suffix: "_0000.nii.gz"
+# Phải liệt kê CẢ HAI: repo HuggingFace gốc lưu .nii.gz, nhưng bản trên Kaggle đã
+# được giải nén thành .nii (WORKLOG S-025). Chỉ khai một đuôi ⇒ không tìm thấy
+# file nào và mọi bước sau bị bỏ qua âm thầm.
+image_suffixes:
+  - "_0000.nii.gz"
+  - "_0000.nii"
 
 seed: 42

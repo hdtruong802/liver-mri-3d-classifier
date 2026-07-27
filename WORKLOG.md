@@ -986,3 +986,34 @@ Hai ngoại lệ đăng ký kèm lý do (`single-font`, `overused-font=arial`): 
 **Điểm vào phiên sau:** Chạy notebook trên Kaggle theo `docs/KAGGLE_WORKFLOW.md` §2. **Gate geometry FAIL ⇒ DỪNG**, không sang tiền xử lý (W2 ngày 3) — vì crop sai chỗ thì mọi kết quả sau đều vô nghĩa.
 
 **Cảnh báo cho tool sau:** Gate geometry **chưa từng chạy trên dữ liệu thật** — mọi giả định về axis order/spacing hiện chỉ là code chờ kiểm chứng. Đừng viết `build_cache` dựa trên giả định bbox đúng khi gate chưa PASS.
+
+
+## S-025 · 2026-07-24 19:45 · claude-code
+
+**Mục tiêu phiên:** Sửa bug khiến gate geometry báo "BỎ QUA: cần ảnh thật" dù đang chạy trên Kaggle có data.
+
+**Nhánh / commit:** `main` · `4c2cf7d` → *(commit đang chờ)*
+
+**Đã đụng file:**
+- `src/data/images.py` — `scan_image_index` nhận **danh sách đuôi**, mặc định `("_0000.nii.gz", "_0000.nii")`; dùng `setdefault` để thứ tự ưu tiên ổn định.
+- `configs/data.yaml` — `image_suffix` (một chuỗi) → `image_suffixes` (danh sách 2 đuôi), kèm comment giải thích.
+- `src/data/build_manifest.py`, `src/data/dataset.py` — cập nhật theo API mới.
+- `notebooks/01_eda.ipynb` — cell mục 3 dùng `CONFIG["image_suffixes"]`.
+- `tests/test_images.py` — +4 test: quét `.nii` thuần, thư mục lẫn hai đuôi, ưu tiên khi trùng, nhận chuỗi đơn.
+
+**Quyết định & lý do:**
+- **Nguyên nhân gốc:** file thật trên Kaggle là `lld/images/MR-391135_1_C+A_0000.nii` — **`.nii` đã giải nén, không phải `.nii.gz`**. Kaggle giải nén khi upload (khớp việc dataset phình 83.7GB: 3984 file × ~20MB). Config chỉ khai `_0000.nii.gz` ⇒ `scan_image_index` trả rỗng ⇒ `image_index = {}` ⇒ mục 3 và **mục 5 (gate geometry)** đều rơi vào nhánh "BỎ QUA" — **thất bại âm thầm, không báo lỗi**.
+- Xác minh bằng Kaggle API: tải `lld/images/..._0000.nii.gz` → **404**; liệt kê thư mục → thấy `..._0000.nii` (18.9MB). Kích thước file cũng khớp mô tả PDF: DWI 1.5MB (thô 132×116), T2WI 6.3MB, các pha T1 ~18-23MB.
+- Chọn **nhận cả hai đuôi** thay vì đổi cứng sang `.nii`: repo HF gốc vẫn là `.nii.gz`, ai tải từ HF sẽ có đuôi khác — code phải chạy được cả hai nguồn.
+- Thêm test cho `.nii` thuần: **nếu có test này từ đầu thì bug đã không lọt**. Bài học: fixture test dùng đúng một đuôi đã che mất giả định sai.
+
+**Kết quả / số liệu:** `pytest` **50 passed** (46 → 50). ruff sạch. Notebook 12/12 cell hợp lệ, output đã strip.
+Kết quả EDA thật người dùng chạy — **phân bố lớp khớp official 7/7 + tổng**: HCC 157 · u máu 79 · ICC 58 · áp-xe 54 · nang 53 · di căn 51 · FNH 46 = 498. ⇒ bản wanglab **không mất/xáo trộn bệnh nhân nào**.
+
+**Dang dở:**
+- [ ] **Gate geometry vẫn CHƯA có kết quả thật** — chạy lại mục 3 + 5 sau khi `git pull` bản sửa này.
+- [ ] T2.2 chốt tham số tiền xử lý — chờ số từ gate + mục 2/3/4.
+
+**Điểm vào phiên sau:** Trên Kaggle: `!cd /kaggle/working/repo && git pull` rồi Restart & Run All. Mục 3 phải ra số ca thiếu pha, mục 5 phải in `GATE GEOMETRY: PASS/FAIL` + `axis order`.
+
+**Cảnh báo cho tool sau:** Ảnh trên Kaggle là **`.nii` giải nén** (~20MB/file, 3984 file). Cẩn thận I/O khi tiền xử lý — đọc 8 pha/bệnh nhân ≈ 160MB, không cache thô vào RAM. Nhớ dùng `image_suffixes` (số nhiều) trong config, không phải `image_suffix`.
