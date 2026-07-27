@@ -39,9 +39,26 @@ def read_id_class_file(path: str | Path) -> list[tuple[str, int]]:
 CACHE_META_NAME = "cache_meta.json"
 
 
+def repo_root() -> Path:
+    """Gốc repo, suy ra từ vị trí file này (``src/utils/io.py`` → lên 2 cấp)."""
+    return Path(__file__).resolve().parents[2]
+
+
+def resolve_repo_path(value: str | Path) -> Path:
+    """Đường dẫn tương đối trong config = tương đối với **gốc repo**, không phải CWD.
+
+    Trên Kaggle, notebook chạy với thư mục làm việc `/kaggle/working` còn code được
+    clone vào `/kaggle/working/repo`; hiểu `splits` theo CWD sẽ trỏ vào chỗ trống và
+    hỏng ngay ở dòng đọc split đầu tiên (WORKLOG S-035). Neo vào gốc repo cho kết
+    quả giống nhau dù gọi từ notebook, từ CLI, hay từ test.
+    """
+    path = Path(value)
+    return path if path.is_absolute() else repo_root() / path
+
+
 def resolve_cache_dir(config: dict[str, Any]) -> Path:
     """Thư mục cache đã tiền xử lý: env ``LLDMMRI_CACHE_DIR`` thắng, sau đó config."""
-    return Path(os.environ.get("LLDMMRI_CACHE_DIR") or config["cache_dir"])
+    return resolve_repo_path(os.environ.get("LLDMMRI_CACHE_DIR") or config["cache_dir"])
 
 
 def find_cache_dir(
@@ -115,7 +132,7 @@ def resolve_output_dir(config: dict[str, Any]) -> Path:
     Trên Kaggle, ổ ghi được duy nhất là output dir (AGENTS.md §7) — nên đường dẫn
     ghi phải đi qua đây, không hardcode ``/kaggle/working`` rải rác trong code.
     """
-    return Path(os.environ.get("LLDMMRI_OUTPUT_DIR") or config["output_dir"])
+    return resolve_repo_path(os.environ.get("LLDMMRI_OUTPUT_DIR") or config["output_dir"])
 
 
 def discover_data_root(

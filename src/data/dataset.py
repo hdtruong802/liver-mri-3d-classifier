@@ -18,6 +18,7 @@ import numpy as np
 
 from src.data.splits import Splits
 from src.utils.ids import normalize_pid
+from src.utils.io import resolve_repo_path
 
 
 class CachedLesionDataset:
@@ -93,8 +94,11 @@ def build_fold_datasets(
 
     `fold_index` đếm từ 1 (khớp tên file `train_fold1.txt`). Split đã khoá và đã có
     test chống leakage ở `tests/test_no_leakage.py`.
+
+    `splits_dir` tương đối được hiểu theo **gốc repo**, không phải CWD — xem
+    `resolve_repo_path`.
     """
-    splits = Splits(splits_dir)
+    splits = Splits(resolve_repo_path(splits_dir))
     if not 1 <= fold_index <= len(splits.folds):
         raise ValueError(f"fold_index phải trong 1..{len(splits.folds)}, nhận {fold_index}")
 
@@ -115,4 +119,4 @@ def build_test_dataset(
     ⚠️ Held-out khoá kín, **chạm đúng một lần** sau khi đã khoá protocol/model/threshold.
     Phải ghi WORKLOG trước khi dùng (AGENTS.md §3.4 và §10).
     """
-    return CachedLesionDataset(cache_dir, Splits(splits_dir).test, transform)
+    return CachedLesionDataset(cache_dir, Splits(resolve_repo_path(splits_dir)).test, transform)

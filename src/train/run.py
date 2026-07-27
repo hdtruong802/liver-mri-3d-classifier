@@ -36,7 +36,7 @@ from src.train.loop import (
     run_epoch,
     save_checkpoint,
 )
-from src.utils.io import load_yaml, resolve_cache_dir, resolve_output_dir
+from src.utils.io import load_yaml, resolve_cache_dir, resolve_output_dir, resolve_repo_path
 from src.utils.logging import CsvLogger, get_logger
 from src.utils.seed import set_seed
 
@@ -64,7 +64,7 @@ def _build_loaders(config: dict[str, Any], fold: int) -> tuple[Any, Any, list[in
     train_ds, val_ds = build_fold_datasets(
         cache_dir,
         fold,
-        splits_dir=config.get("splits_dir", "splits"),
+        splits_dir=resolve_repo_path(config.get("splits_dir", "splits")),
         train_transform=build_train_transform(data_config.get("augment")),
     )
 
