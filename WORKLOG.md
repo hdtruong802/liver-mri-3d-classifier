@@ -1226,3 +1226,28 @@ yx:  14 phiếu ( 8%) · độ tán trong mặt phẳng 17.8 mm
 **Điểm vào phiên sau:** Kaggle → Restart & Run All notebook 02. Mục 1 giờ phải ra `xy` (không còn `inconclusive`); xem mục 2 xác nhận hộp trúng tổn thương; rồi chạy mục 4.
 
 **Cảnh báo cho tool sau:** Chuyển động hô hấp giữa các pha là **~23mm theo trục Z** — con số này giải thích vì sao rigid registration nằm trong kế hoạch W3 làm ablation. Đừng coi độ tán theo Z là dấu hiệu hình học hỏng.
+
+
+## S-032 · 2026-07-27  · codex
+
+**Mục tiêu phiên:** Tạo snapshot audit W2 giải thích LLD-MMRI, rủi ro dữ liệu và pipeline tiền xử lý trước train.
+
+**Nhánh / commit:** `main` · `8f23196` → *(commit đang chờ)*
+
+**Đã đụng file:**
+- `reports/W2_LLD_MMRI_DATA_AUDIT.md` — MỚI; audit snapshot tiếng Việt có giải thích thuật ngữ, số liệu đã đo, giới hạn, 3 sơ đồ Mermaid và link nguồn hình MRI thực tế.
+- `WORKLOG.md` — append entry S-032.
+
+**Quyết định & lý do:**
+- Audit là **snapshot W2**, không phải tài liệu sống — cache/train sau đó phải ghi vào WORKLOG hoặc report W6 để không trộn dữ kiện trước train với kết quả hậu nghiệm.
+- Chỉ dùng sơ đồ tự vẽ và link/citation hình MRI bên ngoài — không xuất hay nhúng ảnh, crop hoặc cache LLD-MMRI vì đó là dữ liệu/bản phái sinh bị hạn chế phát tán.
+
+**Kết quả / số liệu:** `git diff --check` sạch; quality gate PowerShell PASS (Impeccable detect slides/reports PASS, splits không đổi). `pytest -q`, `python -m pytest -q` và `.venv\\Scripts\\python.exe -m pytest -q` đều không chạy được vì pytest chưa được cài trong các Python hiện có, dù `requirements.txt` đã pin `pytest==8.3.3`; không cài thêm dependency trong phiên tài liệu này.
+
+**Dang dở:**
+- [ ] Notebook 02 trên Kaggle: xác nhận overlay `xy`, build/kiểm 498 cache files, tạo Kaggle Dataset private và ghi slug/version.
+- [ ] Test suite local cần được chạy lại sau khi cài môi trường từ `requirements.txt`.
+
+**Điểm vào phiên sau:** Hoàn tất notebook 02 trên Kaggle; khi nhận output cache, ghi slug/version vào config + WORKLOG rồi dựng baseline DenseNet121-3D trên `CachedLesionDataset`.
+
+**Cảnh báo cho tool sau:** Audit W2 cố ý nói cache **chưa nghiệm thu**; đừng sửa nó để tuyên bố train-ready chỉ vì build đã bắt đầu. Nếu có kết quả cache, ghi vào WORKLOG/report W6 theo quyết định snapshot.
