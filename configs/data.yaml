@@ -1,7 +1,14 @@
 # Cấu hình dữ liệu LLD-MMRI. KHÔNG hardcode path trong code (AGENTS.md §7).
 # Ghi đè data_root bằng env LLDMMRI_DATA_ROOT (vd Kaggle: /kaggle/input/lldmmridataset).
 
-data_root: data/lldmmridataset          # thư mục chứa lld/
+data_root: data/lldmmridataset          # mặc định cho máy local (thư mục chứa lld/)
+
+# Ứng viên khi chạy trên Kaggle — thử theo thứ tự, chỉ nhận đường dẫn THẬT SỰ chứa
+# annotation_rel. Kaggle đổi sơ đồ mount tuỳ lúc nên phải dò, không hardcode một cái.
+data_root_candidates:
+  - /kaggle/input/datasets/marcohoang/lldmmridataset
+  - /kaggle/input/lldmmridataset
+
 annotation_rel: lld/LLD_MMRI_Annotation.json
 images_rel: lld/images                   # chỉ đọc thư mục này; BỎ lld/labels (mask) + lld/.cache
 splits_dir: splits

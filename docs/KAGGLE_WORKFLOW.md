@@ -59,7 +59,10 @@ Repo hiện tại: `https://github.com/hdtruong802/liver-mri-3d-classifier` (pub
 Kaggle → *Create* → *New Notebook*. Rồi:
 
 1. **Add Input** → *Datasets* → tìm `lldmmridataset` → Add.
-   Data xuất hiện ở `/kaggle/input/lldmmridataset/`.
+   Data xuất hiện ở `/kaggle/input/datasets/marcohoang/lldmmridataset/`
+   *(Kaggle có lúc mount thành `/kaggle/input/lldmmridataset/` — sơ đồ thay đổi tuỳ lúc,
+   nên **đừng hardcode**; `resolve_data_root()` tự dò theo `data_root_candidates` trong
+   `configs/data.yaml` và chỉ nhận đường dẫn thật sự chứa annotation).*
 2. **Settings** → *Internet* → **On** (cần để `git clone`).
    *(Nếu phải tắt internet — xem §5 phương án offline.)*
 3. **Settings** → *Accelerator* → `None` cho EDA (tiết kiệm quota GPU), `GPU` khi train.
@@ -73,18 +76,25 @@ Kaggle → *Create* → *New Notebook*. Rồi:
 import sys
 sys.path.insert(0, "/kaggle/working/repo")
 
-# 2. Trỏ vào data thô đã mount (KHÔNG hardcode path rải rác — chỉ đặt env ở đây)
-import os
-os.environ["LLDMMRI_DATA_ROOT"] = "/kaggle/input/lldmmridataset"
-
-# 3. Dependency thiếu trên Kaggle (đa số đã có sẵn)
+# 2. Dependency thiếu trên Kaggle (đa số đã có sẵn)
 !pip install -q nibabel SimpleITK
 
-# 4. Kiểm tra
+# 3. Data root: KHÔNG hardcode. resolve_data_root() dò các ứng viên trong
+#    configs/data.yaml và chỉ nhận đường dẫn thật sự chứa annotation.
+from src.utils.io import load_yaml, resolve_data_root
 from src.data.splits import Splits
+
+CONFIG = load_yaml("/kaggle/working/repo/configs/data.yaml")
+DATA_ROOT = resolve_data_root(CONFIG)
+print("data root:", DATA_ROOT)
+
 Splits("/kaggle/working/repo/splits").validate()
 print("OK: code + splits đã sẵn sàng")
 ```
+
+> Mount ở chỗ khác hai ứng viên mặc định? Chạy `!ls /kaggle/input` để xem đường dẫn
+> thật, rồi hoặc đặt `os.environ["LLDMMRI_DATA_ROOT"] = "<path>"`, hoặc thêm vào
+> `data_root_candidates` trong `configs/data.yaml` (cách này bền hơn — commit là xong).
 
 **Cập nhật code giữa chừng?** Chạy lại cell bootstrap sau khi `git pull`:
 ```python
@@ -99,7 +109,7 @@ import importlib, src; importlib.reload(src)   # hoặc Restart & Run All cho ch
 from src.data.annotation import Annotation
 from src.data.eda import class_distribution, format_class_distribution
 
-ann = Annotation("/kaggle/input/lldmmridataset/lld/LLD_MMRI_Annotation.json")
+ann = Annotation(DATA_ROOT / CONFIG["annotation_rel"])   # DATA_ROOT từ cell bootstrap
 print(format_class_distribution(class_distribution(ann)))
 ```
 

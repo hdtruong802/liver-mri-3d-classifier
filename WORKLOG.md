@@ -1017,3 +1017,32 @@ Kết quả EDA thật người dùng chạy — **phân bố lớp khớp offic
 **Điểm vào phiên sau:** Trên Kaggle: `!cd /kaggle/working/repo && git pull` rồi Restart & Run All. Mục 3 phải ra số ca thiếu pha, mục 5 phải in `GATE GEOMETRY: PASS/FAIL` + `axis order`.
 
 **Cảnh báo cho tool sau:** Ảnh trên Kaggle là **`.nii` giải nén** (~20MB/file, 3984 file). Cẩn thận I/O khi tiền xử lý — đọc 8 pha/bệnh nhân ≈ 160MB, không cache thô vào RAM. Nhớ dùng `image_suffixes` (số nhiều) trong config, không phải `image_suffix`.
+
+
+## S-026 · 2026-07-24 20:05 · claude-code
+
+**Mục tiêu phiên:** Sửa đường dẫn data trên Kaggle (`/kaggle/input/datasets/marcohoang/lldmmridataset`).
+
+**Nhánh / commit:** `main` · `bd6b55b` → *(commit đang chờ)*
+
+**Đã đụng file:**
+- `src/utils/io.py` — `resolve_data_root()` giờ dò theo thứ tự: env → `data_root_candidates` (**chỉ nhận đường dẫn thật sự chứa annotation**) → `data_root`. Lỗi báo rõ đã thử đường nào.
+- `configs/data.yaml` — thêm `data_root_candidates` (path Kaggle mới + path cũ).
+- `notebooks/01_eda.ipynb` — bootstrap bỏ hardcode `os.environ[...] = "/kaggle/input/lldmmridataset"`, dùng `resolve_data_root`; in cảnh báo + gợi ý `!ls /kaggle/input` nếu không thấy annotation.
+- `docs/KAGGLE_WORKFLOW.md` — cập nhật 3 chỗ hardcode path.
+- `tests/test_io.py` — TẠO: 6 test cho logic dò (env thắng, bỏ qua ứng viên thiếu annotation, giữ thứ tự, fallback, lỗi liệt kê path đã thử, config cũ vẫn chạy).
+
+**Quyết định & lý do:**
+- **Không chỉ đổi chuỗi path** mà làm dò tự động có xác minh. Lý do: Kaggle đổi sơ đồ mount tuỳ lúc (`/kaggle/input/<slug>` vs `/kaggle/input/datasets/<owner>/<slug>`); hardcode sẽ hỏng lại lần sau.
+- **Xác minh bằng sự tồn tại của annotation, không phải `is_dir()`.** Đây đúng là bài học S-025: thư mục rỗng tồn tại vẫn khiến mọi bước sau thất bại âm thầm. Giờ ứng viên nào không chứa annotation thì bị bỏ qua.
+- Env `LLDMMRI_DATA_ROOT` vẫn thắng tuyệt đối, không kiểm tra — người dùng chủ động ghi đè thì tôn trọng.
+
+**Kết quả / số liệu:** `pytest` **56 passed** (50 → 56). ruff sạch. Notebook 12/12 cell hợp lệ, bootstrap không còn chuỗi `lldmmridataset` nào.
+
+**Dang dở:**
+- [ ] **Gate geometry vẫn chưa có kết quả thật** (hai phiên liên tiếp bị chặn bởi bug hạ tầng: đuôi file S-025, đường dẫn S-026).
+- [ ] T2.2 chốt tham số tiền xử lý.
+
+**Điểm vào phiên sau:** Trên Kaggle: `!cd /kaggle/working/repo && git pull` → Restart & Run All. Cell bootstrap giờ in `data root` đã dò được + trạng thái tồn tại của annotation/images; nếu vẫn sai sẽ in hướng dẫn `!ls /kaggle/input`.
+
+**Cảnh báo cho tool sau:** Đường dẫn Kaggle nằm ở `configs/data.yaml: data_root_candidates`, **không hardcode trong code hay notebook**. Mount chỗ mới thì thêm vào list đó (commit là xong) thay vì sửa rải rác.
