@@ -954,3 +954,35 @@ Hai ngoại lệ đăng ký kèm lý do (`single-font`, `overused-font=arial`): 
 **Kết quả / số liệu:** `impeccable detect --scope layout slides/overview.html` trả về rỗng; kiểm tra tĩnh xác nhận hai nhãn đã bị xoá và quy tắc layout mới có mặt.
 
 **Cảnh báo cho tool sau:** Giữ `display:block` cho `.compare-item strong` và khoảng cách dưới `.compare-item .tag`; nếu trả chúng về inline, lỗi dính badge/title ở slide 6 sẽ quay lại.
+
+
+## S-024 · 2026-07-24 19:10 · claude-code
+
+**Mục tiêu phiên:** W2 ngày 2 — dựng EDA + GATE GEOMETRY, và **đường ống Kaggle** (vì máy local không có data 83.7GB).
+
+**Nhánh / commit:** `main` · `39f7568` → *(commit đang chờ)*
+
+**Đã đụng file:**
+- `src/data/eda.py` — TẠO: `class_distribution`, `phase_geometry` + `geometry_summary_by_phase`, `bbox_stats` (quy đổi mm), `recommend_crop_size`, `missing_phase_report`.
+- `src/data/geometry_gate.py` — TẠO: gate 3 tầng (spacing header vs annotation · bbox trong biên + suy ra axis order · overlay slice cho mắt người). `GateReport.passed` = False khi rỗng (tránh pass giả lúc thiếu data).
+- `src/data/annotation.py` — thêm `raw_entries()` + `phase_entry()`; `bbox3d()` refactor dùng `phase_entry` (bỏ vòng lặp trùng).
+- `notebooks/01_eda.ipynb` — TẠO: 20 cell (12 code), lớp mỏng gọi `src/`, chạy được cả Kaggle lẫn local, output đã strip.
+- `docs/KAGGLE_WORKFLOW.md` — TẠO: quy trình clone repo vào Kaggle → mount data → chạy → **xuất output thành Kaggle Dataset có version** (2 cách), phương án offline, cách tải lẻ file về local, checklist rời phiên.
+- `tests/{conftest,test_eda,test_geometry_gate}.py` — TẠO: fixture annotation dùng chung + 19 test mới.
+
+**Quyết định & lý do:**
+- **Phần lớn EDA chỉ cần annotation JSON (18MB), không cần ảnh 83.7GB** — phân bố lớp, spacing, bbox, crop size đều tính từ annotation. Chỉ `missing_phase_report` cần chỉ mục file và gate geometry cần đọc header ảnh. Nhờ vậy phần lớn EDA chạy/test được cả khi không có data.
+- **Không tải data về local.** 83.7GB, và AGENTS.md §7 đã chốt Kaggle là compute. Thay vào đó dựng `docs/KAGGLE_WORKFLOW.md` — code ở git, chạy trên Kaggle, output nặng đẩy ngược thành Kaggle Dataset versioned cho các bước sau mount lại.
+- **Gate geometry thử CẢ HAI axis order** (x↔shape[0] và x↔shape[1]) thay vì giả định — chưa biết ảnh là (x,y,z) hay (y,x,z); `axis_order_verdict()` suy ra từ dữ liệu thật.
+- Test gate dùng **NIfTI tổng hợp thật** (nibabel ghi ra tmp_path) chứ không mock — để test đúng đường đọc header, chính chỗ dễ sai khi bản dữ liệu bị resample.
+- **KHÔNG commit `reports/W1_REPORT.md`** — có sửa nhỏ (đổi tiêu đề mục 6) không phải của phiên này, để nguyên cho người dùng.
+
+**Kết quả / số liệu:** `pytest` **46 passed** (27 → 46, +19). `ruff check` + `ruff format --check` sạch (24 file). 12/12 code cell trong notebook hợp lệ cú pháp (kiểm bằng `ast.parse`). Chưa có số liệu EDA thật — cần chạy trên Kaggle.
+
+**Dang dở:**
+- [ ] **Chạy `notebooks/01_eda.ipynb` trên Kaggle** để có số thật: phân bố lớp (đối chiếu official), spacing/pha, ca thiếu pha, kích thước bbox, và **kết quả GATE GEOMETRY**.
+- [ ] T2.2 — chốt tham số tiền xử lý (crop size, spacing đích, N4 on/off, xử lý ca thiếu pha) **sau khi** có số EDA. Bảng trống đã để sẵn ở cuối notebook.
+
+**Điểm vào phiên sau:** Chạy notebook trên Kaggle theo `docs/KAGGLE_WORKFLOW.md` §2. **Gate geometry FAIL ⇒ DỪNG**, không sang tiền xử lý (W2 ngày 3) — vì crop sai chỗ thì mọi kết quả sau đều vô nghĩa.
+
+**Cảnh báo cho tool sau:** Gate geometry **chưa từng chạy trên dữ liệu thật** — mọi giả định về axis order/spacing hiện chỉ là code chờ kiểm chứng. Đừng viết `build_cache` dựa trên giả định bbox đúng khi gate chưa PASS.

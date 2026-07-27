@@ -65,23 +65,31 @@ class Annotation:
         """Tên các pha có mặt (theo annotation, vd 'In Phase')."""
         return [entry["phase"] for entry in self._info[patient_id]]
 
+    def raw_entries(self, patient_id: str) -> list[dict]:
+        """Toàn bộ phase-entry thô của một bệnh nhân (cho EDA/geometry gate)."""
+        return self._info[patient_id]
+
+    def phase_entry(self, patient_id: str, phase_name: str) -> dict:
+        """Phase-entry thô của một (bệnh nhân, pha); raise KeyError nếu không có."""
+        for entry in self._info[patient_id]:
+            if entry["phase"] == phase_name:
+                return entry
+        raise KeyError(f"không có pha {phase_name!r} cho {patient_id!r}")
+
     def bbox3d(self, patient_id: str, phase_name: str) -> BBox3D:
         """Gộp `2D_box` theo `slice_idx` -> ROI 3D cho (bệnh nhân, pha).
 
         Dùng để crop lesion từ full-volume (bản dữ liệu không có patch cắt sẵn).
         """
-        for entry in self._info[patient_id]:
-            if entry["phase"] != phase_name:
-                continue
-            boxes = entry["annotation"]["lesion"]["0"]["bbox"]["2D_box"]
-            if not boxes:
-                raise ValueError(f"2D_box rỗng: {patient_id} / {phase_name}")
-            return BBox3D(
-                x_min=min(b["x_min"] for b in boxes),
-                y_min=min(b["y_min"] for b in boxes),
-                z_min=min(int(b["slice_idx"]) for b in boxes),
-                x_max=max(b["x_max"] for b in boxes),
-                y_max=max(b["y_max"] for b in boxes),
-                z_max=max(int(b["slice_idx"]) for b in boxes),
-            )
-        raise KeyError(f"không có pha {phase_name!r} cho {patient_id!r}")
+        entry = self.phase_entry(patient_id, phase_name)
+        boxes = entry["annotation"]["lesion"]["0"]["bbox"]["2D_box"]
+        if not boxes:
+            raise ValueError(f"2D_box rỗng: {patient_id} / {phase_name}")
+        return BBox3D(
+            x_min=min(b["x_min"] for b in boxes),
+            y_min=min(b["y_min"] for b in boxes),
+            z_min=min(int(b["slice_idx"]) for b in boxes),
+            x_max=max(b["x_max"] for b in boxes),
+            y_max=max(b["y_max"] for b in boxes),
+            z_max=max(int(b["slice_idx"]) for b in boxes),
+        )
