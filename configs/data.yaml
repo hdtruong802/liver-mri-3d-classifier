@@ -17,7 +17,16 @@ data_root_search:
   - /kaggle/input
 
 annotation_rel: lld/LLD_MMRI_Annotation.json
-images_rel: lld/images                   # chỉ đọc thư mục này; BỎ lld/labels (mask) + lld/.cache
+images_rel: lld/images                   # ảnh; luôn bỏ qua lld/.cache (rác tải của HuggingFace)
+
+# Mask tổn thương: 3984 file, đúng một mask cho mỗi (bệnh nhân × thì), cùng quy ước
+# tên với ảnh. CHỈ dùng khi preprocess.yaml đặt crop_mode=lesion_tight và source=mask.
+#
+# CẢNH BÁO: đây là mask do **MedSAM2 sinh tự động**, không phải bác sĩ vẽ (WORKLOG
+# S-021). Dùng để định vị và định kích thước tổn thương thì được; KHÔNG được coi là
+# nhãn segmentation chuẩn vàng, và không dùng làm mục tiêu giám sát mà không nêu rõ
+# giới hạn này trong báo cáo.
+labels_rel: lld/labels
 splits_dir: splits
 
 # 8 thì MRI. `name` = tên trong annotation JSON; `file` = token trong tên file ảnh.

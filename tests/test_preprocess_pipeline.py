@@ -221,3 +221,226 @@ def test_build_cache_refuses_without_axis_order(tiny_dataset, tmp_path, monkeypa
     )
     with pytest.raises(SystemExit, match="axis_order"):
         build_cache(tmp_path / "preprocess.yaml")
+
+
+# --- cắt bám sát tổn thương (crop_mode = lesion_tight) -----------------------
+
+
+def test_bbox_extent_counts_both_endpoints():
+    """Bbox từ voxel 56 đến 64 phủ 9 voxel, không phải 8."""
+    from src.data.annotation import BBox3D
+    from src.preprocess.crop import bbox_extent_voxel
+
+    box = BBox3D(x_min=56.0, x_max=64.0, y_min=50.0, y_max=60.0, z_min=9.0, z_max=11.0)
+    assert np.allclose(bbox_extent_voxel(box, "xy"), [9.0, 11.0, 3.0])
+    # 'yx' hoán hai trục đầu, trục slice giữ nguyên.
+    assert np.allclose(bbox_extent_voxel(box, "yx"), [11.0, 9.0, 3.0])
+
+
+def test_mask_extent_matches_written_blob():
+    from src.preprocess.crop import mask_center_extent_voxel
+
+    mask = np.zeros((20, 20, 20), dtype=np.uint8)
+    mask[4:9, 10:14, 2:5] = 1  # 5 x 4 x 3 voxel
+    center, extent = mask_center_extent_voxel(mask)
+    assert np.allclose(extent, [5.0, 4.0, 3.0])
+    assert np.allclose(center, [6.0, 11.5, 3.0])
+
+
+def test_empty_mask_raises_instead_of_guessing():
+    """Mask rỗng = phân vùng hỏng. Im lặng rơi về tâm ảnh sẽ tạo dữ liệu sai."""
+    from src.preprocess.crop import mask_center_extent_voxel
+
+    with pytest.raises(ValueError, match="rỗng"):
+        mask_center_extent_voxel(np.zeros((5, 5, 5)))
+
+
+def test_adaptive_spacing_scales_with_lesion():
+    from src.preprocess.crop import adaptive_spacing
+
+    spacing, fov = adaptive_spacing(
+        np.array([10.0, 10.0, 10.0]),
+        size=(20, 20, 10),
+        margin_factor=2.0,
+        min_fov_mm=(1.0, 1.0, 1.0),
+        max_fov_mm=(500.0, 500.0, 500.0),
+    )
+    assert np.allclose(fov, [20.0, 20.0, 20.0])  # 10mm x 2.0
+    assert np.allclose(spacing, [1.0, 1.0, 2.0])  # fov / size
+
+
+def test_adaptive_spacing_respects_floor_and_ceiling():
+    from src.preprocess.crop import adaptive_spacing
+
+    _, tiny = adaptive_spacing(
+        np.array([2.0, 2.0, 2.0]), (10, 10, 10), 1.6, (40.0, 40.0, 40.0), (200.0, 200.0, 200.0)
+    )
+    assert np.allclose(tiny, [40.0, 40.0, 40.0]), "tổn thương nhỏ phải bị chặn bởi sàn"
+
+    _, huge = adaptive_spacing(
+        np.array([300.0, 300.0, 300.0]),
+        (10, 10, 10),
+        1.6,
+        (40.0, 40.0, 40.0),
+        (200.0, 200.0, 200.0),
+    )
+    assert np.allclose(huge, [200.0, 200.0, 200.0]), "tổn thương lớn phải bị chặn bởi trần"
+
+
+def test_adaptive_spacing_rejects_bad_bounds():
+    from src.preprocess.crop import adaptive_spacing
+
+    with pytest.raises(ValueError, match="max_fov_mm"):
+        adaptive_spacing(np.ones(3), (8, 8, 8), 1.0, (100.0,) * 3, (50.0,) * 3)
+    with pytest.raises(ValueError, match="margin_factor"):
+        adaptive_spacing(np.ones(3), (8, 8, 8), 0.0, (1.0,) * 3, (50.0,) * 3)
+
+
+def test_lesion_tight_gives_smaller_fov_and_still_centres(tiny_dataset):
+    """Cửa sổ phải hẹp hơn fixed_mm mà tổn thương vẫn nằm giữa patch."""
+    from src.data.annotation import Annotation
+    from src.data.images import scan_image_index
+    from src.preprocess.build_cache import process_patient_with_meta
+
+    data_cfg, pre_cfg = tiny_dataset
+    root = Path(data_cfg["data_root"])
+    ann = Annotation(root / data_cfg["annotation_rel"])
+    index = scan_image_index(root / data_cfg["images_rel"], data_cfg["image_suffixes"])
+
+    tight_cfg = {
+        **pre_cfg,
+        "crop_mode": "lesion_tight",
+        "lesion_tight": {
+            "source": "bbox",
+            "margin_factor": 1.6,
+            "min_fov_mm": [5.0, 5.0, 5.0],
+            "max_fov_mm": [500.0, 500.0, 500.0],
+        },
+    }
+    volume, meta = process_patient_with_meta("MR-1", ann, index, PHASES, tight_cfg)
+
+    assert volume.shape == (2, *SIZE), "số voxel đầu ra phải không đổi"
+    assert meta["crop_source"] == "bbox"
+
+    fixed_fov = np.array(SPACING) * np.array(SIZE)
+    assert np.all(meta["fov_mm"] < fixed_fov), (
+        f"fov {meta['fov_mm']} phải hẹp hơn cửa sổ cố định {fixed_fov}"
+    )
+    # bbox 9x9x3 voxel @ spacing (1,1,3)mm = 9x9x9mm, nhân 1.6 = 14.4mm mỗi trục.
+    assert np.allclose(meta["lesion_extent_mm"], [9.0, 9.0, 9.0])
+    assert np.allclose(meta["fov_mm"], [14.4, 14.4, 14.4], atol=1e-4)
+
+    cx, cy, cz = (s // 2 for s in SIZE)
+    for channel in range(volume.shape[0]):
+        assert float(volume[channel, cx, cy, cz]) > float(volume[channel, 0, 0, 0]) + 1.0
+
+
+def test_lesion_tight_falls_back_to_bbox_when_mask_missing(tiny_dataset):
+    """Thiếu mask thì vẫn chạy, nhưng phải ghi rõ nguồn là bbox."""
+    from src.data.annotation import Annotation
+    from src.data.images import scan_image_index
+    from src.preprocess.build_cache import process_patient_with_meta
+
+    data_cfg, pre_cfg = tiny_dataset
+    root = Path(data_cfg["data_root"])
+    ann = Annotation(root / data_cfg["annotation_rel"])
+    index = scan_image_index(root / data_cfg["images_rel"], data_cfg["image_suffixes"])
+
+    cfg = {
+        **pre_cfg,
+        "crop_mode": "lesion_tight",
+        "lesion_tight": {
+            "source": "mask",
+            "margin_factor": 1.6,
+            "min_fov_mm": [5.0, 5.0, 5.0],
+            "max_fov_mm": [500.0, 500.0, 500.0],
+        },
+    }
+    _, meta = process_patient_with_meta("MR-1", ann, index, PHASES, cfg, mask_index={})
+    assert meta["crop_source"] == "bbox"
+
+
+def test_fixed_mm_mode_is_unchanged(tiny_dataset):
+    """Chế độ cũ phải cho đúng kết quả cũ — không được đổi dữ liệu đã build."""
+    from src.data.annotation import Annotation
+    from src.data.images import scan_image_index
+    from src.preprocess.build_cache import process_patient, process_patient_with_meta
+
+    data_cfg, pre_cfg = tiny_dataset
+    root = Path(data_cfg["data_root"])
+    ann = Annotation(root / data_cfg["annotation_rel"])
+    index = scan_image_index(root / data_cfg["images_rel"], data_cfg["image_suffixes"])
+
+    legacy = process_patient("MR-1", ann, index, PHASES, pre_cfg)
+    volume, meta = process_patient_with_meta("MR-1", ann, index, PHASES, pre_cfg)
+
+    assert np.allclose(legacy, volume)
+    assert meta["crop_mode"] == "fixed_mm"
+    assert np.allclose(meta["fov_mm"], np.array(SPACING) * np.array(SIZE))
+
+
+def test_build_cache_lesion_tight_writes_geometry_meta(tiny_dataset, tmp_path, monkeypatch):
+    """Đường chạy thật trên Kaggle: cache mới phải kèm hình học cửa sổ cắt.
+
+    `lesion_extent_mm` là thứ chế độ lesion_tight cắt bỏ khỏi ảnh; không ghi lại
+    thì kích thước tuyệt đối của tổn thương mất hẳn, và đó là thông tin chẩn đoán.
+    """
+    import yaml
+    from src.preprocess.build_cache import build_cache
+
+    data_cfg, pre_cfg = tiny_dataset
+    tight_cfg = {
+        **pre_cfg,
+        "crop_mode": "lesion_tight",
+        "lesion_tight": {
+            "source": "bbox",
+            "margin_factor": 1.6,
+            "min_fov_mm": [5.0, 5.0, 5.0],
+            "max_fov_mm": [500.0, 500.0, 500.0],
+        },
+        "cache_dir": str(tmp_path / "cache_tight"),
+    }
+    cfg_dir = tmp_path / "configs"
+    cfg_dir.mkdir()
+    (cfg_dir / "data.yaml").write_text(yaml.safe_dump(data_cfg), encoding="utf-8")
+    pre_path = cfg_dir / "preprocess.yaml"
+    pre_path.write_text(yaml.safe_dump(tight_cfg), encoding="utf-8")
+
+    monkeypatch.setenv("LLDMMRI_DATA_ROOT", data_cfg["data_root"])
+    monkeypatch.delenv("LLDMMRI_CACHE_DIR", raising=False)
+    monkeypatch.setattr(
+        "src.preprocess.build_cache.load_yaml",
+        lambda p: tight_cfg if str(p).endswith("preprocess.yaml") else data_cfg,
+    )
+
+    cache_dir = build_cache(pre_path)
+    with np.load(cache_dir / "MR-1.npz") as d:
+        assert d["image"].shape == (2, *SIZE)
+        assert np.allclose(d["lesion_extent_mm"], [9.0, 9.0, 9.0])
+        assert np.allclose(d["fov_mm"], [14.4, 14.4, 14.4], atol=1e-4)
+        assert str(d["crop_source"]) == "bbox"
+
+    meta = json.loads((cache_dir / "cache_meta.json").read_text(encoding="utf-8"))
+    assert meta["crop_mode"] == "lesion_tight"
+    assert meta["lesion_tight"]["margin_factor"] == 1.6
+
+
+def test_build_cache_mask_source_needs_labels_rel(tiny_dataset, tmp_path, monkeypatch):
+    """source='mask' mà data.yaml thiếu labels_rel thì phải dừng có thông báo rõ."""
+    import yaml
+    from src.preprocess.build_cache import build_cache
+
+    data_cfg, pre_cfg = tiny_dataset
+    tight_cfg = {**pre_cfg, "crop_mode": "lesion_tight", "lesion_tight": {"source": "mask"}}
+    cfg_dir = tmp_path / "configs"
+    cfg_dir.mkdir()
+    pre_path = cfg_dir / "preprocess.yaml"
+    pre_path.write_text(yaml.safe_dump(tight_cfg), encoding="utf-8")
+
+    monkeypatch.setenv("LLDMMRI_DATA_ROOT", data_cfg["data_root"])
+    monkeypatch.setattr(
+        "src.preprocess.build_cache.load_yaml",
+        lambda p: tight_cfg if str(p).endswith("preprocess.yaml") else data_cfg,
+    )
+    with pytest.raises(SystemExit, match="labels_rel"):
+        build_cache(pre_path)

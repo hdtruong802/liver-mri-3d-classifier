@@ -2222,3 +2222,50 @@ Nhân lúc soát thì tìm ra một chỗ phẳng **thật** mà hook không ch�
 **Cảnh báo cho tool sau:** (1) **Deck v2 và AGENTS.md/PRODUCT.md đang mâu thuẫn nhau về định vị accuracy.** Deck nói nhắm 0,85–0,90; hai file ngữ cảnh nói không đua accuracy. Đây là chủ ý của người dùng, không phải drift — đừng "sửa" deck về lại. (2) Đừng khai báo font bằng shorthand `font:` trong deck này, detector không đọc được và sẽ báo `single-font`. (3) Notebook `notebooks/notebookf104ced082.ipynb` giữ nguyên, không stage/commit/xoá.
 
 **Phụ chú S-056:** hook `impeccable@1` lại báo `flat-type-hierarchy`, lần này ở **L50** thay vì L99. Không phải finding mới — cùng một false positive đã phân tích ở phụ chú S-055. Số dòng dịch vì việc tách shorthand `font:` ở `body` thành bốn khai báo rời đã chèn thêm dòng; điểm hook bắt chuyển từ `font-size: var(--small)` trong `.foot` sang `font-size: var(--body)` trong `body`. Thang chữ không đổi (1,656 / 1,280 / 1,250 / 1,333 ở đầu rem). `npx impeccable detect --json slides/overview_v2.html` trả `[]` exit 0; gate PASS. Vẫn **chưa ghi ignore**, vẫn chờ người dùng xác nhận.
+
+## S-057 · 2026-07-28 · claude-code
+
+**Mục tiêu phiên:** Khảo sát data đã xử lý trên Kaggle, tính bề rộng CI ở n=104, và viết code cache bám sát tổn thương.
+
+**Nhánh / commit:** `main` · `0f1dcdf` → *(commit đang chờ)*
+
+**Đã đụng file:**
+- `src/preprocess/crop.py` — MỚI. `bbox_extent_voxel`, `mask_center_extent_voxel`, `adaptive_spacing`. Docstring ghi rõ đánh đổi mất kích thước tuyệt đối và hai biện pháp giảm thiểu.
+- `src/preprocess/build_cache.py` — thêm `process_patient_with_meta` (trả kèm hình học cửa sổ cắt); `process_patient` giữ nguyên chữ ký cũ làm wrapper nên notebook và test cũ không hỏng. `build_cache` quét thư mục mask khi cần, ghi `lesion_extent_mm`/`fov_mm`/`spacing`/`crop_source` vào từng `.npz`, thêm 2 cột vào `build_log.csv`, đếm và cảnh báo số ca phải rơi về bbox.
+- `configs/preprocess.yaml` — thêm `crop_mode` + khối `lesion_tight`; đổi `cache_dir` sang `artifacts/cache_lesion_tight`.
+- `configs/data.yaml` — thêm `labels_rel: lld/labels` kèm cảnh báo mask là do MedSAM2 sinh.
+- `tests/test_preprocess_pipeline.py` — +11 test.
+- `AGENTS.md` §6 — cập nhật dòng lệnh tiền xử lý.
+
+**Quyết định & lý do:**
+- **Khảo sát Kaggle (qua API, chỉ liệt kê không tải):** `marcohoang/lld-mmri-3d` = 610 file / 2,52 GiB, trong đó `cache/` có **đủ 498 `.npz`** (cache v0) + `repo/` 109 file. `marcohoang/lldmmridataset` = 15.945 file / 78,24 GiB: `lld/images` 3.984 `.nii`, **`lld/labels` 3.984 `.nii`**, `LLD_MMRI_Annotation.json`, còn lại là rác `.cache` của HuggingFace. ⇒ **mask có đủ 498 ca và có riêng cho từng thì.**
+- **Đính chính S-056:** tôi từng gọi mask là "lợi thế mà cả bảng xếp hạng không có". Nói vậy là quá lời. Đây là mask **MedSAM2 sinh tự động**, không phải bác sĩ vẽ. Dùng để **định vị và đo kích thước** thì tốt; dùng làm **nhãn giám sát segmentation** thì đang chưng cất lỗi của MedSAM2. Đã ghi cảnh báo vào `configs/data.yaml`.
+- **Giữ `fixed_mm` làm mặc định của code, chỉ đổi mặc định trong config.** Hai chế độ cùng tồn tại để so sánh có kiểm soát; cache mới ghi sang thư mục khác, không đè cache v0.
+- **Ghi `lesion_extent_mm` vào cache.** Chế độ lesion_tight làm mất kích thước tuyệt đối của tổn thương — thứ có ý nghĩa chẩn đoán (nang 5mm khác HCC 50mm). Lưu ở cạnh thì model sau dùng lại được làm đặc trưng phụ, chi phí bằng 0.
+- **Mask thiếu/rỗng thì rơi về bbox và ghi lại**, không im lặng. Mask rỗng ở `mask_center_extent_voxel` thì raise, vì rơi về tâm ảnh sẽ tạo dữ liệu sai mà không ai biết.
+
+**Kết quả / số liệu:**
+
+Bề rộng CI 95% bootstrap của macro-F1 ở **n=104** (phân bố lớp thật `[16,12,12,11,11,10,32]`, 2000 lần lấy mẫu lại mức bệnh nhân):
+
+| macro-F1 | CI 95% | ± nửa |
+|---|---|---|
+| 0,60 | [0,498 – 0,694] | ±0,098 |
+| 0,70 | [0,615 – 0,784] | ±0,085 |
+| 0,80 | [0,713 – 0,881] | ±0,084 |
+| 0,8322 | [0,749 – 0,903] | ±0,077 |
+| 0,85 | [0,781 – 0,919] | ±0,069 |
+| 0,90 | [0,834 – 0,955] | ±0,061 |
+
+⇒ **Không thể chứng minh vượt 0,8322 trên test-104.** CI của 0,8322 kéo tới 0,903, chồng lên cả CI của 0,90. Lưu ý: so hai CI biên là phép **bảo thủ**; kiểm định ghép cặp (McNemar, bootstrap ghép cặp) mạnh hơn vì triệt tiêu độ khó riêng từng ca — CI chồng nhau không đồng nghĩa chắc chắn không khác biệt.
+
+`pytest` **196 passed, 7 skipped**. ruff sạch.
+
+**Dang dở:**
+- [ ] **Chưa build cache mới** — cần chạy trên Kaggle, dữ liệu thô 78 GiB không ở máy local.
+- [ ] Script tính CI đang ở scratchpad, chưa chuyển thành `scripts/`. Người dùng chọn phương án (a) nên tôi chưa làm.
+- [ ] `notebooks/02_build_cache.ipynb` vẫn gọi `process_patient` chữ ký cũ — vẫn chạy được (fixed_mm), nhưng muốn dùng mask thì phải qua CLI hoặc truyền thêm `mask_index`.
+
+**Điểm vào phiên sau:** Chạy trên Kaggle: `LLDMMRI_CACHE_DIR=/kaggle/working/cache python -m src.preprocess.build_cache --config configs/preprocess.yaml --limit 20` để thử 20 ca trước, kiểm cột `crop_source` và `fov_mm` trong `build_log.csv`, rồi mới chạy cả mẻ.
+
+**Cảnh báo cho tool sau:** (1) **Đổi `crop_mode` là đổi dữ liệu, không phải đổi tham số** — mọi so sánh với run cũ chỉ hợp lệ khi cùng crop_mode. (2) Mask LLD-MMRI là MedSAM2 sinh, không phải chuẩn vàng. (3) Notebook `notebooks/notebookf104ced082.ipynb` giữ nguyên, không stage/commit/xoá.

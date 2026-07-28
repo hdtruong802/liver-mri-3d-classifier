@@ -20,10 +20,41 @@ axis_order: xy
 # Portal-venous theo Spec Sheet §2 (pha có độ tương phản gan-tổn thương tốt nhất).
 reference_phase: "C+V"
 
-# --- Lưới đích (không gian mm) ---
-# 96×96×48 @1.5×1.5×3.0mm = 144×144×144mm. EDA: lesion p95 = 97.6×98.5×78.0mm
-# -> đủ phủ p95 kèm margin. ~5% ca lớn nhất (max 179.7mm) bị cắt cụt rìa; tâm vẫn
-# đúng. Ghi vào limitations của báo cáo.
+# --- Chế độ cắt ---
+# fixed_mm    : cửa sổ vật lý cố định cho mọi ca (bản v0, đã build).
+# lesion_tight: cửa sổ co giãn theo kích thước tổn thương (xem src/preprocess/crop.py).
+#
+# Vì sao có chế độ thứ hai: với fixed_mm, tổn thương 20mm chỉ chiếm ~14% bề rộng
+# khung 144mm, model phải tự học bỏ qua 86% còn lại với 316 ca. Baseline chính
+# thức của challenge cắt bám sát tổn thương rồi resize về 112×112×14, và cả ba đội
+# đầu bảng đều xoay quanh định vị/căn tổn thương chứ không phải backbone.
+#
+# ĐỔI GIÁ TRỊ NÀY = ĐỔI DỮ LIỆU. Phải build cache mới vào thư mục khác, không ghi
+# đè cache cũ — nếu không thì không còn so sánh có kiểm soát được nữa.
+crop_mode: lesion_tight       # fixed_mm | lesion_tight
+
+lesion_tight:
+  # Lấy kích thước tổn thương từ đâu. 'mask' chính xác hơn 'bbox' nhưng mask của
+  # LLD-MMRI là do MedSAM2 sinh, KHÔNG phải bác sĩ vẽ (WORKLOG S-021) — dùng để
+  # định vị thì tốt, đừng coi là chuẩn vàng. Thiếu mask thì tự rơi về bbox và ghi
+  # lại ở cột crop_source của build_log.csv.
+  source: mask                # bbox | mask
+  # Cửa sổ = kích thước tổn thương × hệ số này. 1.6 để lại viền mô quanh tổn
+  # thương — bối cảnh gan lành sát bên có giá trị chẩn đoán (vd vành sáng của FNH).
+  margin_factor: 1.6
+  # Sàn: tổn thương rất nhỏ mà cắt sát sẽ phóng đại thành ảnh mờ toàn nhiễu.
+  min_fov_mm: [40.0, 40.0, 40.0]
+  # Trần: tổn thương rất lớn không được kéo cửa sổ ra tới mức quay về fixed_mm.
+  max_fov_mm: [200.0, 200.0, 200.0]
+
+# --- Lưới đích ---
+# target_size là số voxel đầu ra, luôn cố định để model nhận đúng một kích thước.
+# target_spacing CHỈ dùng khi crop_mode = fixed_mm; ở lesion_tight, spacing được
+# suy ra từ fov_mm / target_size nên biến thiên theo từng bệnh nhân.
+#
+# Ghi chú cho fixed_mm: 96×96×48 @1.5×1.5×3.0mm = 144×144×144mm. EDA: lesion p95 =
+# 97.6×98.5×78.0mm -> đủ phủ p95 kèm margin. ~5% ca lớn nhất (max 179.7mm) bị cắt
+# cụt rìa; tâm vẫn đúng. Ghi vào limitations của báo cáo.
 target_spacing: [1.5, 1.5, 3.0]
 target_size: [96, 96, 48]
 interpolator: linear          # linear | nearest | bspline
@@ -44,4 +75,7 @@ n4: false
 
 # --- Đầu ra ---
 output_dtype: float16         # 498 ca × [8,96,96,48] ≈ 3.5GB
-cache_dir: artifacts/cache    # ghi đè bằng env LLDMMRI_CACHE_DIR (Kaggle: /kaggle/working/cache)
+cache_dir: artifacts/cache_lesion_tight
+# ^ ghi đè bằng env LLDMMRI_CACHE_DIR (Kaggle: /kaggle/working/cache).
+# Thư mục KHÁC cache v0 là cố ý: hai cache phải cùng tồn tại để so sánh có kiểm
+# soát (cùng split, cùng seed, cùng recipe train — chỉ đổi dữ liệu đầu vào).
