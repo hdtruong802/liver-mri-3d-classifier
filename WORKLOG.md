@@ -2300,3 +2300,45 @@ Bề rộng CI 95% bootstrap của macro-F1 ở **n=104** (phân bố lớp th�
 **Điểm vào phiên sau:** Nối `calibration` + `selective` vào `src/eval/run.py`, hoặc chạy E0+E1 trên Kaggle trước (ưu tiên cao hơn, vì hai module trên không cần model để test nhưng cần model để có số).
 
 **Cảnh báo cho tool sau:** (1) **`fit_temperature` chỉ gọi trên validation.** Fit trên test là leakage và làm hỏng toàn bộ đánh giá. (2) Brier ở đây dùng dạng tổng bình phương (khoảng `[0,2]`), có tài liệu chia thêm cho K — đừng so nhầm với số của họ. (3) Notebook `notebooks/notebookf104ced082.ipynb` giữ nguyên.
+
+## S-059 · 2026-07-28 · claude-code
+
+**Mục tiêu phiên:** Sửa lỗi quét mask phát hiện khi người dùng chạy thử build cache lesion-tight trên Kaggle.
+
+**Nhánh / commit:** `main` · `b7fd34c` → *(commit đang chờ)*
+
+### Lỗi
+
+Log Kaggle: `Đã quét 0 file mask ở .../lld/labels`, rồi **20/20 ca lặng lẽ rơi về bbox** và build báo "HOÀN TẤT".
+
+Nguyên nhân: bộ dữ liệu theo quy ước nnU-Net, **hai thư mục đặt tên khác nhau**:
+
+```
+lld/images/MR-391135_1_C+V_0000.nii    ảnh   — có hậu tố kênh _0000
+lld/labels/MR-391135_1_C+V.nii         mask  — KHÔNG có _0000
+```
+
+`build_cache` quét mask bằng `image_suffixes` (`_0000.nii*`) nên khớp 0 file. Xác nhận từ danh sách file thật đã tải qua Kaggle API: 3.984 mask, 100% đuôi `.nii` không có `_0000`.
+
+**Lỗi thứ hai, nghiêm trọng hơn:** index rỗng mà build vẫn chạy tiếp. Đường lui về bbox — vốn để chịu vài ca thiếu mask — đã che mất một lỗi cấu hình toàn cục. Cả mẻ 498 ca sẽ build xong trông như thành công trong khi mask chưa từng được dùng, và không có gì trong log tổng kết nói ra điều đó.
+
+**Đã đụng file:**
+- `src/data/images.py` — thêm `DEFAULT_LABEL_SUFFIXES = (".nii.gz", ".nii")`; docstring ghi rõ hai quy ước tên.
+- `src/preprocess/build_cache.py` — dùng `label_suffixes` khi quét mask; **raise `SystemExit` nếu quét ra 0 mask**, kèm in tên file thật trong thư mục để chẩn đoán ngay từ log.
+- `configs/data.yaml` — thêm `label_suffixes: [".nii.gz", ".nii"]`.
+- `tests/test_images.py` +2 test · `tests/test_preprocess_pipeline.py` +2 test.
+
+**Quyết định & lý do:**
+- **Đường lui phải có giới hạn.** Rơi về bbox cho *một vài ca* thiếu mask là đúng; rơi về bbox cho *tất cả* là dấu hiệu cấu hình sai, phải dừng. Ranh giới đặt ở "index rỗng".
+- **Thông báo lỗi in tên file thật.** Lỗi này chẩn đoán được trong 1 giây nếu log nói "đuôi đã thử X, file thật trông như Y" — thay vì phải tải danh sách file về đối chiếu như tôi vừa làm.
+- **Tôi viết sai assertion trong test lần đầu**: dùng khoá `"MR391135"` trong khi `normalize_pid` trả về **chỉ phần chữ số** `"391135"`. Test bắt được, đã sửa.
+
+**Kết quả / số liệu:** `pytest` **231 passed, 9 skipped** (227 → 231). ruff sạch.
+
+**Dang dở:**
+- [ ] Người dùng cần **`git pull` trên Kaggle** rồi chạy lại `--limit 20`. Cache 20 ca cũ ở `/kaggle/working/cache_lesion_tight` **phải xoá** — chúng build bằng bbox, và `build_cache` có resume nên sẽ bỏ qua chứ không ghi đè.
+- [ ] E0/E1 vẫn chưa chạy.
+
+**Điểm vào phiên sau:** Sau khi xoá cache cũ và chạy lại 20 ca, cột `crop_source` phải là `mask` gần hết. Nếu vẫn `bbox` thì lần này build sẽ dừng hẳn với thông báo có tên file — gửi nguyên đoạn đó.
+
+**Cảnh báo cho tool sau:** `build_cache` **có resume** (bỏ qua ca đã có `.npz`). Đổi tham số crop mà không xoá thư mục cache cũ thì mẻ mới sẽ trộn hai loại dữ liệu — không có gì trong file cảnh báo điều đó. Luôn build sang thư mục mới hoặc xoá sạch trước.

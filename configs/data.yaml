@@ -27,6 +27,13 @@ images_rel: lld/images                   # ảnh; luôn bỏ qua lld/.cache (rá
 # nhãn segmentation chuẩn vàng, và không dùng làm mục tiêu giám sát mà không nêu rõ
 # giới hạn này trong báo cáo.
 labels_rel: lld/labels
+
+# Mask KHÔNG mang hậu tố kênh `_0000` như ảnh (quy ước nnU-Net):
+#   lld/images/MR-391135_1_C+V_0000.nii   <- image_suffixes
+#   lld/labels/MR-391135_1_C+V.nii        <- label_suffixes
+# Dùng nhầm danh sách đuôi của ảnh sẽ khớp 0 file và cả mẻ build lặng lẽ rơi về
+# bbox (WORKLOG S-059). Giờ build_cache dừng hẳn nếu quét ra 0 mask.
+label_suffixes: [".nii.gz", ".nii"]
 splits_dir: splits
 
 # 8 thì MRI. `name` = tên trong annotation JSON; `file` = token trong tên file ảnh.

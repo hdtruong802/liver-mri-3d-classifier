@@ -444,3 +444,94 @@ def test_build_cache_mask_source_needs_labels_rel(tiny_dataset, tmp_path, monkey
     )
     with pytest.raises(SystemExit, match="labels_rel"):
         build_cache(pre_path)
+
+
+def test_build_cache_stops_when_no_mask_matches(tiny_dataset, tmp_path, monkeypatch):
+    """Quét ra 0 mask phải DỪNG, không được lặng lẽ rơi về bbox cho cả mẻ.
+
+    Đây là lỗi thật đã xảy ra: mask không mang hậu tố `_0000` như ảnh nên index
+    rỗng, 20 ca build xong trông như thành công mà mask chưa từng được dùng
+    (WORKLOG S-059).
+    """
+    import yaml
+    from src.preprocess.build_cache import build_cache
+
+    data_cfg, pre_cfg = tiny_dataset
+    root = Path(data_cfg["data_root"])
+    labels = root / "lld" / "labels"
+    labels.mkdir(parents=True)
+    (labels / "MR-1_1_C+V.nii").touch()  # tên đúng thực tế, KHÔNG có _0000
+
+    bad_cfg = {
+        **data_cfg,
+        "labels_rel": "lld/labels",
+        "label_suffixes": ["_0000.nii"],  # cố ý sai: đây là đuôi của ảnh
+    }
+    tight_cfg = {
+        **pre_cfg,
+        "crop_mode": "lesion_tight",
+        "lesion_tight": {"source": "mask"},
+    }
+    cfg_dir = tmp_path / "configs"
+    cfg_dir.mkdir()
+    pre_path = cfg_dir / "preprocess.yaml"
+    pre_path.write_text(yaml.safe_dump(tight_cfg), encoding="utf-8")
+
+    monkeypatch.setenv("LLDMMRI_DATA_ROOT", data_cfg["data_root"])
+    monkeypatch.setattr(
+        "src.preprocess.build_cache.load_yaml",
+        lambda p: tight_cfg if str(p).endswith("preprocess.yaml") else bad_cfg,
+    )
+
+    with pytest.raises(SystemExit) as excinfo:
+        build_cache(pre_path)
+    # Thông báo phải in tên file THẬT, nếu không thì không chẩn đoán được từ log.
+    assert "MR-1_1_C+V.nii" in str(excinfo.value)
+
+
+def test_build_cache_uses_masks_when_suffixes_match(tiny_dataset, tmp_path, monkeypatch):
+    """Đuôi đúng thì mask phải được dùng thật, crop_source ghi 'mask'."""
+    import yaml
+    from src.preprocess.build_cache import build_cache
+
+    data_cfg, pre_cfg = tiny_dataset
+    root = Path(data_cfg["data_root"])
+    labels = root / "lld" / "labels"
+    labels.mkdir(parents=True)
+
+    # Mask khối đặc trùng vị trí tổn thương của pha C+V trong fixture.
+    import nibabel as nib
+
+    mask = np.zeros((120, 120, 20), dtype=np.uint8)
+    mask[56:65, 56:65, 9:12] = 1
+    affine = np.diag([1.0, 1.0, 3.0, 1.0])
+    nib.save(nib.Nifti1Image(mask, affine), str(labels / "MR-1_1_C+V.nii"))
+
+    good_cfg = {**data_cfg, "labels_rel": "lld/labels", "label_suffixes": [".nii.gz", ".nii"]}
+    tight_cfg = {
+        **pre_cfg,
+        "crop_mode": "lesion_tight",
+        "lesion_tight": {
+            "source": "mask",
+            "margin_factor": 1.6,
+            "min_fov_mm": [5.0, 5.0, 5.0],
+            "max_fov_mm": [500.0, 500.0, 500.0],
+        },
+        "cache_dir": str(tmp_path / "cache_mask"),
+    }
+    cfg_dir = tmp_path / "configs"
+    cfg_dir.mkdir()
+    pre_path = cfg_dir / "preprocess.yaml"
+    pre_path.write_text(yaml.safe_dump(tight_cfg), encoding="utf-8")
+
+    monkeypatch.setenv("LLDMMRI_DATA_ROOT", data_cfg["data_root"])
+    monkeypatch.delenv("LLDMMRI_CACHE_DIR", raising=False)
+    monkeypatch.setattr(
+        "src.preprocess.build_cache.load_yaml",
+        lambda p: tight_cfg if str(p).endswith("preprocess.yaml") else good_cfg,
+    )
+
+    cache_dir = build_cache(pre_path)
+    with np.load(cache_dir / "MR-1.npz") as d:
+        assert str(d["crop_source"]) == "mask", "mask có đúng đuôi mà vẫn rơi về bbox"
+        assert np.allclose(d["lesion_extent_mm"], [9.0, 9.0, 9.0])

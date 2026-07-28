@@ -25,7 +25,7 @@ from typing import Any
 import numpy as np
 
 from src.data.annotation import Annotation
-from src.data.images import scan_image_index
+from src.data.images import DEFAULT_LABEL_SUFFIXES, scan_image_index
 from src.preprocess.crop import adaptive_spacing, bbox_extent_voxel, mask_center_extent_voxel
 from src.preprocess.geometry import AXIS_ORDERS, bbox_center_voxel, voxel_to_world
 from src.preprocess.grid import make_reference_image
@@ -226,8 +226,23 @@ def build_cache(config_path: str | Path, limit: int = 0) -> Path:
         labels_dir = data_root / labels_rel
         if not labels_dir.is_dir():
             raise SystemExit(f"Không thấy thư mục mask: {labels_dir}")
-        mask_index = scan_image_index(labels_dir, data_config["image_suffixes"])
+
+        label_suffixes = data_config.get("label_suffixes", DEFAULT_LABEL_SUFFIXES)
+        mask_index = scan_image_index(labels_dir, label_suffixes)
         logger.info("Đã quét %d file mask ở %s", len(mask_index), labels_dir)
+
+        # Quét ra 0 mask mà vẫn chạy tiếp là hỏng âm thầm: mọi ca sẽ lặng lẽ rơi về
+        # bbox và cả mẻ build xong trông như thành công, trong khi mask chưa từng
+        # được dùng. Đã xảy ra một lần vì mask không mang hậu tố `_0000` như ảnh
+        # (WORKLOG S-059). Dừng ngay, và in tên file thật để chẩn đoán được liền.
+        if not mask_index:
+            sample = sorted(p.name for p in list(labels_dir.iterdir())[:5])
+            raise SystemExit(
+                f"Quét được 0 mask ở {labels_dir} với đuôi {tuple(label_suffixes)}.\n"
+                f"Vài tên file thật trong thư mục đó: {sample}\n"
+                "Sửa 'label_suffixes' trong configs/data.yaml cho khớp, hoặc đổi "
+                "lesion_tight.source sang 'bbox' nếu cố ý không dùng mask."
+            )
 
     cache_dir = resolve_cache_dir(config)
     cache_dir.mkdir(parents=True, exist_ok=True)

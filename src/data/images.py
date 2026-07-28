@@ -1,9 +1,17 @@
-"""Lập chỉ mục file ảnh NIfTI trong `lld/images/`.
+"""Lập chỉ mục file NIfTI trong `lld/images/` và `lld/labels/`.
 
-Tên file: ``{patient}_{lesion}_{token}_0000.nii[.gz]`` (vd ``MR-391135_1_C+A_0000.nii``).
+Bộ dữ liệu theo quy ước nnU-Net, và **hai thư mục đặt tên khác nhau**::
+
+    lld/images/MR-391135_1_C+V_0000.nii    ảnh   — có hậu tố kênh _0000
+    lld/labels/MR-391135_1_C+V.nii         mask  — KHÔNG có _0000
+
+Quét mask bằng danh sách đuôi của ảnh sẽ khớp **0 file**, và vì `build_cache` có
+đường lui về bbox nên cả mẻ vẫn chạy xong mà không ai biết mask chưa từng được
+dùng (WORKLOG S-059). Dùng `DEFAULT_LABEL_SUFFIXES` cho `lld/labels/`.
+
 Lesion-suffix biến thiên theo bệnh nhân (1, 2, 6…) và ID có/không gạch nối, nên KHÔNG
 dựng path bằng công thức — quét thư mục 1 lần rồi map ``(patient_key, token) -> path``.
-Chỉ đọc `images/`; bỏ qua `labels/` (mask segmentation) và `.cache/`.
+Luôn bỏ qua `.cache/` (rác tải về của HuggingFace).
 
 **Phải nhận cả `.nii` lẫn `.nii.gz`** (WORKLOG S-025): repo HuggingFace gốc lưu
 `.nii.gz`, nhưng bản upload lên Kaggle đã **giải nén thành `.nii`** (đó là lý do
@@ -22,6 +30,10 @@ ImageIndex = dict[tuple[str, str], Path]
 
 # Thứ tự ưu tiên: nếu cùng một (bệnh nhân, pha) có cả hai, bản nén được chọn.
 DEFAULT_IMAGE_SUFFIXES: tuple[str, ...] = ("_0000.nii.gz", "_0000.nii")
+
+# Mask không mang hậu tố kênh `_0000` (quy ước nnU-Net). Đuôi dài đặt trước để
+# `*.nii` không nuốt mất `*.nii.gz`.
+DEFAULT_LABEL_SUFFIXES: tuple[str, ...] = (".nii.gz", ".nii")
 
 
 def scan_image_index(

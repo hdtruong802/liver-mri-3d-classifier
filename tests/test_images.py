@@ -96,3 +96,40 @@ def test_scan_accepts_single_suffix_string(images_dir_plain_nii: Path):
     """Vẫn nhận một chuỗi đơn (tương thích cách gọi cũ)."""
     index = scan_image_index(images_dir_plain_nii, "_0000.nii")
     assert len(index) == 3
+
+
+def test_scans_masks_without_channel_suffix(tmp_path):
+    """Mask theo quy ước nnU-Net không có `_0000`; phải quét được bằng label_suffixes.
+
+    Dùng nhầm danh sách đuôi của ảnh thì khớp 0 file, và vì build_cache có đường
+    lui về bbox nên cả mẻ vẫn chạy xong trong khi mask chưa từng được dùng
+    (WORKLOG S-059).
+    """
+    from src.data.images import DEFAULT_IMAGE_SUFFIXES, DEFAULT_LABEL_SUFFIXES, scan_image_index
+
+    labels = tmp_path / "labels"
+    labels.mkdir()
+    for token in ("C+V", "DWI", "InPhase"):
+        (labels / f"MR-391135_1_{token}.nii").touch()
+
+    assert scan_image_index(labels, DEFAULT_IMAGE_SUFFIXES) == {}, (
+        "đuôi của ảnh KHÔNG được khớp file mask — nếu khớp thì test này vô nghĩa"
+    )
+
+    index = scan_image_index(labels, DEFAULT_LABEL_SUFFIXES)
+    assert len(index) == 3
+    # Khoá là phần chữ số của patient ID (xem src/utils/ids.py).
+    assert ("391135", "C+V") in index
+
+
+def test_label_suffix_order_prefers_compressed(tmp_path):
+    """Có cả .nii.gz lẫn .nii cho cùng một pha thì bản nén được chọn."""
+    from src.data.images import DEFAULT_LABEL_SUFFIXES, scan_image_index
+
+    labels = tmp_path / "labels"
+    labels.mkdir()
+    (labels / "MR-1_1_C+V.nii").touch()
+    (labels / "MR-1_1_C+V.nii.gz").touch()
+
+    index = scan_image_index(labels, DEFAULT_LABEL_SUFFIXES)
+    assert index[("1", "C+V")].name.endswith(".nii.gz")
