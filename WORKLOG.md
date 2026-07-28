@@ -2269,3 +2269,34 @@ Bề rộng CI 95% bootstrap của macro-F1 ở **n=104** (phân bố lớp th�
 **Điểm vào phiên sau:** Chạy trên Kaggle: `LLDMMRI_CACHE_DIR=/kaggle/working/cache python -m src.preprocess.build_cache --config configs/preprocess.yaml --limit 20` để thử 20 ca trước, kiểm cột `crop_source` và `fov_mm` trong `build_log.csv`, rồi mới chạy cả mẻ.
 
 **Cảnh báo cho tool sau:** (1) **Đổi `crop_mode` là đổi dữ liệu, không phải đổi tham số** — mọi so sánh với run cũ chỉ hợp lệ khi cùng crop_mode. (2) Mask LLD-MMRI là MedSAM2 sinh, không phải chuẩn vàng. (3) Notebook `notebooks/notebookf104ced082.ipynb` giữ nguyên, không stage/commit/xoá.
+
+## S-058 · 2026-07-28 · claude-code
+
+**Mục tiêu phiên:** Commit S-057, đánh giá xem có phải xử lý lại dataset từ đầu cho hướng mới, rồi viết `calibration.py` + `selective.py`.
+
+**Nhánh / commit:** `main` · `0f1dcdf` → `df7a858` → *(commit đang chờ)*
+
+**Đã đụng file:**
+- `src/eval/calibration.py` — MỚI. ECE · adaptive-ECE · MCE · Brier · NLL · `reliability_curve` · `apply_temperature` · `fit_temperature` · `per_class_calibration_error`.
+- `src/eval/selective.py` — MỚI. `predictive_entropy` · `uncertainty_decomposition` (total/aleatoric/epistemic) · `risk_coverage_curve` · `aurc` · `selective_accuracy` · `coverage_at_risk` · `metric_at_coverage`.
+- `tests/test_calibration.py` (21 test) · `tests/test_selective.py` (18 test) — MỚI.
+
+**Quyết định & lý do:**
+- **Không cần xử lý lại dataset từ đầu.** Split official, phán quyết `axis_order`, và cách resample 8 thì lên một lưới mm chung đều đứng vững — Siamese, phase attention, pretrained backbone không đụng tới chúng. Hướng mới cần đúng **một lần build lại** (lesion-tight), code đã xong ở S-057.
+- **Phát hiện một điểm thiết kế:** chuẩn hoá đang bị nướng vào cache (`clip_and_zscore` chạy lúc build, `src/data/` không chuẩn hoá lúc load). Hệ quả: mỗi ablation chuẩn hoá tốn một lần build cả mẻ. Đây là confound thật với baseline official (họ min-max `[0,1]`, ta percentile-clip + z-score). Đề xuất: lần build lesion-tight lưu luôn patch thô, chuẩn hoá lúc load. **Chưa làm** — không được để nó hoãn E0/E1.
+- **`apply_temperature` nhận xác suất chứ không phải logit**, vì pipeline chỉ lưu `val_probs_*.npz`. Hợp lệ toán học: `softmax(log(p)/T)` cho đúng kết quả như chia logit gốc, do softmax bất biến với việc cộng hằng số vào logit. Có test khẳng định thứ hạng lớp không đổi ⇒ macro-F1/accuracy/AUROC giữ nguyên.
+- **`fit_temperature` dùng tìm kiếm mặt cắt vàng tự cài** thay vì scipy: NLL theo T là hàm một biến trơn, lồi một cực tiểu trên khoảng này. Có test kiểm T tìm được thật sự tối thiểu hoá NLL so với các T khác.
+- **`uncertainty_decomposition` raise khi chỉ có 1 thành viên**, không trả 0. Một model đơn lẻ không có epistemic uncertainty theo định nghĩa; trả 0 sẽ bị đọc nhầm thành "model rất chắc chắn".
+- **`per_class_calibration_error` bỏ hẳn lớp vắng mặt**, không trả 0 — 0 sẽ bị đọc nhầm là hiệu chỉnh hoàn hảo. Có test riêng cho việc một lớp hỏng nặng mà ECE tổng vẫn đẹp.
+- **`metric_at_coverage` là hàm tổng quát**, không phải `accuracy_at_coverage` cố định — con số trung tâm của dự án là **macro-F1 ở coverage 80%**, và hàm này ghép thẳng được với `bootstrap_metric` để ra CI. Docstring cảnh báo: ở coverage thấp một lớp hiếm có thể biến mất khỏi tập giữ lại, khi đó macro-F1 tính trên ít lớp hơn và không so trực tiếp được với coverage 100%.
+
+**Kết quả / số liệu:** `pytest` **227 passed, 9 skipped** (196 → 227). ruff sạch. Quality gate PASS. Chưa có số thật nào — hai module test bằng dữ liệu tổng hợp có tính chất calibration/xếp hạng đã biết trước.
+
+**Dang dở:**
+- [ ] **Hai module chưa được gọi ở đâu cả.** `src/eval/run.py` vẫn chỉ in bảng metric cũ. Cần nối vào để calibration + selective tự xuất hiện khi một run kết thúc — nhưng phải cẩn thận: `fit_temperature` chỉ được chạy trên validation, áp mù sang test.
+- [ ] Cache lesion-tight vẫn chưa build (cần Kaggle).
+- [ ] E0/E1 vẫn chưa chạy — vẫn chưa có kết quả hợp lệ nào của dự án.
+
+**Điểm vào phiên sau:** Nối `calibration` + `selective` vào `src/eval/run.py`, hoặc chạy E0+E1 trên Kaggle trước (ưu tiên cao hơn, vì hai module trên không cần model để test nhưng cần model để có số).
+
+**Cảnh báo cho tool sau:** (1) **`fit_temperature` chỉ gọi trên validation.** Fit trên test là leakage và làm hỏng toàn bộ đánh giá. (2) Brier ở đây dùng dạng tổng bình phương (khoảng `[0,2]`), có tài liệu chia thêm cho K — đừng so nhầm với số của họ. (3) Notebook `notebooks/notebookf104ced082.ipynb` giữ nguyên.
