@@ -1,234 +1,1499 @@
 <!doctype html>
 <html lang="vi">
+
 <head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>MRI đa thì và AI phân loại u gan</title>
-<style>
-:root{
-  --ink:#10161B;--surface:#161E24;--surface-2:#2E3A42;--line:#2E3A42;
-  --paper:#E8E4DA;--muted:#A9B2B8;--dim:#8B949B;--cyan:#6FC2DC;
-  --mint:#6FC2DC;--amber:#D4A72C;--coral:#D4A72C;--sans:"Segoe UI",system-ui,-apple-system,"Noto Sans","Liberation Sans",Arial,sans-serif;--serif:Cambria,"Times New Roman","Liberation Serif","Noto Serif",Georgia,serif;
-  --u:min(1vw,1.778vh);--xs:4px;--sm:8px;--md:16px;--lg:28px;--xl:44px;
-  --display:max(2.65rem,calc(4.05 * var(--u)));--headline:max(1.6rem,calc(2.25 * var(--u)));
-  --body:max(1rem,calc(1.32 * var(--u)));--small:max(.75rem,calc(.91 * var(--u)));
-}
-*{box-sizing:border-box;margin:0;padding:0}html,body{height:100%}
-body{background:var(--ink);color:var(--paper);font:400 var(--body)/1.5 var(--sans);overflow:hidden}
-.deck{width:min(100vw,calc(100vh * 16 / 9));height:min(100vh,calc(100vw * 9 / 16));margin:auto;position:relative}
-.slide{position:absolute;inset:0;display:none;grid-template-rows:auto auto 1fr auto;padding:calc(1.9 * var(--u));overflow:hidden;background:var(--ink)}
-.slide.is-active{display:grid}.slide::after{content:"";position:absolute;inset:calc(1.15 * var(--u));border:1px solid var(--line);pointer-events:none}
-.top,.foot{position:relative;z-index:1;display:flex;justify-content:space-between;align-items:center;gap:var(--md);font-size:var(--small)}
-.top{color:var(--muted);padding-bottom:var(--sm);border-bottom:1px solid var(--line)}.ruo{display:inline-flex;align-items:center;gap:7px}.ruo::before{content:"";width:8px;height:8px;border:1px solid var(--cyan)}.index{color:var(--cyan);font-variant-numeric:tabular-nums}
-.foot{padding-top:var(--sm);border-top:1px solid var(--line);color:var(--muted)}.foot a,.refs a{color:var(--paper);text-decoration-color:var(--cyan);text-underline-offset:2px}.foot .no{color:var(--dim);white-space:nowrap;font-variant-numeric:tabular-nums}
-.section-nav{position:relative;z-index:1;width:min(100%,calc(86 * var(--u)));margin:calc(.65 * var(--u)) auto 0;display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:var(--md)}.section-item{display:grid;gap:var(--xs);color:var(--dim);font-family:var(--serif);font-size:var(--small);font-style:italic;line-height:1.2}.section-item i{display:block;height:1px;background:var(--line)}.section-item.active{color:var(--paper);font-style:normal;font-weight:700}.section-item.active i{height:2px;background:var(--amber)}
-.body{position:relative;z-index:1;min-height:0;display:grid;align-content:center;padding:calc(1.05 * var(--u)) 0 calc(1.25 * var(--u))}.content{width:min(100%,calc(86 * var(--u)));margin:auto}
-h1,h2,h3{letter-spacing:-.025em;line-height:1.08}h1,h2{font-size:var(--display);font-weight:650;max-width:22ch}h2{font-size:var(--headline);max-width:30ch}h3{font-size:var(--body);font-weight:650;color:var(--paper)}
-.lede{font-size:var(--headline);line-height:1.3;color:var(--paper);max-width:40ch;margin-top:var(--md)}.sub,.quiet{color:var(--muted)}.sub{max-width:60ch;margin-top:var(--md)}.eyebrow{color:var(--cyan);font-size:var(--small);font-weight:700;letter-spacing:.02em;margin-bottom:var(--sm)}
-.split{display:grid;grid-template-columns:1fr 1fr;gap:calc(3 * var(--u));align-items:center}.split-wide{grid-template-columns:1.15fr .85fr}.split>*{min-width:0}.stack>*+*{margin-top:var(--md)}
-.tag{display:inline-block;color:var(--cyan);border:1px solid var(--cyan);padding:3px 8px;border-radius:0;font-size:var(--small);font-weight:650}.concept{display:inline-block;color:var(--muted);border:1px dashed var(--dim);padding:3px 8px;border-radius:0;font-size:var(--small)}
-.hero-layout{display:grid;grid-template-columns:1.08fr .92fr;gap:calc(3 * var(--u));align-items:center}.hero-copy{min-width:0}.hero-media{height:clamp(260px,calc(32 * var(--u)),500px);border:1px solid var(--line);background:var(--surface);padding:var(--sm)}.hero-media img{display:block;width:100%;height:100%;object-fit:cover;opacity:.78}
-.image-frame{position:relative;background:var(--ink);border:1px solid var(--line);padding:var(--sm)}.image-frame img{display:block;width:100%;height:100%;object-fit:cover}.image-frame figcaption{font-size:var(--small);color:var(--muted);padding-top:var(--xs)}.image-frame .callout{position:absolute;border:1px solid var(--cyan);width:24px;height:24px;border-radius:50%;left:72%;top:38%}
-.phase-note{display:grid;gap:var(--sm)}.phase-note li{list-style:none;position:relative;padding-left:18px;color:var(--muted)}.phase-note li::before{content:"";position:absolute;left:0;top:.7em;width:10px;height:2px;background:var(--cyan)}
-.flow{display:grid;grid-template-columns:repeat(4,1fr);gap:var(--sm);align-items:stretch;margin-top:var(--lg)}.flow-step{position:relative;padding:var(--md);background:var(--surface);border:1px solid var(--line);border-radius:0}.flow-step:not(:last-child)::after{content:"→";position:absolute;right:calc(-1 * var(--sm) - 8px);top:50%;transform:translateY(-50%);color:var(--cyan);font-size:var(--headline);z-index:2}.flow-step strong{display:block;font-size:var(--body)}.flow-step span{display:block;color:var(--muted);font-size:var(--small);margin-top:var(--xs)}.flow-step.defer{border-color:var(--amber)}.flow-step.defer strong{color:var(--amber)}
-.mini-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:var(--md);margin-top:var(--lg)}.stat{min-height:calc(12 * var(--u));padding:var(--md);background:var(--surface);border:1px solid var(--line);border-radius:0}.stat b{display:block;color:var(--cyan);font-size:var(--headline);line-height:1}.stat strong{display:block;margin-top:var(--sm)}.stat span{display:block;color:var(--muted);font-size:var(--small);margin-top:var(--xs)}
-.table-wrap{margin-top:var(--lg);display:grid;grid-template-columns:1.25fr .75fr;gap:var(--lg);align-items:center}table{width:100%;border-collapse:collapse;font-variant-numeric:tabular-nums}caption{text-align:left;color:var(--muted);font-size:var(--small);padding-bottom:var(--sm)}th,td{padding:calc(.65 * var(--u)) calc(.8 * var(--u));border-bottom:1px solid var(--line);text-align:right;color:var(--muted)}th{color:var(--dim);font-size:var(--small);font-weight:650}th:first-child,td:first-child{text-align:left}tr:first-child td{color:var(--paper)}.sota-claim{padding-left:var(--lg);border-left:2px solid var(--cyan)}.sota-claim strong{display:block;font-size:var(--headline);line-height:1.15}.sota-claim p{color:var(--muted);margin-top:var(--sm)}
-.compare{display:grid;grid-template-columns:1fr 1fr;gap:var(--md);margin-top:var(--lg)}.compare-item{padding:var(--lg);border-radius:0;background:var(--surface);border:1px solid var(--line)}.compare-item.warn{border-color:var(--coral)}.compare-item .tag{display:table;margin-bottom:var(--sm)}.compare-item strong{display:block;font-size:var(--headline);line-height:1.14}.compare-item p{color:var(--muted);margin-top:var(--sm)}.compare-item.warn strong{color:var(--coral)}
-.protocol{display:grid;grid-template-columns:repeat(4,1fr);gap:var(--sm);margin-top:var(--lg)}.protocol div{padding:var(--md);border-bottom:2px solid var(--cyan);background:var(--surface)}.protocol b{display:block}.protocol span{display:block;color:var(--muted);font-size:var(--small);margin-top:var(--xs)}
-.contrib{display:grid;grid-template-columns:repeat(4,1fr);gap:var(--md);margin-top:var(--lg)}.contrib div{padding:var(--md) 0;border-top:1px solid var(--cyan)}.contrib b{display:block;font-size:var(--body)}.contrib span{display:block;color:var(--muted);font-size:var(--small);margin-top:var(--xs)}
-.lanes{display:grid;gap:var(--md);margin-top:var(--lg)}.lane{display:grid;grid-template-columns:150px 1fr;gap:var(--md);align-items:center;padding:var(--md);background:var(--surface);border:1px solid var(--line);border-radius:0}.lane-title{color:var(--cyan);font-weight:700}.lane-track{display:flex;gap:var(--sm);align-items:center;color:var(--muted);font-size:var(--small)}.lane-track span{padding:6px 8px;background:var(--surface-2);border-radius:0}.lane-track i{color:var(--cyan);font-style:normal}.lane .ruo-inline{color:var(--amber);font-size:var(--small)}
-.app-mock{display:grid;grid-template-columns:1.05fr .95fr;min-height:calc(30 * var(--u));background:var(--surface);border:1px solid var(--line);border-radius:0;overflow:hidden;margin-top:var(--lg)}.mock-image{position:relative;min-height:0;background:var(--ink)}.mock-image img{width:100%;height:100%;object-fit:cover;opacity:.66}.heat{position:absolute;left:53%;top:35%;width:74px;height:74px;border-radius:50%;background:var(--amber);opacity:.55}.mock-panel{padding:var(--md);display:grid;align-content:center;gap:var(--sm)}.mock-label{font-size:var(--small);color:var(--dim);font-weight:700;letter-spacing:.02em}.placeholder-line{height:9px;background:var(--line);border-radius:0}.placeholder-line.cyan{background:var(--cyan);width:75%}.placeholder-line.mint{background:var(--mint);width:52%}.review-flag{padding:8px 10px;color:var(--amber);border:1px solid var(--amber);border-radius:0;font-weight:650;font-size:var(--small)}
-.io-recap{display:grid;grid-template-columns:1.16fr .12fr .52fr 1.38fr;gap:var(--md);align-items:stretch;margin-top:var(--lg)}.input-study,.model-bridge,.output-study{min-width:0;background:var(--surface);border:1px solid var(--line)}.input-study{padding:var(--md);display:grid;grid-template-columns:auto minmax(0,1fr);gap:var(--md);align-items:center}.nifti-file{align-self:stretch;min-width:clamp(100px,calc(10 * var(--u)),144px);display:grid;align-content:center;gap:var(--xs);padding:var(--sm);border:1px dashed var(--dim);color:var(--paper)}.file-glyph{position:relative;display:block;width:34px;height:43px;border:1px solid var(--cyan)}.file-glyph::after{content:"";position:absolute;right:-1px;top:-1px;width:10px;height:10px;border-left:1px solid var(--cyan);border-bottom:1px solid var(--cyan);background:var(--surface)}.nifti-file strong{font-size:var(--small);overflow-wrap:anywhere}.nifti-file span{font-family:var(--serif);font-size:var(--small);font-style:italic;color:var(--muted)}.phase-sheet{min-width:0}.phase-sheet img{display:block;width:100%;aspect-ratio:2/1;object-fit:cover;border:1px solid var(--line);opacity:.8}.phase-labels{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));border-left:1px solid var(--line);border-bottom:1px solid var(--line)}.phase-labels span{padding:var(--xs);border-top:1px solid var(--line);border-right:1px solid var(--line);font-family:var(--serif);font-size:clamp(.62rem,calc(.72 * var(--u)),.82rem);color:var(--muted);text-align:center;white-space:nowrap}.phase-sheet figcaption{margin-top:var(--sm);font-size:var(--small);color:var(--muted)}.io-arrow{display:grid;place-items:center;color:var(--cyan);font-size:var(--headline)}.model-bridge{display:grid;align-content:center;gap:var(--sm);padding:var(--md)}.plate-label{font-family:var(--serif);font-size:var(--small);font-style:italic;color:var(--muted)}.model-bridge strong{font-size:var(--body);line-height:1.2}.model-bridge p{font-size:var(--small);color:var(--muted)}.model-mark{display:grid;place-items:center;width:42px;height:42px;border:1px solid var(--cyan);color:var(--cyan);font-family:var(--serif);font-size:var(--small)}.output-study{padding:var(--xs)}.output-prototype{height:100%;display:grid;grid-template-rows:auto 1fr auto;margin:0}.prototype-head{display:flex;justify-content:space-between;gap:var(--sm);align-items:start;padding:var(--sm) var(--md);border-bottom:1px solid var(--line)}.prototype-head strong{display:block;margin-top:2px;font-size:var(--small);line-height:1.2}.prototype-kicker{display:block;color:var(--muted);font-family:var(--serif);font-size:var(--small);font-style:italic}.output-concept{flex:0 1 150px;padding:2px 5px;text-align:right;font-size:clamp(.58rem,calc(.62 * var(--u)),.72rem);line-height:1.25}.prototype-body{display:grid;grid-template-columns:.82fr 1.18fr;min-height:0}.prototype-viewer{position:relative;min-height:0;padding:var(--xs);background:var(--ink);border-right:1px solid var(--line);overflow:hidden}.prototype-viewer img{display:block;width:100%;height:100%;object-fit:cover;object-position:38% center;opacity:.78;filter:grayscale(1) contrast(1.08)}.viewer-meta{position:absolute;inset:calc(var(--sm) + var(--xs)) calc(var(--sm) + var(--xs)) auto;display:flex;justify-content:space-between;gap:var(--xs);color:var(--paper);font-size:clamp(.58rem,calc(.64 * var(--u)),.76rem);text-shadow:0 1px 0 var(--ink)}.viewer-meta span:last-child{color:var(--muted)}.heatmap-focus{position:absolute;left:45%;top:38%;width:31%;height:28%;border:1px solid var(--cyan)}.heatmap-focus::after{content:"Vùng model chú ý";position:absolute;left:-1px;top:calc(100% + 4px);padding:2px 4px;background:var(--ink);border:1px solid var(--line);color:var(--paper);font-family:var(--serif);font-size:clamp(.56rem,calc(.6 * var(--u)),.7rem);white-space:nowrap}.prototype-results{display:grid;align-content:start;gap:var(--sm);padding:var(--sm) var(--md)}.prototype-section{display:grid;gap:var(--xs)}.prototype-label{color:var(--muted);font-size:clamp(.58rem,calc(.64 * var(--u)),.76rem);font-weight:650;letter-spacing:.02em}.probability-tracks{display:grid;gap:3px}.probability-tracks span{display:block;height:4px;border:1px solid var(--rule-strong)}.prototype-metrics{display:grid;gap:var(--xs);padding-top:var(--sm);border-top:1px solid var(--line)}.metric-line{display:grid;grid-template-columns:1fr auto;gap:var(--sm);align-items:baseline;font-size:clamp(.58rem,calc(.64 * var(--u)),.76rem)}.metric-line dt{color:var(--paper)}.metric-line dd{margin:0;color:var(--dim);font-family:var(--serif);font-style:italic;text-align:right}.defer-panel{display:grid;grid-template-columns:auto 1fr;gap:var(--sm);align-items:center;padding:var(--sm) var(--md);border-top:1px solid var(--paper);background:var(--ink)}.defer-panel b{color:var(--paper);font-family:var(--serif);font-size:var(--body);font-style:italic}.defer-panel span{color:var(--muted);font-size:var(--small);line-height:1.25}.output-prototype figcaption{padding:0 var(--md) var(--sm);background:var(--ink);color:var(--dim);font-family:var(--serif);font-size:clamp(.58rem,calc(.62 * var(--u)),.72rem);font-style:italic}
-.refs{display:grid;gap:var(--md);font-family:var(--serif);font-size:var(--small);color:var(--muted);max-width:94ch}.refs li{list-style:none;padding-left:24px;position:relative}.refs b{position:absolute;left:0;color:var(--cyan)}.refs .asset{color:var(--paper)}.source-slide .refs{gap:var(--sm);font-size:clamp(.68rem,calc(.72 * var(--u)),.88rem)}
-@media (prefers-reduced-motion:no-preference){.slide.is-active .body>*{animation:enter .45s cubic-bezier(.16,1,.3,1) both}@keyframes enter{from{opacity:.01;transform:translateY(10px)}to{opacity:1;transform:none}}}
-@media (max-width:900px){body{overflow:auto}.deck{width:100%;height:auto}.slide{position:static;display:grid;min-height:auto;padding:28px 20px;overflow:visible}.slide::after{display:none}.section-nav{width:100%;grid-template-columns:repeat(3,minmax(0,1fr));row-gap:var(--sm)}.body{padding:34px 0}.content{width:100%}.split,.split-wide,.hero-layout,.table-wrap,.app-mock,.io-recap{grid-template-columns:1fr}.flow,.protocol,.contrib,.mini-grid{grid-template-columns:1fr 1fr}.flow-step::after{display:none}.lane{grid-template-columns:1fr}.hero-media{display:none}.io-arrow{min-height:34px;transform:rotate(90deg)}.slide:not(.is-active){display:grid}.nav{display:none}}
-@media print{@page{size:landscape;margin:10mm}body{overflow:visible}.deck{width:100%;height:auto}.slide{position:static;display:grid;min-height:172mm;break-after:page;page-break-after:always}.slide:last-child{break-after:auto;page-break-after:auto}.slide:not(.is-active){display:grid}.nav{display:none}.foot a::after,.refs a::after{content:" (" attr(href) ")";font-size:.8em}}
-.nav{position:fixed;left:50%;bottom:12px;transform:translateX(-50%);display:flex;gap:var(--sm);z-index:5;opacity:0;pointer-events:none;transition:opacity .2s}.nav.on,.nav:hover,.nav:focus-within{opacity:1;pointer-events:auto}.nav button{font:650 13px var(--sans);color:var(--paper);background:var(--surface);border:1px solid var(--line);border-radius:0;padding:7px 12px;cursor:pointer}.nav button:hover{border-color:var(--cyan);color:var(--cyan)}.nav button:focus-visible{outline:2px solid var(--cyan);outline-offset:2px}.nav button:disabled{color:var(--dim);cursor:default}
-</style>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>MRI đa thì và AI phân loại u gan</title>
+  <style>
+    :root {
+      --ink: #10161B;
+      --surface: #161E24;
+      --surface-2: #2E3A42;
+      --line: #2E3A42;
+      --paper: #E8E4DA;
+      --muted: #A9B2B8;
+      --dim: #8B949B;
+      --cyan: #6FC2DC;
+      --mint: #6FC2DC;
+      --amber: #D4A72C;
+      --coral: #D4A72C;
+      --sans: "Segoe UI", system-ui, -apple-system, "Noto Sans", "Liberation Sans", Arial, sans-serif;
+      --serif: Cambria, "Times New Roman", "Liberation Serif", "Noto Serif", Georgia, serif;
+      --u: min(1vw, 1.778vh);
+      --xs: 4px;
+      --sm: 8px;
+      --md: 16px;
+      --lg: 28px;
+      --xl: 44px;
+      --display: max(2.65rem, calc(4.05 * var(--u)));
+      --headline: max(1.6rem, calc(2.25 * var(--u)));
+      --body: max(1rem, calc(1.32 * var(--u)));
+      --small: max(.75rem, calc(.91 * var(--u)));
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0
+    }
+
+    html,
+    body {
+      height: 100%
+    }
+
+    body {
+      background: var(--ink);
+      color: var(--paper);
+      font: 400 var(--body)/1.5 var(--sans);
+      overflow: hidden
+    }
+
+    .deck {
+      width: min(100vw, calc(100vh * 16 / 9));
+      height: min(100vh, calc(100vw * 9 / 16));
+      margin: auto;
+      position: relative
+    }
+
+    .slide {
+      position: absolute;
+      inset: 0;
+      display: none;
+      grid-template-rows: auto auto 1fr auto;
+      padding: calc(1.9 * var(--u));
+      overflow: hidden;
+      background: var(--ink)
+    }
+
+    .slide.is-active {
+      display: grid
+    }
+
+    .slide::after {
+      content: "";
+      position: absolute;
+      inset: calc(1.15 * var(--u));
+      border: 1px solid var(--line);
+      pointer-events: none
+    }
+
+    .top,
+    .foot {
+      position: relative;
+      z-index: 1;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: var(--md);
+      font-size: var(--small)
+    }
+
+    .top {
+      color: var(--muted);
+      padding-bottom: var(--sm);
+      border-bottom: 1px solid var(--line)
+    }
+
+    .ruo {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px
+    }
+
+    .ruo::before {
+      content: "";
+      width: 8px;
+      height: 8px;
+      border: 1px solid var(--cyan)
+    }
+
+    .index {
+      color: var(--cyan);
+      font-variant-numeric: tabular-nums
+    }
+
+    .foot {
+      padding-top: var(--sm);
+      border-top: 1px solid var(--line);
+      color: var(--muted)
+    }
+
+    .foot a,
+    .refs a {
+      color: var(--paper);
+      text-decoration-color: var(--cyan);
+      text-underline-offset: 2px
+    }
+
+    .foot .no {
+      color: var(--dim);
+      white-space: nowrap;
+      font-variant-numeric: tabular-nums
+    }
+
+    .section-nav {
+      position: relative;
+      z-index: 1;
+      width: min(100%, calc(86 * var(--u)));
+      margin: calc(.65 * var(--u)) auto 0;
+      display: grid;
+      grid-template-columns: repeat(5, minmax(0, 1fr));
+      gap: var(--md)
+    }
+
+    .section-item {
+      display: grid;
+      gap: var(--xs);
+      color: var(--dim);
+      font-family: var(--serif);
+      font-size: var(--small);
+      font-style: italic;
+      line-height: 1.2
+    }
+
+    .section-item i {
+      display: block;
+      height: 1px;
+      background: var(--line)
+    }
+
+    .section-item.active {
+      color: var(--paper);
+      font-style: normal;
+      font-weight: 700
+    }
+
+    .section-item.active i {
+      height: 2px;
+      background: var(--amber)
+    }
+
+    .body {
+      position: relative;
+      z-index: 1;
+      min-height: 0;
+      display: grid;
+      align-content: center;
+      padding: calc(1.05 * var(--u)) 0 calc(1.25 * var(--u))
+    }
+
+    .content {
+      width: min(100%, calc(86 * var(--u)));
+      margin: auto
+    }
+
+    h1,
+    h2,
+    h3 {
+      letter-spacing: -.025em;
+      line-height: 1.08
+    }
+
+    h1,
+    h2 {
+      font-size: var(--display);
+      font-weight: 650;
+      max-width: 22ch
+    }
+
+    h2 {
+      font-size: var(--headline);
+      max-width: 30ch
+    }
+
+    h3 {
+      font-size: var(--body);
+      font-weight: 650;
+      color: var(--paper)
+    }
+
+    .lede {
+      font-size: var(--headline);
+      line-height: 1.3;
+      color: var(--paper);
+      max-width: 40ch;
+      margin-top: var(--md)
+    }
+
+    .sub,
+    .quiet {
+      color: var(--muted)
+    }
+
+    .sub {
+      max-width: 60ch;
+      margin-top: var(--md)
+    }
+
+    .eyebrow {
+      color: var(--cyan);
+      font-size: var(--small);
+      font-weight: 700;
+      letter-spacing: .02em;
+      margin-bottom: var(--sm)
+    }
+
+    .split {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: calc(3 * var(--u));
+      align-items: center
+    }
+
+    .split-wide {
+      grid-template-columns: 1.15fr .85fr
+    }
+
+    .split>* {
+      min-width: 0
+    }
+
+    .stack>*+* {
+      margin-top: var(--md)
+    }
+
+    .tag {
+      display: inline-block;
+      color: var(--cyan);
+      border: 1px solid var(--cyan);
+      padding: 3px 8px;
+      border-radius: 0;
+      font-size: var(--small);
+      font-weight: 650
+    }
+
+    .concept {
+      display: inline-block;
+      color: var(--muted);
+      border: 1px dashed var(--dim);
+      padding: 3px 8px;
+      border-radius: 0;
+      font-size: var(--small)
+    }
+
+    .hero-layout {
+      display: grid;
+      grid-template-columns: 1.08fr .92fr;
+      gap: calc(3 * var(--u));
+      align-items: center
+    }
+
+    .hero-copy {
+      min-width: 0
+    }
+
+    .hero-media {
+      height: clamp(260px, calc(32 * var(--u)), 500px);
+      border: 1px solid var(--line);
+      background: var(--surface);
+      padding: var(--sm)
+    }
+
+    .hero-media img {
+      display: block;
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      opacity: .78
+    }
+
+    .image-frame {
+      position: relative;
+      background: var(--ink);
+      border: 1px solid var(--line);
+      padding: var(--sm)
+    }
+
+    .image-frame img {
+      display: block;
+      width: 100%;
+      height: 100%;
+      object-fit: cover
+    }
+
+    .image-frame figcaption {
+      font-size: var(--small);
+      color: var(--muted);
+      padding-top: var(--xs)
+    }
+
+    .image-frame .callout {
+      position: absolute;
+      border: 1px solid var(--cyan);
+      width: 24px;
+      height: 24px;
+      border-radius: 50%;
+      left: 72%;
+      top: 38%
+    }
+
+    .img-slot {
+      display: grid;
+      place-content: center;
+      gap: var(--sm);
+      text-align: center;
+      min-height: calc(26 * var(--u));
+      padding: var(--lg);
+      background: var(--surface);
+      border: 1px dashed var(--dim)
+    }
+
+    .img-slot .slot-title {
+      font-family: var(--serif);
+      font-style: italic;
+      font-size: var(--body);
+      color: var(--paper);
+      max-width: 32ch;
+      margin: 0 auto;
+      line-height: 1.3
+    }
+
+    .img-slot .slot-note {
+      font-family: var(--serif);
+      font-style: italic;
+      font-size: var(--small);
+      color: var(--dim)
+    }
+
+    .img-slot.compact {
+      min-height: calc(13 * var(--u));
+      padding: var(--md)
+    }
+
+    .img-slot.compact .slot-title {
+      font-size: var(--small);
+      max-width: 26ch
+    }
+
+    .phase-note {
+      display: grid;
+      gap: var(--sm)
+    }
+
+    .phase-note li {
+      list-style: none;
+      position: relative;
+      padding-left: 18px;
+      color: var(--muted)
+    }
+
+    .phase-note li::before {
+      content: "";
+      position: absolute;
+      left: 0;
+      top: .7em;
+      width: 10px;
+      height: 2px;
+      background: var(--cyan)
+    }
+
+    .flow {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: var(--sm);
+      align-items: stretch;
+      margin-top: var(--lg)
+    }
+
+    .flow-step {
+      position: relative;
+      padding: var(--md);
+      background: var(--surface);
+      border: 1px solid var(--line);
+      border-radius: 0
+    }
+
+    .flow-step:not(:last-child)::after {
+      content: "→";
+      position: absolute;
+      right: calc(-1 * var(--sm) - 8px);
+      top: 50%;
+      transform: translateY(-50%);
+      color: var(--cyan);
+      font-size: var(--headline);
+      z-index: 2
+    }
+
+    .flow-step strong {
+      display: block;
+      font-size: var(--body)
+    }
+
+    .flow-step span {
+      display: block;
+      color: var(--muted);
+      font-size: var(--small);
+      margin-top: var(--xs)
+    }
+
+    .flow-step.defer {
+      border-color: var(--amber)
+    }
+
+    .flow-step.defer strong {
+      color: var(--amber)
+    }
+
+    .mini-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: var(--md);
+      margin-top: var(--lg)
+    }
+
+    .stat {
+      min-height: calc(12 * var(--u));
+      padding: var(--md);
+      background: var(--surface);
+      border: 1px solid var(--line);
+      border-radius: 0
+    }
+
+    .stat b {
+      display: block;
+      color: var(--cyan);
+      font-size: var(--headline);
+      line-height: 1
+    }
+
+    .stat strong {
+      display: block;
+      margin-top: var(--sm)
+    }
+
+    .stat span {
+      display: block;
+      color: var(--muted);
+      font-size: var(--small);
+      margin-top: var(--xs)
+    }
+
+    .table-wrap {
+      margin-top: var(--lg);
+      display: grid;
+      grid-template-columns: 1.25fr .75fr;
+      gap: var(--lg);
+      align-items: center
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-variant-numeric: tabular-nums
+    }
+
+    caption {
+      text-align: left;
+      color: var(--muted);
+      font-size: var(--small);
+      padding-bottom: var(--sm)
+    }
+
+    th,
+    td {
+      padding: calc(.65 * var(--u)) calc(.8 * var(--u));
+      border-bottom: 1px solid var(--line);
+      text-align: right;
+      color: var(--muted)
+    }
+
+    th {
+      color: var(--dim);
+      font-size: var(--small);
+      font-weight: 650
+    }
+
+    th:first-child,
+    td:first-child {
+      text-align: left
+    }
+
+    tr:first-child td {
+      color: var(--paper)
+    }
+
+    .sota-claim {
+      padding-left: var(--lg);
+      border-left: 2px solid var(--cyan)
+    }
+
+    .sota-claim strong {
+      display: block;
+      font-size: var(--headline);
+      line-height: 1.15
+    }
+
+    .sota-claim p {
+      color: var(--muted);
+      margin-top: var(--sm)
+    }
+
+    .compare {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: var(--md);
+      margin-top: var(--lg)
+    }
+
+    .compare-item {
+      padding: var(--lg);
+      border-radius: 0;
+      background: var(--surface);
+      border: 1px solid var(--line)
+    }
+
+    .compare-item.warn {
+      border-color: var(--coral)
+    }
+
+    .compare-item .tag {
+      display: table;
+      margin-bottom: var(--sm)
+    }
+
+    .compare-item strong {
+      display: block;
+      font-size: var(--headline);
+      line-height: 1.14
+    }
+
+    .compare-item p {
+      color: var(--muted);
+      margin-top: var(--sm)
+    }
+
+    .compare-item.warn strong {
+      color: var(--coral)
+    }
+
+    .protocol {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: var(--sm);
+      margin-top: var(--lg)
+    }
+
+    .protocol div {
+      padding: var(--md);
+      border-bottom: 2px solid var(--cyan);
+      background: var(--surface)
+    }
+
+    .protocol b {
+      display: block
+    }
+
+    .protocol span {
+      display: block;
+      color: var(--muted);
+      font-size: var(--small);
+      margin-top: var(--xs)
+    }
+
+    .contrib {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: var(--md);
+      margin-top: var(--lg)
+    }
+
+    .contrib div {
+      padding: var(--md) 0;
+      border-top: 1px solid var(--cyan)
+    }
+
+    .contrib b {
+      display: block;
+      font-size: var(--body)
+    }
+
+    .contrib span {
+      display: block;
+      color: var(--muted);
+      font-size: var(--small);
+      margin-top: var(--xs)
+    }
+
+    .class-strip {
+      display: grid;
+      grid-template-columns: repeat(7, 1fr);
+      gap: var(--sm);
+      margin-top: var(--lg)
+    }
+
+    .class-cell {
+      padding: var(--md) var(--xs);
+      background: var(--surface);
+      border: 1px solid var(--line);
+      display: grid;
+      gap: var(--xs);
+      justify-items: center;
+      text-align: center
+    }
+
+    .class-cell b {
+      font-size: var(--body)
+    }
+
+    .class-cell .kind {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      color: var(--muted);
+      font-size: var(--small)
+    }
+
+    .class-cell .mark {
+      width: 9px;
+      height: 9px;
+      border: 1px solid var(--paper);
+      display: inline-block
+    }
+
+    .class-cell.malign .mark {
+      background: var(--paper)
+    }
+
+    .formula {
+      margin-top: var(--lg);
+      padding: var(--md) var(--lg);
+      border-left: 2px solid var(--cyan);
+      color: var(--paper);
+      font-size: var(--body)
+    }
+
+    .lanes {
+      display: grid;
+      gap: var(--md);
+      margin-top: var(--lg)
+    }
+
+    .lane {
+      display: grid;
+      grid-template-columns: 150px 1fr;
+      gap: var(--md);
+      align-items: center;
+      padding: var(--md);
+      background: var(--surface);
+      border: 1px solid var(--line);
+      border-radius: 0
+    }
+
+    .lane-title {
+      color: var(--cyan);
+      font-weight: 700
+    }
+
+    .lane-track {
+      display: flex;
+      gap: var(--sm);
+      align-items: center;
+      color: var(--muted);
+      font-size: var(--small)
+    }
+
+    .lane-track span {
+      padding: 6px 8px;
+      background: var(--surface-2);
+      border-radius: 0
+    }
+
+    .lane-track i {
+      color: var(--cyan);
+      font-style: normal
+    }
+
+    .lane .ruo-inline {
+      color: var(--amber);
+      font-size: var(--small)
+    }
+
+    .io-recap {
+      display: grid;
+      grid-template-columns: 1.16fr .12fr .52fr 1.38fr;
+      gap: var(--md);
+      align-items: stretch;
+      margin-top: var(--lg)
+    }
+
+    .input-study,
+    .model-bridge,
+    .output-study {
+      min-width: 0;
+      background: var(--surface);
+      border: 1px solid var(--line)
+    }
+
+    .input-study {
+      padding: var(--md);
+      display: grid;
+      grid-template-columns: auto minmax(0, 1fr);
+      gap: var(--md);
+      align-items: center
+    }
+
+    .nifti-file {
+      align-self: stretch;
+      min-width: clamp(100px, calc(10 * var(--u)), 144px);
+      display: grid;
+      align-content: center;
+      gap: var(--xs);
+      padding: var(--sm);
+      border: 1px dashed var(--dim);
+      color: var(--paper)
+    }
+
+    .file-glyph {
+      position: relative;
+      display: block;
+      width: 34px;
+      height: 43px;
+      border: 1px solid var(--cyan)
+    }
+
+    .file-glyph::after {
+      content: "";
+      position: absolute;
+      right: -1px;
+      top: -1px;
+      width: 10px;
+      height: 10px;
+      border-left: 1px solid var(--cyan);
+      border-bottom: 1px solid var(--cyan);
+      background: var(--surface)
+    }
+
+    .nifti-file strong {
+      font-size: var(--small);
+      overflow-wrap: anywhere
+    }
+
+    .nifti-file span {
+      font-family: var(--serif);
+      font-size: var(--small);
+      font-style: italic;
+      color: var(--muted)
+    }
+
+    .phase-sheet {
+      min-width: 0
+    }
+
+    .phase-sheet img {
+      display: block;
+      width: 100%;
+      aspect-ratio: 2/1;
+      object-fit: cover;
+      border: 1px solid var(--line);
+      opacity: .8
+    }
+
+    .phase-labels {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      border-left: 1px solid var(--line);
+      border-bottom: 1px solid var(--line)
+    }
+
+    .phase-labels span {
+      padding: var(--xs);
+      border-top: 1px solid var(--line);
+      border-right: 1px solid var(--line);
+      font-family: var(--serif);
+      font-size: clamp(.62rem, calc(.72 * var(--u)), .82rem);
+      color: var(--muted);
+      text-align: center;
+      white-space: nowrap
+    }
+
+    .phase-sheet figcaption {
+      margin-top: var(--sm);
+      font-size: var(--small);
+      color: var(--muted)
+    }
+
+    .io-arrow {
+      display: grid;
+      place-items: center;
+      color: var(--cyan);
+      font-size: var(--headline)
+    }
+
+    .model-bridge {
+      display: grid;
+      align-content: center;
+      gap: var(--sm);
+      padding: var(--md)
+    }
+
+    .plate-label {
+      font-family: var(--serif);
+      font-size: var(--small);
+      font-style: italic;
+      color: var(--muted)
+    }
+
+    .model-bridge strong {
+      font-size: var(--body);
+      line-height: 1.2
+    }
+
+    .model-bridge p {
+      font-size: var(--small);
+      color: var(--muted)
+    }
+
+    .model-mark {
+      display: grid;
+      place-items: center;
+      width: 42px;
+      height: 42px;
+      border: 1px solid var(--cyan);
+      color: var(--cyan);
+      font-family: var(--serif);
+      font-size: var(--small)
+    }
+
+    .output-study {
+      padding: var(--xs)
+    }
+
+    .refs {
+      display: grid;
+      gap: var(--md);
+      font-family: var(--serif);
+      font-size: var(--small);
+      color: var(--muted);
+      max-width: 94ch
+    }
+
+    .refs li {
+      list-style: none;
+      padding-left: 24px;
+      position: relative
+    }
+
+    .refs b {
+      position: absolute;
+      left: 0;
+      color: var(--cyan)
+    }
+
+    .refs .asset {
+      color: var(--paper)
+    }
+
+    .source-slide .refs {
+      gap: var(--sm);
+      font-size: clamp(.68rem, calc(.72 * var(--u)), .88rem)
+    }
+
+    @media (prefers-reduced-motion:no-preference) {
+      .slide.is-active .body>* {
+        animation: enter .45s cubic-bezier(.16, 1, .3, 1) both
+      }
+
+      @keyframes enter {
+        from {
+          opacity: .01;
+          transform: translateY(10px)
+        }
+
+        to {
+          opacity: 1;
+          transform: none
+        }
+      }
+    }
+
+    @media (max-width:900px) {
+      body {
+        overflow: auto
+      }
+
+      .deck {
+        width: 100%;
+        height: auto
+      }
+
+      .slide {
+        position: static;
+        display: grid;
+        min-height: auto;
+        padding: 28px 20px;
+        overflow: visible
+      }
+
+      .slide::after {
+        display: none
+      }
+
+      .section-nav {
+        width: 100%;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        row-gap: var(--sm)
+      }
+
+      .body {
+        padding: 34px 0
+      }
+
+      .content {
+        width: 100%
+      }
+
+      .split,
+      .split-wide,
+      .hero-layout,
+      .table-wrap,
+      .io-recap {
+        grid-template-columns: 1fr
+      }
+
+      .flow,
+      .protocol,
+      .contrib,
+      .mini-grid,
+      .class-strip {
+        grid-template-columns: 1fr 1fr
+      }
+
+      .flow-step::after {
+        display: none
+      }
+
+      .lane {
+        grid-template-columns: 1fr
+      }
+
+      .hero-media {
+        display: none
+      }
+
+      .io-arrow {
+        min-height: 34px;
+        transform: rotate(90deg)
+      }
+
+      .slide:not(.is-active) {
+        display: grid
+      }
+
+      .nav {
+        display: none
+      }
+    }
+
+    @media print {
+      @page {
+        size: landscape;
+        margin: 10mm
+      }
+
+      body {
+        overflow: visible
+      }
+
+      .deck {
+        width: 100%;
+        height: auto
+      }
+
+      .slide {
+        position: static;
+        display: grid;
+        min-height: 172mm;
+        break-after: page;
+        page-break-after: always
+      }
+
+      .slide:last-child {
+        break-after: auto;
+        page-break-after: auto
+      }
+
+      .slide:not(.is-active) {
+        display: grid
+      }
+
+      .nav {
+        display: none
+      }
+
+      .foot a::after,
+      .refs a::after {
+        content: " (" attr(href) ")";
+        font-size: .8em
+      }
+    }
+
+    .nav {
+      position: fixed;
+      left: 50%;
+      bottom: 12px;
+      transform: translateX(-50%);
+      display: flex;
+      gap: var(--sm);
+      z-index: 5;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity .2s
+    }
+
+    .nav.on,
+    .nav:hover,
+    .nav:focus-within {
+      opacity: 1;
+      pointer-events: auto
+    }
+
+    .nav button {
+      font: 650 13px var(--sans);
+      color: var(--paper);
+      background: var(--surface);
+      border: 1px solid var(--line);
+      border-radius: 0;
+      padding: 7px 12px;
+      cursor: pointer
+    }
+
+    .nav button:hover {
+      border-color: var(--cyan);
+      color: var(--cyan)
+    }
+
+    .nav button:focus-visible {
+      outline: 2px solid var(--cyan);
+      outline-offset: 2px
+    }
+
+    .nav button:disabled {
+      color: var(--dim);
+      cursor: default
+    }
+  </style>
 </head>
+
 <body>
-<main class="deck">
+  <main class="deck">
 
-<!-- 1 -->
-<section class="slide is-active" aria-label="Slide 1: Bài toán">
-  <div class="top"><span class="ruo">Research Use Only, chưa kiểm định lâm sàng</span><span class="index">01 / 12</span></div>
-  <nav class="section-nav" aria-label="Phần nội dung"><span class="section-item active" aria-current="step"><i></i>Bài toán</span><span class="section-item"><i></i>Dataset</span><span class="section-item"><i></i>SOTA</span><span class="section-item"><i></i>Ứng dụng</span><span class="section-item"><i></i>Nguồn</span></nav>
-  <div class="body"><div class="content hero-layout">
-    <div class="hero-copy"><p class="eyebrow">MRI ĐA THÌ · PHÂN LOẠI U GAN</p>
-      <h1>MRI nhiều thì giúp gọi tên tổn thương. Model phải biết khi nào chưa đủ chắc.</h1>
-      <p class="lede">Mục tiêu là phân loại 7 loại tổn thương gan trên ảnh MRI 3D, đồng thời không “đoán bừa” ở những ca khó.</p>
-      <p class="sub">Một hướng nghiên cứu về xác suất đáng tin cậy và quyết định có điều kiện, không phải công cụ chẩn đoán lâm sàng.</p>
-    </div>
-    <figure class="hero-media"><img src="assets/cmir-8-107-f5.jpg" alt="Chuỗi ảnh MRI gan đa thì minh hoạ sự thay đổi tín hiệu của tổn thương."></figure>
-  </div></div>
-  <div class="foot"><span>Ảnh minh hoạ MRI công khai, attribution ở slide nguồn</span><span class="no">Mở đầu</span></div>
-</section>
-
-<!-- 2 -->
-<section class="slide" aria-label="Slide 2: MRI nhiều thì">
-  <div class="top"><span class="ruo">Research Use Only, chưa kiểm định lâm sàng</span><span class="index">02 / 12</span></div>
-  <nav class="section-nav" aria-label="Phần nội dung"><span class="section-item active" aria-current="step"><i></i>Bài toán</span><span class="section-item"><i></i>Dataset</span><span class="section-item"><i></i>SOTA</span><span class="section-item"><i></i>Ứng dụng</span><span class="section-item"><i></i>Nguồn</span></nav>
-  <div class="body"><div class="content split split-wide">
-    <figure class="image-frame"><img src="assets/cmir-8-107-f5.jpg" alt="Ảnh MRI gan ở nhiều thì, biểu thị tổn thương thay đổi tín hiệu sau khi dùng thuốc tương phản."><span class="callout" aria-hidden="true"></span><figcaption>Ví dụ ảnh MRI đa thì công khai, không phải dữ liệu LLD-MMRI hay kết quả dự án.</figcaption></figure>
-    <div class="stack"><p class="eyebrow">TỪ MỘT CA CHỤP</p><h2>Cùng một vùng tổn thương, nhưng “trông khác” theo từng thời điểm.</h2><p class="sub">MRI đa thì là nhiều lần chụp của cùng một vùng trước và sau thuốc tương phản. Sự thay đổi tín hiệu này giúp phân biệt các loại tổn thương.</p><ul class="phase-note"><li>Một ảnh đơn lẻ có thể bỏ lỡ mẫu thay đổi theo thời gian.</li><li>Model cần đọc các thì như một câu chuyện, không như các ảnh rời rạc.</li></ul></div>
-  </div></div>
-  <div class="foot"><span><a href="https://commons.wikimedia.org/wiki/File:CMIR-8-107_F5.jpg" target="_blank" rel="noopener">Ảnh MRI đa thì, Nils Albiin, CC BY 2.5</a></span><span class="no">Bài toán</span></div>
-</section>
-
-<!-- 3 -->
-<section class="slide" aria-label="Slide 3: Model làm gì">
-  <div class="top"><span class="ruo">Research Use Only, chưa kiểm định lâm sàng</span><span class="index">03 / 12</span></div>
-  <nav class="section-nav" aria-label="Phần nội dung"><span class="section-item active" aria-current="step"><i></i>Bài toán</span><span class="section-item"><i></i>Dataset</span><span class="section-item"><i></i>SOTA</span><span class="section-item"><i></i>Ứng dụng</span><span class="section-item"><i></i>Nguồn</span></nav>
-  <div class="body"><div class="content">
-    <p class="eyebrow">TỪ ẢNH ĐẾN QUYẾT ĐỊNH</p><h2>Model nhận nhiều tín hiệu, rồi có thể trả lời hoặc yêu cầu xem lại.</h2>
-    <div class="flow" role="img" aria-label="Luồng: tám thì MRI, model 3D, bảy khả năng tổn thương, kết quả hoặc cần bác sĩ xem lại.">
-      <div class="flow-step"><strong>8 thì MRI</strong><span>ảnh cấu trúc và ảnh sau thuốc</span></div>
-      <div class="flow-step"><strong>Model 3D</strong><span>đọc cả khối ảnh, không chỉ một lát</span></div>
-      <div class="flow-step"><strong>7 khả năng</strong><span>HCC, ICC, di căn và các tổn thương lành</span></div>
-      <div class="flow-step defer"><strong>Kết quả hoặc defer</strong><span><b>defer</b> nghĩa là model chưa đủ chắc, cần bác sĩ xem lại</span></div>
-    </div>
-  </div></div>
-  <div class="foot"><span>Phân loại mức tổn thương, không làm segmentation</span><span class="no">Bài toán</span></div>
-</section>
-
-<!-- 4 -->
-<section class="slide" aria-label="Slide 4: Dataset LLD-MMRI">
-  <div class="top"><span class="ruo">Research Use Only, chưa kiểm định lâm sàng</span><span class="index">04 / 12</span></div>
-  <nav class="section-nav" aria-label="Phần nội dung"><span class="section-item"><i></i>Bài toán</span><span class="section-item active" aria-current="step"><i></i>Dataset</span><span class="section-item"><i></i>SOTA</span><span class="section-item"><i></i>Ứng dụng</span><span class="section-item"><i></i>Nguồn</span></nav>
-  <div class="body"><div class="content">
-    <p class="eyebrow">NỀN DỮ LIỆU CÔNG KHAI</p><h2>LLD-MMRI gom nhiều điều kiện cần cho một bài toán khó thành cùng một bộ dữ liệu.</h2>
-    <div class="mini-grid">
-      <div class="stat"><b>498</b><strong>bệnh nhân</strong><span>Mỗi bệnh nhân gắn với một tổn thương có nhãn.</span></div>
-      <div class="stat"><b>7</b><strong>loại tổn thương</strong><span>Gồm 3 nhóm ác tính và 4 nhóm lành tính.</span></div>
-      <div class="stat"><b>8</b><strong>thì MRI</strong><span>Kết hợp ảnh cấu trúc và động học ngấm thuốc.</span></div>
-    </div>
-    <p class="sub">Dataset còn có nhãn pathology report cùng ROI/bounding box, nên model có thể tập trung vào vùng tổn thương thay vì toàn bộ ổ bụng.</p>
-  </div></div>
-  <div class="foot"><span><sup>1</sup> <a href="https://github.com/LMMMEng/LLD-MMRI-Dataset" target="_blank" rel="noopener">LLD-MMRI Dataset, MICCAI 2023</a></span><span class="no">Dataset</span></div>
-</section>
-
-<!-- 5 -->
-<section class="slide" aria-label="Slide 5: SOTA">
-  <div class="top"><span class="ruo">Research Use Only, chưa kiểm định lâm sàng</span><span class="index">05 / 12</span></div>
-  <nav class="section-nav" aria-label="Phần nội dung"><span class="section-item"><i></i>Bài toán</span><span class="section-item"><i></i>Dataset</span><span class="section-item active" aria-current="step"><i></i>SOTA</span><span class="section-item"><i></i>Ứng dụng</span><span class="section-item"><i></i>Nguồn</span></nav>
-  <div class="body"><div class="content">
-    <p class="eyebrow">SOTA CÔNG BỐ</p><h2>Thế giới đã phân loại khá tốt, nhưng bảng xếp hạng mới dừng ở “đúng bao nhiêu”.</h2>
-    <div class="table-wrap"><table><caption>LLD-MMRI Challenge 2023, test 104 ca, số của các đội dự thi<sup>2</sup></caption><thead><tr><th>Đội</th><th>F1</th><th>Kappa</th></tr></thead><tbody><tr><td>WorkingisAllyouneed</td><td>0,8322</td><td>0,7801</td></tr><tr><td>NPUBXY</td><td>0,8078</td><td>0,7660</td></tr><tr><td>LinGroup</td><td>0,7860</td><td>0,7435</td></tr><tr><td>Baseline ban tổ chức</td><td>0,6083</td><td>0,5414</td></tr></tbody></table><div class="sota-claim"><strong>Điều còn thiếu:</strong><p>F1 và Kappa cho biết model gọi nhãn đúng đến đâu. Chúng không cho biết xác suất model đưa ra có đáng tin, hoặc khi nào model nên dừng lại.</p></div></div>
-  </div></div>
-  <div class="foot"><span><sup>2</sup> <a href="https://github.com/LMMMEng/LLD-MMRI2023/blob/main/assets/test_leaderboard.md" target="_blank" rel="noopener">LLD-MMRI2023 test leaderboard</a>, không phải kết quả dự án</span><span class="no">SOTA</span></div>
-</section>
-
-<!-- 6 -->
-<section class="slide" aria-label="Slide 6: Calibration">
-  <div class="top"><span class="ruo">Research Use Only, chưa kiểm định lâm sàng</span><span class="index">06 / 12</span></div>
-  <nav class="section-nav" aria-label="Phần nội dung"><span class="section-item"><i></i>Bài toán</span><span class="section-item"><i></i>Dataset</span><span class="section-item active" aria-current="step"><i></i>SOTA</span><span class="section-item"><i></i>Ứng dụng</span><span class="section-item"><i></i>Nguồn</span></nav>
-  <div class="body"><div class="content">
-    <p class="eyebrow">KHOẢNG TRỐNG NGHIÊN CỨU</p><h2>Đúng nhãn chưa đủ. Một model còn phải biết mức độ đáng tin của chính mình.</h2>
-    <div class="compare"><div class="compare-item"><span class="tag">Model A</span><strong>Đúng nhưng bình tĩnh</strong><p>Xác suất phản ánh đúng mức độ chắc chắn. Khi không chắc, model báo rõ để người đọc kiểm tra thêm.</p></div><div class="compare-item warn"><span class="tag">Model B</span><strong>Tự tin khi sai</strong><p>Cùng có thể đạt một điểm phân loại, nhưng dự đoán quá tự tin ở ca sai sẽ rủi ro hơn trong thực tế.</p></div></div>
-    <p class="sub"><b>Calibration</b> là kiểm tra xem lời nói “tôi chắc đến mức này” của model có khớp với tỷ lệ đúng thực tế hay không.</p>
-  </div></div>
-  <div class="foot"><span>Trustworthiness: xác suất đáng tin cậy và biết giới hạn</span><span class="no">Khoảng trống</span></div>
-</section>
-
-<!-- 7 -->
-<section class="slide" aria-label="Slide 7: Giao thức đánh giá">
-  <div class="top"><span class="ruo">Research Use Only, chưa kiểm định lâm sàng</span><span class="index">07 / 12</span></div>
-  <nav class="section-nav" aria-label="Phần nội dung"><span class="section-item"><i></i>Bài toán</span><span class="section-item"><i></i>Dataset</span><span class="section-item active" aria-current="step"><i></i>SOTA</span><span class="section-item"><i></i>Ứng dụng</span><span class="section-item"><i></i>Nguồn</span></nav>
-  <div class="body"><div class="content">
-    <p class="eyebrow">ĐÁNH GIÁ ĐÁNG TIN</p><h2>Quy trình đánh giá được thiết kế để model không tự “học thuộc đề kiểm tra”.</h2>
-    <div class="protocol" role="img" aria-label="Bốn bước đánh giá: chia theo bệnh nhân, 5 fold cross validation, test 104 khóa kín, báo khoảng tin cậy 95 phần trăm."><div><b>Chia theo bệnh nhân</b><span>Mọi thì MRI của một người luôn đi cùng một nhóm.</span></div><div><b>5-fold CV</b><span>Chọn model và điều chỉnh trên dữ liệu train/validation.</span></div><div><b>Test-104 khóa kín</b><span>Chỉ đánh giá một lần khi protocol đã chốt.</span></div><div><b>CI 95%</b><span>Báo mức dao động, không chỉ một điểm số đẹp.</span></div></div>
-    <p class="sub">Đây là protocol dự kiến. Deck không báo bất kỳ kết quả train/eval nào của dự án.</p>
-  </div></div>
-  <div class="foot"><span>Patient-level split · không leakage · test held-out</span><span class="no">Đánh giá</span></div>
-</section>
-
-<!-- 8 -->
-<section class="slide" aria-label="Slide 8: Đóng góp dự kiến">
-  <div class="top"><span class="ruo">Research Use Only, chưa kiểm định lâm sàng</span><span class="index">08 / 12</span></div>
-  <nav class="section-nav" aria-label="Phần nội dung"><span class="section-item"><i></i>Bài toán</span><span class="section-item"><i></i>Dataset</span><span class="section-item"><i></i>SOTA</span><span class="section-item active" aria-current="step"><i></i>Ứng dụng</span><span class="section-item"><i></i>Nguồn</span></nav>
-  <div class="body"><div class="content">
-    <p class="eyebrow">ĐÓNG GÓP DỰ KIẾN</p><h2>Không chỉ một model phân loại, mà một cách đo lường có trách nhiệm hơn.</h2>
-    <div class="contrib"><div><b>Fusion đa thì</b><span>Học cách kết hợp các tín hiệu bổ sung qua thời gian.</span></div><div><b>Calibration</b><span>Kiểm tra và hiệu chỉnh chất lượng của xác suất.</span></div><div><b>defer</b><span>Cho phép từ chối tự động ở ca chưa đủ chắc.</span></div><div><b>Phase importance &amp; OOD</b><span>Xem thì MRI nào quan trọng và model phản ứng ra sao với dữ liệu lạ.</span></div></div>
-    <p class="sub">Duke chỉ là OOD probe vì không có nhãn loại tổn thương. External coarse-label chỉ được triển khai sau audit metadata.</p>
-  </div></div>
-  <div class="foot"><span><sup>3</sup> <a href="https://doi.org/10.1148/ryai.220275" target="_blank" rel="noopener">Duke Liver Dataset</a>, không dùng làm external classification test</span><span class="no">Đóng góp</span></div>
-</section>
-
-<!-- 9 -->
-<section class="slide" aria-label="Slide 9: Ứng dụng thực tế">
-  <div class="top"><span class="ruo">Research Use Only, chưa kiểm định lâm sàng</span><span class="index">09 / 12</span></div>
-  <nav class="section-nav" aria-label="Phần nội dung"><span class="section-item"><i></i>Bài toán</span><span class="section-item"><i></i>Dataset</span><span class="section-item"><i></i>SOTA</span><span class="section-item active" aria-current="step"><i></i>Ứng dụng</span><span class="section-item"><i></i>Nguồn</span></nav>
-  <div class="body"><div class="content">
-    <p class="eyebrow">ỨNG DỤNG THỰC TẾ</p><h2>Model là người đọc thứ hai, không thay thế quyết định của bác sĩ.</h2>
-    <div class="lanes"><div class="lane"><div class="lane-title">Bác sĩ chẩn đoán hình ảnh</div><div class="lane-track"><span>Xem MRI</span><i>→</i><span>Nhận gợi ý xác suất &amp; heatmap</span><i>→</i><span>Quyết định cuối cùng</span></div></div><div class="lane"><div class="lane-title">Mentor / reviewer</div><div class="lane-track"><span>Chọn ca demo</span><i>→</i><span>Quan sát calibration &amp; defer</span><i>→</i><span>Đánh giá tính chặt chẽ nghiên cứu</span></div></div></div>
-    <p class="sub"><span class="ruo-inline">Research Use Only:</span> ứng dụng hướng tới hỗ trợ đọc ảnh trong tương lai; bản demo hiện phục vụ đánh giá nghiên cứu, không dùng cho chăm sóc bệnh nhân.</p>
-  </div></div>
-  <div class="foot"><span>Second reader, không phải hệ thống chẩn đoán tự động</span><span class="no">Ứng dụng</span></div>
-</section>
-
-<!-- 10 -->
-<section class="slide" aria-label="Slide 10: Đầu ra dự kiến">
-  <div class="top"><span class="ruo">Research Use Only, chưa kiểm định lâm sàng</span><span class="index">10 / 12</span></div>
-  <nav class="section-nav" aria-label="Phần nội dung"><span class="section-item"><i></i>Bài toán</span><span class="section-item"><i></i>Dataset</span><span class="section-item"><i></i>SOTA</span><span class="section-item active" aria-current="step"><i></i>Ứng dụng</span><span class="section-item"><i></i>Nguồn</span></nav>
-  <div class="body"><div class="content split split-wide">
-    <div class="stack"><p class="eyebrow">ĐẦU RA DỰ KIẾN</p><h2>Mỗi dự đoán phải đi kèm lý do để tin, hoặc lý do để dừng lại.</h2><p class="sub">Demo sẽ không chỉ hiển thị một nhãn. Nó trình bày phân bố xác suất, mức bất định, cờ cần bác sĩ xem lại, heatmap và các giới hạn liên quan.</p><span class="concept">Minh hoạ bố cục output, không phải kết quả dự án</span></div>
-    <div class="app-mock" aria-label="Minh hoạ giao diện đầu ra với ảnh MRI, heatmap, các thanh xác suất khái niệm và cờ cần bác sĩ xem lại."><div class="mock-image"><img src="assets/cmir-8-107-f5.jpg" alt="MRI minh hoạ với vùng heatmap khái niệm."><span class="heat" aria-hidden="true"></span></div><div class="mock-panel"><span class="mock-label">XÁC SUẤT THEO LỚP</span><div class="placeholder-line cyan"></div><div class="placeholder-line mint"></div><div class="placeholder-line"></div><span class="mock-label">MỨC BẤT ĐỊNH</span><div class="placeholder-line"></div><div class="review-flag">Cần bác sĩ xem lại, model chưa đủ chắc</div></div></div>
-  </div></div>
-  <div class="foot"><span>Research Use Only · không hiển thị như kết luận chẩn đoán</span><span class="no">Output</span></div>
-</section>
-
-<!-- 11 -->
-<section class="slide" aria-label="Slide 11: Từ Input đến Output">
-  <div class="top"><span class="ruo">Research Use Only, chưa kiểm định lâm sàng</span><span class="index">11 / 12</span></div>
-  <nav class="section-nav" aria-label="Phần nội dung"><span class="section-item"><i></i>Bài toán</span><span class="section-item"><i></i>Dataset</span><span class="section-item"><i></i>SOTA</span><span class="section-item active" aria-current="step"><i></i>Ứng dụng</span><span class="section-item"><i></i>Nguồn</span></nav>
-  <div class="body"><div class="content">
-    <p class="eyebrow">TÓM TẮT BÀI TOÁN</p>
-    <h2>Tám file MRI của cùng một bệnh nhân chỉ có ích khi đầu ra nói rõ điều gì đáng tin, và khi nào cần defer.</h2>
-    <div class="io-recap" role="group" aria-label="Minh hoạ luồng từ tám file NIfTI .nii của cùng một bệnh nhân, một file cho mỗi phase MRI, qua model 3D đa pha, đến prototype output có xác suất theo lớp, xác suất ác tính, uncertainty, heatmap và trạng thái defer.">
-      <div class="input-study">
-        <div class="nifti-file"><i class="file-glyph" aria-hidden="true"></i><strong>1 ca · 8 file .nii</strong><span>Cùng một bệnh nhân</span></div>
-        <figure class="phase-sheet"><img src="assets/synthetic-mri-8phase-contact-sheet.png" alt="Minh hoạ tổng hợp tám lát MRI bụng cùng một trường nhìn, không phải ảnh bệnh nhân."><div class="phase-labels" aria-hidden="true"><span>C-pre.nii</span><span>C+A.nii</span><span>C+V.nii</span><span>C+Delay.nii</span><span>T2WI.nii</span><span>DWI.nii</span><span>InPhase.nii</span><span>OutPhase.nii</span></div><figcaption>Minh hoạ khái niệm: 8 file `.nii` cùng một ca, không phải dữ liệu LLD-MMRI.</figcaption></figure>
+    <!-- 1 -->
+    <section class="slide is-active" aria-label="Slide 1: Bài toán">
+      <div class="top"><span class="ruo">Research Use Only, chưa kiểm định lâm sàng</span><span class="index">01 /
+          12</span></div>
+      <nav class="section-nav" aria-label="Phần nội dung"><span class="section-item active"
+          aria-current="step"><i></i>Bài toán</span><span class="section-item"><i></i>Dataset</span><span
+          class="section-item"><i></i>SOTA</span><span class="section-item"><i></i>Ứng dụng</span><span
+          class="section-item"><i></i>Nguồn</span></nav>
+      <div class="body">
+        <div class="content hero-layout">
+          <div class="hero-copy">
+            <p class="eyebrow">MRI ĐA THÌ · PHÂN LOẠI U GAN</p>
+            <h1>MRI nhiều thì giúp gọi tên tổn thương. Model phải biết khi nào chưa đủ chắc.</h1>
+            <p class="lede">Mục tiêu là phân loại 7 loại tổn thương gan trên ảnh MRI 3D, đồng thời không “đoán bừa” ở
+              những ca khó.</p>
+            <p class="sub">Một hướng nghiên cứu về xác suất đáng tin cậy và quyết định có điều kiện, không phải công cụ
+              chẩn đoán lâm sàng.</p>
+          </div>
+          <figure class="hero-media"><img src="assets/cmir-8-107-f5.jpg"
+              alt="Chuỗi ảnh MRI gan đa thì minh hoạ sự thay đổi tín hiệu của tổn thương."></figure>
+        </div>
       </div>
-      <div class="io-arrow" aria-hidden="true">→</div>
-      <div class="model-bridge"><i class="model-mark" aria-hidden="true">3D</i><span class="plate-label">Model đa pha</span><strong>Đọc cả khối ảnh quanh ROI.</strong><p>Không suy luận từ một lát đơn lẻ.</p></div>
-      <div class="output-study">
-        <figure class="output-prototype" aria-labelledby="prototype-output-title">
-          <div class="prototype-head"><div><span class="prototype-kicker">Prototype output</span><strong id="prototype-output-title">Trạng thái cần review</strong></div><span class="concept output-concept">Minh hoạ khái niệm: chưa có dữ liệu</span></div>
-          <div class="prototype-body">
-            <div class="prototype-viewer"><img src="assets/synthetic-mri-8phase-contact-sheet.png" alt="Ảnh MRI tổng hợp dùng làm nền minh hoạ cho heatmap, không phải ảnh bệnh nhân."><div class="viewer-meta"><span>Heatmap</span><span>tổng hợp</span></div><span class="heatmap-focus" aria-hidden="true"></span></div>
-            <div class="prototype-results">
-              <div class="prototype-section"><span class="prototype-label">Phân bố xác suất theo lớp</span><div class="probability-tracks" aria-label="Các thanh xác suất chưa có giá trị"><span></span><span></span><span></span><span></span><span></span><span></span><span></span></div></div>
-              <dl class="prototype-metrics"><div class="metric-line"><dt>Xác suất ác tính</dt><dd>chưa hiển thị số</dd></div><div class="metric-line"><dt>Uncertainty</dt><dd>entropy · ensemble std</dd></div></dl>
+      <div class="foot"><span>Ảnh minh hoạ MRI công khai, attribution ở slide nguồn</span><span class="no">Mở đầu</span>
+      </div>
+    </section>
+
+    <!-- 2 -->
+    <section class="slide" aria-label="Slide 2: MRI nhiều thì">
+      <div class="top"><span class="ruo">Research Use Only, chưa kiểm định lâm sàng</span><span class="index">02 /
+          12</span></div>
+      <nav class="section-nav" aria-label="Phần nội dung"><span class="section-item active"
+          aria-current="step"><i></i>Bài toán</span><span class="section-item"><i></i>Dataset</span><span
+          class="section-item"><i></i>SOTA</span><span class="section-item"><i></i>Ứng dụng</span><span
+          class="section-item"><i></i>Nguồn</span></nav>
+      <div class="body">
+        <div class="content split split-wide">
+          <figure class="image-frame"><img src="assets/synthetic-mri-8phase-contact-sheet.png"
+              alt="Contact sheet tám thì MRI bụng của cùng một trường nhìn, minh hoạ tín hiệu tổn thương thay đổi theo từng thì.">
+            <figcaption>Minh hoạ tổng hợp 8 thì MRI, không phải dữ liệu LLD-MMRI hay ca bệnh.</figcaption>
+          </figure>
+          <div class="stack">
+            <p class="eyebrow">TỪ MỘT CA CHỤP</p>
+            <h2>Cùng một vùng tổn thương, nhưng “trông khác” theo từng thời điểm.</h2>
+            <p class="sub">MRI đa thì là nhiều lần chụp của cùng một vùng trước và sau thuốc tương phản. Sự thay đổi tín
+              hiệu này giúp phân biệt các loại tổn thương.</p>
+            <ul class="phase-note">
+              <li>Một ảnh đơn lẻ có thể bỏ lỡ mẫu thay đổi theo thời gian.</li>
+              <li>Model cần đọc các thì như một câu chuyện, không như các ảnh rời rạc.</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+      <div class="foot"><span>Ảnh tổng hợp minh hoạ 8 thì, không phải dữ liệu bệnh nhân</span><span class="no">Bài
+          toán</span></div>
+    </section>
+
+    <!-- 3 -->
+    <section class="slide" aria-label="Slide 3: Model làm gì">
+      <div class="top"><span class="ruo">Research Use Only, chưa kiểm định lâm sàng</span><span class="index">03 /
+          12</span></div>
+      <nav class="section-nav" aria-label="Phần nội dung"><span class="section-item active"
+          aria-current="step"><i></i>Bài toán</span><span class="section-item"><i></i>Dataset</span><span
+          class="section-item"><i></i>SOTA</span><span class="section-item"><i></i>Ứng dụng</span><span
+          class="section-item"><i></i>Nguồn</span></nav>
+      <div class="body">
+        <div class="content">
+          <p class="eyebrow">TỪ ẢNH ĐẾN QUYẾT ĐỊNH</p>
+          <h2>Model nhận nhiều tín hiệu, rồi có thể trả lời hoặc yêu cầu xem lại.</h2>
+          <div class="flow" role="img"
+            aria-label="Luồng: tám thì MRI, model 3D, bảy khả năng tổn thương, kết quả hoặc cần bác sĩ xem lại.">
+            <div class="flow-step"><strong>8 thì MRI</strong><span>ảnh cấu trúc và ảnh sau thuốc</span></div>
+            <div class="flow-step"><strong>Model 3D</strong><span>đọc cả khối ảnh, không chỉ một lát</span></div>
+            <div class="flow-step"><strong>7 khả năng</strong><span>HCC, ICC, di căn và các tổn thương lành</span></div>
+            <div class="flow-step defer"><strong>Kết quả hoặc defer</strong><span><b>defer</b> nghĩa là model chưa đủ
+                chắc, cần bác sĩ xem lại</span></div>
+          </div>
+        </div>
+      </div>
+      <div class="foot"><span>Phân loại mức tổn thương, không làm segmentation</span><span class="no">Bài toán</span>
+      </div>
+    </section>
+
+    <!-- 4 -->
+    <section class="slide" aria-label="Slide 4: Dataset LLD-MMRI">
+      <div class="top"><span class="ruo">Research Use Only, chưa kiểm định lâm sàng</span><span class="index">04 /
+          12</span></div>
+      <nav class="section-nav" aria-label="Phần nội dung"><span class="section-item"><i></i>Bài toán</span><span
+          class="section-item active" aria-current="step"><i></i>Dataset</span><span
+          class="section-item"><i></i>SOTA</span><span class="section-item"><i></i>Ứng dụng</span><span
+          class="section-item"><i></i>Nguồn</span></nav>
+      <div class="body">
+        <div class="content">
+          <p class="eyebrow">NỀN DỮ LIỆU CÔNG KHAI</p>
+          <h2>LLD-MMRI gom nhiều điều kiện cần cho một bài toán khó thành cùng một bộ dữ liệu.</h2>
+          <div class="mini-grid">
+            <div class="stat"><b>498</b><strong>bệnh nhân</strong><span>Mỗi bệnh nhân gắn với một tổn thương có
+                nhãn.</span></div>
+            <div class="stat"><b>7</b><strong>loại tổn thương</strong><span>Gồm 3 nhóm ác tính và 4 nhóm lành
+                tính.</span></div>
+            <div class="stat"><b>8</b><strong>thì MRI</strong><span>Kết hợp ảnh cấu trúc và động học ngấm thuốc.</span>
             </div>
           </div>
-          <div class="defer-panel" role="status"><b>defer</b><span>Không tự động kết luận. Cần bác sĩ xem lại.</span></div>
-          <figcaption>Prototype giao diện đầu ra dự kiến, không phải ca bệnh hay kết quả thực nghiệm của dự án.</figcaption>
-        </figure>
+          <p class="sub">Dataset còn có nhãn pathology report cùng ROI/bounding box, nên model có thể tập trung vào vùng
+            tổn thương thay vì toàn bộ ổ bụng.</p>
+        </div>
       </div>
-    </div>
-  </div></div>
-  <div class="foot"><span>Minh hoạ input/output, không phải ca bệnh hay kết quả thực nghiệm của dự án</span><span class="no">Input → Output</span></div>
-</section>
+      <div class="foot"><span><sup>1</sup> <a href="https://github.com/LMMMEng/LLD-MMRI-Dataset" target="_blank"
+            rel="noopener">LLD-MMRI Dataset, MICCAI 2023</a></span><span class="no">Dataset</span></div>
+    </section>
 
-<!-- 12 -->
-<section class="slide source-slide" aria-label="Slide 12: Nguồn">
-  <div class="top"><span class="ruo">Research Use Only, chưa kiểm định lâm sàng</span><span class="index">12 / 12</span></div>
-  <nav class="section-nav" aria-label="Phần nội dung"><span class="section-item"><i></i>Bài toán</span><span class="section-item"><i></i>Dataset</span><span class="section-item"><i></i>SOTA</span><span class="section-item"><i></i>Ứng dụng</span><span class="section-item active" aria-current="step"><i></i>Nguồn</span></nav>
-  <div class="body"><div class="content"><p class="eyebrow">NGUỒN VÀ ATTRIBUTION</p><h2>Toàn bộ số liệu và hình ảnh đều có nguồn truy vết.</h2><ul class="refs" style="margin-top:var(--lg)"><li><b>1</b>LLD-MMRI Dataset, LLD-MMRI2023 Challenge, MICCAI 2023. <a href="https://github.com/LMMMEng/LLD-MMRI-Dataset" target="_blank" rel="noopener">Dataset</a> · <a href="https://github.com/LMMMEng/LLD-MMRI2023" target="_blank" rel="noopener">Challenge</a></li><li><b>2</b>LLD-MMRI2023 test leaderboard. <a href="https://github.com/LMMMEng/LLD-MMRI2023/blob/main/assets/test_leaderboard.md" target="_blank" rel="noopener">Leaderboard</a></li><li><b>3</b>Macdonald J.A., Zhu Z., et al. <em>Duke Liver Dataset.</em> Radiology: Artificial Intelligence, 2023. <a href="https://doi.org/10.1148/ryai.220275" target="_blank" rel="noopener">doi:10.1148/ryai.220275</a></li><li><b>4</b>Lou M., et al. <em>SDR-Former.</em> Neural Networks, 2025. <a href="https://doi.org/10.1016/j.neunet.2025.107228" target="_blank" rel="noopener">doi:10.1016/j.neunet.2025.107228</a></li><li class="asset"><b>5</b>Ảnh MRI đa thì: Nils Albiin, <em>CMIR-8-107 F5.jpg</em>, CC BY 2.5. <a href="https://commons.wikimedia.org/wiki/File:CMIR-8-107_F5.jpg" target="_blank" rel="noopener">Wikimedia Commons</a> · ảnh đã được dùng lại và thu nhỏ cho deck.</li></ul></div></div>
-  <div class="foot"><span>Không có kết quả thực nghiệm riêng của dự án trong deck này</span><span class="no">Nguồn</span></div>
-</section>
-</main>
+    <!-- 5 -->
+    <section class="slide" aria-label="Slide 5: Macro-F1">
+      <div class="top"><span class="ruo">Research Use Only, chưa kiểm định lâm sàng</span><span class="index">05 /
+          12</span></div>
+      <nav class="section-nav" aria-label="Phần nội dung"><span class="section-item"><i></i>Bài toán</span><span
+          class="section-item"><i></i>Dataset</span><span class="section-item active"
+          aria-current="step"><i></i>SOTA</span><span class="section-item"><i></i>Ứng dụng</span><span
+          class="section-item"><i></i>Nguồn</span></nav>
+      <div class="body">
+        <div class="content">
+          <p class="eyebrow">THƯỚC ĐO CHÍNH</p>
+          <h2>Macro-F1 cho mỗi lớp một phiếu bằng nhau, nên lớp ác hiếm không bị lớp phổ biến che lấp.</h2>
+          <div class="class-strip" role="img"
+            aria-label="Bảy lớp tổn thương: HCC, ICC, di căn là ác tính; nang, u máu, FNH, áp-xe là lành tính. Macro-F1 lấy trung bình F1 của cả bảy lớp với trọng số bằng nhau.">
+            <div class="class-cell malign"><b>HCC</b><span class="kind"><i class="mark"></i>ác</span></div>
+            <div class="class-cell malign"><b>ICC</b><span class="kind"><i class="mark"></i>ác</span></div>
+            <div class="class-cell malign"><b>di căn</b><span class="kind"><i class="mark"></i>ác</span></div>
+            <div class="class-cell"><b>nang</b><span class="kind"><i class="mark"></i>lành</span></div>
+            <div class="class-cell"><b>u máu</b><span class="kind"><i class="mark"></i>lành</span></div>
+            <div class="class-cell"><b>FNH</b><span class="kind"><i class="mark"></i>lành</span></div>
+            <div class="class-cell"><b>áp-xe</b><span class="kind"><i class="mark"></i>lành</span></div>
+          </div>
+          <p class="formula">macro-F1 = trung bình F1 của cả 7 lớp · mỗi lớp trọng số bằng nhau</p>
+          <p class="sub">Khác micro-F1 (gộp mọi ca, dễ bị lớp phổ biến kéo lên), macro-F1 tính F1 riêng từng lớp rồi lấy
+            trung bình. Một lớp ác hiếm như ICC bị bỏ sót sẽ kéo điểm xuống ngay: đó là chỗ nguy hiểm nhất cần theo dõi.
+            <span class="concept">Minh hoạ công thức, chưa có kết quả dự án</span>
+          </p>
+        </div>
+      </div>
+      <div class="foot"><span>Macro-F1 = sklearn f1_score(average='macro'), khớp metric challenge</span><span
+          class="no">SOTA</span></div>
+    </section>
 
-<nav class="nav" aria-label="Điều hướng slide"><button type="button" id="prev" aria-label="Slide trước">← Trước</button><button type="button" id="next" aria-label="Slide sau">Sau →</button></nav>
-<script>
-(function(){
-  var slides=Array.prototype.slice.call(document.querySelectorAll('.slide')),prev=document.getElementById('prev'),next=document.getElementById('next'),i=0,nav=document.querySelector('.nav'),timer;
-  function show(n){i=Math.max(0,Math.min(slides.length-1,n));slides.forEach(function(s,k){s.classList.toggle('is-active',k===i)});prev.disabled=i===0;next.disabled=i===slides.length-1;if(location.hash!=='#'+(i+1))history.replaceState(null,'','#'+(i+1))}
-  function wake(){nav.classList.add('on');clearTimeout(timer);timer=setTimeout(function(){if(!nav.contains(document.activeElement))nav.classList.remove('on')},2200)}
-  document.addEventListener('keydown',function(e){if(e.altKey||e.ctrlKey||e.metaKey)return;var key=e.key;if(key==='ArrowRight'||key==='PageDown'||key===' '){show(i+1);e.preventDefault()}if(key==='ArrowLeft'||key==='PageUp'){show(i-1);e.preventDefault()}if(key==='Home'){show(0);e.preventDefault()}if(key==='End'){show(slides.length-1);e.preventDefault()}wake()});
-  function slideFromHash(){var n=parseInt(location.hash.slice(1),10);return isNaN(n)?0:n-1}
-  prev.addEventListener('click',function(){show(i-1)});next.addEventListener('click',function(){show(i+1)});window.addEventListener('hashchange',function(){var n=slideFromHash();if(n!==i)show(n)});document.addEventListener('mousemove',wake,{passive:true});show(slideFromHash());wake();
-})();
-</script>
+    <!-- 6 -->
+    <section class="slide" aria-label="Slide 6: SOTA">
+      <div class="top"><span class="ruo">Research Use Only, chưa kiểm định lâm sàng</span><span class="index">06 /
+          12</span></div>
+      <nav class="section-nav" aria-label="Phần nội dung"><span class="section-item"><i></i>Bài toán</span><span
+          class="section-item"><i></i>Dataset</span><span class="section-item active"
+          aria-current="step"><i></i>SOTA</span><span class="section-item"><i></i>Ứng dụng</span><span
+          class="section-item"><i></i>Nguồn</span></nav>
+      <div class="body">
+        <div class="content">
+          <p class="eyebrow">SOTA CÔNG BỐ</p>
+          <h2>Thế giới đã phân loại khá tốt, nhưng bảng xếp hạng mới dừng ở “đúng bao nhiêu”.</h2>
+          <div class="table-wrap">
+            <table>
+              <caption>LLD-MMRI Challenge 2023, test 104 ca, số của các đội dự thi<sup>2</sup></caption>
+              <thead>
+                <tr>
+                  <th>Đội</th>
+                  <th>F1</th>
+                  <th>Kappa</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>WorkingisAllyouneed</td>
+                  <td>0,8322</td>
+                  <td>0,7801</td>
+                </tr>
+                <tr>
+                  <td>NPUBXY</td>
+                  <td>0,8078</td>
+                  <td>0,7660</td>
+                </tr>
+                <tr>
+                  <td>LinGroup</td>
+                  <td>0,7860</td>
+                  <td>0,7435</td>
+                </tr>
+                <tr>
+                  <td>Baseline ban tổ chức</td>
+                  <td>0,6083</td>
+                  <td>0,5414</td>
+                </tr>
+              </tbody>
+            </table>
+            <div class="sota-claim"><strong>Điều còn thiếu:</strong>
+              <p>F1 và Kappa cho biết model gọi nhãn đúng đến đâu. Chúng không cho biết xác suất model đưa ra có đáng
+                tin, hoặc khi nào model nên dừng lại.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="foot"><span><sup>2</sup> <a
+            href="https://github.com/LMMMEng/LLD-MMRI2023/blob/main/assets/test_leaderboard.md" target="_blank"
+            rel="noopener">LLD-MMRI2023 test leaderboard</a>, không phải kết quả dự án</span><span
+          class="no">SOTA</span></div>
+    </section>
+
+    <!-- 7 -->
+    <section class="slide" aria-label="Slide 7: Calibration">
+      <div class="top"><span class="ruo">Research Use Only, chưa kiểm định lâm sàng</span><span class="index">07 /
+          12</span></div>
+      <nav class="section-nav" aria-label="Phần nội dung"><span class="section-item"><i></i>Bài toán</span><span
+          class="section-item"><i></i>Dataset</span><span class="section-item active"
+          aria-current="step"><i></i>SOTA</span><span class="section-item"><i></i>Ứng dụng</span><span
+          class="section-item"><i></i>Nguồn</span></nav>
+      <div class="body">
+        <div class="content">
+          <p class="eyebrow">KHOẢNG TRỐNG NGHIÊN CỨU</p>
+          <h2>Đúng nhãn chưa đủ. Một model còn phải biết mức độ đáng tin của chính mình.</h2>
+          <div class="compare">
+            <div class="compare-item"><span class="tag">Model A</span><strong>Đúng nhưng bình tĩnh</strong>
+              <p>Xác suất phản ánh đúng mức độ chắc chắn. Khi không chắc, model báo rõ để người đọc kiểm tra thêm.</p>
+            </div>
+            <div class="compare-item warn"><span class="tag">Model B</span><strong>Tự tin khi sai</strong>
+              <p>Cùng có thể đạt một điểm phân loại, nhưng dự đoán quá tự tin ở ca sai sẽ rủi ro hơn trong thực tế.</p>
+            </div>
+          </div>
+          <p class="sub"><b>Calibration</b> là kiểm tra xem lời nói “tôi chắc đến mức này” của model có khớp với tỷ lệ
+            đúng thực tế hay không.</p>
+        </div>
+      </div>
+      <div class="foot"><span>Trustworthiness: xác suất đáng tin cậy và biết giới hạn</span><span class="no">Khoảng
+          trống</span></div>
+    </section>
+
+    <!-- 8 -->
+    <section class="slide" aria-label="Slide 8: Giao thức đánh giá">
+      <div class="top"><span class="ruo">Research Use Only, chưa kiểm định lâm sàng</span><span class="index">08 /
+          12</span></div>
+      <nav class="section-nav" aria-label="Phần nội dung"><span class="section-item"><i></i>Bài toán</span><span
+          class="section-item"><i></i>Dataset</span><span class="section-item active"
+          aria-current="step"><i></i>SOTA</span><span class="section-item"><i></i>Ứng dụng</span><span
+          class="section-item"><i></i>Nguồn</span></nav>
+      <div class="body">
+        <div class="content">
+          <p class="eyebrow">ĐÁNH GIÁ ĐÁNG TIN</p>
+          <h2>Bốn bước để model không “học thuộc đề kiểm tra”, và mọi con số đều truy được.</h2>
+          <div class="protocol" role="img"
+            aria-label="Bốn bước đánh giá: chia theo bệnh nhân, chọn model bằng 5 fold cross validation, test 104 ca khóa kín, mỗi số kèm khoảng tin cậy 95 phần trăm.">
+            <div><b>1 · Chia theo bệnh nhân</b><span>Cả 8 thì của một người luôn nằm cùng một nhóm, nên model không thể
+                học lỏm từ chính ca đó.</span></div>
+            <div><b>2 · Chọn bằng 5-fold CV</b><span>Model, ngưỡng và temperature chỉ chỉnh trên train/validation, tuyệt
+                đối không chạm test.</span></div>
+            <div><b>3 · Test-104 khóa kín</b><span>104 ca chỉ mở đúng một lần, sau khi mọi lựa chọn đã chốt xong.</span>
+            </div>
+            <div><b>4 · Kèm CI 95%</b><span>Mỗi con số báo kèm khoảng tin cậy 95% (bootstrap), không lấy điểm cao
+                nhất.</span></div>
+          </div>
+          <p class="sub">Đây là protocol dự kiến. Deck không báo bất kỳ kết quả train/eval nào của dự án.</p>
+        </div>
+      </div>
+      <div class="foot"><span>Patient-level split · không leakage · test held-out</span><span class="no">Đánh giá</span>
+      </div>
+    </section>
+
+    <!-- 9 -->
+    <section class="slide" aria-label="Slide 9: Đóng góp và ứng dụng">
+      <div class="top"><span class="ruo">Research Use Only, chưa kiểm định lâm sàng</span><span class="index">09 /
+          12</span></div>
+      <nav class="section-nav" aria-label="Phần nội dung"><span class="section-item"><i></i>Bài toán</span><span
+          class="section-item"><i></i>Dataset</span><span class="section-item"><i></i>SOTA</span><span
+          class="section-item active" aria-current="step"><i></i>Ứng dụng</span><span
+          class="section-item"><i></i>Nguồn</span></nav>
+      <div class="body">
+        <div class="content">
+          <p class="eyebrow">ĐÓNG GÓP VÀ ỨNG DỤNG</p>
+          <h2>Một cách đo có trách nhiệm, để model làm người đọc thứ hai chứ không thay bác sĩ.</h2>
+          <div class="contrib">
+            <div><b>Fusion đa thì</b><span>Học cách kết hợp các tín hiệu bổ sung qua thời gian.</span></div>
+            <div><b>Calibration</b><span>Kiểm tra và hiệu chỉnh chất lượng của xác suất.</span></div>
+            <div><b>defer</b><span>Cho phép từ chối tự động ở ca chưa đủ chắc.</span></div>
+            <div><b>Phase importance &amp; OOD</b><span>Xem thì MRI nào quan trọng và model phản ứng ra sao với dữ liệu
+                lạ.</span></div>
+          </div>
+          <div class="lanes">
+            <div class="lane">
+              <div class="lane-title">Bác sĩ chẩn đoán hình ảnh</div>
+              <div class="lane-track"><span>Xem MRI</span><i>→</i><span>Nhận gợi ý xác suất &amp;
+                  heatmap</span><i>→</i><span>Quyết định cuối cùng</span></div>
+            </div>
+          </div>
+          <p class="sub"><span class="ruo-inline">Research Use Only:</span> model là người đọc thứ hai phục vụ đánh giá
+            nghiên cứu, không dùng cho chăm sóc bệnh nhân. Duke<sup>3</sup> chỉ là OOD probe vì chưa có nhãn loại tổn
+            thương.</p>
+        </div>
+      </div>
+      <div class="foot"><span><sup>3</sup> <a href="https://doi.org/10.1148/ryai.220275" target="_blank"
+            rel="noopener">Duke Liver Dataset</a>, không dùng làm external classification test</span><span
+          class="no">Ứng dụng</span></div>
+    </section>
+
+    <!-- 10 -->
+    <section class="slide" aria-label="Slide 10: Đầu ra dự kiến">
+      <div class="top"><span class="ruo">Research Use Only, chưa kiểm định lâm sàng</span><span class="index">10 /
+          12</span></div>
+      <nav class="section-nav" aria-label="Phần nội dung"><span class="section-item"><i></i>Bài toán</span><span
+          class="section-item"><i></i>Dataset</span><span class="section-item"><i></i>SOTA</span><span
+          class="section-item active" aria-current="step"><i></i>Ứng dụng</span><span
+          class="section-item"><i></i>Nguồn</span></nav>
+      <div class="body">
+        <div class="content split split-wide">
+          <div class="stack">
+            <p class="eyebrow">ĐẦU RA DỰ KIẾN</p>
+            <h2>Mỗi dự đoán phải đi kèm lý do để tin, hoặc lý do để dừng lại.</h2>
+            <p class="sub">Demo sẽ không chỉ hiển thị một nhãn. Nó trình bày phân bố xác suất, mức bất định, cờ cần bác
+              sĩ xem lại, heatmap và các giới hạn liên quan.</p><span class="concept">Minh hoạ bố cục output — số và biểu đồ trong ảnh không phải kết quả dự án</span>
+          </div>
+          <figure class="image-frame"><img src="assets/ui-output-screen.png"
+              style="width:100%;height:auto;max-height:calc(34 * var(--u));object-fit:contain"
+              alt="Minh hoạ bố cục màn hình UI output: viewer MRI và heatmap bên trái; phân bố xác suất theo lớp, mức bất định và cờ defer bên phải. Số và biểu đồ trong ảnh chỉ để minh hoạ, không phải kết quả dự án.">
+            <figcaption>Minh hoạ khái niệm (tạm) — số và biểu đồ trong ảnh chỉ minh hoạ bố cục, không phải kết quả của dự án.</figcaption>
+          </figure>
+        </div>
+      </div>
+      <div class="foot"><span>Research Use Only · không hiển thị như kết luận chẩn đoán</span><span
+          class="no">Output</span></div>
+    </section>
+
+    <!-- 11 -->
+    <section class="slide" aria-label="Slide 11: Từ Input đến Output">
+      <div class="top"><span class="ruo">Research Use Only, chưa kiểm định lâm sàng</span><span class="index">11 /
+          12</span></div>
+      <nav class="section-nav" aria-label="Phần nội dung"><span class="section-item"><i></i>Bài toán</span><span
+          class="section-item"><i></i>Dataset</span><span class="section-item"><i></i>SOTA</span><span
+          class="section-item active" aria-current="step"><i></i>Ứng dụng</span><span
+          class="section-item"><i></i>Nguồn</span></nav>
+      <div class="body">
+        <div class="content">
+          <p class="eyebrow">TÓM TẮT BÀI TOÁN</p>
+          <h2>Tám file MRI của cùng một bệnh nhân chỉ có ích khi đầu ra nói rõ điều gì đáng tin, và khi nào cần defer.
+          </h2>
+          <div class="io-recap" role="group"
+            aria-label="Minh hoạ luồng từ tám file NIfTI .nii của cùng một bệnh nhân, mỗi file là một khối nhiều lát cắt, qua model 3D đa pha, đến màn hình output có xác suất theo lớp, mức bất định, heatmap và trạng thái defer.">
+            <div class="input-study">
+              <div class="nifti-file"><i class="file-glyph" aria-hidden="true"></i><strong>1 ca · 8 file
+                  .nii</strong><span>mỗi file = nhiều lát cắt</span></div>
+              <figure class="phase-sheet"><img src="assets/synthetic-mri-8phase-contact-sheet.png"
+                  alt="Minh hoạ tổng hợp tám thì MRI .nii của cùng một ca, mỗi thì một file; mỗi file thực tế là một khối nhiều lát cắt.">
+                <div class="phase-labels" aria-hidden="true">
+                  <span>C-pre.nii</span><span>C+A.nii</span><span>C+V.nii</span><span>C+Delay.nii</span><span>T2WI.nii</span><span>DWI.nii</span><span>InPhase.nii</span><span>OutPhase.nii</span>
+                </div>
+                <figcaption>Minh hoạ tổng hợp 8 thì `.nii` của cùng một ca, không phải dữ liệu LLD-MMRI.</figcaption>
+              </figure>
+            </div>
+            <div class="io-arrow" aria-hidden="true">→</div>
+            <div class="model-bridge"><i class="model-mark" aria-hidden="true">3D</i><span class="plate-label">Model đa
+                pha</span><strong>Đọc cả khối ảnh quanh ROI.</strong>
+              <p>Không suy luận từ một lát đơn lẻ.</p>
+            </div>
+            <div class="output-study">
+              <figure class="image-frame"><img src="assets/ui-output-screen.png"
+                  style="width:100%;height:auto;max-height:calc(16 * var(--u));object-fit:contain"
+                  alt="Minh hoạ bố cục màn hình UI output với xác suất theo lớp, mức bất định, heatmap và cờ defer. Số trong ảnh chỉ để minh hoạ.">
+                <figcaption>Minh hoạ (tạm) — số chỉ để minh hoạ bố cục.</figcaption>
+              </figure>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="foot"><span>Minh hoạ input/output, không phải ca bệnh hay kết quả thực nghiệm của dự án</span><span
+          class="no">Input → Output</span></div>
+    </section>
+
+    <!-- 12 -->
+    <section class="slide source-slide" aria-label="Slide 12: Nguồn">
+      <div class="top"><span class="ruo">Research Use Only, chưa kiểm định lâm sàng</span><span class="index">12 /
+          12</span></div>
+      <nav class="section-nav" aria-label="Phần nội dung"><span class="section-item"><i></i>Bài toán</span><span
+          class="section-item"><i></i>Dataset</span><span class="section-item"><i></i>SOTA</span><span
+          class="section-item"><i></i>Ứng dụng</span><span class="section-item active"
+          aria-current="step"><i></i>Nguồn</span></nav>
+      <div class="body">
+        <div class="content">
+          <p class="eyebrow">NGUỒN VÀ ATTRIBUTION</p>
+          <h2>Toàn bộ số liệu và hình ảnh đều có nguồn truy vết.</h2>
+          <ul class="refs" style="margin-top:var(--lg)">
+            <li><b>1</b>LLD-MMRI Dataset, LLD-MMRI2023 Challenge, MICCAI 2023. <a
+                href="https://github.com/LMMMEng/LLD-MMRI-Dataset" target="_blank" rel="noopener">Dataset</a> · <a
+                href="https://github.com/LMMMEng/LLD-MMRI2023" target="_blank" rel="noopener">Challenge</a></li>
+            <li><b>2</b>LLD-MMRI2023 test leaderboard. <a
+                href="https://github.com/LMMMEng/LLD-MMRI2023/blob/main/assets/test_leaderboard.md" target="_blank"
+                rel="noopener">Leaderboard</a></li>
+            <li><b>3</b>Macdonald J.A., Zhu Z., et al. <em>Duke Liver Dataset.</em> Radiology: Artificial Intelligence,
+              2023. <a href="https://doi.org/10.1148/ryai.220275" target="_blank"
+                rel="noopener">doi:10.1148/ryai.220275</a></li>
+            <li><b>4</b>Lou M., et al. <em>SDR-Former.</em> Neural Networks, 2025. <a
+                href="https://doi.org/10.1016/j.neunet.2025.107228" target="_blank"
+                rel="noopener">doi:10.1016/j.neunet.2025.107228</a></li>
+            <li class="asset"><b>5</b>Ảnh MRI đa thì: Nils Albiin, <em>CMIR-8-107 F5.jpg</em>, CC BY 2.5. <a
+                href="https://commons.wikimedia.org/wiki/File:CMIR-8-107_F5.jpg" target="_blank"
+                rel="noopener">Wikimedia Commons</a> · ảnh đã được dùng lại và thu nhỏ cho deck.</li>
+          </ul>
+        </div>
+      </div>
+      <div class="foot"><span>Không có kết quả thực nghiệm riêng của dự án trong deck này</span><span
+          class="no">Nguồn</span></div>
+    </section>
+  </main>
+
+  <nav class="nav" aria-label="Điều hướng slide"><button type="button" id="prev" aria-label="Slide trước">←
+      Trước</button><button type="button" id="next" aria-label="Slide sau">Sau →</button></nav>
+  <script>
+    (function () {
+      var slides = Array.prototype.slice.call(document.querySelectorAll('.slide')), prev = document.getElementById('prev'), next = document.getElementById('next'), i = 0, nav = document.querySelector('.nav'), timer;
+      function show(n) { i = Math.max(0, Math.min(slides.length - 1, n)); slides.forEach(function (s, k) { s.classList.toggle('is-active', k === i) }); prev.disabled = i === 0; next.disabled = i === slides.length - 1; if (location.hash !== '#' + (i + 1)) history.replaceState(null, '', '#' + (i + 1)) }
+      function wake() { nav.classList.add('on'); clearTimeout(timer); timer = setTimeout(function () { if (!nav.contains(document.activeElement)) nav.classList.remove('on') }, 2200) }
+      document.addEventListener('keydown', function (e) { if (e.altKey || e.ctrlKey || e.metaKey) return; var key = e.key; if (key === 'ArrowRight' || key === 'PageDown' || key === ' ') { show(i + 1); e.preventDefault() } if (key === 'ArrowLeft' || key === 'PageUp') { show(i - 1); e.preventDefault() } if (key === 'Home') { show(0); e.preventDefault() } if (key === 'End') { show(slides.length - 1); e.preventDefault() } wake() });
+      function slideFromHash() { var n = parseInt(location.hash.slice(1), 10); return isNaN(n) ? 0 : n - 1 }
+      prev.addEventListener('click', function () { show(i - 1) }); next.addEventListener('click', function () { show(i + 1) }); window.addEventListener('hashchange', function () { var n = slideFromHash(); if (n !== i) show(n) }); document.addEventListener('mousemove', wake, { passive: true }); show(slideFromHash()); wake();
+    })();
+  </script>
 </body>
+
 </html>
