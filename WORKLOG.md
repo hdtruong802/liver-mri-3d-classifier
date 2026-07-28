@@ -1977,3 +1977,248 @@ Cũng xác nhận: warmup chạy đúng (lr đi 2.08e-05 → 4.06e-05, tức đa
 
 **Cảnh báo cho tool sau:** Notebook chưa theo dõi `notebooks/notebookf104ced082.ipynb` là thay đổi ngoài phạm vi, đã được người dùng yêu cầu giữ nguyên; không stage, commit hay xoá nó.
 
+
+## S-048 · 2026-07-27 21:51 · claude-code
+
+**Mục tiêu phiên:** Chỉnh sửa bộ slide overview theo 5 yêu cầu người dùng, gộp slide 8+9, đánh số lại 12→11.
+
+**Nhánh / commit:** `main` · `d101425` → *(commit đang chờ)*
+
+**Đã động file:**
+- `slides/overview.html` — slide 2 dùng ảnh 8 thì (contact sheet tổng hợp) + đổi attribution; slide 7 viết lại 4 ô protocol cụ thể/đánh số 1–4; gộp slide 8 (Đóng góp) + 9 (Ứng dụng) thành một slide (giữ 4 đóng góp + 1 lane bác sĩ, bỏ lane Mentor/reviewer); slide 9 và 10 thay mockup HTML (`.app-mock`, `.output-prototype`) bằng ô placeholder `.img-slot` nét đứt chờ ảnh; slide 10 input đổi sang placeholder "mỗi .nii = nhiều lát cắt"; đánh số lại toàn bộ 12→11 slide (index/comment/aria); dọn CSS thừa.
+- `slides/README.md` — sửa "13 bản khắc" và "RUO 13/13" → 11.
+- `slides/assets/ATTRIBUTION.md` — cập nhật usage ảnh tổng hợp (giờ ở slide 2) + thêm 2 stub cho ảnh người dùng sẽ thêm sau.
+- `WORKLOG.md` — ghi bàn giao phiên.
+
+**Quyết định & lý do:**
+- Ảnh UI output và ảnh input "nhiều lát cắt" **để trống bằng ô placeholder nét đứt** (đúng chuẩn "chưa có dữ liệu" của DESIGN) thay vì tự vẽ — người dùng chốt sẽ tự tạo ảnh rồi thêm sau. Đặt sẵn đường dẫn `assets/ui-output-screen.*` (dùng chung slide 9+10) và `assets/nii-volume-stack.*`, kèm comment swap để thay ảnh chỉ là một dòng. Phương án đã loại: tự vẽ SVG line-art (làm được, đúng thế giới bản khắc) — bị loại vì người dùng muốn tự tạo ảnh.
+- Gộp 8+9 giữ đủ 4 đóng góp + 1 lane bác sĩ (người dùng chọn) — luận điểm hợp nhất "cách đo có trách nhiệm để làm người đọc thứ hai". Giữ footnote 3 (Duke) nên đánh số chú thích không đổi.
+
+**Kết quả / số liệu:** Quality gate PASS (Impeccable detect slides/reports, split, patient-data đều pass). Kiểm tra tĩnh: 11 slide, 11 chỉ số `/ 11`, không còn `/ 12`; comment/aria đánh lại 1–11; không còn class mockup cũ (`app-mock`/`output-prototype`/`mock-*`/...); thẻ section/figure cân bằng.
+
+**Dang dở:**
+- [ ] Chờ người dùng cung cấp 2 ảnh (`ui-output-screen.*`, `nii-volume-stack.*`) để thay vào 3 ô `.img-slot` (slide 9 output, slide 10 input + output).
+- [ ] Chưa mở trình duyệt kiểm tra hiển thị thực tế (mới chỉ static + Impeccable). Nên xem lại layout ô placeholder trên máy chiếu.
+
+**Điểm vào phiên sau:** Khi có ảnh, thay `.img-slot` bằng `<img src="assets/...">` tại 3 điểm đã đánh dấu comment trong `slides/overview.html`; bổ sung nguồn/giấy phép trong `slides/assets/ATTRIBUTION.md`.
+
+**Cảnh báo cho tool sau:** Notebook chưa theo dõi `notebooks/notebookf104ced082.ipynb` là thay đổi ngoài phạm vi, người dùng yêu cầu giữ nguyên; không stage, commit hay xoá nó.
+
+## S-049 · 2026-07-27 22:37 · antigravity
+
+**Mục tiêu phiên:** Tạo ảnh minh hoạ UI output bằng Banana (image generator) thay cho SVG theo lệnh người dùng, chèn ảnh vào slide 9, 10 và cập nhật attribution.
+
+**Nhánh / commit:** `main` · *(commit đang chờ)*
+
+**Đã đụng file:**
+- `slides/assets/ui-output-screen.jpg` — mới, ảnh sinh bằng công cụ t-t-i (banana/generate_image).
+- `slides/overview.html` — thay placeholder bằng figure img thẻ HTML trỏ tới ảnh JPG.
+- `slides/assets/ATTRIBUTION.md` — điền nguồn ảnh JPG là do Antigravity tạo.
+- `WORKLOG.md` — nhật ký phiên.
+
+**Quyết định & lý do:**
+- Người dùng yêu cầu sử dụng công cụ sinh ảnh bằng AI thay vì SVG line-art cho ảnh minh hoạ màn hình output.
+- File ảnh được lưu thành `ui-output-screen.jpg` và thay thế vào các placeholder (img-slot) trên slide 9 và 10. Ô phụ ở slide 10 được gắn `style="object-fit:contain"`.
+- Bỏ qua cảnh báo git dirty ban đầu theo chỉ định.
+
+**Kết quả / số liệu:** Quality gate PASS.
+
+**Dang dở:**
+- [ ] Chưa xử lý ảnh `nii-volume-stack` cho ô placeholder còn lại.
+
+**Điểm vào phiên sau:** Người dùng kiểm tra render thực tế của `slides/overview.html` và cung cấp/yêu cầu tạo ảnh `nii-volume-stack`.
+
+**Cảnh báo cho tool sau:** Cảnh báo cũ: Notebook chưa theo dõi `notebooks/notebookf104ced082.ipynb` là thay đổi ngoài phạm vi, đã được người dùng yêu cầu giữ nguyên; không stage, commit hay xoá nó.
+
+## S-050 · 2026-07-27 22:47 · claude-code
+
+**Mục tiêu phiên:** Ghép ảnh UI output (do người dùng sinh bằng Antigravity) vào slide 9 + 10.
+
+**Nhánh / commit:** `main` · `d101425` → *(commit đang chờ)*
+
+**Đã động file:**
+- `slides/overview.html` — slide 9 và ô output slide 10: thay placeholder `.img-slot` bằng `<figure class="image-frame"><img src="assets/ui-output-screen.png" object-fit:contain ...></figure>`, thêm figcaption cảnh báo "số trong ảnh chỉ minh hoạ". Ô input slide 10 (nii-volume-stack) VẪN là placeholder chờ ảnh.
+- `slides/assets/ATTRIBUTION.md` — đổi entry sang `.png`, thêm cảnh báo số giả + ghi chú file `.jpg` trùng.
+- `slides/assets/ui-output-screen.png` + `.jpg` — người dùng thêm (ngoài phiên này).
+
+**Quyết định & lý do:**
+- Người dùng chọn **dùng tạm** ảnh dù đã được cảnh báo 2 lần, kèm yêu cầu "note hình minh hoạ". Đã ghép + thêm figcaption/chip nói rõ đây là minh hoạ bố cục. Phương án đã loại: sinh lại ảnh không số (A) / hybrid nền trống + nhãn HTML (B) — người dùng chọn C.
+- Dùng `object-fit:contain` để không cắt mất dải DEFER và RUO trong ảnh.
+
+**Kết quả / số liệu:** Quality gate PASS (Impeccable detect slides/reports). Kiểm tra tĩnh: 2 ref `ui-output-screen.png` (slide 9+10), 3 `figure.image-frame`, còn 1 `.img-slot` (input nii-stack chờ ảnh).
+
+**Dang dở:**
+- [ ] Ảnh `ui-output-screen.png` **chứa số phần trăm giả + chữ rác** — mới có figcaption che, chưa sạch. Nên thay bằng bản không số (prompt siết chặt đã đưa) hoặc bản hybrid.
+- [ ] Ô input slide 10 vẫn chờ ảnh `nii-volume-stack.*`.
+- [ ] File `ui-output-screen.jpg` trùng nội dung, có thể xoá.
+
+**Điểm vào phiên sau:** Khi có bản ảnh UI không số → ghi đè `ui-output-screen.png`, bỏ figcaption cảnh báo. Khi có `nii-volume-stack.*` → thay `.img-slot` trong `.phase-sheet` (slide 10).
+
+**Cảnh báo cho tool sau:** (1) Deck ĐANG hiển thị số giả trong ảnh output slide 9/10 — vi phạm mềm The Two-Number Rule, chỉ được che bằng figcaption; đây là bản tạm theo yêu cầu người dùng, không phải trạng thái chuẩn. (2) Notebook `notebooks/notebookf104ced082.ipynb` ngoài phạm vi, giữ nguyên, không stage/commit/xoá.
+
+## S-051 · 2026-07-27 22:58 · claude-code
+
+**Mục tiêu phiên:** Dùng ảnh 8 thì (contact sheet) làm ảnh input slide 10 thay cho placeholder.
+
+**Nhánh / commit:** `main` · `d101425` → *(commit đang chờ)*
+
+**Đã động file:**
+- `slides/overview.html` — slide 10 input: thay `.img-slot` placeholder bằng `<img src="assets/synthetic-mri-8phase-contact-sheet.png">` trong `.phase-sheet`, giữ nhãn 8 file + sửa figcaption cho khớp ảnh. Concept "mỗi file = nhiều lát cắt" vẫn ở ô glyph trái.
+- `slides/assets/ATTRIBUTION.md` — contact sheet giờ "Dùng ở: Slide 2 và 10"; `nii-volume-stack.*` chuyển thành tuỳ chọn (không còn bắt buộc).
+
+**Quyết định & lý do:** Người dùng chọn tái dùng ảnh 8 thì sẵn có làm input thay vì chờ ảnh stack riêng — nhanh, không cần asset mới.
+
+**Kết quả / số liệu:** Quality gate PASS. Kiểm tra tĩnh: không còn `.img-slot` trong HTML (cả 3 ô ảnh đã đầy); 2 ref contact-sheet (slide 2 + 10).
+
+**Dang dở:**
+- [ ] (Đính chính S-050) Input slide 10 KHÔNG còn chờ `nii-volume-stack` — đã dùng contact sheet. Ảnh stack chỉ là cải tiến tuỳ chọn.
+- [ ] Ảnh `ui-output-screen.png` vẫn còn số giả (bản tạm, có figcaption che) — nên thay bản không số về sau.
+- [ ] `ui-output-screen.jpg` trùng, có thể xoá.
+
+**Điểm vào phiên sau:** Chưa commit — nếu người dùng đồng ý, commit gộp toàn bộ thay đổi slide (S-048→S-051) trong một commit `feat(slides)`.
+
+**Cảnh báo cho tool sau:** Deck vẫn hiển thị số giả trong ảnh output slide 9/10 (bản tạm theo yêu cầu người dùng). Notebook `notebooks/notebookf104ced082.ipynb` giữ nguyên, không stage/commit/xoá.
+
+## S-052 · 2026-07-27 23:20 · claude-code
+
+**Mục tiêu phiên:** Thêm 1 slide metric về macro-F1, minh hoạ bằng chính 7 lớp của LLD-MMRI.
+
+**Nhánh / commit:** `main` · `d101425` → *(commit đang chờ)*
+
+**Đã động file:**
+- `slides/overview.html` — chèn slide 5 mới "Macro-F1" (sau Dataset, thuộc section SOTA): strip 7 lớp (HCC/ICC/di căn = ác, đánh dấu ô đặc; nang/u máu/FNH/áp-xe = lành, ô rỗng — hình dạng + nhãn chữ, không dựa màu), công thức macro-F1, và tương phản macro vs micro. Thêm CSS `.class-strip/.class-cell/.formula`. Đánh số lại toàn deck 11→12 (denominator global + first-number/comment/aria slide 5–11 → 6–12).
+- `slides/README.md` — 11→12 bản khắc.
+
+**Quyết định & lý do:**
+- **Không bịa điểm F1 từng lớp** — DESIGN The Two-Number Rule cấm vẽ số kết quả dự án. Minh hoạ macro-F1 bằng cấu trúc lớp thật + trực giác "lớp hiếm bị bỏ sót kéo điểm xuống", kèm chip "Minh hoạ công thức, chưa có kết quả dự án". Phương án đã loại: worked example có số giả định (rủi ro reviewer tưởng là kết quả).
+- Đặt slide ngay sau Dataset (đã giới thiệu 7 lớp 3 ác 4 lành) và trước SOTA leaderboard — "định nghĩa thước đo → xem bảng xếp hạng theo thước đo đó".
+- Ác/lành phân biệt bằng ô đặc/rỗng + chữ (a11y), không dùng màu.
+
+**Kết quả / số liệu:** Quality gate PASS. Kiểm tra tĩnh: 12 section, index 01–12/12 đúng thứ tự, comment/aria 1–12, 7 ô lớp.
+
+**Dang dở:**
+- [ ] Chưa mở trình duyệt kiểm tra layout strip 7 lớp (mới static + Impeccable). Xem lại trên máy chiếu, đặc biệt tên lớp có dấu cách ("di căn", "áp-xe") có thể wrap.
+- [ ] Ảnh `ui-output-screen.png` vẫn còn số giả (bản tạm, figcaption che); `.jpg` trùng có thể xoá.
+
+**Điểm vào phiên sau:** Nếu người dùng muốn số ví dụ cụ thể trên slide macro-F1 → phải là số công bố (Loại A, có nguồn) hoặc worked example dán nhãn giả định rõ ràng; không dùng số dự án.
+
+**Cảnh báo cho tool sau:** Deck vẫn hiển thị số giả trong ảnh output slide 10/11 (bản tạm theo yêu cầu người dùng). Notebook `notebooks/notebookf104ced082.ipynb` giữ nguyên, không stage/commit/xoá.
+
+## S-053 · 2026-07-27 23:45 · claude-code
+
+**Mục tiêu phiên:** Tạo tài liệu khảo sát thị trường AI gan (industry landscape) theo yêu cầu người dùng.
+
+**Nhánh / commit:** `main` · `d101425` → *(commit đang chờ)*
+
+**Đã động file:**
+- `docs/industry_landscape.md` — tạo mới. 9 mục: phạm vi + caveat mốc thời gian · tóm tắt điều hành · bản đồ thị trường theo tác vụ · bảng sản phẩm/công trình (input→output) · mảng trustworthiness · rào cản chưa thương mại hoá · input/output thực tế · hàm ý dự án · 19 nguồn có link.
+- `WORKLOG.md` — ghi bàn giao.
+
+**Quyết định & lý do:**
+- Phạm vi "AI gan rộng (detection→classification, MRI+CT) + trustworthiness", đặt ở `docs/` — người dùng chốt qua hỏi đáp.
+- Mọi nhận định/số kèm nguồn (kỷ luật trích dẫn), đánh dấu rõ là khảo sát ngoài + mốc 7/2026, KHÔNG trộn với số dự án. Nghiên cứu web read-only trong plan mode (WebSearch), tái dùng khi execute.
+- Kết luận nền: thị trường giỏi detection/định lượng (Perspectum LiverMultiScan, Nanox HealthFLD, Median iBiopsy, Aidoc, EDDA IQQA-Liver); phân loại đa lớp trên MRI đa pha + calibration/`defer` gần như chỉ ở nghiên cứu → đúng khoảng trống dự án.
+
+**Kết quả / số liệu:** Quality gate PASS. File 130 dòng, 19 nguồn/link. Không đụng slides/webapp/code.
+
+**Dang dở:**
+- [ ] Tuỳ chọn: thêm 1 dòng trỏ `docs/industry_landscape.md` vào bảng bản đồ tài liệu `AGENTS.md` §2 — CHƯA làm (sửa AGENTS.md cần cân nhắc + ghi WORKLOG). Hỏi người dùng nếu muốn.
+- [ ] Ảnh `ui-output-screen.png` (slide 10/11) vẫn còn số giả (bản tạm); `.jpg` trùng có thể xoá.
+
+**Điểm vào phiên sau:** Nếu đưa nội dung này vào report → dùng làm mục related-work/market; verify lại trạng thái FDA/CE của từng sản phẩm (thay đổi theo thời gian) trước khi trích.
+
+**Cảnh báo cho tool sau:** Số trong `docs/industry_landscape.md` là của bên thứ ba (Loại A, có nguồn), KHÔNG phải kết quả dự án — đừng nhầm. Notebook `notebooks/notebookf104ced082.ipynb` giữ nguyên, không stage/commit/xoá.
+
+## S-054 · 2026-07-28 · claude-code
+
+**Mục tiêu phiên:** Soạn prompt để một phiên sau nghiên cứu web + dựng deck 7 slide mới `slides/overview_v2.html`.
+
+**Nhánh / commit:** `main` · `d101425` → *(commit đang chờ)*
+
+**Đã đụng file:**
+- `prompt/slides_overview_v2.md` — tạo mới. Prompt 5 phần: (0) danh sách đọc bắt buộc, (1) luật số liệu, (2) chỉ dẫn nghiên cứu web + thứ tự ưu tiên nguồn, (3) nội dung 7 slide, (4) ràng buộc kỹ thuật file, (5) quy trình + checklist nghiệm thu.
+- `WORKLOG.md` — entry này.
+
+**Quyết định & lý do:**
+- **Đặt ra "Loại C — số mục tiêu/kỳ vọng"** bổ sung cho The Two-Number Rule của `DESIGN.md`. Slide 6 người dùng yêu cầu có "kỳ vọng đạt bao nhiêu", mà hệ thống hiện chỉ có Loại A (số công bố của người khác) và Loại B (số dự án — cấm vẽ). Loại C bị siết bằng ba điều kiện đồng thời: viền nét đứt + chip "Mục tiêu, chưa có kết quả" + **neo vào một số Loại A có nguồn**. Không neo được thì phát biểu định tính. Phương án đã loại: cấm hẳn số mục tiêu (không đáp ứng yêu cầu) và cho tự do ghi mục tiêu (rủi ro reviewer đọc nhầm thành kết quả).
+- **v2 là file thứ hai, không sửa `overview.html`.** Hai deck phục vụ hai buổi khác nhau; deck 12 bản khắc vẫn là bản chính thức.
+- **Slide 3 dùng lại `docs/industry_landscape.md`** thay vì khảo sát lại — tài liệu đã có 19 nguồn, chỉ yêu cầu verify lại trạng thái FDA/CE.
+- **Chèn guard về Vinmec**: cấm logo, cấm mọi câu ngụ ý đã phê duyệt/đã cấp dữ liệu; giai đoạn sau 6 tuần trình bày như đề xuất có điều kiện kèm IRB / data-sharing / de-identification.
+- Ước tính hạ tầng GPU phải kèm giả định hiển thị và nằm trong khối nét đứt — là ước tính, không phải số đo.
+
+**Kết quả / số liệu:** Không có. Phiên này chỉ sinh tài liệu prompt, không đụng `slides/`, `src/`, `webapp/`.
+
+**Dang dở:**
+- [ ] Deck `slides/overview_v2.html` **chưa được dựng** — prompt mới chỉ là đầu vào.
+- [ ] Các mục tồn từ S-050→S-053 vẫn chưa commit (deck v1 + `docs/industry_landscape.md`).
+
+**Điểm vào phiên sau:** Chạy `prompt/slides_overview_v2.md` (dán khối ```text vào tool). Bước 3 của prompt yêu cầu **báo cáo danh sách nguồn trước khi dựng HTML** — đừng bỏ bước đó.
+
+**Cảnh báo cho tool sau:** (1) Slide 6 của deck v2 là chỗ dễ vi phạm The Two-Number Rule nhất — mọi con số kỳ vọng phải neo vào nguồn công bố, không được rơi từ trên trời. (2) Không dùng `ui-output-screen.png` trong v2 (ảnh chứa số phần trăm giả). (3) Notebook `notebooks/notebookf104ced082.ipynb` giữ nguyên, không stage/commit/xoá.
+
+## S-055 · 2026-07-28 12:30 · claude-code
+
+**Mục tiêu phiên:** Chạy prompt `prompt/slides_overview_v2.md` — nghiên cứu web rồi dựng deck 7 slide `slides/overview_v2.html`.
+
+**Nhánh / commit:** `main` · `d101425` → *(commit đang chờ)*
+
+**Đã đụng file:**
+- `slides/overview_v2.html` — tạo mới. 7 slide + 1 slide phụ lục nguồn (không đánh số vào 7). Tự chứa, CSS/JS inline, tái dùng hệ thị giác của v1 nhưng viết lại CSS gọn cho bộ component mới (`.dash-list`, `.scope`, `figure.chart`, `.claim`, `.flow-v`, `.quad`, `.trio`, `.target`).
+- `slides/README.md` — bảng 2 deck song song + giải thích khác nhau; bảng chú số riêng cho v2 (10 mục); mục "Đã loại có chủ ý".
+- `slides/assets/ATTRIBUTION.md` — contact sheet giờ dùng thêm ở `overview_v2.html` slide 1.
+- `WORKLOG.md` — entry này.
+
+**Quyết định & lý do:**
+- **Chú số Hoàng Thổ được sửa đúng DESIGN.** v1 để `.refs b` và gạch chân link màu Lam Ngọc; v2 chuyển chú số + số chú giải sang Hoàng Thổ, đúng The Plate Key Rule. Kiểm lại: amber chỉ xuất hiện ở 4 chỗ hợp lệ (chú số `sup.ref`, số chú giải `.refs b`, mốc phần active, đường nhấn dưới `h2`) cộng hover/focus của link theo đúng mục Link của DESIGN.
+- **Không dùng `.compare-item.warn` kiểu v1.** Ở v1 nó tô amber trong vùng nội dung; v2 tránh hẳn để không làm loãng nghĩa chú số.
+- **`<code>` phải được style.** Mặc định trình duyệt là monospace = font thứ ba, vi phạm "Don't thêm font thứ ba". Đã ép về stack sans kèm nền Nền Bản.
+- **Nét đứt chỉ còn 2 chỗ:** chip `.concept` và khối `.target`. Ô chú giải ác/lành ở slide 5 ban đầu dùng nét đứt cho đẹp — đã sửa thành viền Kẻ Đậm, vì nét đứt là tín hiệu dành riêng cho "chưa có dữ liệu".
+- **Loại C (số mục tiêu) triển khai đúng ba điều kiện** đã đặt ra ở S-054: khối `.target` viền nét đứt + chip "Mục tiêu, chưa có kết quả" + mỗi mục tiêu neo vào số có nguồn (0,6083 baseline; vùng 0,2562–0,8322 của 24 mục leaderboard). Ba mục tiêu còn lại (calibration, selective, an toàn lâm sàng) cố ý phát biểu **định tính**, không gán ngưỡng, vì không neo được vào nguồn nào.
+- **Bốn số đã tìm được nhưng bị loại** — lý do ghi trong `slides/README.md`: biểu đồ thời gian chẩn đoán (không có nguồn đo thật), 30,8% báo cáo calibration (MDPI 403, không verify được bản gốc), Hu et al. F1 0,84 (Springer paywall), Median sensitivity 92% (chỉ có thông cáo báo chí — nguồn loại này chỉ dùng cho trạng thái sản phẩm, không dùng cho số hiệu năng).
+- **Đếm thiết bị FDA lấy từ JAMA Netw Open thay vì trade press.** Cùng tỷ lệ 76% radiology nhưng là nguồn peer-reviewed, và kèm sẵn bộ số về chất lượng kiểm định (97% qua 510(k), 5% prospective, 29% clinical) — chính là bằng chứng cho rào cản ở slide 3, mạnh hơn một con số đếm đơn thuần.
+- **Bối cảnh Việt Nam thay vì chỉ số quốc tế.** Tìm được Vu et al. KJR 2023 nói thẳng về thiếu hụt bác sĩ CĐHA ở Việt Nam → slide 2 mở bằng số trong nước rồi mới dẫn số Hoa Kỳ, thay vì ngoại suy.
+
+**Kết quả / số liệu:** Quality gate PASS (Impeccable detect slides + reports OK). Kiểm tra tĩnh: 8 `<section class="slide">`, 8 dải RUO, chỉ số `01/07`–`07/07` + `Phụ lục`, 0 `text-transform`, 0 `box-shadow`, 0 asset ngoài (không CDN/webfont), 7 `<code>` đã có style. `slides/overview.html` **không bị sửa** (mtime 2026-07-27 23:10, trước phiên này).
+
+**Dang dở:**
+- [ ] **Chưa mở trình duyệt kiểm layout.** Mới static + Impeccable. Slide 2 là slide dày nhất (3 số + biểu đồ SVG + khối scope trong một cột) — khả năng tràn dọc cao nhất ở đó. Slide 7 ba cột cũng cần soát.
+- [ ] Chưa in thử PDF (kỳ vọng 8 trang ngang).
+- [ ] Các mục tồn từ S-050→S-053 vẫn chưa commit.
+
+**Điểm vào phiên sau:** Mở `slides/overview_v2.html` bằng trình duyệt ở đúng 16:9, soát tràn dọc slide 2 và 7 trước. Nếu tràn: cắt bớt chữ trong `span` của `.dash-list`, không giảm cỡ chữ (deck phải đọc được từ cuối phòng họp).
+
+**Cảnh báo cho tool sau:** (1) v2 có **bộ chú số riêng 1–10**, không dùng chung đánh số với v1 — đừng trộn hai bảng. (2) Khối `.target` ở slide 6 và slide 7 là **số mục tiêu**, không phải kết quả; nếu sửa, phải giữ nguyên cả ba tín hiệu (nét đứt + chip + neo nguồn). (3) v2 cố tình **không dùng** `ui-output-screen.png` vì ảnh đó chứa số phần trăm giả. (4) Notebook `notebooks/notebookf104ced082.ipynb` giữ nguyên, không stage/commit/xoá.
+
+**Phụ chú S-055 (sau khi hook Impeccable chạy):** hook `impeccable@1` báo `flat-type-hierarchy` ở L99. **Phân loại: false positive, KHÔNG suppress.** Lý do: L99 là `font-size: var(--small)` trong `.foot`; hook không giải được token dạng `max(<rem>, calc(<n> * var(--u)))` nên thấy nhiều rule cùng đọc một chuỗi và kết luận là phẳng. Đã kiểm bằng số — mọi bậc kề nhau đều ≥1,25 ở cả hai đầu clamp: rem 1,656 / 1,280 / 1,250 / 1,333; fluid 1,800 / 1,308 / 1,303 / 1,451. Thu hẹp bất kỳ bậc nào sẽ vi phạm The Data-Outranks-Prose Rule. Hai detector khác không báo gì: `npx impeccable detect --json` (v3.4.0) trả `[]`, quality gate PASS. **Chưa ghi ignore vào config** — cần người dùng xác nhận trước.
+
+Nhân lúc soát thì tìm ra một chỗ phẳng **thật** mà hook không chỉ tới: chữ trong SVG slide 2 có hai cỡ 11px và 10px (tỉ lệ 1,1), và dòng 10px lặp lại đúng nội dung của figcaption. Đã xoá dòng 10px trong SVG, chuyển nội dung vào figcaption. SVG giờ chỉ còn một cỡ chữ 11px. Quality gate chạy lại: PASS.
+
+## S-056 · 2026-07-28 13:05 · claude-code
+
+**Mục tiêu phiên:** Năm sửa đổi trên `slides/overview_v2.html` theo yêu cầu người dùng.
+
+**Nhánh / commit:** `main` · `d101425` → *(commit đang chờ)*
+
+**Đã đụng file:**
+- `slides/overview_v2.html` — (1) xoá hẳn nút điều hướng Trước/Sau: bỏ `<nav class="nav">`, toàn bộ CSS `.nav*`, hai rule `.nav{display:none}` trong media query, và phần `prev/next/wake/timer` trong JS. Điều hướng bàn phím giữ nguyên. (2) Phụ lục và slide không còn trỏ vào file `.md` nào trong repo: chú số 9 giờ liệt kê 6 link ngoài trực tiếp, chú số 10 bỏ trỏ `ATTRIBUTION.md`, link leaderboard đổi chữ hiển thị từ `test_leaderboard.md` sang "Bảng xếp hạng tập test". (3) Slide phụ lục bỏ dải mốc phần, thêm class `.no-nav` để lưới còn 3 hàng. (4) Slide 7 bỏ cột "Hạ tầng huấn luyện" (gồm cả khối ước tính VRAM), `.trio` → `.trio.duo` 2 cột. (5) Mục tiêu macro-F1 đổi sang 0,85–0,90.
+- `slides/README.md` — ghi khác biệt điều hướng v1/v2; ghi phụ lục v2 chỉ dẫn link ngoài; thêm cảnh báo về mục tiêu macro-F1.
+- `WORKLOG.md` — entry này.
+
+**Quyết định & lý do:**
+- **Mục tiêu macro-F1 0,85–0,90 là quyết định của người dùng, không phải đề xuất của agent.** Tôi đã nêu trước khi làm rằng mức này nằm **trên đội nhất** của LLD-MMRI Challenge 2023 (0,8322 / test-104, 24 mục) và **mâu thuẫn với `AGENTS.md` §5 + `PRODUCT.md`** ("không đua accuracy leaderboard"). Người dùng vẫn chốt. Đã làm đúng yêu cầu, và giữ kỷ luật Loại C: con số nằm trong khối nét đứt, có chip "Mục tiêu, chưa có kết quả", neo vào cả 0,6083 lẫn 0,8322, kèm một câu nói thẳng "mức nhắm tới nằm trên đội cao nhất, nên đây là mục tiêu tham vọng chứ không phải mức an toàn". **`AGENTS.md` và `PRODUCT.md` CHƯA được sửa** — sửa file ngữ cảnh cần người dùng duyệt riêng (AGENTS.md §10).
+- **Link `test_leaderboard.md` được giữ, chỉ đổi chữ hiển thị.** Đây là nguồn công bố bên ngoài trên GitHub, trùng đuôi `.md` chứ không phải tài liệu nội bộ; yêu cầu của người dùng nhắm vào tài liệu trong repo. Đổi chữ để không ai nhìn nhầm thành file local.
+- **Bỏ nút Trước/Sau kéo theo một lỗi gate.** Khối `.nav button` là chỗ **duy nhất** còn lại khai báo stack sans mà parser đọc được; `body` lúc đó dùng shorthand `font: 400 var(--body)/1.5 var(--sans)` và Impeccable không phân giải shorthand. Xoá `.nav` xong detector báo `single-font` ("only font used is cambria"), exit 2, gate FAIL. Sửa bằng cách tách shorthand ở `body` thành `font-family` / `font-size` / `font-weight` / `line-height` rời. Đây là CSS đúng hơn, không phải mẹo qua mặt detector.
+
+**Kết quả / số liệu:** Quality gate PASS. Kiểm tra tĩnh: 8 section, 8 dải RUO, 7 dải mốc phần (phụ lục không có), 0 nút prev/next, 0 tham chiếu file `.md` nội bộ, 0 dấu vết cột hạ tầng.
+
+**Dang dở:**
+- [ ] **Vẫn chưa mở trình duyệt kiểm layout** (từ S-055). Slide 7 giờ 2 cột thay vì 3 nên rộng rãi hơn; slide 2 vẫn là chỗ dày nhất.
+- [ ] `AGENTS.md` §5 và `PRODUCT.md` đang lệch với mục tiêu 0,85–0,90 ghi trên slide. Cần hỏi người dùng có muốn sửa hai file ngữ cảnh cho khớp không.
+- [ ] Hook `flat-type-hierarchy` (S-055) vẫn chưa ghi ignore — chờ người dùng xác nhận.
+- [ ] Các mục tồn từ S-050→S-053 vẫn chưa commit.
+
+**Điểm vào phiên sau:** Mở `slides/overview_v2.html` ở 16:9 soát tràn dọc slide 2. Sau đó hỏi người dùng về việc đồng bộ `AGENTS.md` §5 / `PRODUCT.md` với mục tiêu accuracy mới.
+
+**Cảnh báo cho tool sau:** (1) **Deck v2 và AGENTS.md/PRODUCT.md đang mâu thuẫn nhau về định vị accuracy.** Deck nói nhắm 0,85–0,90; hai file ngữ cảnh nói không đua accuracy. Đây là chủ ý của người dùng, không phải drift — đừng "sửa" deck về lại. (2) Đừng khai báo font bằng shorthand `font:` trong deck này, detector không đọc được và sẽ báo `single-font`. (3) Notebook `notebooks/notebookf104ced082.ipynb` giữ nguyên, không stage/commit/xoá.
+
+**Phụ chú S-056:** hook `impeccable@1` lại báo `flat-type-hierarchy`, lần này ở **L50** thay vì L99. Không phải finding mới — cùng một false positive đã phân tích ở phụ chú S-055. Số dòng dịch vì việc tách shorthand `font:` ở `body` thành bốn khai báo rời đã chèn thêm dòng; điểm hook bắt chuyển từ `font-size: var(--small)` trong `.foot` sang `font-size: var(--body)` trong `body`. Thang chữ không đổi (1,656 / 1,280 / 1,250 / 1,333 ở đầu rem). `npx impeccable detect --json slides/overview_v2.html` trả `[]` exit 0; gate PASS. Vẫn **chưa ghi ignore**, vẫn chờ người dùng xác nhận.
