@@ -2342,3 +2342,54 @@ lld/labels/MR-391135_1_C+V.nii         mask  — KHÔNG có _0000
 **Điểm vào phiên sau:** Sau khi xoá cache cũ và chạy lại 20 ca, cột `crop_source` phải là `mask` gần hết. Nếu vẫn `bbox` thì lần này build sẽ dừng hẳn với thông báo có tên file — gửi nguyên đoạn đó.
 
 **Cảnh báo cho tool sau:** `build_cache` **có resume** (bỏ qua ca đã có `.npz`). Đổi tham số crop mà không xoá thư mục cache cũ thì mẻ mới sẽ trộn hai loại dữ liệu — không có gì trong file cảnh báo điều đó. Luôn build sang thư mục mới hoặc xoá sạch trước.
+
+## S-060 · 2026-07-29 · claude-code
+
+**Mục tiêu phiên:** Chạy E0/E1, đọc kết quả theo luật đã chốt trước, phân tích calibration + selective.
+
+**Nhánh / commit:** `main` · `e815299` → *(commit đang chờ)*
+
+### Kết quả E0 và E1
+
+Cùng config (đã diff `config_used.json`: **không khác một khoá nào**), cùng seed 1337, cùng fold 1, cùng 82 bệnh nhân val. Chỉ khác cache.
+
+| | E0 `fixed_mm` | E1 `lesion_tight` |
+|---|---|---|
+| macro-F1 | 0,4244 [0,314, 0,530] | **0,5740** [0,455, 0,678] |
+| accuracy | 0,4024 | 0,6098 |
+| Cohen's κ | 0,2760 | 0,5202 |
+| AURC | 0,5395 | **0,2753** |
+| ECE thô → sau T (cross-fit 5 phần) | 0,3218 → 0,1455 | 0,2935 → 0,2505 |
+| NLL thô → sau T | 2,7172 → 1,7251 | 3,3182 → **1,5205** |
+| T | 4,150 ± 0,43 | 5,010 ± 0,62 |
+| epoch `val_loss` đáy | 10 | 9 |
+| gap train/val cuối | +2,838 | +2,547 |
+| thời gian | 4,11h | 4,09h |
+
+Bootstrap **ghép cặp** (cùng bệnh nhân): chênh lệch macro-F1 **+0,1496**, 95% CI **[−0,005, +0,295]**, P(E1>E0) = 0,973.
+
+**Phán quyết:** E0 = 0,4244 rơi vào dải 0,35–0,50 → *protocol giải thích phần lớn*, pipeline lành. E1 − E0 = +0,1496 ≫ ngưỡng +0,05 → **lesion-tight thành mặc định**. Baseline ban tổ chức 0,6083; E1 còn cách 0,034.
+
+### Quyết định & lý do
+
+- **Giả thuyết cơ chế của tôi SAI, dù can thiệp đúng.** Tôi chốt trước 4 chỉ báo và dự đoán crop ăn tiền bằng cách giảm overfitting. Thực tế **3/4 chỉ báo trượt**: `val_loss` vẫn chạm đáy ở epoch 9 (E0: 10), gap cuối vẫn +2,5 (E0: +2,8). Chỉ macro-F1 đạt, và đạt rất đậm. Cơ chế thật là cắt sát làm **tín hiệu phân biệt** mạnh hơn, không làm model bớt học thuộc. Hai chuyện độc lập. Kết quả rơi vào ô không có trong bảng 4 dòng tôi lập.
+- **macro-F1@coverage không dùng được ở n=82.** Ở coverage 50%, lớp hiếm chỉ còn 1–2 ca, F1 của lớp đó do một bệnh nhân quyết định rồi chiếm 1/7 trọng số macro. Nên macro-F1 nhảy loạn (0,5740 → 0,5559 → 0,5816 → 0,5211) trong khi accuracy tăng đều (0,6098 → 0,7561). **Đổi metric headline của selective sang risk–coverage/AURC**, và gộp out-of-fold 5 fold trước khi tính. Mục tiêu "macro-F1 ≥0,90 @ coverage 80%" hiện **chưa đứng vững về mặt thống kê**, cần phát biểu lại.
+- **Temperature scaling là bắt buộc, không phải bước cuối tuỳ chọn.** NLL thô của E1 là 3,3182, **tệ hơn đoán mò** (ln 7 = 1,9459); sau hiệu chỉnh mới về 1,5205. E1 giỏi hơn E0 ở phân loại nhưng tự tin thái quá hơn. `T ≈ 5,0` là mức cực đoan.
+- **Cross-fit temperature thay vì fit in-sample.** Fit ngay trên tập đánh giá cho ECE 0,1011; cross-fit 5 phần cho **0,1455**. Chênh 44%. Số in-sample không được đưa vào báo cáo.
+
+### Đính chính hai sai sót của tôi trong phiên
+
+1. Tôi nói nhiều lần `src/eval/calibration.py` và `src/eval/selective.py` **"chưa có dòng nào"**. Sai: chúng đã tồn tại đầy đủ từ commit `b7fd34c` (283 + 215 dòng, có sẵn cả `uncertainty_decomposition`). Việc cần làm là **chạy** chúng, không phải viết mới. Sai sót này làm lệch kế hoạch tôi đề xuất trong vài lượt.
+2. Tôi báo `runs/` chưa được gitignore. Sai: `.gitignore:39` có `runs/`. Nguyên nhân là tôi nối lệnh bằng `&&`/`||` nên một script lỗi phía trước làm `||` bắn nhầm thông báo.
+
+**Kết quả / số liệu:** Xem bảng trên. Không sửa code trong phiên này.
+
+**Dang dở:**
+- [ ] E1 mới 1 fold. Cần 5-fold để có số báo cáo được (Phase 2 theo Spec Sheet §3).
+- [ ] Chưa gộp out-of-fold để tính selective trên 394 ca.
+- [ ] Overfitting **chưa được xử lý**: `val_loss` chạm đáy ở epoch 9 ở cả hai run.
+- [ ] Đòn bẩy kiến trúc (Siamese, +0,074 theo bảng SDR-Former) chưa dùng.
+
+**Điểm vào phiên sau:** Chạy 4 fold còn lại của E1 để có CV đầy đủ, rồi `python -m src.eval.run` gộp out-of-fold và tính lại selective trên 394 ca. Cân nhắc giảm `epochs` 300 → 220 (đỉnh E1 ở epoch 200) để tiết kiệm ~1/4 giờ GPU mỗi fold.
+
+**Cảnh báo cho tool sau:** (1) **Đừng báo cáo macro-F1@coverage tính trên một fold** — lớp hiếm tụt xuống 1–2 ca và con số vô nghĩa. (2) `T` phải cross-fit hoặc học trên fold khác; fit in-sample cho ECE tốt giả tạo ~44%. (3) `run_dir` chỉ băm khối `model:`, nên hai run khác dữ liệu mà cùng model sẽ **dùng chung thư mục và resume đè nhau** nếu không đặt `LLDMMRI_OUTPUT_DIR` riêng.
