@@ -2424,3 +2424,29 @@ Bootstrap **ghép cặp** (cùng bệnh nhân): chênh lệch macro-F1 **+0,1496
 **Điểm vào phiên sau:** Trên Kaggle: `pytest tests/test_models.py -q` (vài giây) → cell 1c đo thời gian → nếu ≤6h/fold thì `python -m src.train.run --config configs/e2_siamese.yaml --fold 1` với `LLDMMRI_OUTPUT_DIR=/kaggle/working/runs/E2_siamese`, cache **lesion-tight** giống E1.
 
 **Cảnh báo cho tool sau:** (1) `input_downsample` là biến gây nhiễu khi so E2 với E1 — đừng đọc kết quả như so thuần kiến trúc. (2) Con số +0,074 của wrapper SNN được **suy ra từ quy ước đặt tên** trong bảng SDR-Former, chưa đối chiếu phần setup bài báo; kiểm trước khi trích vào report. (3) `run_dir` chỉ băm khối `model:`, mà E2 khác model nên digest tự khác E1 — lần này không cần lo trùng thư mục.
+
+## S-062 · 2026-07-29 · claude-code
+
+**Mục tiêu phiên:** Notebook Kaggle để train E2.
+
+**Nhánh / commit:** `main` · `284f987` → *(commit đang chờ)*
+
+**Đã đụng file:**
+- `notebooks/04_train_e2_siamese.ipynb` — mới, 24 cell, output đã strip.
+
+**Quyết định & lý do:**
+- **Thêm cổng chặn thứ tư, đặt trước mọi thứ: chạy `pytest tests/test_models.py`.** `siamese_fusion.py` được viết trên máy không có torch nên 6 test của nó đang skip; đây là lần đầu chúng chạy thật. Vài giây, chặn được nguy cơ mất 4h GPU cho một model không dựng nổi.
+- **Không cho notebook tự dò cache.** `find_cache_dir` chọn bừa khi mount nhiều cache. Cell 1 liệt kê mọi cache kèm `crop_mode`, người dùng điền tay, và có `assert crop_mode == "lesion_tight"` — E2 phải dùng đúng cache của E1 thì mới so được.
+- **Cell xem trọng số attention.** Đây là thứ early-concat không cho được: model tự nói nó dựa vào thì nào. Kỳ vọng theo LI-RADS là arterial/venous nổi bật. Trọng số gần đều 1/8 nghĩa là attention chưa học được gì — một chẩn đoán mà macro-F1 không đưa ra được.
+- **Cell calibration cross-fit `T` 5 phần**, không fit in-sample. In kèm mốc E0/E1 để đối chiếu ngay.
+- **Cảnh báo in thẳng trong output**: không báo macro-F1@coverage trên một fold (S-060).
+
+**Kết quả / số liệu:** 24 cell, cú pháp hợp lệ, output rỗng. `pytest` 234 passed, 15 skipped. ruff sạch.
+
+**Dang dở:**
+- [ ] **Notebook chưa chạy lần nào.** Không kiểm được ở local vì thiếu torch/monai.
+- [ ] E2 chưa train.
+
+**Điểm vào phiên sau:** Mở `notebooks/04_train_e2_siamese.ipynb` trên Kaggle, mount cache lesion-tight, chạy tuần tự. Bốn cổng chặn sẽ tự dừng nếu có gì sai.
+
+**Cảnh báo cho tool sau:** `load_checkpoint` nằm ở `src/train/loop.py` (không phải `src/train/checkpoint.py`) và **trả về payload dict**, không tự nạp vào model — phải `model.load_state_dict(payload["model"])`. Tôi đã viết sai chỗ này lần đầu và chỉ phát hiện nhờ đối chiếu chữ ký thật.
