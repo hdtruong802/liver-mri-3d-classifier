@@ -2393,3 +2393,34 @@ Bootstrap **ghép cặp** (cùng bệnh nhân): chênh lệch macro-F1 **+0,1496
 **Điểm vào phiên sau:** Chạy 4 fold còn lại của E1 để có CV đầy đủ, rồi `python -m src.eval.run` gộp out-of-fold và tính lại selective trên 394 ca. Cân nhắc giảm `epochs` 300 → 220 (đỉnh E1 ở epoch 200) để tiết kiệm ~1/4 giờ GPU mỗi fold.
 
 **Cảnh báo cho tool sau:** (1) **Đừng báo cáo macro-F1@coverage tính trên một fold** — lớp hiếm tụt xuống 1–2 ca và con số vô nghĩa. (2) `T` phải cross-fit hoặc học trên fold khác; fit in-sample cho ECE tốt giả tạo ~44%. (3) `run_dir` chỉ băm khối `model:`, nên hai run khác dữ liệu mà cùng model sẽ **dùng chung thư mục và resume đè nhau** nếu không đặt `LLDMMRI_OUTPUT_DIR` riêng.
+
+## S-061 · 2026-07-29 · claude-code
+
+**Mục tiêu phiên:** Dựng E2 — Siamese đa pha (fusion v1) thay cho early-concat v0.
+
+**Nhánh / commit:** `main` · `a736f55` → *(commit đang chờ)*
+
+**Đã đụng file:**
+- `src/models/siamese_fusion.py` — mới. Một encoder DenseNet121-3D **dùng chung**, chạy riêng cho từng thì, rồi hợp nhất bằng `attention` | `mean` | `concat`. Kèm `phase_embedding` và `input_downsample`.
+- `src/models/__init__.py` — đăng ký `siamese_fusion` vào registry.
+- `configs/e2_siamese.yaml` — mới, sinh từ `baseline_3dpatch.yaml`, **chỉ khác khối `model:` và `output_dir`** (có test khoá).
+- `tests/test_models.py` — +7 test.
+
+**Quyết định & lý do:**
+- **Trọng số dùng chung, không phải 8 encoder riêng.** 316 mẫu train; 8 encoder riêng là 8 lần tham số và gần như chắc chắn overfit. Dùng chung giữ nguyên số tham số so với early-concat. Có test kiểm: đổi `num_phases` 4→8 mà số tham số không đổi.
+- **`phase_embedding` là bắt buộc về mặt thiết kế.** Trọng số dùng chung nên encoder không phân biệt được arterial với T2WI. Không có vector nhận dạng thì, fusion `mean` hoàn toàn mù thứ tự thì — trong khi động học ngấm thuốc là tín hiệu chẩn đoán mạnh nhất của bài toán này.
+- **`input_downsample: 2` là thoả hiệp bắt buộc, và nó là biến gây nhiễu.** Siamese chạy backbone 8 lượt nên FLOPs ~8×; E1 mất 4,09h/fold nên bản nguyên độ phân giải sẽ ~30h+, vượt cả session 12h lẫn quota tuần. Average-pool 2 cắt voxel đi 8 lần, đưa chi phí về xấp xỉ E1. Mất mát thông tin thấp hơn vẻ ngoài: cache lesion-tight có trung vị fov 53,8mm trên 96 voxel = ~0,56mm/voxel, trong khi pha động chỉ có độ phân giải gốc ~0,78mm (S-029) — **một nửa dataset đang bị nội suy vượt quá thứ máy chụp ghi được**. Nhưng phải nói thẳng: E2 so với E1 giờ là *Siamese ở nửa độ phân giải* so với *early-concat ở đủ độ phân giải*. **E2 thắng → kết luận mạnh. E2 thua → KHÔNG kết luận được**, phải chạy thêm E1 với cùng `input_downsample`.
+- **Chỉ dùng API MONAI mà repo đã chạy thành công** (`DenseNet121(spatial_dims, in_channels, out_channels, dropout_prob, norm)`), lấy `out_channels` làm số chiều nhúng thay vì đụng vào nội tại `class_layers`. Đã cân nhắc thêm ResNet18 (hạng 2 challenge dùng nó, đạt 0,8078) nhưng **không thêm**: tôi không kiểm được chữ ký API ở local, và đoán API rồi để người dùng phát hiện sau 4h GPU là đúng kiểu lỗi dự án đã mắc ba lần.
+- **Kiểm tham số đặt TRƯỚC `import torch`.** Ban đầu tôi để sau, khiến 2 test validation fail ở local vì thiếu torch. Cấu hình sai phải báo lỗi ngay cả khi chưa cài deep-learning stack.
+- **`last_phase_weights` là đầu ra khoa học, không phải chi tiết nội bộ.** Đó là số cho ablation phase-importance ở W4 và để đối chiếu LI-RADS (kỳ vọng arterial/venous nổi bật). Có test kiểm nó là phân bố hợp lệ trên 8 thì.
+
+**Kết quả / số liệu:** `pytest` **234 passed, 15 skipped** (231 → 234; 6 test E2 cần torch nên skip ở local). ruff sạch. **Chưa train.**
+
+**Dang dở:**
+- [ ] **Chưa chạy forward pass thật lần nào** — local không có torch (Python 3.13 nhiều khả năng không có wheel cho `torch==2.3.1` đã pin). Phải chạy `pytest tests/test_models.py` trên Kaggle **trước** khi train.
+- [ ] Chưa đo thời gian/epoch của E2. Giả định `input_downsample: 2` đưa về ~4h/fold là **tính toán, chưa đo**.
+- [ ] E1 mới 1 fold; 4 fold còn lại hoãn lại có chủ ý để sàng lọc kiến trúc trước (Spec Sheet §3 Phase 1).
+
+**Điểm vào phiên sau:** Trên Kaggle: `pytest tests/test_models.py -q` (vài giây) → cell 1c đo thời gian → nếu ≤6h/fold thì `python -m src.train.run --config configs/e2_siamese.yaml --fold 1` với `LLDMMRI_OUTPUT_DIR=/kaggle/working/runs/E2_siamese`, cache **lesion-tight** giống E1.
+
+**Cảnh báo cho tool sau:** (1) `input_downsample` là biến gây nhiễu khi so E2 với E1 — đừng đọc kết quả như so thuần kiến trúc. (2) Con số +0,074 của wrapper SNN được **suy ra từ quy ước đặt tên** trong bảng SDR-Former, chưa đối chiếu phần setup bài báo; kiểm trước khi trích vào report. (3) `run_dir` chỉ băm khối `model:`, mà E2 khác model nên digest tự khác E1 — lần này không cần lo trùng thư mục.

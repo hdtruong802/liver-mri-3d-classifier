@@ -9,9 +9,11 @@ from __future__ import annotations
 from typing import Any
 
 from src.models.densenet3d import build_densenet3d, count_parameters
+from src.models.siamese_fusion import build_siamese_fusion
 
 _BUILDERS = {
     "densenet121_3d": build_densenet3d,
+    "siamese_fusion": build_siamese_fusion,
 }
 
 
@@ -33,4 +35,4 @@ def build_model(config: dict[str, Any]) -> Any:
     return _BUILDERS[name](**params)
 
 
-__all__ = ["build_densenet3d", "build_model", "count_parameters"]
+__all__ = ["build_densenet3d", "build_model", "build_siamese_fusion", "count_parameters"]

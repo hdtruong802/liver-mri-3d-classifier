@@ -81,3 +81,124 @@ def test_config_yaml_matches_model_contract():
     # bằng thực nghiệm ở S-041 (gấp 4 lần số bước, kết quả không đổi).
     effective = config["data"]["batch_size"] * config["train"]["accum_steps"]
     assert 2 <= effective <= 32
+
+
+# --- E2: Siamese đa pha ------------------------------------------------------
+
+
+def test_siamese_rejects_unknown_fusion():
+    from src.models.siamese_fusion import build_siamese_fusion
+
+    with pytest.raises(ValueError, match="fusion"):
+        build_siamese_fusion(fusion="không-tồn-tại")
+
+
+def test_siamese_rejects_bad_downsample():
+    from src.models.siamese_fusion import build_siamese_fusion
+
+    with pytest.raises(ValueError, match="input_downsample"):
+        build_siamese_fusion(input_downsample=0)
+
+
+@pytest.mark.parametrize("fusion", ["attention", "mean", "concat"])
+def test_siamese_maps_8_phases_to_7_classes(fusion):
+    torch = pytest.importorskip("torch", reason="forward pass cần torch")
+    pytest.importorskip("monai", reason="DenseNet121-3D lấy từ MONAI")
+
+    model = build_model(
+        {
+            "name": "siamese_fusion",
+            "num_phases": 8,
+            "num_classes": 7,
+            "embed_dim": 32,
+            "fusion": fusion,
+            "input_downsample": 2,
+        }
+    )
+    model.eval()
+    with torch.no_grad():
+        logits = model(torch.randn(2, 8, 32, 32, 16))
+
+    assert logits.shape == (2, 7)
+    assert torch.isfinite(logits).all()
+
+
+def test_siamese_shares_one_encoder_across_phases():
+    """Trọng số DÙNG CHUNG là cả điểm của thiết kế.
+
+    Tám encoder riêng là tám lần số tham số, gần như chắc chắn overfit với 316 mẫu
+    train. Kiểm bằng cách đổi số thì: số tham số của encoder KHÔNG được đổi theo.
+    """
+    pytest.importorskip("torch", reason="đếm tham số cần torch")
+    pytest.importorskip("monai")
+    from src.models import count_parameters
+
+    four = build_model(
+        {
+            "name": "siamese_fusion",
+            "num_phases": 4,
+            "embed_dim": 32,
+            "fusion": "mean",
+            "phase_embedding": False,
+        }
+    )
+    eight = build_model(
+        {
+            "name": "siamese_fusion",
+            "num_phases": 8,
+            "embed_dim": 32,
+            "fusion": "mean",
+            "phase_embedding": False,
+        }
+    )
+    assert count_parameters(four.encoder) == count_parameters(eight.encoder)
+    assert count_parameters(four) == count_parameters(eight)
+
+
+def test_siamese_attention_weights_are_a_distribution_over_phases():
+    """Trọng số attention là đầu ra khoa học, không phải chi tiết nội bộ.
+
+    Đây chính là số dùng cho ablation phase-importance ở W4 và để đối chiếu với
+    LI-RADS (kỳ vọng arterial/venous nổi bật).
+    """
+    torch = pytest.importorskip("torch", reason="forward pass cần torch")
+    pytest.importorskip("monai")
+
+    model = build_model(
+        {"name": "siamese_fusion", "embed_dim": 32, "fusion": "attention", "input_downsample": 2}
+    )
+    model.eval()
+    with torch.no_grad():
+        model(torch.randn(3, 8, 32, 32, 16))
+
+    weights = model.last_phase_weights
+    assert weights.shape == (3, 8)
+    assert torch.allclose(weights.sum(dim=1), torch.ones(3), atol=1e-5)
+    assert (weights >= 0).all()
+
+
+def test_siamese_rejects_wrong_phase_count():
+    torch = pytest.importorskip("torch", reason="forward pass cần torch")
+    pytest.importorskip("monai")
+
+    model = build_model({"name": "siamese_fusion", "num_phases": 8, "embed_dim": 32})
+    model.eval()
+    with pytest.raises(ValueError, match="thì"), torch.no_grad():
+        model(torch.randn(2, 5, 32, 32, 16))
+
+
+def test_e2_config_differs_from_e1_only_in_model_block():
+    """So sánh có kiểm soát: E2 vs E1 chỉ được khác ĐÚNG kiến trúc.
+
+    Nếu test này đỏ thì kết quả E2 không còn quy về kiến trúc được nữa.
+    """
+    from src.utils.io import load_yaml
+
+    e1 = load_yaml("configs/baseline_3dpatch.yaml")
+    e2 = load_yaml("configs/e2_siamese.yaml")
+    differing = {k for k in set(e1) | set(e2) if e1.get(k) != e2.get(k)}
+    assert differing == {"model", "output_dir"}, (
+        f"khác ngoài dự kiến: {differing - {'model', 'output_dir'}}"
+    )
+    assert e2["model"]["name"] == "siamese_fusion"
+    assert e2["model"]["num_classes"] == e1["model"]["num_classes"]

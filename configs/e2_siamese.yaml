@@ -1,0 +1,108 @@
+# E2 — Siamese đa pha (fusion v1), thay cho early-concat v0 của E0/E1.
+#
+#   python -m src.train.run --config configs/e2_siamese.yaml --fold 1
+#
+# MỌI KHOÁ NGOÀI KHỐI `model:` GIỮ NGUYÊN Y HỆT configs/baseline_3dpatch.yaml.
+# Đó là điều kiện để so E2 với E1 có kiểm soát: cùng seed, cùng split, cùng
+# recipe train, cùng augmentation, chỉ đổi kiến trúc.
+#
+# Kết quả đã có trên fold 1, val 82 ca (WORKLOG S-060):
+#   E0  early-concat + cache fixed_mm      macro-F1 0.4244
+#   E1  early-concat + cache lesion_tight  macro-F1 0.5740
+#   baseline official (test-104)           macro-F1 0.6083
+# E2 dùng cache lesion_tight giống E1.
+
+seed: 1337
+fold: 1                       # 1..5; ghi đè bằng --fold
+splits_dir: splits
+
+# Đường dẫn ghi/đọc đi qua config, không hardcode /kaggle/... (AGENTS.md §7).
+cache_dir: artifacts/cache            # env LLDMMRI_CACHE_DIR thắng
+                                      #   Kaggle: /kaggle/input/lld-mmri-3/cache
+output_dir: artifacts/runs/e2_siamese         # env LLDMMRI_OUTPUT_DIR thắng
+                                              #   Kaggle: /kaggle/working/runs/...
+
+model:
+  name: siamese_fusion
+  num_phases: 8               # encoder DÙNG CHUNG chạy riêng cho từng thì
+  num_classes: 7
+  embed_dim: 256              # số chiều đặc trưng mỗi thì
+  fusion: attention           # attention | mean | concat
+  phase_embedding: true       # vector học được cho mỗi thì; thiếu nó thì trọng số
+                              # dùng chung khiến model không phân biệt arterial với T2WI
+  dropout_prob: 0.2
+  norm: batch                 # giữ như E0/E1 — đổi norm là thí nghiệm riêng
+  # Backbone chạy 8 lượt thay vì 1 nên FLOPs tăng ~8 lần. E1 mất 4.09h/fold, nên
+  # bản nguyên độ phân giải sẽ khoảng 30h+ — vượt cả session 12h lẫn quota tuần.
+  # Average-pool 2 trước encoder cắt số voxel đi 8 lần, đưa chi phí về xấp xỉ E1.
+  #
+  # Mất mát thông tin thấp hơn vẻ ngoài: cache lesion_tight có trung vị fov 53.8mm
+  # trên 96 voxel = ~0.56mm/voxel, trong khi pha động chỉ có độ phân giải gốc
+  # ~0.78mm (WORKLOG S-029) — khoảng một nửa dataset đang bị NỘI SUY vượt quá thứ
+  # máy chụp thật sự ghi được.
+  #
+  # ⚠️ BIẾN GÂY NHIỄU: E2 ở đây là "Siamese ở nửa độ phân giải" so với E1 là
+  # "early-concat ở đủ độ phân giải". E2 thắng => kết luận mạnh (thắng dù bị thiệt).
+  # E2 thua => KHÔNG kết luận được, phải chạy E1 với cùng input_downsample.
+  input_downsample: 2
+
+data:
+  # VRAM ~16GB với khối [8,96,96,48]: batch nhỏ + tích luỹ gradient (AGENTS.md §7).
+  batch_size: 2
+  # Augmentation (xoay ±10° bằng scipy) chạy trên CPU trong worker và là nút cổ chai:
+  # đo thật cho 56,5s/epoch, trong khi phần GPU chỉ ~20s — GPU ngồi chờ CPU
+  # (WORKLOG S-044). Kaggle có 4 vCPU. Ba khoá dưới đây là tối ưu hoá THUẦN KỸ THUẬT,
+  # không đụng gì tới phép toán train.
+  num_workers: 4
+  persistent_workers: true    # mặc định DataLoader dựng lại worker MỖI epoch × 300 epoch
+  prefetch_factor: 4
+  pin_memory: true
+  # Augment theo recipe official: lật cả 3 trục p=0.5, xoay ±10°, random-crop tịnh
+  # tiến. rot90 và nhiễu cường độ là thứ TA tự thêm, official không dùng -> tắt, giữ
+  # code lại để ablate ở W4 (WORKLOG S-043).
+  augment:
+    flip_prob: 0.5
+    flip_axes: [x, y, z]      # official: randomflip_x/_y/_z, mỗi trục p=0.5
+    rotate_degrees: 10        # official: ndimage.rotate(angle=random(-10, 10))
+    translate_voxels: [8, 8, 4]   # tương đương random_crop 128->112 của official
+    rot90_prob: 0             # TẮT — xoay 90° không phải biến đổi giải phẫu hợp lệ
+    intensity_prob: 0         # TẮT — official không dùng
+
+# ---------------------------------------------------------------------------
+# Toàn bộ khối này bám theo baseline official LLD-MMRI2023 (macro-F1 0.6083 trên
+# test-104): LMMMEng/LLD-MMRI2023, `main/README.md` + `main/train.py`.
+# KHÔNG có con số nào ở đây do tự nghĩ ra. Sửa thì phải kèm lý do trong WORKLOG,
+# và `tests/test_protocol_conformance.py` sẽ chặn nếu trôi khỏi recipe.
+# ---------------------------------------------------------------------------
+train:
+  # official: --epochs 300, best checkpoint của họ ở epoch 216/300.
+  # Ta từng để 60 + early stop patience 15 -> dừng ở epoch 26, tức là cắt ngang lúc
+  # công thức tham chiếu còn chưa đi được 1/8 chặng đường (WORKLOG S-043).
+  epochs: 300
+  warmup_epochs: 5            # official: --warmup-epochs 5
+  warmup_lr: 0.000001         # official: --warmup-lr 1e-6
+  lr: 0.0001                  # official: --lr 1e-4  (ta đang để 3e-4)
+  min_lr: 0.00001             # official: --min-lr 1e-5, scheduler cosine
+  # official: --weight-decay 0.05. Ta đang để 1e-5 — chênh 5000 lần.
+  # Đi kèm bắt buộc: bias và tham số norm bị loại khỏi decay
+  # (src/train/run.py::build_param_groups), giống mặc định của timm mà official dùng.
+  weight_decay: 0.05
+  # official: batch 4 × 2 GPU = 8. Ta: batch_size 2 (giới hạn VRAM) × 4 = 8.
+  accum_steps: 4
+  # TẮT. official không early stop, chỉ train đủ 300 epoch rồi lấy checkpoint tốt nhất.
+  early_stop_patience: 0
+  amp: true                   # tự tắt khi chạy CPU
+  # Bật cudnn.deterministic, NHƯNG đừng hiểu là tái lập bit-exact: docstring của
+  # MONAI ghi rõ DenseNet với spatial_dims=3 là non-deterministic trên CUDA. Seed cố
+  # định cho phép lặp lại *thí nghiệm*, không phải lặp lại từng chữ số. Báo cáo phải
+  # nói đúng điều này, và đó là một lý do nữa để mọi số đều kèm CI (AGENTS.md §3.5).
+  deterministic: true
+  resume: true                # chạy lại cùng lệnh = tiếp tục từ last.pt
+
+loss:
+  name: cross_entropy
+  # official dùng nn.CrossEntropyLoss() TRẦN: --smoothing mặc định 0, không class
+  # weight, không balanced sampler. Class weighting là thứ TA tự thêm — tắt để tái
+  # lập đúng recipe, và nó nằm trong bảng ablation loss của W4.
+  class_weights: none         # none | balanced (tính CHỈ từ nhãn train)
+  label_smoothing: 0.0        # official: --smoothing 0
