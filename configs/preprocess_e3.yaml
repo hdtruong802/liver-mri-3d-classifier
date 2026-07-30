@@ -39,10 +39,10 @@ reference_phase: "C+V"
 crop_mode: lesion_tight       # fixed_mm | lesion_tight
 
 lesion_tight:
-  # Lấy kích thước tổn thương từ đâu. 'mask' chính xác hơn 'bbox' nhưng mask của
-  # LLD-MMRI là do MedSAM2 sinh, KHÔNG phải bác sĩ vẽ (WORKLOG S-021) — dùng để
-  # định vị thì tốt, đừng coi là chuẩn vàng. Thiếu mask thì tự rơi về bbox và ghi
-  # lại ở cột crop_source của build_log.csv.
+  # Lấy kích thước tổn thương từ đâu. 'mask' chính xác hơn 'bbox'. Mask này là nhãn
+  # segmentation OFFICIAL của LLD-MMRI (bổ sung 3/2025), gán bằng MedSAM2 trong quy
+  # trình human-in-the-loop — xem configs/data.yaml và WORKLOG S-068. Thiếu mask thì
+  # tự rơi về bbox và ghi lại ở cột crop_source của build_log.csv.
   source: mask                # bbox | mask
   # Cửa sổ = kích thước tổn thương × hệ số này. 1.6 để lại viền mô quanh tổn
   # thương — bối cảnh gan lành sát bên có giá trị chẩn đoán (vd vành sáng của FNH).

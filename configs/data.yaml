@@ -22,10 +22,19 @@ images_rel: lld/images                   # ảnh; luôn bỏ qua lld/.cache (rá
 # Mask tổn thương: 3984 file, đúng một mask cho mỗi (bệnh nhân × thì), cùng quy ước
 # tên với ảnh. CHỈ dùng khi preprocess.yaml đặt crop_mode=lesion_tight và source=mask.
 #
-# CẢNH BÁO: đây là mask do **MedSAM2 sinh tự động**, không phải bác sĩ vẽ (WORKLOG
-# S-021). Dùng để định vị và định kích thước tổn thương thì được; KHÔNG được coi là
-# nhãn segmentation chuẩn vàng, và không dùng làm mục tiêu giám sát mà không nêu rõ
-# giới hạn này trong báo cáo.
+# NGUỒN GỐC (đã tra lại ở WORKLOG S-068, đính chính mô tả cũ):
+# Đây LÀ nhãn segmentation official của LLD-MMRI. Repo chính thức ghi "March 2025:
+# LLD-MMRI dataset now includes segmentation labels", do Dr. Jun Ma đóng góp; bản
+# trên HuggingFace (wanglab/LLD-MMRI-MedSAM2) ghi rõ: "We annotated all the 3984
+# lesions with MedSAM2 in a **human-in-the-loop** pipeline". Con số 3984 khớp đúng
+# số file ta có.
+#
+# Tức KHÔNG có bộ mask nào tốt hơn để đi tìm — đây đã là bản official. Và nó không
+# phải đầu ra thô của model: có người trong vòng lặp.
+#
+# Vẫn giữ một dè dặt: "human-in-the-loop" không nói rõ mức độ can thiệp (bấm một
+# điểm gợi ý, hay bác sĩ soát sửa từng ca). Dùng làm mục tiêu giám sát phụ thì hợp
+# lý; nếu báo cáo chất lượng segmentation như một kết quả thì phải nêu giới hạn này.
 labels_rel: lld/labels
 
 # Mask KHÔNG mang hậu tố kênh `_0000` như ảnh (quy ước nnU-Net):
