@@ -2630,3 +2630,50 @@ Bảng 4 (ablation huấn luyện): **Focal Loss 81.8 so với CE 79.9** · **b�
 **Điểm vào phiên sau:** Mở `notebooks/05_e3_geometry.ipynb` trên Kaggle, mount **dataset thô** `lldmmridataset` (không cần cache nào), chạy tuần tự.
 
 **Cảnh báo cho tool sau:** Notebook này **build cache vào `/kaggle/working`**, tức nó biến mất khi session kết thúc nếu không Save Version. Chấp nhận được vì build chỉ 26 phút, nhưng đừng ngạc nhiên khi mở lại thấy trống.
+
+## S-067 · 2026-07-30 · claude-code
+
+**Mục tiêu phiên:** Viết sẵn E4 (căn từng pha theo tổn thương của chính nó) để chờ kết quả E3.
+
+**Nhánh / commit:** `main` · `ec0052f` → *(commit đang chờ)*
+
+### Vì sao E4 là ứng viên số 1 nếu E3 không tốt
+
+WORKLOG S-031 **đã đo** độ tán tâm tổn thương giữa 8 pha, con số nằm sẵn trong `configs/preprocess.yaml` nhưng chưa ai nối nó với chất lượng model:
+
+| Trục | Độ tán (trung vị) | Cửa sổ E3 | Tỉ lệ |
+|---|---|---|---|
+| Trong mặt phẳng | 12.4mm | 53.8mm | 23% |
+| **Z** | **23.3mm** | **43.6mm** | **53%** |
+
+Z lệch 23.3mm là chuyển động hô hấp (gan trượt 10–25mm theo trục đầu-chân). Ở E3 với Z=32 voxel trên ~43.6mm, đó là **17 trên 32 lát**.
+
+Early-concat có tiền đề: voxel `(x,y,z)` của kênh `c` là **cùng một điểm giải phẫu** ở mọi pha. Lệch 53% chiều sâu thì tiền đề vỡ, conv đầu tiên đang trộn mô không liên quan. `src/preprocess/grid.py` ghi rõ registration bị hoãn sang W3; đo lại thì đây có thể là nút thắt lớn hơn cả hình học.
+
+Hạng 2 của challenge thắng chính bằng cách sửa registration (UAE).
+
+**Đã đụng file:**
+- `src/preprocess/build_cache.py` — thêm `ALIGN_MODES` và `_phase_center_world`; mỗi pha dựng lưới riêng quanh tâm của chính nó khi `align_phases: per_phase`. Ghi `phase_shift_mm`, `max_phase_shift_mm`, `phase_center_source` vào npz + `cache_meta.json` + hai cột mới trong `build_log.csv`.
+- `configs/preprocess_e4.yaml` — mới, khác `preprocess_e3.yaml` **đúng hai khoá**: `align_phases` và `cache_dir` (có test khoá).
+- `tests/test_preprocess_pipeline.py` — +4 test.
+
+**Quyết định & lý do:**
+- **Căn bằng bbox có sẵn, không dùng thuật toán registration.** Annotation có bbox riêng cho từng pha — chính là dữ liệu S-031 dùng để đo. Chi phí vì thế chỉ là một lần build cache (~26 phút), không cần Elastix, không cần giờ GPU chuẩn bị. Nếu E4 thắng lớn thì mới đáng đầu tư rigid registration thật.
+- **Spacing và fov tính MỘT LẦN từ pha tham chiếu, chỉ đổi tâm.** Nhờ vậy 8 khối cắt cùng kích thước vật lý và cùng hướng, tổn thương hiện ở cùng tỉ lệ; khác biệt duy nhất là phép tịnh tiến. Nếu để mỗi pha tự tính fov thì tỉ lệ tổn thương cũng đổi theo và không còn quy trách được nữa.
+- **Ghi `phase_shift_mm` vào cache.** Đây là bằng chứng kiểm được rằng phép căn có thật sự làm gì: ở `reference` mảng này toàn 0, ở `per_phase` nó phải phản ánh đúng biên độ S-031 đã đo. Không có nó thì E4 là hộp đen.
+- **Rơi về tâm pha tham chiếu được ghi `fallback_ref`, không im lặng.** Một pha không căn được nghĩa là kênh đó vẫn lệch; cột `n_fallback_center` trong log cho biết ngay.
+- **Giới hạn phải ghi vào limitations:** chỉ khử **tịnh tiến**, không khử xoay/biến dạng; và **mô xung quanh sẽ không còn khớp** giữa các pha, chỉ tổn thương khớp. Với bài phân loại tổn thương thì có thể là điều mong muốn, nhưng đó là thay đổi ngữ nghĩa dữ liệu, không phải phép sửa trung tính.
+
+**Hai lần tôi viết sai test, đều do chọn sai phép đo:**
+1. Đo độ sáng ở voxel giữa. Tổn thương trong fixture có bán kính 12mm còn cửa sổ chỉ sâu 24mm, nên voxel giữa nằm trong tổn thương ở **cả hai** chế độ — 2.93 so với 2.93. Phép căn vẫn chạy đúng (max |hiệu| 4.28), chỉ là điểm kiểm không phân biệt được. Đổi sang **trọng tâm khối sáng theo Z**.
+2. Ngưỡng `off_per < off_ref - 0.5` trừ một hằng số tuyệt đối, trong khi hiệu ứng ở chế độ reference chỉ 0.47 voxel vì tổn thương gần lấp đầy cửa sổ. Đổi sang so **tỉ lệ**. Kết quả thật: lệch **0.01 voxel** sau khi căn, so với **0.47** trước.
+
+**Kết quả / số liệu:** `pytest` **245 passed, 17 skipped** (241 → 245). ruff sạch. **Chưa build cache, chưa train.**
+
+**Dang dở:**
+- [ ] E4 chờ kết quả E3. Nếu E3 ≥ 0.62 thì ưu tiên đổi backbone sang 3D ResNet ở 14×112×112 trước; nếu 0.53–0.62 thì chạy E4.
+- [ ] Chưa có notebook riêng cho E4 — dùng lại `notebooks/05_e3_geometry.ipynb`, đổi `--config` sang `preprocess_e4.yaml` và đổi `CACHE_DIR_STR`/`EXPERIMENT`.
+
+**Điểm vào phiên sau:** Đọc số E3 rồi quyết theo bảng ba nhánh. Nếu chạy E4, kiểm cột `max_shift_mm` trong `build_log.csv` **trước** khi train: nó phải khác 0 và có biên độ cỡ S-031, nếu toàn 0 thì phép căn không có hiệu lực.
+
+**Cảnh báo cho tool sau:** E4 **không** phải phép sửa trung tính — nó đổi ngữ nghĩa dữ liệu (mô xung quanh thôi khớp giữa các pha). So E4 với E3 là hợp lệ vì chỉ khác một biến, nhưng đừng mô tả E4 là "cùng dữ liệu, căn tốt hơn".

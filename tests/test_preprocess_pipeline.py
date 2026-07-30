@@ -535,3 +535,163 @@ def test_build_cache_uses_masks_when_suffixes_match(tiny_dataset, tmp_path, monk
     with np.load(cache_dir / "MR-1.npz") as d:
         assert str(d["crop_source"]) == "mask", "mask có đúng đuôi mà vẫn rơi về bbox"
         assert np.allclose(d["lesion_extent_mm"], [9.0, 9.0, 9.0])
+
+
+# --- E4: căn từng pha theo tổn thương của chính nó ---------------------------
+
+
+def test_align_phases_rejects_unknown_mode(tiny_dataset):
+    from src.data.annotation import Annotation
+    from src.data.images import scan_image_index
+    from src.preprocess.build_cache import process_patient
+
+    data_cfg, pre_cfg = tiny_dataset
+    root = Path(data_cfg["data_root"])
+    ann = Annotation(root / data_cfg["annotation_rel"])
+    index = scan_image_index(root / data_cfg["images_rel"], data_cfg["image_suffixes"])
+
+    with pytest.raises(ValueError, match="align_phases"):
+        process_patient("MR-1", ann, index, PHASES, {**pre_cfg, "align_phases": "bừa"})
+
+
+def test_reference_mode_records_zero_shift(tiny_dataset):
+    """Chế độ mặc định dùng MỘT lưới, nên độ dịch của mọi pha phải đúng bằng 0.
+
+    Cột này là bằng chứng kiểm được rằng `per_phase` có thật sự làm gì hay không.
+    """
+    from src.data.annotation import Annotation
+    from src.data.images import scan_image_index
+    from src.preprocess.build_cache import process_patient_with_meta
+
+    data_cfg, pre_cfg = tiny_dataset
+    root = Path(data_cfg["data_root"])
+    ann = Annotation(root / data_cfg["annotation_rel"])
+    index = scan_image_index(root / data_cfg["images_rel"], data_cfg["image_suffixes"])
+
+    _, meta = process_patient_with_meta("MR-1", ann, index, PHASES, pre_cfg)
+    assert meta["align_phases"] == "reference"
+    assert np.allclose(meta["phase_shift_mm"], 0.0)
+    assert float(meta["max_phase_shift_mm"]) == 0.0
+
+
+@pytest.fixture
+def misaligned_dataset(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
+    """Như `tiny_dataset` nhưng tổn thương ở pha DWI bị dời **+12mm theo Z**.
+
+    Mô phỏng đúng thứ WORKLOG S-031 đo được trên dữ liệu thật: chuyển động hô hấp
+    làm tâm tổn thương lệch trung vị 23.3mm theo Z giữa các pha.
+    """
+    root = tmp_path / "data"
+    images = root / "lld" / "images"
+    images.mkdir(parents=True)
+
+    # C+V: voxel (60,60,10) -> world (60,60,30)
+    _write_phase(
+        images / "MR-1_1_C+V_0000.nii", (120, 120, 20), (1.0, 1.0, 3.0), (0, 0, 0), (60, 60, 10)
+    )
+    # DWI: voxel (40,40,14) -> world (60,60,42), tức lệch +12mm so với C+V
+    _write_phase(
+        images / "MR-1_1_DWI_0000.nii", (60, 60, 20), (2.0, 2.0, 3.0), (-20, -20, 0), (40, 40, 14)
+    )
+
+    annotation = {
+        "Category_info": CATEGORY_INFO,
+        "Annotation_info": {
+            "MR-1": [
+                make_phase_entry("C+V", 6, make_boxes([9, 10, 11], 56.0, 56.0, 64.0, 64.0)),
+                make_phase_entry(
+                    "DWI",
+                    6,
+                    make_boxes([13, 14, 15], 38.0, 38.0, 42.0, 42.0),
+                    (2.0, 2.0),
+                    3.0,
+                    3.0,
+                ),
+            ]
+        },
+    }
+    (root / "lld" / "LLD_MMRI_Annotation.json").write_text(json.dumps(annotation), encoding="utf-8")
+
+    data_cfg = {
+        "data_root": str(root),
+        "annotation_rel": "lld/LLD_MMRI_Annotation.json",
+        "images_rel": "lld/images",
+        "image_suffixes": ["_0000.nii.gz", "_0000.nii"],
+        "phases": PHASES,
+        "seed": 42,
+    }
+    pre_cfg = {
+        "axis_order": "xy",
+        "reference_phase": "C+V",
+        "target_spacing": list(SPACING),
+        "target_size": list(SIZE),
+        "interpolator": "linear",
+        "normalize": {"clip_percentile": [0.5, 99.5], "scope": "volume"},
+        "n4": False,
+        "output_dtype": "float16",
+        "cache_dir": str(tmp_path / "cache"),
+    }
+    monkeypatch.delenv("LLDMMRI_DATA_ROOT", raising=False)
+    monkeypatch.delenv("LLDMMRI_CACHE_DIR", raising=False)
+    return data_cfg, pre_cfg
+
+
+def test_per_phase_alignment_recentres_a_misaligned_phase(misaligned_dataset):
+    """Đây là toàn bộ lý do E4 tồn tại, nên test phải kiểm đúng điều đó.
+
+    Pha DWI có tổn thương lệch +12mm theo Z. Ở chế độ `reference`, khối cắt của DWI
+    lấy theo tâm của C+V nên tổn thương rơi ra rìa. Ở `per_phase`, nó phải nằm giữa.
+    """
+    from src.data.annotation import Annotation
+    from src.data.images import scan_image_index
+    from src.preprocess.build_cache import process_patient_with_meta
+
+    data_cfg, pre_cfg = misaligned_dataset
+    root = Path(data_cfg["data_root"])
+    ann = Annotation(root / data_cfg["annotation_rel"])
+    index = scan_image_index(root / data_cfg["images_rel"], data_cfg["image_suffixes"])
+
+    ref_vol, ref_meta = process_patient_with_meta("MR-1", ann, index, PHASES, pre_cfg)
+    per_vol, per_meta = process_patient_with_meta(
+        "MR-1", ann, index, PHASES, {**pre_cfg, "align_phases": "per_phase"}
+    )
+
+    # Độ dịch đo được phải khớp mức đã dựng: pha 0 là tham chiếu nên đúng 0,
+    # pha 1 lệch +12mm theo Z.
+    assert np.allclose(ref_meta["phase_shift_mm"], 0.0)
+    assert np.allclose(per_meta["phase_shift_mm"][0], 0.0)
+    assert np.allclose(per_meta["phase_shift_mm"][1], [0.0, 0.0, 12.0], atol=1.0)
+
+    # Đo TRỌNG TÂM khối sáng theo Z, không đo giá trị ở voxel giữa: tổn thương
+    # trong fixture có bán kính 12mm còn cửa sổ chỉ sâu 24mm, nên voxel giữa nằm
+    # trong tổn thương ở CẢ HAI chế độ và không phân biệt được gì.
+    def z_centroid(channel: np.ndarray) -> float:
+        weight = channel - channel.min()
+        profile = weight.sum(axis=(0, 1))
+        return float((profile * np.arange(len(profile))).sum() / profile.sum())
+
+    middle = (SIZE[2] - 1) / 2
+    off_ref = abs(z_centroid(ref_vol[1]) - middle)
+    off_per = abs(z_centroid(per_vol[1]) - middle)
+    # So theo TỈ LỆ, không trừ một hằng số: biên độ lệch ở chế độ reference phụ
+    # thuộc kích thước tổn thương so với cửa sổ, mà tổn thương trong fixture này
+    # gần lấp đầy cửa sổ nên nó tự bão hoà ở mức nhỏ.
+    assert off_per < 0.2, f"sau khi căn, trọng tâm vẫn lệch {off_per:.2f} voxel khỏi giữa"
+    assert off_ref > off_per * 2, (
+        f"chế độ reference lẽ ra phải lệch rõ hơn: {off_ref:.2f} so với {off_per:.2f} voxel"
+    )
+
+    # Pha tham chiếu KHÔNG được đụng tới — nó là gốc toạ độ của phép căn.
+    assert np.allclose(ref_vol[0], per_vol[0])
+
+
+def test_e4_config_differs_from_e3_only_in_alignment():
+    """E4 so với E3 chỉ được khác đúng phép căn, nếu không thì kết quả không quy trách được."""
+    from src.utils.io import load_yaml
+
+    e3 = load_yaml("configs/preprocess_e3.yaml")
+    e4 = load_yaml("configs/preprocess_e4.yaml")
+    differing = {k for k in set(e3) | set(e4) if e3.get(k) != e4.get(k)}
+    assert differing == {"align_phases", "cache_dir"}, f"khác ngoài dự kiến: {differing}"
+    assert e4["align_phases"] == "per_phase"
+    assert e4["target_size"] == e3["target_size"]

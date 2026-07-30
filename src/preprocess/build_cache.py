@@ -37,6 +37,9 @@ from src.utils.logging import CsvLogger, get_logger
 logger = get_logger(__name__)
 
 CROP_MODES = ("fixed_mm", "lesion_tight")
+# reference: một lưới duy nhất, tâm tại tổn thương của pha tham chiếu (v0).
+# per_phase: mỗi pha một lưới, tâm tại tổn thương của CHÍNH pha đó (E4).
+ALIGN_MODES = ("reference", "per_phase")
 LESION_SOURCES = ("bbox", "mask")
 
 __all__ = [
@@ -80,6 +83,55 @@ def _lesion_center_extent(
 
     box = annotation.bbox3d(patient_id, ref_phase)
     return bbox_center_voxel(box, axis_order), bbox_extent_voxel(box, axis_order), "bbox"
+
+
+def _phase_center_world(
+    patient_id: str,
+    phase_name: str,
+    phase_token: str,
+    image,
+    annotation: Annotation,
+    mask_index: dict | None,
+    key: str,
+    axis_order: str,
+    fallback_world: np.ndarray,
+) -> tuple[np.ndarray, str]:
+    """Tâm tổn thương của **riêng một pha**, trong toạ độ mm.
+
+    Đây là lõi của chế độ `align_phases: per_phase`. Mỗi pha có bbox riêng trong
+    annotation (đó chính là cách WORKLOG S-031 đo được độ tán giữa các pha), nên
+    căn theo tịnh tiến không cần thuật toán registration nào — chỉ cần dùng đúng
+    con số đã có sẵn.
+
+    Thứ tự ưu tiên: mask của pha đó → bbox của pha đó → tâm của pha tham chiếu.
+    Rơi về `fallback_world` được ghi lại chứ không im lặng: một pha không căn được
+    nghĩa là kênh đó vẫn lệch, và người đọc kết quả cần biết.
+    """
+    affine = np.eye(4)
+    direction = np.array(image.GetDirection(), dtype=float).reshape(3, 3)
+    affine[:3, :3] = direction @ np.diag(np.array(image.GetSpacing(), dtype=float))
+    affine[:3, 3] = image.GetOrigin()
+
+    if mask_index is not None:
+        mask_path = mask_index.get((key, phase_token))
+        if mask_path is not None:
+            try:
+                center, _ = mask_center_extent_voxel(to_numpy(read_image(mask_path)))
+                return voxel_to_world(affine, center), "mask"
+            except (ValueError, RuntimeError) as exc:
+                logger.warning("%s/%s: mask không dùng được (%s)", patient_id, phase_name, exc)
+
+    try:
+        box = annotation.bbox3d(patient_id, phase_name)
+        return voxel_to_world(affine, bbox_center_voxel(box, axis_order)), "bbox"
+    except (KeyError, ValueError) as exc:
+        logger.warning(
+            "%s/%s: không có bbox riêng (%s), dùng tâm của pha tham chiếu",
+            patient_id,
+            phase_name,
+            exc,
+        )
+        return fallback_world, "fallback_ref"
 
 
 def process_patient_with_meta(
@@ -153,25 +205,62 @@ def process_patient_with_meta(
         fov_mm = np.asarray(spacing, dtype=float) * np.asarray(size, dtype=float)
         crop_source = "bbox"
 
+    align = config.get("align_phases", "reference")
+    if align not in ALIGN_MODES:
+        raise ValueError(f"align_phases phải thuộc {ALIGN_MODES}, nhận {align!r}")
+
     center_world = voxel_to_world(ref_affine, center_voxel)
     reference = make_reference_image(center_world, affine_direction, spacing, size)
 
     channels: list[np.ndarray] = []
+    shifts: list[np.ndarray] = []
+    center_sources: list[str] = []
     for phase in phase_config:
         path = image_index.get((key, phase["file"]))
         if path is None:
             raise FileNotFoundError(f"{patient_id}: thiếu pha {phase['file']}")
         image = read_image(path) if path != ref_path else ref_image
-        patch = to_numpy(resample_to_grid(image, reference, interpolator))
+
+        if align == "per_phase" and phase["name"] != ref_phase:
+            # Hướng và spacing GIỮ NGUYÊN của pha tham chiếu, chỉ đổi tâm. Nhờ vậy
+            # cả 8 khối cắt có cùng kích thước vật lý và cùng hướng, tổn thương
+            # hiện ở cùng một tỉ lệ — khác biệt duy nhất là phép tịnh tiến.
+            phase_center, center_source = _phase_center_world(
+                patient_id,
+                phase["name"],
+                phase["file"],
+                image,
+                annotation,
+                mask_index,
+                key,
+                axis_order,
+                center_world,
+            )
+            grid = make_reference_image(phase_center, affine_direction, spacing, size)
+        else:
+            phase_center, center_source, grid = center_world, crop_source, reference
+
+        shifts.append(np.asarray(phase_center, dtype=float) - center_world)
+        center_sources.append(center_source)
+        patch = to_numpy(resample_to_grid(image, grid, interpolator))
         stats_source = to_numpy(image) if scope == "volume" else None
         channels.append(clip_and_zscore(patch, stats_source, clip))
 
+    shift_array = np.asarray(shifts, dtype=np.float32)
     meta = {
         "lesion_extent_mm": extent_mm.astype(np.float32),
         "fov_mm": np.asarray(fov_mm, dtype=np.float32),
         "spacing": np.asarray(spacing, dtype=np.float32),
         "crop_source": crop_source,
         "crop_mode": crop_mode,
+        "align_phases": align,
+        # Độ dịch của từng pha so với pha tham chiếu, theo mm. Đây là bằng chứng
+        # kiểm được rằng việc căn có thật sự làm gì: ở chế độ `reference` mảng này
+        # toàn 0, ở `per_phase` nó phải phản ánh đúng biên độ đã đo ở S-031
+        # (trung vị ~12.4mm trong mặt phẳng, ~23.3mm theo Z).
+        "phase_shift_mm": shift_array,
+        "max_phase_shift_mm": np.float32(np.abs(shift_array).max(initial=0.0)),
+        "phase_center_source": np.array(center_sources),
     }
     return np.stack(channels, axis=0), meta
 
@@ -263,6 +352,7 @@ def build_cache(config_path: str | Path, limit: int = 0) -> Path:
                 "target_size": config["target_size"],
                 "interpolator": config.get("interpolator", "linear"),
                 "normalize": config.get("normalize"),
+                "align_phases": config.get("align_phases", "reference"),
                 "n4": config.get("n4", False),
                 "output_dtype": str(dtype),
                 "phases": [p["name"] for p in phase_config],
@@ -276,7 +366,16 @@ def build_cache(config_path: str | Path, limit: int = 0) -> Path:
 
     log = CsvLogger(
         cache_dir / "build_log.csv",
-        ["patient_id", "status", "seconds", "crop_source", "fov_mm", "note"],
+        [
+            "patient_id",
+            "status",
+            "seconds",
+            "crop_source",
+            "fov_mm",
+            "max_shift_mm",
+            "n_fallback_center",
+            "note",
+        ],
     )
     n_done = n_skip = n_fail = n_bbox_fallback = 0
     started = time.time()
@@ -303,6 +402,8 @@ def build_cache(config_path: str | Path, limit: int = 0) -> Path:
                 fov_mm=meta["fov_mm"],
                 spacing=meta["spacing"],
                 crop_source=np.str_(meta["crop_source"]),
+                align_phases=np.str_(meta["align_phases"]),
+                phase_shift_mm=meta["phase_shift_mm"],
             )
             tmp_path.replace(out_path)  # ghi nguyên tử: không để lại file dở
             n_done += 1
@@ -314,6 +415,8 @@ def build_cache(config_path: str | Path, limit: int = 0) -> Path:
                     "seconds": round(time.time() - t0, 2),
                     "crop_source": meta["crop_source"],
                     "fov_mm": " ".join(f"{v:.1f}" for v in meta["fov_mm"]),
+                    "max_shift_mm": round(float(meta["max_phase_shift_mm"]), 1),
+                    "n_fallback_center": int((meta["phase_center_source"] == "fallback_ref").sum()),
                     "note": "",
                 }
             )
