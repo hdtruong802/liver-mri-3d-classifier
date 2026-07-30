@@ -2604,3 +2604,29 @@ Bảng 4 (ablation huấn luyện): **Focal Loss 81.8 so với CE 79.9** · **b�
 **Điểm vào phiên sau:** Build cache E3, train fold 1. Nếu E3 vượt rõ E1 (0.5740) thì cân nhắc E5 = ResNet3D ở đúng 14×112×112.
 
 **Cảnh báo cho tool sau:** (1) **Đừng đọc bảng ablation nội bộ của một paper như thể nó là so sánh có kiểm soát.** Hai nhánh của CGHNet khác kiến trúc; tôi đã kết luận sai vì bỏ qua điều đó. (2) **Bản in từ trang web ScienceDirect làm mất bảng số** — S-064 chỉ đọc được số nhờ chúng lọt vào phần chữ. Luôn tìm PDF gốc.
+
+## S-066 · 2026-07-30 · claude-code
+
+**Mục tiêu phiên:** Notebook chạy E3 trọn gói.
+
+**Nhánh / commit:** `main` · `b65345e` → *(commit đang chờ)*
+
+**Đã đụng file:**
+- `notebooks/05_e3_geometry.ipynb` — mới, 23 cell, output đã strip.
+
+**Quyết định & lý do:**
+- **Build cache và train trong CÙNG một session, không upload dataset trung gian.** Cache mất ~26 phút, train ~3,7h, tổng ~4,2h — lọt session 12h. Bỏ được hẳn vòng "Save Version → tạo Dataset → mount lại" vốn tốn thêm một lượt chờ. Cache ghi vào `/kaggle/working/cache_e3`, train đọc thẳng từ đó.
+- **Bốn cổng chặn**, hai cho cache hai cho train: A1 thử 20 ca (kiểm `crop_source` là `mask`, `fov_mm` co giãn) · A2 xác minh 498 file và shape đúng `(8,112,112,32)` · B1 hợp đồng dataset↔model · B2 đo thời gian, kỳ vọng ~3,7h vì E3 có 0,91× voxel của E1.
+- **Dùng lại `configs/baseline_3dpatch.yaml` không sửa một dòng.** E3 chỉ đổi dữ liệu. `LLDMMRI_OUTPUT_DIR` đặt riêng vì `run_dir` chỉ băm khối `model:`, mà E1 và E3 cùng model nên digest trùng — quên là E3 resume đè lên E1 (S-060).
+- **Thêm cell soi đường cong overfitting.** E0 và E1 đều có `val_loss` chạm đáy ở epoch 9–10. Nếu E3 đẩy mốc đó ra xa thì hình học còn giúp giảm overfit chứ không chỉ tăng điểm — đó là thông tin cơ chế, ít nhiễu hơn một điểm số trên 82 ca.
+- **In sẵn cảnh báo về cỡ mẫu ngay trong output.** CI ở n=82 rộng cỡ ±0,10 nên E3 là sàng lọc, không phải số báo cáo.
+
+**Kết quả / số liệu:** 23 cell, cú pháp hợp lệ, mọi import từ `src/` đã đối chiếu tồn tại thật. `pytest` 241 passed, 17 skipped. ruff sạch. **Chưa chạy.**
+
+**Dang dở:**
+- [ ] Notebook chưa chạy lần nào — không kiểm được ở local vì thiếu torch/monai.
+- [ ] E3 chưa có số.
+
+**Điểm vào phiên sau:** Mở `notebooks/05_e3_geometry.ipynb` trên Kaggle, mount **dataset thô** `lldmmridataset` (không cần cache nào), chạy tuần tự.
+
+**Cảnh báo cho tool sau:** Notebook này **build cache vào `/kaggle/working`**, tức nó biến mất khi session kết thúc nếu không Save Version. Chấp nhận được vì build chỉ 26 phút, nhưng đừng ngạc nhiên khi mở lại thấy trống.
