@@ -2495,3 +2495,58 @@ Hai hệ quả, cái thứ hai mới là cái đắt:
 **Điểm vào phiên sau:** `git pull` trên Kaggle, chạy lại notebook 04 từ cổng 0. Nếu xanh thì đi tiếp cổng 1→2→3. Cổng 3 giờ kỳ vọng ~8h/fold, không phải ~4h.
 
 **Cảnh báo cho tool sau:** (1) **DenseNet121-3D cần ≥32 voxel ở MỌI chiều.** Bất kỳ chỗ nào hạ mẫu hoặc crop nhỏ hơn thế sẽ chết bằng `RuntimeError` sâu trong MONAI, không nói gì về nguyên nhân. (2) **Test skip ở local không có nghĩa là test đúng.** Test 32×32×16 đã nằm im trong repo cho tới khi chạy ở nơi có torch. Mọi thay đổi model phải qua cổng 0 trên Kaggle trước khi tin.
+
+## S-064 · 2026-07-30 · claude-code
+
+**Mục tiêu phiên:** Đọc paper CGHNet, chẩn đoán E2 kém, dựng E3.
+
+**Nhánh / commit:** `main` · `6f15002` → *(commit đang chờ)*
+
+### CGHNet (Comput Med Imaging Graph 132, 2026, doi:10.1016/j.compmedimag.2026.102780)
+
+Đọc từ `papers/`. Ba thứ đáng giá:
+
+**1. Hình học đầu vào.** Nguyên văn: *"all lesion volumes were spatially normalized to a fixed size of **16 × 128 × 128**... Random crops of size **14 × 112 × 112**"*.
+
+| | Z | in-plane | voxel |
+|---|---|---|---|
+| baseline official | 14 | 112 | 176k |
+| CGHNet | 14–16 | 112–128 | 229–262k |
+| **E0/E1 của ta** | **48** | **96** | 442k |
+| **E2 sau hạ mẫu** | **48** | **48** | 111k |
+
+Ta là ngoại lệ: gấp 3 số lát, ít pixel trong mặt phẳng hơn. Và `input_downsample: (2,2,1)` của tôi đẩy in-plane xuống 48, thấp hơn 2,3–2,7 lần **mọi** phương pháp công bố.
+
+**2. 2D thắng 3D trên chính dataset này** (5-fold CV, F1%): nhánh 2D 74,2 ± 2,1 · nhánh 3D 72,4 ± 1,8 · hybrid concat 76,9 · +ADF 78,5 · +CGFM 80,1 · full 81,8 ± 1,2. Lý do họ đưa ra: *"fine-grained intra-slice semantics are easier to optimize than volumetric features under limited data regimes"*.
+
+**3. Đa pha là bắt buộc:** T2WI một mình 60,5 · ART một mình 63,8 · chỉ DCE 70,2 · đủ 8 thì 81,8.
+
+Recipe của họ: 300 epoch, batch 4, Focal Loss, AdamW, cosine + 5 epoch warmup, 5-fold CV trên train+val gộp, RTX 4090.
+
+### Chẩn đoán E2
+
+Người dùng báo E2 quanh 0,35–0,49 ở epoch 100+. Đối chiếu cùng mốc: E1 đạt **0,5363 @ epoch 112**, và đường cong E1 rất nhiễu (0,283 @ep80 → 0,447 @ep100 → 0,574 @ep200).
+
+**Kết luận: biến gây nhiễu tôi cảnh báo ở S-061 hoá ra là thủ phạm, không phải nhiễu phụ.** E2 chạy in-plane 48 trong khi văn liệu dùng 112–128. Người dùng đã kill E2. Đúng quyết định: kể cả nó phục hồi thì con số cũng không nói được gì về Siamese.
+
+**Đã đụng file:**
+- `configs/preprocess_e3.yaml` — mới. Chép từ `preprocess.yaml`, đổi `target_size: [112, 112, 32]` và `cache_dir` riêng.
+- `tests/test_models.py` — +3 test khoá ràng buộc hình học.
+
+**Quyết định & lý do:**
+- **E3 = sửa hình học, giữ nguyên kiến trúc E1.** Chỉ đổi dữ liệu, đúng kiểu cú E0→E1 vốn đã cho +0,15. Không cần config train mới: dùng lại `baseline_3dpatch.yaml`, chỉ đổi `LLDMMRI_CACHE_DIR` và `LLDMMRI_OUTPUT_DIR`.
+- **112 × 112 × 32, không phải 128 × 128 × 16 như CGHNet.** In-plane 112 khớp đúng crop của cả baseline official lẫn CGHNet. **Z=32 là nhượng bộ với DenseNet, không phải con số văn liệu**: Z=16 sẽ sập (sau conv0, pool0, hai transition thì 16 còn 1, transition thứ ba dùng `AvgPool3d(2)` — S-063). CGHNet dùng ViT + CNN nên không vướng. Đã ghi rõ trong config và khoá bằng test để không ai tưởng 32 là số lấy từ paper.
+- **Giữ nguyên `translate_voxels: [8, 8, 4]`.** Trên 32 lát thì ±4 là ±12,5% thay vì ±8,3% trên 48 lát, tức augmentation trục Z **mạnh hơn tương đối**. Cố ý không chỉnh: giữ config y hệt E1 làm so sánh sạch hơn, và lệch này nếu có tác dụng thì là **bất lợi cho E3**, nên E3 thắng vẫn là kết luận đúng.
+- **`cache_dir` riêng, có test khoá.** Lần đầu tôi viết chuỗi thay thế sai nên `cache_dir` vẫn trỏ vào cache E1 — mà `build_cache` có resume, nên nó sẽ lặng lẽ **trộn hai hình học vào cùng một mẻ**. Thêm `test_preprocess_configs_write_to_separate_caches` để không tái diễn.
+- **Không xác minh được con số +0,074 của SDR-Former.** File `papers/1-s2.0-S0893608025002254-main.pdf` hoá ra là một bài Neural Networks khác (Yang et al., về ADF), không phải SDR-Former. Cảnh báo ở S-061 vẫn còn nguyên hiệu lực.
+
+**Kết quả / số liệu:** `pytest` **241 passed, 17 skipped** (238 → 241). ruff sạch. E3 = 401k voxel ≈ **0,91× E1** → ước tính ~3,7h/fold.
+
+**Dang dở:**
+- [ ] Chưa build cache E3, chưa train.
+- [ ] E1 vẫn mới 1 fold.
+- [ ] Siamese chưa được đánh giá công bằng — nếu E3 thắng thì đáng chạy lại Siamese ở hình học đúng.
+
+**Điểm vào phiên sau:** Build cache E3 trên Kaggle (`--limit 20` trước), upload thành dataset, rồi train fold 1 bằng `baseline_3dpatch.yaml` với cache mới.
+
+**Cảnh báo cho tool sau:** (1) **Z=16 của CGHNet không dùng được với DenseNet121-3D.** Muốn theo đúng hình học của họ thì phải đổi backbone. (2) Nhánh 2D của CGHNet **thắng** nhánh 3D trên chính dataset này — nhánh 2.5D trong Spec Sheet nên được nâng từ fallback lên ứng viên chính, không phải phương án dự phòng.

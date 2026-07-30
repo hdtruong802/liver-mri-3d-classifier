@@ -252,3 +252,63 @@ def test_e2_config_differs_from_e1_only_in_model_block():
     )
     assert e2["model"]["name"] == "siamese_fusion"
     assert e2["model"]["num_classes"] == e1["model"]["num_classes"]
+
+
+# --- Ràng buộc hình học giữa cache và backbone -------------------------------
+
+
+def test_every_preprocess_config_fits_densenet_minimum():
+    """`target_size` của MỌI cache phải >= 32 ở mọi chiều.
+
+    DenseNet121-3D hạ mẫu 5 lần; dưới ngưỡng này nó chết bằng `RuntimeError` sâu
+    trong transition layer, không nói gì về nguyên nhân (WORKLOG S-063). Test này
+    tồn tại vì hình học 16 lát của CGHNet nghe rất hấp dẫn nhưng **không dùng
+    được với backbone hiện tại** — họ dùng ViT + CNN, ta dùng DenseNet.
+    """
+
+    from src.models.siamese_fusion import MIN_SPATIAL
+    from src.utils.io import load_yaml, repo_root
+
+    configs = sorted((repo_root() / "configs").glob("preprocess*.yaml"))
+    assert configs, "không tìm thấy config tiền xử lý nào"
+    for path in configs:
+        size = load_yaml(path)["target_size"]
+        assert all(d >= MIN_SPATIAL for d in size), (
+            f"{path.name}: target_size {size} có chiều < {MIN_SPATIAL}, DenseNet121-3D sẽ sập"
+        )
+
+
+def test_preprocess_configs_write_to_separate_caches():
+    """Mỗi hình học phải có cache_dir riêng.
+
+    `build_cache` có resume (bỏ qua ca đã có `.npz`). Hai config trỏ chung một
+    thư mục sẽ TRỘN hai hình học vào cùng một mẻ, và không có gì trong file cảnh
+    báo điều đó.
+    """
+    from pathlib import Path
+
+    from src.utils.io import load_yaml, repo_root
+
+    configs = sorted((repo_root() / "configs").glob("preprocess*.yaml"))
+    seen: dict[str, Path] = {}
+    for path in configs:
+        cache_dir = load_yaml(path)["cache_dir"]
+        assert cache_dir not in seen, (
+            f"{path.name} và {seen[cache_dir].name} cùng ghi vào {cache_dir!r}"
+        )
+        seen[cache_dir] = path
+
+
+def test_e3_geometry_matches_published_in_plane_size():
+    """E3 tồn tại để khớp hình học của văn liệu, nên khoá lại con số đó.
+
+    Baseline official crop 112x112x14; CGHNet resize 16x128x128 rồi crop
+    14x112x112. Cả hai dùng in-plane 112 sau crop. Z=32 là nhượng bộ với
+    DenseNet, không phải lựa chọn khoa học — ghi rõ để không ai tưởng 32 là con
+    số văn liệu.
+    """
+    from src.utils.io import load_yaml
+
+    size = load_yaml("configs/preprocess_e3.yaml")["target_size"]
+    assert size[0] == size[1] == 112, "in-plane phải là 112, khớp baseline official và CGHNet"
+    assert size[2] == 32, "Z=32 là mức thấp nhất DenseNet chịu được"
