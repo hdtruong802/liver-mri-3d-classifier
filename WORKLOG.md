@@ -2550,3 +2550,57 @@ Người dùng báo E2 quanh 0,35–0,49 ở epoch 100+. Đối chiếu cùng m�
 **Điểm vào phiên sau:** Build cache E3 trên Kaggle (`--limit 20` trước), upload thành dataset, rồi train fold 1 bằng `baseline_3dpatch.yaml` với cache mới.
 
 **Cảnh báo cho tool sau:** (1) **Z=16 của CGHNet không dùng được với DenseNet121-3D.** Muốn theo đúng hình học của họ thì phải đổi backbone. (2) Nhánh 2D của CGHNet **thắng** nhánh 3D trên chính dataset này — nhánh 2.5D trong Spec Sheet nên được nâng từ fallback lên ứng viên chính, không phải phương án dự phòng.
+
+## S-065 · 2026-07-30 · claude-code
+
+**Mục tiêu phiên:** Đọc **bản PDF gốc** của CGHNet (`papers/1-s2.0-S0895611126000832-main.pdf`) và soát lại kết luận ở S-064.
+
+**Nhánh / commit:** `main` · `4396e12` → *(commit đang chờ)*
+
+### Vì sao phải đọc lại
+
+S-064 đọc bản **in từ trang web ScienceDirect** (48 trang, lẫn giao diện). Bản gốc 12 trang có bảng ở dạng text, đọc được chính xác. Kết quả: một kết luận của tôi **sai**, và có thêm dữ liệu quan trọng hơn hẳn.
+
+### Đính chính: tuyên bố "2D thắng 3D" là SAI
+
+S-064 tôi viết "nhánh 2.5D nên nâng từ fallback lên ứng viên chính", dựa trên Bảng 2 của CGHNet (nhánh 2D 74.2 so với nhánh 3D 72.4).
+
+**Đó là so sánh nội bộ giữa hai nhánh của CGHNet, không phải phép thử 2D-vs-3D.** Nhánh 2D của họ là ViT, nhánh 3D là CNN — khác kiến trúc, nên chênh lệch không quy về số chiều được.
+
+Phép thử sạch nằm ở **Bảng 1**, cùng họ kiến trúc, cùng protocol: **ResNet3D 0.709 THẮNG ResNet2D 0.684**. Ngược hẳn kết luận tôi đưa.
+
+Đã sửa comment sai trong `configs/preprocess_e3.yaml`. Đề xuất nâng 2.5D lên ứng viên chính **bị rút lại**.
+
+### Dữ liệu mới, giá trị cao hơn cả bảng leaderboard
+
+Bảng 1 của CGHNet đo **mọi phương pháp trên đúng test-104 official, cùng một protocol** (16×128×128 → crop 14×112×112, Focal loss, AdamW lr 1e-4, wd 1e-5, 300 epoch, batch 4, 5 fold). F1:
+
+```
+ViT3D 0.645 · ResNet2D 0.684 · ConvNeXt2D 0.696 · ResNet3D 0.709
+Swin3D 0.709 · 3D UX-Net 0.709 · Uniformer 0.719 · SDR-Former 0.791
+STM-Former 0.793 · RadioFormer 0.806 · CGHNet 0.818
+```
+
+**Con số đắt nhất: `ResNet3D` trần đạt 0.709**, vượt baseline official 0.6083 tới 0.10, chỉ nhờ hình học đầu vào. Đây là bằng chứng mạnh nhất tới giờ cho giả thuyết hình học của E3 — mạnh hơn nhiều so với lập luận 2D/3D sai ở S-064.
+
+Bảng 4 (ablation huấn luyện): **Focal Loss 81.8 so với CE 79.9** · **bỏ random-crop mất 8.8 điểm** (73.0, biến augmentation nặng nhất) · lr 1e-4 tốt hơn 1e-3 (79.3) lẫn 1e-5 (80.8).
+
+**Đã đụng file:**
+- `AGENTS.md` §5 — thêm bảng so sánh có kiểm soát + ba điều rút ra. Đặt cạnh bảng leaderboard vì mục này vốn ghi "ai định debug chất lượng model phải đối chiếu bảng này trước", mà bảng cùng-protocol hữu ích hơn hẳn cho việc đó.
+- `configs/preprocess_e3.yaml` — thay lập luận 2D/3D sai bằng bảng số thật.
+
+**Quyết định & lý do:**
+- **Giữ nguyên E3 như đã thiết kế.** Bằng chứng mới **củng cố** E3 chứ không đổi nó: hình học là biến, kiến trúc 3D vẫn hợp lệ.
+- **Không gộp Focal Loss vào E3.** Đáng +1.9 điểm theo Bảng 4, nhưng gộp vào sẽ làm E3 có hai biến. Để riêng thành E4, đo được sạch.
+- **Ghi nhận một căng thẳng chưa giải quyết: Z=32 của ta so với Z=14 của văn liệu.** DenseNet121-3D không chịu được Z=14 (S-063), trong khi ResNet3D thì có — và ResNet3D chính là hàng đạt 0.709. Nếu E3 xác nhận hình học là nút thắt thì bước hợp lý tiếp theo là **đổi sang 3D ResNet ở đúng 14×112×112**, tức bám sát văn liệu hoàn toàn. Chưa làm vì chưa kiểm được chữ ký API `monai.networks.nets.resnet18` ở local.
+- **SDR-Former 0.791 dưới protocol thống nhất.** Hướng Siamese của E2 không sai về nguyên tắc — hình học mới là chỗ hỏng. Con số +0.074 cho riêng wrapper SNN thì vẫn **chưa xác minh được**, nó nằm trong paper SDR-Former mà ta không có.
+
+**Kết quả / số liệu:** Không train. `pytest` 241 passed, 17 skipped.
+
+**Dang dở:**
+- [ ] Chưa build cache E3, chưa train.
+- [ ] Chưa đánh giá 3D ResNet ở 14×112×112 — ứng viên mạnh nhất theo bằng chứng hiện có.
+
+**Điểm vào phiên sau:** Build cache E3, train fold 1. Nếu E3 vượt rõ E1 (0.5740) thì cân nhắc E5 = ResNet3D ở đúng 14×112×112.
+
+**Cảnh báo cho tool sau:** (1) **Đừng đọc bảng ablation nội bộ của một paper như thể nó là so sánh có kiểm soát.** Hai nhánh của CGHNet khác kiến trúc; tôi đã kết luận sai vì bỏ qua điều đó. (2) **Bản in từ trang web ScienceDirect làm mất bảng số** — S-064 chỉ đọc được số nhờ chúng lọt vào phần chữ. Luôn tìm PDF gốc.

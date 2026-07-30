@@ -158,13 +158,36 @@ Pin version trong `requirements.txt` (train) và `webapp/backend/requirements.tx
 
 ### Mốc đối chiếu ngoài (quan trọng)
 
-| | macro-F1 (test-104) | Ghi chú |
+**Bảng xếp hạng challenge**, macro-F1 trên test-104:
+
+| | macro-F1 | Ghi chú |
 |---|---|---|
 | Đội nhất challenge | 0.8322 | |
 | **Baseline official** | **0.6083** | UniFormer-S 3D, from scratch, 300 epoch |
 | Hạng 20–24 | 0.5047 – 0.6076 | đủ loại kiến trúc |
 
 Metric của họ là `sklearn.f1_score(average='macro')` và `cohen_kappa_score` — **khớp với `src/eval/metrics.py`**, đã có test đối chiếu trực tiếp. Recipe train của họ được ghi lại trong `configs/baseline_3dpatch.yaml` và khoá bằng `tests/test_protocol_conformance.py`. Nguồn: [`LMMMEng/LLD-MMRI2023`](https://github.com/LMMMEng/LLD-MMRI2023).
+
+**Bảng so sánh có kiểm soát** — CGHNet Bảng 1 ([doi:10.1016/j.compmedimag.2026.102780](https://doi.org/10.1016/j.compmedimag.2026.102780), Comput Med Imaging Graph 132, 2026). Đây là bảng **hữu ích hơn** bảng trên khi debug, vì mọi hàng dùng **cùng một protocol** (tiền xử lý 16×128×128 → crop 14×112×112, Focal loss, AdamW lr 1e-4, 300 epoch, batch 4), 5 model từ 5 fold, và đều báo trên **đúng test-104 official**:
+
+| Phương pháp | F1 | Kappa |
+|---|---|---|
+| ViT3D | 0.645 ± 0.038 | 0.557 |
+| ResNet2D | 0.684 ± 0.024 | 0.624 |
+| ConvNeXt2D | 0.696 ± 0.027 | 0.653 |
+| **ResNet3D** | **0.709 ± 0.021** | 0.662 |
+| Swin3D · 3D UX-Net | 0.709 | 0.651 · 0.668 |
+| Uniformer | 0.719 ± 0.022 | 0.673 |
+| SDR-Former | 0.791 ± 0.017 | 0.747 |
+| STM-Former | 0.793 ± 0.016 | 0.752 |
+| RadioFormer | 0.806 ± 0.013 | 0.745 |
+| **CGHNet** | **0.818 ± 0.012** | 0.782 |
+
+Ba điều rút ra, đều đã được dùng để định hướng thí nghiệm (WORKLOG S-064, S-065):
+
+1. **Một `ResNet3D` trần đạt 0.709**, vượt xa baseline official 0.6083, chỉ nhờ hình học đầu vào đó. Hình học quan trọng hơn kiến trúc.
+2. **3D thắng 2D ở so sánh cùng họ** (ResNet3D 0.709 so với ResNet2D 0.684). Đừng dùng bảng ablation nội bộ của CGHNet (nhánh 2D 74.2 so với nhánh 3D 72.4) để kết luận ngược lại — hai nhánh đó khác kiến trúc, không phải phép thử 2D-vs-3D sạch.
+3. Ablation huấn luyện của họ (Bảng 4): **Focal Loss 81.8 so với CE 79.9**; **bỏ random-crop mất 8.8 điểm** (73.0), là biến augmentation nặng nhất; lr 1e-4 tốt hơn cả 1e-3 lẫn 1e-5.
 
 **Bất kỳ ai định debug chất lượng model đều phải đối chiếu với bảng này trước.** Ba phiên (S-036, S-039, S-040) đã đốt ba run GPU để đoán nguyên nhân mà không hề biết điểm số nào là đạt được — cả ba chẩn đoán đều sai.
 
