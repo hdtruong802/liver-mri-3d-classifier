@@ -34,17 +34,25 @@ model:
   norm: batch                 # giữ như E0/E1 — đổi norm là thí nghiệm riêng
   # Backbone chạy 8 lượt thay vì 1 nên FLOPs tăng ~8 lần. E1 mất 4.09h/fold, nên
   # bản nguyên độ phân giải sẽ khoảng 30h+ — vượt cả session 12h lẫn quota tuần.
-  # Average-pool 2 trước encoder cắt số voxel đi 8 lần, đưa chi phí về xấp xỉ E1.
   #
-  # Mất mát thông tin thấp hơn vẻ ngoài: cache lesion_tight có trung vị fov 53.8mm
-  # trên 96 voxel = ~0.56mm/voxel, trong khi pha động chỉ có độ phân giải gốc
-  # ~0.78mm (WORKLOG S-029) — khoảng một nửa dataset đang bị NỘI SUY vượt quá thứ
-  # máy chụp thật sự ghi được.
+  # CHỈ hạ mẫu trong mặt phẳng, GIỮ NGUYÊN trục Z. Hạ mẫu đều `2` nghe hợp lý nhưng
+  # SẬP trên dữ liệu thật: 96×96×48 thành 48×48×24, và 24 không sống nổi qua 5 lần
+  # hạ mẫu của DenseNet (conv0, pool0, 3 transition). Bắt được ở cổng pytest trước
+  # khi tốn giờ GPU — WORKLOG S-063. Trục Z chỉ có 48 voxel, không còn gì để cắt.
   #
-  # ⚠️ BIẾN GÂY NHIỄU: E2 ở đây là "Siamese ở nửa độ phân giải" so với E1 là
-  # "early-concat ở đủ độ phân giải". E2 thắng => kết luận mạnh (thắng dù bị thiệt).
-  # E2 thua => KHÔNG kết luận được, phải chạy E1 với cùng input_downsample.
-  input_downsample: 2
+  # Vì sao cắt trong mặt phẳng thì an toàn: cache lesion_tight có trung vị fov
+  # 53.8mm trên 96 voxel = ~0.56mm/voxel, trong khi pha động chỉ có độ phân giải
+  # gốc ~0.78mm (WORKLOG S-029) — khoảng một nửa dataset đang bị NỘI SUY vượt quá
+  # thứ máy chụp ghi được. Cắt đôi trong mặt phẳng chỉ trả lại phần nội suy đó.
+  #
+  # Chi phí: (2,2,1) giảm voxel 4 lần, không phải 8. Với 8 lượt forward, E2 tốn
+  # khoảng 2× E1, tức ~8h/fold. Vẫn lọt session 12h, nhưng vượt ngân sách 6h/fold
+  # của notebook 03 — notebook 04 đặt lại ngưỡng 9h kèm lý do.
+  #
+  # ⚠️ BIẾN GÂY NHIỄU: E2 là "Siamese ở nửa độ phân giải trong mặt phẳng" so với E1
+  # là "early-concat ở đủ độ phân giải". E2 thắng => kết luận mạnh (thắng dù bị
+  # thiệt). E2 thua => KHÔNG kết luận được, phải chạy E1 với cùng input_downsample.
+  input_downsample: [2, 2, 1]
 
 data:
   # VRAM ~16GB với khối [8,96,96,48]: batch nhỏ + tích luỹ gradient (AGENTS.md §7).

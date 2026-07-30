@@ -44,8 +44,11 @@ def test_densenet3d_maps_8_phases_to_7_classes():
     )
     model.eval()
     with torch.no_grad():
-        # Khối nhỏ hơn 96×96×48 thật để test chạy nhanh; DenseNet không cố định kích thước.
-        logits = model(torch.randn(2, 8, 32, 32, 16))
+        # Khối nhỏ hơn 96×96×48 thật để test chạy nhanh, NHƯNG không nhỏ tuỳ ý:
+        # DenseNet121-3D hạ mẫu 5 lần nên mọi chiều phải >= 32. Test này từng dùng
+        # 32×32×16 và **luôn skip ở local vì thiếu torch**, nên lỗi chỉ lộ ra khi
+        # chạy thật trên Kaggle (WORKLOG S-063).
+        logits = model(torch.randn(2, 8, 32, 32, 32))
 
     assert logits.shape == (2, 7)
     assert torch.isfinite(logits).all()
@@ -93,11 +96,56 @@ def test_siamese_rejects_unknown_fusion():
         build_siamese_fusion(fusion="không-tồn-tại")
 
 
-def test_siamese_rejects_bad_downsample():
+@pytest.mark.parametrize("bad", [0, -1, (2, 2), (2, 2, 0)])
+def test_siamese_rejects_bad_downsample(bad):
     from src.models.siamese_fusion import build_siamese_fusion
 
     with pytest.raises(ValueError, match="input_downsample"):
-        build_siamese_fusion(input_downsample=0)
+        build_siamese_fusion(input_downsample=bad)
+
+
+def test_siamese_default_downsample_keeps_z_axis():
+    """Mặc định phải là (2, 2, 1) — hạ mẫu đều SẬP trên dữ liệu thật.
+
+    96×96×48 chia đều cho 2 thành 48×48×24, mà 24 không sống nổi qua 5 lần hạ mẫu
+    của DenseNet121-3D. Trục Z chỉ có 48 voxel ngay từ đầu (WORKLOG S-063).
+    """
+    import inspect
+
+    from src.models.siamese_fusion import build_siamese_fusion
+
+    default = inspect.signature(build_siamese_fusion).parameters["input_downsample"].default
+    assert tuple(default) == (2, 2, 1)
+
+
+def test_siamese_refuses_input_too_small_after_downsampling():
+    """Báo lỗi rõ ràng thay vì để MONAI ném RuntimeError từ sâu trong mạng.
+
+    Đây đúng là cấu hình sẽ chạy thật: khối 96×96×48 với hạ mẫu đều 2 cho 48×48×24,
+    và chiều 24 làm sập transition layer thứ ba.
+    """
+    torch = pytest.importorskip("torch", reason="forward pass cần torch")
+    pytest.importorskip("monai")
+
+    model = build_model(
+        {"name": "siamese_fusion", "embed_dim": 32, "fusion": "mean", "input_downsample": 2}
+    )
+    model.eval()
+    with pytest.raises(ValueError, match="DenseNet121-3D cần"), torch.no_grad():
+        model(torch.randn(1, 8, 96, 96, 48))
+
+
+def test_siamese_real_input_shape_works_with_default_downsample():
+    """Hợp đồng với dữ liệu THẬT: 96×96×48 và hệ số mặc định phải chạy trót lọt."""
+    torch = pytest.importorskip("torch", reason="forward pass cần torch")
+    pytest.importorskip("monai")
+
+    model = build_model({"name": "siamese_fusion", "embed_dim": 32, "fusion": "attention"})
+    model.eval()
+    with torch.no_grad():
+        logits = model(torch.randn(1, 8, 96, 96, 48))
+    assert logits.shape == (1, 7)
+    assert torch.isfinite(logits).all()
 
 
 @pytest.mark.parametrize("fusion", ["attention", "mean", "concat"])
@@ -105,6 +153,8 @@ def test_siamese_maps_8_phases_to_7_classes(fusion):
     torch = pytest.importorskip("torch", reason="forward pass cần torch")
     pytest.importorskip("monai", reason="DenseNet121-3D lấy từ MONAI")
 
+    # Khối 32³ là mức nhỏ nhất DenseNet121-3D chịu được; hạ mẫu 1 để test nhanh.
+    # Đường hạ mẫu có test riêng ở trên với kích thước thật.
     model = build_model(
         {
             "name": "siamese_fusion",
@@ -112,12 +162,12 @@ def test_siamese_maps_8_phases_to_7_classes(fusion):
             "num_classes": 7,
             "embed_dim": 32,
             "fusion": fusion,
-            "input_downsample": 2,
+            "input_downsample": 1,
         }
     )
     model.eval()
     with torch.no_grad():
-        logits = model(torch.randn(2, 8, 32, 32, 16))
+        logits = model(torch.randn(2, 8, 32, 32, 32))
 
     assert logits.shape == (2, 7)
     assert torch.isfinite(logits).all()
@@ -165,11 +215,11 @@ def test_siamese_attention_weights_are_a_distribution_over_phases():
     pytest.importorskip("monai")
 
     model = build_model(
-        {"name": "siamese_fusion", "embed_dim": 32, "fusion": "attention", "input_downsample": 2}
+        {"name": "siamese_fusion", "embed_dim": 32, "fusion": "attention", "input_downsample": 1}
     )
     model.eval()
     with torch.no_grad():
-        model(torch.randn(3, 8, 32, 32, 16))
+        model(torch.randn(3, 8, 32, 32, 32))
 
     weights = model.last_phase_weights
     assert weights.shape == (3, 8)

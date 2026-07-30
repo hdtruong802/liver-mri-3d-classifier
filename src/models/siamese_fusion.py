@@ -48,6 +48,13 @@ from src.models.densenet3d import DEFAULT_NORM, SPATIAL_DIMS, normalize_norm_spe
 NUM_PHASES = 8  # thứ tự theo configs/data.yaml
 FUSIONS = ("attention", "mean", "concat")
 
+# DenseNet121-3D hạ mẫu 5 lần: conv0 /2, pool0 /2, rồi ba transition mỗi cái /2.
+# Transition thứ ba dùng `AvgPool3d(kernel_size=2)`, nên đầu vào của nó phải ≥ 2 ở
+# MỌI chiều — tức kích thước đưa vào encoder phải ≥ 32 ở mọi chiều. Dưới ngưỡng đó,
+# MONAI ném `RuntimeError: input image ... smaller than kernel size` từ sâu trong
+# mạng, không nói gì về nguyên nhân thật (WORKLOG S-063).
+MIN_SPATIAL = 32
+
 
 def build_siamese_fusion(
     num_phases: int = NUM_PHASES,
@@ -57,7 +64,7 @@ def build_siamese_fusion(
     dropout_prob: float = 0.2,
     norm: str | Sequence[Any] = DEFAULT_NORM,
     phase_embedding: bool = True,
-    input_downsample: int = 2,
+    input_downsample: int | Sequence[int] = (2, 2, 1),
 ) -> Any:
     """Dựng mạng Siamese đa pha nhận ``[B, num_phases, X, Y, Z]`` → logits ``[B, num_classes]``.
 
@@ -73,27 +80,41 @@ def build_siamese_fusion(
             - ``concat`` — nối 8 vector. Giữ danh tính thì mà không cần
               `phase_embedding`, đổi lại tầng phân loại to gấp 8.
 
-        input_downsample: hệ số average-pool đặt **trước** encoder.
+        input_downsample: hệ số average-pool đặt **trước** encoder. Một số cho cả
+            ba trục, hoặc ba số ``(x, y, z)``.
 
-            ``2`` cắt số voxel đi 8 lần, gần như bù trọn phần 8 lượt forward, đưa
-            chi phí về xấp xỉ E1. Mức mất mát thông tin thấp hơn vẻ ngoài: cache
-            lesion-tight có trung vị fov 53.8mm trên 96 voxel, tức ~0.56mm/voxel,
-            trong khi pha động chỉ có độ phân giải gốc ~0.78mm (WORKLOG S-029) —
-            khoảng một nửa dataset **đang được nội suy vượt quá** thứ máy chụp
-            ghi được. ``1`` giữ nguyên độ phân giải, nhưng phải chuẩn bị ~30h/fold.
+            Mặc định ``(2, 2, 1)``: **chỉ hạ mẫu trong mặt phẳng, giữ nguyên trục
+            Z**. Hạ mẫu đều ``2`` nghe hợp lý nhưng **sập trên dữ liệu thật**:
+            96×96×48 thành 48×48×24, và 24 không sống nổi qua 5 lần hạ mẫu của
+            DenseNet (WORKLOG S-063). Trục Z chỉ có 48 voxel ngay từ đầu, không
+            còn gì để cắt.
 
-            ⚠️ Đây là **biến gây nhiễu**: E2 với ``input_downsample=2`` so với E1
-            là so *Siamese ở nửa độ phân giải* với *early-concat ở đủ độ phân
-            giải*, không phải so thuần kiến trúc. Nếu E2 thắng thì kết luận vẫn
-            mạnh (thắng dù bị thiệt). Nếu thua thì **không kết luận được**, phải
-            chạy thêm E1 với cùng ``input_downsample`` làm đối chứng.
+            Vì sao hạ mẫu trong mặt phẳng thì an toàn: cache lesion-tight có trung
+            vị fov 53.8mm trên 96 voxel, tức ~0.56mm/voxel, trong khi pha động chỉ
+            có độ phân giải gốc ~0.78mm (WORKLOG S-029) — khoảng một nửa dataset
+            **đang được nội suy vượt quá** thứ máy chụp ghi được. Cắt đôi trong mặt
+            phẳng chỉ trả lại phần nội suy đó.
+
+            Chi phí: ``(2, 2, 1)`` giảm voxel **4 lần**, không phải 8. Với 8 lượt
+            forward, E2 tốn khoảng **2× E1**, tức ~8h/fold. Vẫn lọt session 12h.
+
+            ⚠️ Đây là **biến gây nhiễu**: E2 so với E1 là so *Siamese ở nửa độ phân
+            giải trong mặt phẳng* với *early-concat ở đủ độ phân giải*, không phải
+            so thuần kiến trúc. E2 thắng thì kết luận mạnh (thắng dù bị thiệt). E2
+            thua thì **không kết luận được**, phải chạy thêm E1 với cùng
+            ``input_downsample`` làm đối chứng.
     """
     # Kiểm tham số TRƯỚC khi import: cấu hình sai phải báo lỗi ngay cả trên máy
     # chưa cài deep-learning stack, để `pytest` ở local vẫn bắt được lỗi config.
     if fusion not in FUSIONS:
         raise ValueError(f"fusion phải thuộc {FUSIONS}, nhận {fusion!r}")
-    if input_downsample < 1:
-        raise ValueError(f"input_downsample phải >= 1, nhận {input_downsample}")
+    factors = (
+        (int(input_downsample),) * 3
+        if isinstance(input_downsample, int)
+        else tuple(int(f) for f in input_downsample)
+    )
+    if len(factors) != 3 or any(f < 1 for f in factors):
+        raise ValueError(f"input_downsample phải là 1 số hoặc 3 số >= 1, nhận {input_downsample!r}")
 
     import torch
     from monai.networks.nets import DenseNet121
@@ -108,10 +129,9 @@ def build_siamese_fusion(
             # phase-importance. Không tham gia vào đồ thị đạo hàm.
             self.last_phase_weights: Any = None
 
+            self.downsample_factors = factors
             self.pre_pool = (
-                nn.AvgPool3d(kernel_size=input_downsample)
-                if input_downsample > 1
-                else nn.Identity()
+                nn.AvgPool3d(kernel_size=factors) if any(f > 1 for f in factors) else nn.Identity()
             )
             # in_channels=1: encoder nhìn MỘT thì mỗi lượt, và dùng chung cho cả 8.
             self.encoder = DenseNet121(
@@ -142,6 +162,18 @@ def build_siamese_fusion(
             batch, phases = x.shape[0], x.shape[1]
             if phases != self.num_phases:
                 raise ValueError(f"cần {self.num_phases} thì, nhận {phases}")
+
+            # Chặn ở đây thay vì để MONAI ném RuntimeError từ sâu trong transition
+            # layer, nơi thông báo không hé lộ nguyên nhân thật (WORKLOG S-063).
+            spatial = tuple(x.shape[2:])
+            after = tuple(d // f for d, f in zip(spatial, self.downsample_factors, strict=True))
+            if any(d < MIN_SPATIAL for d in after):
+                raise ValueError(
+                    f"đầu vào {spatial} chia cho input_downsample "
+                    f"{self.downsample_factors} còn {after}, mà DenseNet121-3D cần "
+                    f">= {MIN_SPATIAL} ở mọi chiều. Giảm hệ số hạ mẫu, hoặc dùng "
+                    f"khối đầu vào lớn hơn."
+                )
 
             # Gộp trục batch và trục thì để encoder chạy MỘT lượt trên B*P mẫu —
             # nhanh hơn nhiều so với vòng lặp python qua từng thì.

@@ -2450,3 +2450,48 @@ Bootstrap **ghép cặp** (cùng bệnh nhân): chênh lệch macro-F1 **+0,1496
 **Điểm vào phiên sau:** Mở `notebooks/04_train_e2_siamese.ipynb` trên Kaggle, mount cache lesion-tight, chạy tuần tự. Bốn cổng chặn sẽ tự dừng nếu có gì sai.
 
 **Cảnh báo cho tool sau:** `load_checkpoint` nằm ở `src/train/loop.py` (không phải `src/train/checkpoint.py`) và **trả về payload dict**, không tự nạp vào model — phải `model.load_state_dict(payload["model"])`. Tôi đã viết sai chỗ này lần đầu và chỉ phát hiện nhờ đối chiếu chữ ký thật.
+
+## S-063 · 2026-07-29 · claude-code
+
+**Mục tiêu phiên:** Sửa lỗi cổng 0 (pytest trên Kaggle) bắt được ở E2.
+
+**Nhánh / commit:** `main` · `6e30561` → *(commit đang chờ)*
+
+### Lỗi, và vì sao nó quan trọng hơn vẻ ngoài
+
+`pytest tests/test_models.py` trên Kaggle: 5 test fail, tất cả cùng một lỗi:
+
+```
+RuntimeError: input image (T: 2 H: 2 W: 1) smaller than kernel size (kT: 2 kH: 2 kW: 2)
+AvgPool3d(kernel_size=2, stride=2)
+```
+
+**DenseNet121-3D hạ mẫu 5 lần** (conv0 /2, pool0 /2, ba transition mỗi cái /2). Transition thứ ba dùng `AvgPool3d(kernel_size=2)` nên đầu vào của nó phải ≥2 ở mọi chiều — tức **khối vào encoder phải ≥ 32 ở mọi chiều**.
+
+Hai hệ quả, cái thứ hai mới là cái đắt:
+
+1. **Test cũ `test_densenet3d_maps_8_phases_to_7_classes` dùng 32×32×16 và luôn fail.** Nó chưa từng chạy: local không có torch nên nó **luôn skip**. Một test hỏng nằm im trong repo, chỉ lộ ra khi chạy ở nơi có torch.
+
+2. **`input_downsample: 2` của E2 sẽ SẬP trên dữ liệu thật.** 96×96×48 chia đều 2 thành 48×48×24, và 24 không sống nổi qua 5 lần hạ mẫu. Config tôi viết ở S-061 **không thể chạy**. Trục Z chỉ có 48 voxel ngay từ đầu, không còn gì để cắt.
+
+**Đã đụng file:**
+- `src/models/siamese_fusion.py` — `input_downsample` nhận 1 số hoặc 3 số, **mặc định đổi thành `(2, 2, 1)`**; thêm `MIN_SPATIAL = 32` và chốt kiểm trong `forward` báo lỗi rõ ràng kèm số đo thật.
+- `configs/e2_siamese.yaml` — `input_downsample: [2, 2, 1]`.
+- `tests/test_models.py` — sửa mọi khối test lên ≥32 mọi chiều; +4 test.
+- `notebooks/04_train_e2_siamese.ipynb` — sinh lại, ngân sách 6h → 9h kèm lý do.
+
+**Quyết định & lý do:**
+- **Hạ mẫu bất đẳng hướng `(2, 2, 1)`.** Chỉ cắt trong mặt phẳng, giữ nguyên Z. Cắt trong mặt phẳng an toàn vì cache lesion-tight có trung vị ~0,56mm/voxel trong khi pha động chỉ có độ phân giải gốc ~0,78mm (S-029) — cắt đôi chỉ trả lại phần nội suy. Z thì không có dư địa đó.
+- **Chi phí đổi theo, và phải nói lại cho đúng.** `(2,2,1)` giảm voxel **4 lần**, không phải 8. Với 8 lượt forward, E2 tốn ~**2× E1 ≈ 8h/fold**, không phải "xấp xỉ E1" như tôi viết ở S-061. Vẫn lọt session 12h.
+- **Ngân sách notebook 6h → 9h.** Con số 6h ở notebook 03 tính cho 5 fold nằm trong quota ~30h/tuần. Đây là run **sàng lọc một fold**, ràng buộc thật là session 12h. Đặt 9h để vẫn bắt được trường hợp lệch hẳn dự đoán.
+- **Chốt kiểm đặt trong `forward`, không phải lúc dựng model.** Kích thước đầu vào chỉ biết được lúc chạy. Thông báo in cả kích thước gốc, hệ số, kích thước sau khi hạ mẫu và ngưỡng — đủ để sửa ngay mà không phải đọc code MONAI.
+
+**Kết quả / số liệu:** `pytest` **238 passed, 17 skipped** (234 → 238). ruff sạch. Vẫn **chưa chạy được forward pass ở local** — 4 test mới cần torch nên skip; chúng chạy thật ở cổng 0 trên Kaggle.
+
+**Dang dở:**
+- [ ] Chạy lại cổng 0 trên Kaggle để xác nhận 5 test đã xanh.
+- [ ] E2 vẫn chưa train.
+
+**Điểm vào phiên sau:** `git pull` trên Kaggle, chạy lại notebook 04 từ cổng 0. Nếu xanh thì đi tiếp cổng 1→2→3. Cổng 3 giờ kỳ vọng ~8h/fold, không phải ~4h.
+
+**Cảnh báo cho tool sau:** (1) **DenseNet121-3D cần ≥32 voxel ở MỌI chiều.** Bất kỳ chỗ nào hạ mẫu hoặc crop nhỏ hơn thế sẽ chết bằng `RuntimeError` sâu trong MONAI, không nói gì về nguyên nhân. (2) **Test skip ở local không có nghĩa là test đúng.** Test 32×32×16 đã nằm im trong repo cho tới khi chạy ở nơi có torch. Mọi thay đổi model phải qua cổng 0 trên Kaggle trước khi tin.
