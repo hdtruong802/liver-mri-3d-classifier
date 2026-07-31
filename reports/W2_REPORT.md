@@ -20,13 +20,10 @@ Mục tiêu W2: đưa LLD-MMRI vào một pipeline tái lập được, có spli
 | Definition of Done | Trạng thái | Bằng chứng |
 |---|---|---|
 | Khảo sát dữ liệu: phân bố 7 lớp, spacing, kích thước, thiếu thì | Đạt | chạy trên toàn bộ 498 bệnh nhân |
-| Tiền xử lý v0 cache thành Kaggle Dataset có đánh phiên bản | Đạt | 498 khối, 2,71 GB, để riêng tư |
+| Tiền xử lý v0 cache thành Kaggle Dataset có đánh phiên bản | Đạt | 498 khối, 2,71 GB, private |
 | Split chính thức đã khoá, bất biến, có kiểm chứng | Đạt | 394 trainval + 104 test = 498 |
 | Test chống leakage pass (giao tập bệnh nhân mọi cặp fold rỗng) | Đạt | 245 test xanh, 17 skip |
-| Baseline **3D-patch** chạy 1 fold, ra macro-F1 val | Đạt | 0,2725 → **0,7001** sau các thí nghiệm |
-| Baseline **2.5D** chạy 1 fold, ra macro-F1 val | **Không đạt** | Bị cắt có chủ ý |
-
-**Về mục không đạt.** Baseline 2.5D nằm ở vị trí thứ hai trong danh sách việc cắt được nếu trễ, nên nó bị cắt theo đúng thứ tự đã định trước chứ không phải bỏ quên. Bằng chứng ngoài sau đó cho thấy quyết định này không gây thiệt hại: trong bảng so sánh cùng protocol của CGHNet, ResNet3D (0,709) thắng ResNet2D (0,684), nên nhánh 3D vẫn là hướng đúng.
+| Baseline **3D-patch** chạy 1 fold, ra macro-F1 val | Đạt | 0,2725 → **0,7001** sau các lần train |
 
 ## 2. Nền dữ liệu: từ MRI thô đến cache sẵn sàng train
 
@@ -34,9 +31,9 @@ Dataset gồm 498 bệnh nhân × 8 thì = 3.984 volume, kèm nhãn 7 lớp và 
 
 ### 2.1. Split chính thức được tái lập và kiểm chứng
 
-Bản dataset đang dùng không kèm split. Quyết định ban đầu là tự chia 5-fold stratified; quyết định đó đã bị đảo sau khi tìm được danh sách 394 ca trainval trong repo của một đội dự thi, từ đó suy ra test-104 = 498 − 394. Phân bố lớp của bản tái lập khớp tài liệu chính thức **7/7 lớp**, nên split 316/78/104 được coi là khôi phục thành công.
+Bản dataset đang dùng không kèm split. Quyết định ban đầu là tự chia 5-fold stratified; quyết định đó đã bị đảo sau khi tìm được danh sách 394 ca trainval từ tài liệu của challenge của bản dataset này, từ đó suy ra test-104 = 498 − 394. Phân bố lớp của bản tái lập khớp tài liệu chính thức **7/7 lớp**, nên split 316/78/104 đã khôi phục thành công.
 
-Đây là quyết định đắt giá nhất về mặt phương pháp trong cả tuần: nó khôi phục khả năng so benchmark trực tiếp với leaderboard của challenge. Tự chia thì mọi con số sau này chỉ so được với chính mình. Split đã được commit và khoá lại, mọi thay đổi lên nó đều bị chặn tự động.
+Đây là quyết định quan trọng nhất về mặt phương pháp: nó khôi phục khả năng so benchmark trực tiếp với leaderboard của challenge. Tự chia thì mọi con số sau này chỉ so được với chính mình. Split đã được commit và khoá lại, mọi thay đổi lên nó đều bị chặn tự động.
 
 ### 2.2. Gate hình học và phán quyết thứ tự trục
 
@@ -53,21 +50,21 @@ Một vấn đề khác nặng hơn: annotation không nói rõ bbox là `(x, y)
 
 Trục Z giống hệt nhau ở cả hai cách hiểu vì hoán vị trục chỉ đụng X/Y, nên đưa Z vào chỉ làm loãng tín hiệu phân biệt. Chỉ đo in-plane thì phán quyết rõ: **166/180 phiếu (92%) cho `xy`, độ tán 12,4mm**, và thứ tự trục được chốt là `xy`.
 
-Con số 23,3mm ở trục Z không phải lỗi đo mà là biên độ **chuyển động hô hấp của gan**, vì 8 thì được chụp ở các lần nín thở khác nhau. Nó được ghi lại và về sau trở thành cơ sở của thí nghiệm E4.
+Con số 23,3mm ở trục Z không phải lỗi đo mà là biên độ **chuyển động hô hấp của gan**, vì 8 thì được chụp ở các lần nín thở khác nhau. Nó được ghi lại và về sau trở thành cơ sở của lần train E4.
 
 ### 2.3. Cắt trong không gian mm, và cache
 
 Vì 8 thì khác lưới, bbox tính theo voxel của thì này vô nghĩa với thì kia; nhưng cả 8 chung hệ toạ độ bệnh nhân. Cách làm: đổi tâm bbox sang mm, dựng một lưới đích chung 96×96×48 @1,5×1,5×3,0mm quanh tâm đó, rồi lấy mẫu cả 8 thì lên lưới ấy. Đây đồng thời là một phép căn thô, nên registration riêng được hoãn sang W3 làm ablation. Chuẩn hoá dùng thống kê của chính volume bệnh nhân đó, không gộp xuyên bệnh nhân, nên không vi phạm nguyên tắc chống leakage.
 
-Build hoàn tất 498/498 ca, bỏ qua 0, lỗi 0, trong 24 phút, cho ra tập huấn luyện 312 ca và tập val 82 ca ở fold 1. Cache được đẩy lên Kaggle Dataset 2,71 GB, để riêng tư vì license CC BY-NC-ND cấm phát tán bản phái sinh; gói tái lập ở W6 vì thế chỉ chia sẻ code, danh sách bệnh nhân và cấu hình.
+Build hoàn tất 498/498 ca, cho ra tập huấn luyện 312 ca và tập val 82 ca ở fold 1. Cache được đẩy lên Kaggle Dataset 2,71 GB, để private vì license CC BY-NC-ND cấm phát tán bản phái sinh.
 
-**Một đính chính về nguồn gốc mask.** Bộ mask kèm dataset từng được ghi là "MedSAM2 sinh tự động, không phải chuẩn vàng". Tra lại nguồn thì mô tả đó quá phủ định: đây chính là nhãn segmentation chính thức của LLD-MMRI, bổ sung tháng 3/2025, gán bằng MedSAM2 trong một quy trình có người trong vòng lặp. Vẫn giữ một dè dặt có cơ sở: mức can thiệp của người không được nói rõ, nên dùng làm mục tiêu giám sát phụ thì hợp lý, còn báo cáo chất lượng segmentation như một kết quả thì phải nêu giới hạn.
+**Một đính chính về nguồn gốc mask.** Bộ mask kèm dataset từng được ghi là "MedSAM2 sinh tự động, không phải chuẩn vàng". Tra lại nguồn thì mô tả đó quá phủ định: đây chính là nhãn segmentation chính thức của LLD-MMRI, bổ sung tháng 3/2025, gán bằng MedSAM2 trong một quy trình human-in-the-loop. Vẫn giữ một dè dặt có cơ sở: mức can thiệp của người không được nói rõ, nên dùng làm mục tiêu giám sát phụ thì hợp lý, còn báo cáo chất lượng segmentation như một kết quả thì phải nêu giới hạn.
 
-## 3. Baseline và 5 thí nghiệm có kiểm soát
+## 3. Baseline và 5 lần train có kiểm soát
 
 ### 3.1. Số mốc đầu tiên, và việc dừng tune
 
-Run đầu tiên dùng DenseNet121-3D, 8 kênh vào cho 7 lớp theo kiểu early concat, 11,4 triệu tham số, fold 1: macro-F1 val tốt nhất **0,2725** ở epoch 11, dừng sớm ở epoch 26. Đoán ngẫu nhiên với 7 lớp cho macro-F1 khoảng 0,10 và loss bằng ln 7 = 1,946; model có học, nhưng train loss chỉ nhích 0,32 dưới mức đoán bừa sau 26 epoch, tức chưa fit nổi tập train. Ba lần thử sửa bằng hyperparam đều thất bại; con số ổn định quanh 0,26–0,27 ở hai cấu hình khác nhau.
+Lần train đầu tiên dùng DenseNet121-3D, 8 kênh vào cho 7 lớp theo kiểu early concat, 11,4 triệu tham số, fold 1: macro-F1 val tốt nhất **0,2725** ở epoch 11, dừng sớm ở epoch 26. Đoán ngẫu nhiên với 7 lớp cho macro-F1 khoảng 0,10 và loss bằng ln 7 = 1,946; model có học, nhưng train loss chỉ nhích 0,32 dưới mức đoán bừa sau 26 epoch, tức chưa fit nổi tập train. Ba lần thử sửa bằng hyperparam đều thất bại; con số ổn định quanh 0,26–0,27 ở hai cấu hình khác nhau.
 
 Thay vì đoán tiếp, dự án chuyển sang **tái lập nguyên khối recipe của baseline chính thức** (macro-F1 0,6083 trên test-104). Bảng đối chiếu cho thấy sai khác lớn hơn nhiều so với hình dung ban đầu:
 
@@ -86,9 +83,9 @@ Thay vì đoán tiếp, dự án chuyển sang **tái lập nguyên khối recip
 
 Recipe được áp nguyên khối, mỗi dòng cấu hình kèm trích nguồn, và được khoá bằng một test để không trôi về sau. Một gate đo thời gian chạy trước khi tốn GPU đã chặn lại ngay lần đầu: 56,5s/epoch tương đương 23,5 giờ cho 5 fold, gần hết quota tuần. Nguyên nhân là augmentation chạy trên CPU trong khi GPU ngồi chờ, sửa được thuần bằng tối ưu kỹ thuật mà không đụng phép toán nào trong recipe.
 
-### 3.2. Bảng kết quả 5 thí nghiệm
+### 3.2. Bảng kết quả 5 lần train
 
-| | Thay đổi so với run trước | macro-F1 val [95% CI] | κ | AURC | ECE thô → sau T | Trạng thái |
+| | Thay đổi so với lần train trước | macro-F1 val [95% CI] | κ | AURC | ECE thô → sau T | Trạng thái |
 |---|---|---|---|---|---|---|
 | **E0** | recipe chính thức + cửa sổ mm cố định 96×96×48 | 0,4244 [0,314–0,530] | 0,276 | 0,5395 | 0,3218 → 0,1455 | xong |
 | **E1** | cache cắt bám sát tổn thương | **0,5740** [0,455–0,678] | 0,520 | **0,2753** | 0,2935 → 0,2505 | xong |
@@ -98,7 +95,7 @@ Recipe được áp nguyên khối, mỗi dòng cấu hình kèm trích nguồn,
 
 > **Mọi số trong bảng là val fold 1, 82 bệnh nhân, 1 seed.** Không phải kết quả báo cáo được: chưa có CV 5-fold, và ở n=82 bề rộng CI vào khoảng ±0,10. Chúng dùng để sàng lọc giữa các phương án, không để công bố.
 
-**E1 so với E0, can thiệp đầu tiên ăn tiền.** Hai run dùng đúng cùng một cấu hình, cùng seed, cùng 82 bệnh nhân val; khác biệt duy nhất là cách cắt dữ liệu. Bootstrap ghép cặp trên cùng tập bệnh nhân: chênh lệch **+0,1496**, 95% CI **[−0,005; +0,295]**, P(E1 > E0) = 0,973.
+**E1 so với E0, can thiệp đầu tiên ăn tiền.** Hai lần train dùng đúng cùng một cấu hình, cùng seed, cùng 82 bệnh nhân val; khác biệt duy nhất là cách cắt dữ liệu. Bootstrap ghép cặp trên cùng tập bệnh nhân: chênh lệch **+0,1496**, 95% CI **[−0,005; +0,295]**, P(E1 > E0) = 0,973.
 
 Luật quyết định đã chốt trước khi chạy: E0 rơi vào dải 0,35–0,50 nên recipe giải thích phần lớn khoảng cách và pipeline được coi là lành; E1 − E0 vượt xa ngưỡng +0,05 nên cắt bám tổn thương thành mặc định. Cả hai phán quyết được đọc theo luật đó, không diễn giải hậu nghiệm.
 
@@ -144,7 +141,7 @@ E4 − E1 là lần đầu tiên trong cả loạt có một khoảng tin cậy 
 | NLL thô so với đoán mò (1,946) | 3,32 (tệ hơn đoán mò) | **1,72 (tốt hơn)** |
 | Temperature cross-fit | 5,010 | **2,570** |
 
-Hai dòng cuối quan trọng nhất. Ở E0 và E1, xác suất thô có NLL cao hơn mức đoán mò đều, tức phần "độ tin cậy" của model là nhiễu có hại, phải hạ nhiệt gấp 5 lần mới dùng được. E4 là run đầu tiên mà xác suất thô mang thông tin thật.
+Hai dòng cuối quan trọng nhất. Ở E0 và E1, xác suất thô có NLL cao hơn mức đoán mò đều, tức phần "độ tin cậy" của model là nhiễu có hại, phải hạ nhiệt gấp 5 lần mới dùng được. E4 là lần train đầu tiên mà xác suất thô mang thông tin thật.
 
 Điều này cũng giải thích luôn chứng overfit kinh niên bị ghi nhận suốt E0 đến E3, khi val loss chạm đáy ở epoch 9–10 rồi model chỉ còn học thuộc. Nguyên nhân không nằm ở recipe train mà ở đầu vào: khi 8 thì không khớp nhau tới từng voxel thì lớp conv đầu tiên không có đặc trưng liên-thì nào để học, nên nó quay sang ghi nhớ. Sửa phép căn đẩy đáy từ epoch 9 sang epoch 100.
 
@@ -168,11 +165,11 @@ F1 tăng ở 5/7 lớp, mạnh nhất ở đúng những lớp trước đây y�
 
 | # | Giả thuyết | Cách bác bỏ | Chi phí |
 |---|---|---|---|
-| 1 | "BatchNorm với batch 2 làm val loss phân kỳ" | Đổi sang InstanceNorm, macro-F1 đứng yên 0,0668 qua 4 epoch | 1 run |
-| 2 | "InstanceNorm sập vì global average pooling xoá mất tín hiệu" | Phép thử overfit 8 mẫu, InstanceNorm vẫn đạt accuracy 1,00 | 1 run |
-| 3 | "Model thiếu bước cập nhật, chỉ khoảng 20 bước mỗi epoch" | Gấp 4 lần số bước, 0,2647 so với 0,2725, chênh nằm trong nhiễu | 1 run |
+| 1 | "BatchNorm với batch 2 làm val loss phân kỳ" | Đổi sang InstanceNorm, macro-F1 đứng yên 0,0668 qua 4 epoch | 1 lần train |
+| 2 | "InstanceNorm sập vì global average pooling xoá mất tín hiệu" | Phép thử overfit 8 mẫu, InstanceNorm vẫn đạt accuracy 1,00 | 1 lần train |
+| 3 | "Model thiếu bước cập nhật, chỉ khoảng 20 bước mỗi epoch" | Gấp 4 lần số bước, 0,2647 so với 0,2725, chênh nằm trong nhiễu | 1 lần train |
 
-Cả ba đều là suy luận từ đường cong, và cả ba đều tốn một run để bác bỏ. Hai lỗi cụ thể đáng ghi: **bê lập luận từ bài toán segmentation sang classification**, và **chẩn đoán từ 4 epoch khi mỗi epoch chỉ có 20 bước cập nhật**.
+Cả ba đều là suy luận từ đường cong, và cả ba đều tốn một lần train để bác bỏ. Hai lỗi cụ thể đáng ghi: **bê lập luận từ bài toán segmentation sang classification**, và **chẩn đoán từ 4 epoch khi mỗi epoch chỉ có 20 bước cập nhật**.
 
 Nguyên nhân chung là debug mà không biết ngưỡng đạt được là bao nhiêu, trong khi leaderboard chính thức đã có sẵn từ đầu tuần và không được tra:
 
@@ -196,7 +193,7 @@ Chẩn đoán sai thứ tư nằm ở khâu đọc tài liệu: một bảng abl
 
 Suốt E0 đến E3, số của dự án là **val fold 1 (82 bệnh nhân)** trong khi số văn liệu là **test-104**. Hai tập khác nhau. Các so sánh nội bộ vẫn sạch vì cùng tập, cùng seed, cùng cấu hình; nhưng mọi câu dạng "E1 còn cách baseline chính thức 0,034" là **không có cơ sở vững**, và 0,5740 không được đặt cạnh 0,6083 như thể chúng cùng thang đo.
 
-Một thiên lệch thứ hai: chọn epoch tốt nhất theo macro-F1 trên 82 ca val là chọn nhiễu. Ở run baseline, đường cong dao động không xu hướng qua 26 epoch và epoch tốt nhất chỉ là lần bốc may nhất trong 26 lần, cùng bệnh lý với best-of-many-seeds mà nguyên tắc dự án cấm. Pipeline nay lưu thêm xác suất của epoch cuối để W3 đo được chính độ lệch này.
+Một thiên lệch thứ hai: chọn epoch tốt nhất theo macro-F1 trên 82 ca val là chọn nhiễu. Ở lần train baseline, đường cong dao động không xu hướng qua 26 epoch và epoch tốt nhất chỉ là lần bốc may nhất trong 26 lần, cùng bệnh lý với best-of-many-seeds mà nguyên tắc dự án cấm. Pipeline nay lưu thêm xác suất của epoch cuối để W3 đo được chính độ lệch này.
 
 Cơ chế đối phó chung cho cả hai là **chốt luật quyết định trước khi chạy**, đã dùng để đọc E0, E1, E3 và E4. Nó chống việc hợp lý hoá hậu nghiệm, vốn là cách một kết quả nhiễu dễ được đọc thành một kết quả thật nhất.
 
@@ -209,8 +206,8 @@ Cơ chế đối phó chung cho cả hai là **chốt luật quyết định tr�
 | Cache cửa sổ mm cố định | Hoàn thành | 498 khối, Kaggle Dataset v1 | Đã bị E1 thay thế làm mặc định. |
 | Cache cắt bám tổn thương | Hoàn thành | E1 chạy trên nó | Đã bị cache E4 thay thế làm mặc định. |
 | Baseline 3D-patch, 1 fold | Hoàn thành | **0,7001** val fold 1 (E4) | Chưa có CV, chưa phải số báo cáo. |
-| Baseline 2.5D | **Bị cắt** | — | Đúng thứ tự cắt đã định; bằng chứng ngoài ủng hộ. |
-| Fusion Siamese (E2) | **Chưa kết luận** | run bị huỷ vì biến gây nhiễu | Phải chạy lại ở hình học đúng mới đánh giá được. |
+| Baseline 2.5D | **Bị cắt** | — | Cắt có chủ ý, đúng thứ tự đã định trước. Bảng CGHNet cho thấy ResNet3D thắng ResNet2D nên nhánh 3D vẫn là hướng đúng. |
+| Fusion Siamese (E2) | **Chưa kết luận** | lần train bị huỷ vì biến gây nhiễu | Phải chạy lại ở hình học đúng mới đánh giá được. |
 | Ablation hình học (E3) | Hoàn thành, kết quả âm | 0,5566 so với 0,5740 | Bác bỏ giả thuyết tỉ lệ trục. |
 | Căn từng thì (E4) | **Hoàn thành, thắng rõ** | 0,7001; Δ so E1 +0,126 CI [+0,033; +0,230] | **Cấu hình chốt.** Gate căn pha đã qua (trung vị 19,65mm, 0 ca fallback). |
 | Calibration và selective | Xong phần code, số mới 1 fold | ECE, AURC, T của E0, E1, E4 | Cần gộp out-of-fold 394 ca. |
@@ -225,7 +222,7 @@ Cơ chế đối phó chung cho cả hai là **chốt luật quyết định tr�
 2. **Không so trực tiếp được với văn liệu**, vì số văn liệu đo trên test-104.
 3. **Ngay cả khi có kết quả tốt, việc chứng minh vượt SOTA là bất khả thi ở cỡ mẫu này.** Bootstrap ở n=104 cho bề rộng CI ±0,077 tại mức 0,8322 và ±0,061 tại 0,90; hai CI chồng nhau. Định vị của dự án vì thế phải là trustworthiness, không phải leaderboard.
 4. **Overfitting đã nhẹ đi nhiều nhưng chưa hết.** Val loss chạm đáy ở epoch 9–10 ở E0, E1, E3; ở E4 là epoch 100 và gap cuối giảm từ +2,55 xuống +1,50. Nguyên nhân gốc hoá ra là lệch thì ở đầu vào chứ không phải recipe train, nên các hướng chỉnh dropout hay weight decay trước đây đều nhắm sai chỗ.
-5. **Chế độ tất định không cho tái lập tới từng bit**, vì DenseNet 3D không tất định trên CUDA. Seed cố định cho phép lặp lại *thí nghiệm*, không phải lặp lại từng chữ số. Đây là một lý do nữa để mọi số đều kèm CI.
+5. **Chế độ tất định không cho tái lập tới từng bit**, vì DenseNet 3D không tất định trên CUDA. Seed cố định cho phép lặp lại *lần train*, không phải lặp lại từng chữ số. Đây là một lý do nữa để mọi số đều kèm CI.
 
 ## 6. Công việc tiếp theo theo thứ tự ưu tiên
 
