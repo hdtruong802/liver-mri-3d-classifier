@@ -1,5 +1,7 @@
 {
+  // `composite: true` bắt buộc — cùng lý do như `tsconfig.app.json`, xem ghi chú ở đó.
   "compilerOptions": {
+    "composite": true,
     "target": "ES2022",
     "lib": ["ES2023"],
     "module": "ESNext",

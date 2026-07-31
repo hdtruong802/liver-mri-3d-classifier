@@ -1,5 +1,12 @@
 {
+  // `composite` là BẮT BUỘC vì `tsconfig.json` tham chiếu file này qua `references`.
+  // Thiếu nó, `tsc -b` không biết project này sinh ra gì nên nó đoán là `src/App.js`
+  // đặt cạnh mã nguồn; mà `noEmit: true` khiến file đó không bao giờ tồn tại, nên
+  // project VĨNH VIỄN bị coi là out of date và `npm run build` typecheck lại từ đầu
+  // mọi lần. TypeScript 5.9 không báo lỗi chuyện này — nó im lặng xuống thang thành
+  // "luôn build lại", `tsc` vẫn exit 0 nên không có gì lộ ra.
   "compilerOptions": {
+    "composite": true,
     "target": "ES2022",
     "lib": ["ES2022", "DOM", "DOM.Iterable"],
     "module": "ESNext",
