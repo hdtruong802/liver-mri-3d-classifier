@@ -2677,3 +2677,37 @@ Hạng 2 của challenge thắng chính bằng cách sửa registration (UAE).
 **Điểm vào phiên sau:** Đọc số E3 rồi quyết theo bảng ba nhánh. Nếu chạy E4, kiểm cột `max_shift_mm` trong `build_log.csv` **trước** khi train: nó phải khác 0 và có biên độ cỡ S-031, nếu toàn 0 thì phép căn không có hiệu lực.
 
 **Cảnh báo cho tool sau:** E4 **không** phải phép sửa trung tính — nó đổi ngữ nghĩa dữ liệu (mô xung quanh thôi khớp giữa các pha). So E4 với E3 là hợp lệ vì chỉ khác một biến, nhưng đừng mô tả E4 là "cùng dữ liệu, căn tốt hơn".
+
+## S-070 · 2026-07-31 10:40 · claude-code
+
+**Mục tiêu phiên:** Viết `reports/W2_REPORT.md` — tổng hợp toàn bộ tuần 2 theo format của `reports/W1_REPORT.md`.
+
+**Nhánh / commit:** `main` · `f48fb67` → *(commit đang chờ)*
+
+**Đã đụng file:**
+- `reports/W2_REPORT.md` — MỚI. 7 mục + tóm tắt + kết luận cho mentor, bám cấu trúc W1_REPORT.
+- `WORKLOG.md` — entry này.
+
+**Ba lựa chọn phạm vi do người dùng chốt (đã hỏi trước khi viết):**
+1. **E4 để trạng thái "đang chạy"**, không bịa số; người dùng tự bổ sung sau khi có kết quả.
+2. **Chuỗi chẩn đoán sai trình bày đầy đủ thành mục riêng** (§4), không rút gọn.
+3. **Chỉ phần ML.** Không gộp hai deck slide, `docs/industry_landscape.md`, hay phần hạ tầng workflow đa tool (S-001→S-004) — dù chúng cũng thuộc kỳ 24–31/07.
+
+**Quyết định & lý do:**
+- **Kỳ báo cáo ghi 24/07–31/07, không phải 25/07–31/07 như `docs/plan.md` §0.** Sprint 1 khởi động chiều 24/07 ngay sau khi W1_REPORT chốt (S-017 trở đi). Đã ghi rõ một dòng ở đầu file thay vì lặng lẽ đổi mốc.
+- **Mỗi con số phải truy được về một entry WORKLOG.** Không nội suy, không làm tròn có lợi. Hai chỗ tự bắt được khi soát lại và đã sửa: (a) in-plane của E2 là **96 → 48**, tôi viết nhầm thành 112 → 48 (E2 chạy trên cache lesion-tight 96³, con số 112 là của E3); (b) "đội hạng 2 thắng bằng registration" đọc như thể họ vô địch, đổi thành "lấy việc sửa registration làm đóng góp trọng tâm".
+- **Phân tách ba loại số ngay trong văn bản**: số của dự án (val fold 1, 82 bn) · số công bố của người khác (test-104) · số mục tiêu. §4.3 nói thẳng rằng đặt 0,5740 cạnh 0,6083 là **không có cơ sở** vì khác tập đánh giá — đây là đính chính, không phải chú thích.
+- **Không chép nội dung `reports/W2_LLD_MMRI_DATA_AUDIT.md`**, chỉ link (AGENTS.md §2). §2 của báo cáo mới chỉ giữ phần quyết định + bằng chứng số, phần diễn giải thuật ngữ để nguyên ở audit.
+- **Đưa cả kết quả âm và mục DoD không đạt vào bảng**, không giấu: baseline 2.5D bị cắt, E2 huỷ không kết luận được, E3 âm. Báo cáo giấu kết quả âm thì mất luôn giá trị của E0→E1.
+
+**Kết quả / số liệu:** Quality gate PowerShell **PASS** (impeccable detect `reports/` OK, `splits/` không đổi, không lọt file dữ liệu). Không đụng `src/`, `configs/`, `splits/`, `slides/`. Không chạy train.
+
+**Dang dở:**
+- [ ] **E4 đang chạy** — bảng §3.2 có hàng E4 để trống chờ số. Khi có kết quả: điền macro-F1, và kiểm cột `max_shift_mm` trong `build_log.csv` **trước** khi tin (phải khác 0, trung vị > 3mm — nếu toàn 0 thì cache E4 giống hệt E3 và số sẽ trùng 0,5566).
+- [ ] `papers/` (5 PDF) vẫn untracked, chưa có quyết định commit hay ignore.
+
+**Điểm vào phiên sau:** Đọc kết quả E4 theo luật ba nhánh đã chốt ở S-067, điền vào §3.2 của `reports/W2_REPORT.md`, rồi bắt đầu W3 — chạy đủ 5-fold cho cấu hình thắng và dựng bảng CV có CI bootstrap (`src/eval/bootstrap.py` đã sẵn).
+
+**Cảnh báo cho tool sau:**
+- **WORKLOG thiếu hẳn entry S-068 và S-069.** Cả hai được commit `2e23911` và `f48fb67` trỏ tới bằng dòng "Chi tiết: WORKLOG S-0xx" nhưng chưa bao giờ được append. Nội dung của chúng nằm trong commit message: S-068 = đính chính nguồn gốc mask (đây **là** nhãn segmentation official của LLD-MMRI, MedSAM2 human-in-the-loop, do Dr. Jun Ma đóng góp — không phải mask hạng hai); S-069 = kết quả E3 âm (0.5566 so với E1 0.5740) + sai sót so val fold 1 với test-104. Tôi đã lấy hai nội dung đó vào báo cáo W2 nhưng **không viết hộ hai entry** — file này append-only và chúng thuộc phiên khác. Entry này dùng **S-070**, bỏ trống 068/069 để không tái sử dụng mã.
+- Báo cáo W2 là **snapshot ngày 31/07**. Khi E4 hoặc CV 5-fold có số, sửa đúng ô trong bảng — đừng viết lại toàn bộ §3, vì phần luật quyết định và ghi nhận giả thuyết sai ở đó là bản ghi lịch sử.
