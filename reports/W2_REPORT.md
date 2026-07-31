@@ -116,7 +116,7 @@ Một gate chạy trước khi train đã kiểm rằng phép căn thật sự c
 | E4 − E0 | +0,2757 | [+0,145; +0,415] | <0,001 |
 | E1 − E0 | +0,1496 | [+0,007; +0,289] | 0,040 |
 
-E4 − E1 là lần đầu tiên trong cả loạt có một khoảng tin cậy **nằm hẳn về một phía của 0** với biên rộng rãi. Lưu ý E4 khác E1 ở *hai* khoá, hình học và phép căn. Phép so một biến lẽ ra là E4 với E3, vì hai lần train đó cùng hình học 112×112×32 và chỉ khác cách căn; nhưng E3 đã bị dừng ở epoch 145 nên không gánh được vai trò này. Nói cho đúng: **mức tăng +0,126 là chắc chắn, còn việc quy nó cho phép căn thay vì cho hình học thì chưa.** Muốn tách hai biến phải chạy lại E3 đủ 300 epoch.
+E4 − E1 là lần đầu tiên trong cả loạt có một khoảng tin cậy **nằm hẳn về một phía của 0** với biên rộng rãi. Lưu ý E4 khác E1 ở *hai* khoá, hình học và phép căn. Phép so một biến lẽ ra là E4 với E3, vì hai lần train đó cùng hình học 112×112×32 và chỉ khác cách căn; nhưng E3 đã bị dừng ở epoch 145 nên không gánh được vai trò này. Nói cho đúng: **mức tăng +0,126 là chắc chắn, còn việc quy nó cho phép căn thay vì cho hình học thì chưa.** Báo cáo vì thế quy mức tăng cho cả cụm thay đổi, không tách riêng đóng góp của phép căn.
 
 **Ba chỉ báo cơ chế lần này đều trúng**, khác hẳn E1: ở đó can thiệp ăn tiền nhưng ba trong bốn chỉ báo dự đoán trước đều trượt, tức chọn đúng việc mà giải thích sai lý do.
 

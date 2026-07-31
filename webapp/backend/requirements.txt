@@ -1,0 +1,12 @@
+# Lớp SERVE — tách hẳn khỏi requirements.txt ở gốc repo (AGENTS.md §5).
+# Backend không kéo theo torch/monai/MONAI training stack. Khi W5 nạp checkpoint
+# thật thì thêm torch ở đây, không phải import ngược stack train.
+fastapi==0.115.6
+uvicorn[standard]==0.34.0
+pydantic==2.10.4
+python-multipart==0.0.20
+numpy==2.2.1
+nibabel==5.3.2
+# Pillow >= 12.2 là ràng buộc từ môi trường chung (pdfplumber trên máy dev cần mức
+# này). Hạ xuống 11.x sẽ cài được nhưng làm hỏng công cụ khác trong cùng interpreter.
+pillow==12.3.0

@@ -38,7 +38,7 @@ Dự án **research** (Research Use Only, chưa kiểm định lâm sàng): mô 
 - **Quy mô:** 1 người, 6 tuần, compute là **Kaggle** (session ≤ 12h).
 - **Ba loại deliverable:**
   1. Code tiền xử lý / huấn luyện / đánh giá (chạy trên Kaggle).
-  2. **Web app demo tự code full-stack** — FastAPI backend + frontend thuần. **KHÔNG Streamlit, KHÔNG Gradio.**
+  2. **Web app demo tự code full-stack** — FastAPI backend + frontend React. **KHÔNG Streamlit, KHÔNG Gradio.**
   3. **HTML slide + report** trình bày kết quả.
 
 Chi tiết đầy đủ, không lặp lại ở đây:
@@ -63,7 +63,8 @@ Chi tiết đầy đủ, không lặp lại ở đây:
 | `docs/W2_plan.md` | Plan làm việc chi tiết Tuần 2 (task theo ngày) | Mọi tool, ghi WORKLOG |
 | `docs/MULTI_TOOL_WORKFLOW.md` | Giao thức chống xung đột giữa 4 tool, tích hợp Impeccable | Mọi tool |
 | `PRODUCT.md` | Sự thật sản phẩm: người dùng, mục đích, ràng buộc, nguyên tắc, a11y | Mọi tool |
-| `DESIGN.md` | Thế giới thị giác & design system | *(chưa tạo — xuất hiện khi chạy `/impeccable shape`, KHÔNG phải từ `init`)* |
+| `DESIGN.md` | Thế giới thị giác **của slide và report** ("bản khắc atlas"). `slides/overview_v2.html` đang dùng | Mọi tool, ghi WORKLOG |
+| `webapp/DESIGN.md` | Thế giới thị giác **riêng của web app** ("hải đồ đo sâu"). Cố ý khác `DESIGN.md` gốc — xem WORKLOG S-076 | Mọi tool, ghi WORKLOG |
 | `scripts/quality-gate.sh` / `scripts/quality-gate.ps1` | Quality gate chung cho Bash thật / Windows PowerShell | Mọi tool |
 
 **Quy tắc chống trùng lặp:** nếu một thông tin đã có trong Spec Sheet hoặc Plan, AGENTS.md chỉ **link tới**, không chép lại. Nếu bạn (agent) thấy nội dung bị chép ra nhiều chỗ → xoá bản chép, giữ link, ghi vào WORKLOG.
@@ -81,7 +82,7 @@ Vi phạm những điều này = làm hỏng tính hợp lệ khoa học của c
 5. **Mọi con số báo kèm 95% CI** (bootstrap mức bệnh nhân, ≥2000 lần). Không bao giờ báo best-of-many-seeds, không báo điểm trần.
 6. **File split được lưu và commit**, không sinh lại ngẫu nhiên mỗi lần chạy.
 7. **Seed cố định + config YAML** cho mọi hyperparam. Không hardcode số trong code train.
-8. **Web app: FastAPI + frontend tự code.** Ai đề xuất Streamlit/Gradio/bất kỳ framework demo dựng sẵn nào → từ chối.
+8. **Web app phải tự code full-stack.** Ai đề xuất Streamlit/Gradio/bất kỳ framework demo dựng sẵn nào → từ chối; "web app demo tự code" là một trong ba deliverable của dự án (§1), không phải một lựa chọn kỹ thuật. **Thư viện frontend thì được tự do** (React, Vite, Tailwind, v.v.) — ràng buộc "HTML/CSS/JS thuần" đã được gỡ ngày 2026-07-31, xem WORKLOG S-076.
 9. **Không làm segmentation.** Bài toán là classification.
 10. **Không commit dữ liệu bệnh nhân, checkpoint, hay file NIfTI/DICOM.** Xem `.gitignore`.
 
@@ -89,7 +90,7 @@ Vi phạm những điều này = làm hỏng tính hợp lệ khoa học của c
 
 ## 4. Cấu trúc thư mục
 
-> **Trạng thái hiện tại:** repo mới, chưa có code. Phần khung ngữ cảnh/workflow đã có; các thư mục code là **đích đến đã chốt** — tool nào tạo thư mục đầu tiên thì theo đúng cây này, không tự đặt tên khác.
+> Thư mục nào chưa tồn tại thì là **đích đến đã chốt** — tool nào tạo nó đầu tiên thì theo đúng cây này, không tự đặt tên khác.
 
 ```
 liver-mri-3d-classifier/
@@ -97,8 +98,8 @@ liver-mri-3d-classifier/
 ├── CLAUDE.md                    # cầu nối cho Claude Code (@AGENTS.md)
 ├── WORKLOG.md                   # nhật ký bàn giao, append-only
 ├── README.md                    # mô tả public + RUO disclaimer          [chưa có]
-├── PRODUCT.md                   # Impeccable init sinh ra                [chưa có]
-├── DESIGN.md                    # Impeccable init sinh ra — ràng buộc UI [chưa có]
+├── PRODUCT.md                   # sự thật sản phẩm (Impeccable init sinh ra)
+├── DESIGN.md                    # thị giác của SLIDE + REPORT ("bản khắc atlas")
 ├── .gitignore
 ├── .githooks/pre-commit         # quality gate; bật: git config core.hooksPath .githooks
 ├── .cursor/rules/               # cầu nối cho Cursor
@@ -123,8 +124,10 @@ liver-mri-3d-classifier/
 ├── tests/                       # trong đó có test chống leakage
 ├── notebooks/                   # notebook Kaggle (đã strip output)
 ├── webapp/
-│   ├── backend/                 # FastAPI
-│   └── frontend/                # HTML/CSS/JS thuần (+ vendor/ nếu cần lib)
+│   ├── README.md                # cách chạy, biến môi trường, ràng buộc dữ liệu
+│   ├── DESIGN.md                # thị giác của WEB APP ("hải đồ đo sâu")
+│   ├── backend/                 # FastAPI — requirements.txt RIÊNG, không có torch
+│   └── frontend/                # React + Vite + Tailwind + TS (node_modules/, dist/ gitignore)
 ├── slides/                      # HTML slide
 ├── reports/                     # HTML/MD report
 ├── scripts/
@@ -148,7 +151,7 @@ liver-mri-3d-classifier/
 | Xử lý ảnh y tế | SimpleITK (+ Elastix), tuỳ chọn ANTs | N4, resample, rigid registration |
 | Thống kê | numpy / scipy / scikit-learn | bootstrap, DeLong, McNemar, Holm |
 | Backend | **FastAPI** + uvicorn | load model 1 lần lúc startup |
-| Frontend | HTML + CSS + JS thuần | `<canvas>` slice-viewer; Chart.js hoặc SVG thuần |
+| Frontend | **React + Vite + Tailwind + TypeScript** | Thư viện tự do. Slice-viewer đọc PNG do backend render từ NIfTI |
 | Slide / Report | HTML tĩnh | không phụ thuộc build tool nặng |
 | Compute | **Kaggle Notebook** (train) · local (web app, slide) | Kaggle KHÔNG dùng để host API |
 
@@ -208,7 +211,7 @@ So cặp (bootstrap trên hiệu, phân tầng, 2000 lần): **E4 − E1 = +0.12
 
 Ba điều rút ra từ bộ số này:
 
-1. **Căn pha ăn tiền, nhưng chưa tách được khỏi hình học.** E4 − E1 = +0.126 là chắc chắn. Việc quy mức tăng đó cho `align_phases` thay vì cho hình học 112×112×32 thì **chưa chứng minh được**, vì phép so một biến (E4 − E3) dựa trên một run bị cắt ngắn. Giả thuyết "tỉ lệ trục là nút thắt" **chưa bị bác**, chỉ là chưa được ủng hộ. Muốn kết luận thì chạy lại E3 đủ 300 epoch.
+1. **Căn pha ăn tiền, nhưng chưa tách được khỏi hình học.** E4 − E1 = +0.126 là chắc chắn. Việc quy mức tăng đó cho `align_phases` thay vì cho hình học 112×112×32 thì **chưa chứng minh được**, vì phép so một biến (E4 − E3) dựa trên một run bị cắt ngắn. Giả thuyết "tỉ lệ trục là nút thắt" **chưa bị bác**, chỉ là chưa được ủng hộ. **Việc chạy lại E3 để tách hai biến đã bị loại khỏi kế hoạch** (quyết định của người dùng, S-076): nó chỉ ảnh hưởng tới phần quy kết nguyên nhân, không ảnh hưởng tới con số báo cáo được. Từ nay mức tăng +0.126 được quy cho **cả cụm** hình học cộng phép căn, không tách riêng.
 2. **Vấn đề overfitting kinh niên là triệu chứng của lệch pha, không phải của recipe train.** `val_loss` chạm đáy ở **epoch 9** (E1) so với **epoch 100** (E4); khoảng cách train/val cuối +2.55 so với +1.50. Đừng đi chỉnh dropout/weight-decay/augmentation để chữa nó.
 3. **0.7001 không phải một đỉnh may mắn.** 29/50 epoch cuối của E4 đạt ≥ 0.60 (E1: 0/50); trung bình 50 epoch cuối 0.607 so với 0.512.
 
@@ -234,7 +237,11 @@ Ba điều rút ra từ bộ số này:
 | Train baseline 3D-patch (1 fold) | `python -m src.train.run --config configs/baseline_3dpatch.yaml --fold 1` | sẵn sàng (W2 ngày 5); resume tự động từ `last.pt`; cần `LLDMMRI_CACHE_DIR` trỏ tới cache |
 | Đánh giá (CPU, không cần GPU) | `python -m src.eval.run --run-dir artifacts/runs/baseline_3dpatch` | sẵn sàng (W3); đọc `val_probs_*.npz` đã lưu → bảng metric ± CI bootstrap + gộp out-of-fold |
 | Test (chạm 1 lần!) | `python -m src.eval.run --ckpt <path> --split test --i-know-this-is-final` | chưa có |
-| Chạy web app | `uvicorn webapp.backend.main:app --reload` | chưa có |
+| Cài backend web app (một lần / máy) | `pip install -r webapp/backend/requirements.txt` | sẵn sàng; **tách hẳn** khỏi `requirements.txt` train, không kéo torch/monai |
+| Cài frontend web app (một lần / máy) | `cd webapp/frontend && npm install` | sẵn sàng |
+| **Chạy web app** — backend | `python -m uvicorn webapp.backend.main:app --reload` | sẵn sàng; cổng 8000. Đọc ảnh thật từ `LLDMMRI_SAMPLE_DIR` (mặc định `data/sample`) |
+| **Chạy web app** — frontend | `cd webapp/frontend && npm run dev` | sẵn sàng; cổng 5173, proxy `/api` sang 8000. Mở `http://127.0.0.1:5173` |
+| Build frontend | `cd webapp/frontend && npm run build` · `npm run typecheck` | sẵn sàng |
 | Test | `pytest -q` | sẵn sàng (113 test; 8 test cần torch/monai sẽ tự skip nếu chưa cài) |
 | Lint | `ruff check src tests` · `ruff format src tests` | sẵn sàng (W2 ngày 1) |
 | **Kết xuất báo cáo ra PDF** | `python scripts/md2pdf.py reports/W2_REPORT.md` | sẵn sàng; Markdown → HTML → Chrome/Edge headless. Không cần pandoc hay LaTeX. `--keep-html` để soi bản trung gian |
@@ -263,7 +270,7 @@ Code train phải được viết với các ràng buộc này ngay từ đầu,
 - **Randomness đi qua một chỗ duy nhất**: `src/utils/seed.py::set_seed()`. Không rải `random.seed` khắp nơi.
 - **Hàm eval phải thuần** (input → metric), tách hẳn khỏi vòng train, để chạy lại được trên checkpoint cũ.
 - **Docstring** cho hàm khoa học phải ghi rõ *metric này là gì và tại sao dùng* — báo cáo sẽ trích lại.
-- **Frontend:** không kéo framework nặng. Vanilla JS, module ES6, CSS có biến. Chi tiết thẩm mỹ sẽ do `DESIGN.md` quy định (bước 4 của thiết lập).
+- **Frontend:** React + Vite + Tailwind + TypeScript, thư viện tự do. Token thị giác được ép ở `webapp/frontend/tailwind.config.js` chứ không chỉ ghi trong tài liệu — `borderRadius` chỉ có `0`, `boxShadow` chỉ có `none`, bảng màu mặc định của Tailwind bị loại hẳn. Viết `rounded-2xl` sẽ không sinh ra class nào. Chi tiết thẩm mỹ do `webapp/DESIGN.md` quy định.
 - **Comment bằng tiếng Việt là chấp nhận được** (dự án cá nhân), nhưng **tên biến/hàm bằng tiếng Anh**.
 
 ---
@@ -308,11 +315,13 @@ Ba mục dưới đây tồn tại vì mỗi tool có cơ chế riêng. **Nội 
 
 ## 12. Ràng buộc thiết kế — áp cho MỌI deliverable có giao diện
 
-Ba thứ có mặt người dùng — **web app** (`webapp/`), **HTML slide** (`slides/`), **HTML report** (`reports/`) — phải nhìn như một hệ thống.
+Ba thứ có mặt người dùng — **web app** (`webapp/`), **HTML slide** (`slides/`), **HTML report** (`reports/`) — phải khớp nhau về **con số, thuật ngữ và giọng** (`PRODUCT.md` Product Principle 4).
+
+> **Đổi ngày 2026-07-31 (WORKLOG S-076):** ba bề mặt **không còn buộc phải nhìn như một hệ thống**. Web app có thế giới thị giác riêng ở [`webapp/DESIGN.md`](webapp/DESIGN.md) ("hải đồ đo sâu"); `DESIGN.md` ở gốc ("bản khắc atlas") nay chỉ chi phối `slides/` và `reports/`, và `slides/overview_v2.html` đang dùng nó. Cái phải khớp là nội dung, không phải lớp nhìn.
 
 **Bắt buộc, với mọi tool, kể cả tool không có `/impeccable`:**
 
-1. **Đọc [`PRODUCT.md`](PRODUCT.md) trước khi viết dòng UI đầu tiên** — đặc biệt mục *Product Principles*, *Brand Commitments*, *Evidence on Hand*, *Accessibility & Inclusion*. Đây là ràng buộc, không phải gợi ý. Khi [`DESIGN.md`](DESIGN.md) đã tồn tại thì đọc cả nó. *(DESIGN.md xuất hiện lần đầu khi chạy `/impeccable shape`, không phải từ `init` — xem `docs/MULTI_TOOL_WORKFLOW.md` §7.1.)*
+1. **Đọc [`PRODUCT.md`](PRODUCT.md) trước khi viết dòng UI đầu tiên** — đặc biệt mục *Product Principles*, *Brand Commitments*, *Evidence on Hand*, *Accessibility & Inclusion*. Đây là ràng buộc, không phải gợi ý. Rồi đọc file design đúng phạm vi: [`webapp/DESIGN.md`](webapp/DESIGN.md) khi làm web app, [`DESIGN.md`](DESIGN.md) khi làm slide hoặc report.
 2. **Giọng: công cụ y tế nghiêm túc.** Không gradient rực rỡ, không hiệu ứng khoe kỹ thuật, không micro-interaction vui vẻ. Người dùng là bác sĩ chẩn đoán hình ảnh và người review nghiên cứu.
 3. **Số liệu là nhân vật chính.** Xác suất, mức bất định và cờ `defer` phải nổi bật nhất trên màn hình. Không hiệu ứng nào được cạnh tranh với chúng.
 4. **Màu chỉ mang thông tin, không trang trí.** Thông tin **không bao giờ** chỉ mã hoá bằng màu — luôn kèm nhãn chữ hoặc hình dạng (yêu cầu a11y, và bác sĩ mù màu là chuyện có thật).
@@ -325,4 +334,4 @@ Ba thứ có mặt người dùng — **web app** (`webapp/`), **HTML slide** (`
 
 ---
 
-*Cập nhật lần cuối: 2026-07-24 · Mọi thay đổi file này phải kèm một entry trong `WORKLOG.md`.*
+*Cập nhật lần cuối: 2026-07-31 · Mọi thay đổi file này phải kèm một entry trong `WORKLOG.md`.*

@@ -1,0 +1,113 @@
+/* Font tự host qua @fontsource — không CDN, không webfont tải lúc chạy.
+   Ràng buộc: dấu tiếng Việt phải hiển thị đúng kể cả khi ngoại tuyến. */
+@import '@fontsource/archivo/400.css';
+@import '@fontsource/archivo/500.css';
+@import '@fontsource/archivo/600.css';
+@import '@fontsource/archivo/400-italic.css';
+@import '@fontsource/archivo/500-italic.css';
+@import '@fontsource/archivo-narrow/400.css';
+@import '@fontsource/archivo-narrow/600.css';
+@import '@fontsource/archivo-narrow/400-italic.css';
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html {
+    /* Bản đồ đứng yên khi cuộn tới neo; không cuộn mượt vì đó là chuyển động
+       không mang thông tin (webapp/DESIGN.md, mục Motion). */
+    scroll-behavior: auto;
+  }
+
+  body {
+    @apply bg-paper font-sans text-body text-ink antialiased;
+    /* Chữ số bảng ở khắp nơi: sounding trên hải đồ xếp thẳng cột được là vì thế. */
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* Focus nhìn thấy được ở mọi phần tử tương tác. Màu Mực, KHÔNG phải magenta —
+     magenta đã bị `defer` chiếm (The Magenta Rule). */
+  :focus-visible {
+    outline: 2px solid #16202a;
+    outline-offset: 2px;
+  }
+
+  ::selection {
+    background: #b8d4e4;
+    color: #16202a;
+  }
+}
+
+@layer components {
+  /* Khung hải đồ: hai đường kẻ lồng nhau. Phẳng tuyệt đối, không đổ bóng. */
+  .plate {
+    @apply relative border-hair border-rule bg-paper;
+  }
+  .plate::before {
+    content: '';
+    position: absolute;
+    inset: 4px;
+    border: 1px solid #c3cbd1;
+    pointer-events: none;
+  }
+
+  /* Vùng chưa khảo sát: gạch chéo 45°. Ngôn ngữ dành riêng cho "chưa có dữ liệu";
+     không bao giờ dùng để trang trí. */
+  .unsurveyed {
+    background-image: repeating-linear-gradient(
+      45deg,
+      transparent,
+      transparent 5px,
+      #c3cbd1 5px,
+      #c3cbd1 6px
+    );
+  }
+
+  /* Overprint cảnh báo: lớp magenta thưa, đúng cách hải đồ in đè thông tin advisory. */
+  .overprint-caution {
+    background-image: repeating-linear-gradient(
+      -45deg,
+      transparent,
+      transparent 7px,
+      rgba(192, 36, 126, 0.14) 7px,
+      rgba(192, 36, 126, 0.14) 9px
+    );
+  }
+
+  /* Số giả lập. Chữ nghiêng là tuyến tín hiệu THỨ HAI sau nhãn chữ, và nó sống sót
+     qua bản in đen trắng. Trên hải đồ, chữ nghiêng nghĩa là "chìm hoặc ngập nước" —
+     tức chỉ đôi khi mới thấy. */
+  .provisional {
+    font-style: italic;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+@media print {
+  body {
+    background: #fff;
+  }
+  /* Bản in đen trắng phải đọc được `defer`: magenta chuyển sang đen cộng gạch chéo. */
+  .overprint-caution {
+    background-image: repeating-linear-gradient(
+      -45deg,
+      transparent,
+      transparent 6px,
+      #16202a 6px,
+      #16202a 7px
+    );
+  }
+  .no-print {
+    display: none !important;
+  }
+}

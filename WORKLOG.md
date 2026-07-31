@@ -2904,3 +2904,53 @@ F1 từng lớp, E4 so E1: u máu +0,27 · nang +0,26 · áp-xe +0,25 · di căn
 - **PDF không tự cập nhật theo Markdown.** Sửa `reports/W2_REPORT.md` xong phải chạy lại `python scripts/md2pdf.py reports/W2_REPORT.md`, nếu không bản PDF trong repo sẽ lệch với bản nguồn mà không có gì báo.
 - **Số trang phụ thuộc độ dài nội dung.** Nếu báo cáo dài thêm, kiểm lại xem trang cuối có bị hụt còn mỗi khối RUO không; chỉnh `font-size` hoặc `line-height` trong `CSS` của script là đủ.
 - Người dùng đã tự rút gọn thêm nhiều chỗ trong `reports/W2_REPORT.md` ở phiên này (bỏ hẳn mục Bài học phương pháp, cắt phần diễn giải ở bảng kết quả, sửa tiêu đề). **Đọc `git diff` trước khi viết đè.**
+## S-076 · 2026-07-31 23:40 · claude-code
+
+**Mục tiêu phiên:** Dựng web app demo full-stack, tham khảo bản bolt.new của người dùng, kết hợp `/impeccable`.
+
+**Nhánh / commit:** `main` · `7f19d8a` → *(commit đang chờ)*
+
+**Đã đụng file:**
+- `webapp/` — **mới**: `DESIGN.md`, `README.md`, `backend/` (7 module + requirements riêng), `frontend/` (React + Vite + Tailwind + TS).
+- `tests/test_webapp_{phases,api,volumes}.py` — **mới**, 52 test.
+- `AGENTS.md` §1, §2, §3.8, §4, §5, §6, §8, §12 — gỡ hai ràng buộc, thêm bảng lệnh web app.
+- `PRODUCT.md` — Capabilities và Brand Commitment 3.
+- `reports/W2_REPORT.md`, `AGENTS.md` §5 — bỏ mục chạy lại E3 khỏi kế hoạch (yêu cầu người dùng).
+- `WORKLOG.md` — entry này.
+
+**Quyết định & lý do:**
+
+- **GỠ RÀNG BUỘC 1: frontend không còn buộc phải là HTML/CSS/JS thuần.** Người dùng quyết. Đáng ghi là việc này **gỡ một mâu thuẫn nội bộ** chứ không lật quyết định: `docs/liver_mri_3d_classification_plan.md` §8 vốn đã ghi "React tuỳ chọn", chính `AGENTS.md` §5 và §8 mới siết chặt hơn. Nay dùng React + Vite + Tailwind + TypeScript. **Lệnh cấm Streamlit/Gradio giữ nguyên** — "web app tự code full-stack" là một trong ba deliverable của dự án, không phải lựa chọn kỹ thuật.
+
+- **GỠ RÀNG BUỘC 2: web app không dùng hệ thị giác "bản khắc atlas".** Người dùng quyết, cho tự do sáng tạo. **Không ghi đè `DESIGN.md` gốc** vì `slides/overview_v2.html` (55KB) đang dựng bằng token của nó — ghi đè là làm bộ slide mất hệ thống. Thay vào đó web app có `webapp/DESIGN.md` riêng. `AGENTS.md` §12 sửa theo: ba bề mặt nay chỉ buộc khớp **con số, thuật ngữ, giọng**, không buộc khớp lớp nhìn.
+
+- **Thế giới thị giác mới: "hải đồ đo sâu"** (`/impeccable shape`, seed `9b1535ee`, ứng viên 4/7 trong danh sách grounded, staging "wound medium"). Lý do không phải liên tưởng hàng hải: hải đồ là hệ thông tin đã có sẵn **sơ đồ Zone of Confidence** (vùng này khảo sát kỹ tới đâu) và **quy ước vẽ vùng chưa khảo sát bằng gạch chéo** — tức calibration cộng selective prediction dưới dạng một quy ước in ấn có thật. Hệ trích nguồn mọc ra từ ngữ pháp của thế giới chứ không bị dán vào. Sáu challenger đều bị loại; ba trong số đó loại vì **lý do sự kiện**: bitmap Emigre phá dấu tiếng Việt ở cỡ nhỏ, one-bit dither không dựng nổi ảnh MRI thang xám, six-pack buồng lái quay đúng về nền đen phát sáng tức cái rut vừa loại.
+
+- **`provenance` là cơ chế trung thực, đặt ở BACKEND không phải frontend.** Mọi phản hồi mang `source ∈ {simulated, oof, live}`. Đặt sự thật ở backend nghĩa là frontend **không thể vô tình** trình bày số giả như số thật. Hai tín hiệu độc lập ở UI: nhãn chữ, và chữ nghiêng (luật hải đồ: chữ nghiêng = chìm/ngập nước = chỉ đôi khi mới thấy). Màu không nằm trong hai tín hiệu đó.
+
+- **Ảnh MRI là ảnh THẬT**, đọc từ `data/sample/` bằng nibabel, render PNG bằng Pillow. Bỏ hẳn `sliceRenderer.ts` của bản bolt (308 dòng sinh ảnh bụng giả bằng thuật toán). Ghép ảnh thật với số giả làm số giả *đáng tin hơn*, nên cơ chế đánh dấu càng quan trọng, không phải bớt.
+
+- **Bốn lỗi sự thật của bản bolt đã sửa:** 6 lớp kèm lớp "Healthy" thiếu ICC và áp-xe → 7 lớp từ `src/data/taxonomy.py`; thì ADC và HBP → In Phase và Out Phase; epistemic/aleatoric uncertainty → `entropy` và `ensemble_std` (hai thứ pipeline thật sự tính được); "Nguy cơ ác tính cao — cần sinh thiết" và mục "Khuyến nghị lâm sàng" → bỏ hẳn, vi phạm RUO.
+
+- **Ràng buộc thị giác ép ở mức CẤU HÌNH.** `tailwind.config.js` chỉ khai `borderRadius: 0` và `boxShadow: none`, và **bỏ hẳn bảng màu mặc định của Tailwind**. Viết `rounded-2xl` hay `shadow-xl` không sinh ra class nào. Bài học từ bản bolt: ràng buộc chỉ nằm trong tài liệu thì trôi.
+
+- **Không chạy lại E3** (người dùng quyết). Bỏ mục đó khỏi `AGENTS.md` §5 và `reports/W2_REPORT.md`; **giữ nguyên cảnh báo khoa học** rằng E3 không dùng làm đối chứng được. Mức tăng +0,126 từ nay quy cho **cả cụm** hình học cộng phép căn, không tách riêng.
+
+**Kết quả / số liệu:** 165 test pass (52 test webapp mới, 12 skip là torch/monai có sẵn). `ruff check` và `ruff format` sạch. `npm run typecheck` và `npm run build` sạch. `impeccable detect webapp/frontend` → `[]`. Quality gate **PASS**. Chạy thật end-to-end: 8 volume đọc được, PNG lát 99KB, `defer=true` trên ca demo. **Kiểm tương phản bằng số phát hiện 2 cặp trượt WCAG AA** — `ink-tertiary` `#75838F` chỉ đạt 3,59:1 trên giấy và 2,74:1 trên nền buff, ở đúng cỡ chữ nhỏ nhất; đã ép xuống `#525C66` (6,29:1 và 4,81:1). Sửa thêm: ARIA `tablist` thiếu `tabpanel` → `role="group"` với `aria-pressed`; `cursor` đọc từ ref lúc render nên không bao giờ đổi.
+
+**Dang dở:**
+- [ ] **CV 5-fold vẫn chưa chạy** — vẫn là việc kế tiếp, không đổi từ S-072.
+- [ ] Chưa xem app bằng mắt trên trình duyệt: phiên này không có công cụ chụp màn hình. Đã kiểm bằng số (tương phản, build, API end-to-end) chứ chưa kiểm bằng nhìn.
+- [ ] `/impeccable critique` và `audit` chưa chạy; đã thay bằng một pass review trong luồng.
+- [ ] External và Duke OOD chưa bắt đầu.
+- [ ] Nạp checkpoint thật, Grad-CAM, và 3–5 ca demo từ prediction out-of-fold: thuộc W5.
+
+**Điểm vào phiên sau:** Chạy `notebooks/07_e4_cv_folds.ipynb` trên Kaggle với `FOLDS = [2, 3]`. Web app không chặn việc đó và không phụ thuộc nó.
+
+**Cảnh báo cho tool sau:**
+- **`webapp/DESIGN.md` và `DESIGN.md` gốc là HAI hệ khác nhau, cố ý.** Web app dùng file trong `webapp/`; slide và report dùng file ở gốc. Đừng "thống nhất" chúng lại.
+- **Ba luật dễ phá nhất ở web app:** magenta chỉ dành cho `defer`; chữ nghiêng nghĩa là số giả lập và gạch chéo nghĩa là chưa có dữ liệu (cả hai đã có nghĩa, không dùng để trang trí); bo góc 0 và không đổ bóng.
+- **Đừng bao giờ sinh ảnh MRI giả.** Bản bolt có một module làm việc đó. Chưa có dữ liệu thì hiện vùng gạch chéo, không hiện ảnh bịa.
+- **Kiểm tương phản bằng SỐ, đừng tin mắt.** Hai giá trị trượt AA trong phiên này đều trông ổn trên màn hình.
+- **`pip install -r webapp/backend/requirements.txt` từng hạ Pillow toàn cục xuống 11.1.0 và làm hỏng `pdfplumber` đang cài sẵn.** Đã pin lại `pillow==12.3.0`. Interpreter này dùng chung giữa các dự án, nên pin nào cũng phải kiểm bằng `pip check`.
+- Người dùng đã **chuyển PDF báo cáo sang `output/pdf/`**, và `output/` nằm trong `.gitignore`. `scripts/md2pdf.py` vẫn ghi ra cạnh file Markdown, nên chạy nó sẽ lại đẻ PDF vào `reports/`. Chưa sửa vì chưa được yêu cầu.

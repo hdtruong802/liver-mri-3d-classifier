@@ -52,7 +52,7 @@ Hệ quả trực tiếp lên sản phẩm: **mức bất định là nội dung
 **Contract demo dự kiến, chưa triển khai:** V1 chỉ nhận đúng 8 file `.nii` cho C-pre, C+A, C+V, C+Delay, T2WI, DWI, In Phase và Out Phase. DICOM series (ZIP) là mở rộng sau, không thuộc V1.
 
 **Ràng buộc kỹ thuật đã khoá:**
-- Backend FastAPI, frontend tự code. **Không Streamlit, không Gradio, không framework demo dựng sẵn.**
+- Backend FastAPI, web app **tự code full-stack**. **Không Streamlit, không Gradio, không framework demo dựng sẵn** — app tự code là bản thân deliverable, không phải lựa chọn kỹ thuật. Thư viện frontend thì tự do (hiện dùng React + Vite + Tailwind); ràng buộc "frontend HTML/CSS/JS thuần" đã gỡ ngày 2026-07-31, xem WORKLOG S-076.
 - Không làm segmentation.
 - Ngưỡng và temperature khoá trên validation, áp mù lên test. Tập test 104 ca chạm **đúng một lần**.
 - Mọi con số báo kèm 95% CI.
@@ -70,9 +70,9 @@ Không có thương hiệu, logo, hay identity có sẵn. Ba cam kết bắt bu�
 
 1. **Cảnh báo Research Use Only phải xuất hiện trên mọi bề mặt có kết quả**, ở vị trí không thể bỏ sót. Không màn hình nào được ngụ ý công cụ đã kiểm định lâm sàng.
 2. **Ngôn ngữ hiển thị là tiếng Việt** cho cả web app, slide và report. Thuật ngữ y khoa và thống kê giữ nguyên tiếng Anh (xem mục trên).
-3. **Thế giới thị giác là bản khắc atlas giải phẫu.** Người dùng đã dựng thử cả hai rồi chốt hướng này (2026-07-24), sau khi so trực tiếp với chuẩn talk MICCAI/MIDL. Lựa chọn không thuần thẩm mỹ: bản khắc atlas có sẵn thiết bị **chú số và chú giải**, đúng thứ dự án cần để mọi số liệu truy được về nguồn công bố. Hệ thống đầy đủ ở [`DESIGN.md`](DESIGN.md).
+3. **Hai thế giới thị giác, theo phạm vi.** Slide và report dùng **bản khắc atlas giải phẫu** ([`DESIGN.md`](DESIGN.md)) — chốt 2026-07-24 sau khi so trực tiếp với chuẩn talk MICCAI/MIDL; thiết bị **chú số và chú giải** của nó đúng thứ cần để mọi số liệu truy được về nguồn công bố. Web app dùng **hải đồ đo sâu** ([`webapp/DESIGN.md`](webapp/DESIGN.md)) — chốt 2026-07-31; hải đồ đã có sẵn sơ đồ *Zone of Confidence* và quy ước vẽ vùng chưa khảo sát, tức là calibration cộng selective prediction dưới dạng một quy ước in ấn có thật.
 
-   *Ghi lại để không phải tranh luận lại:* chuẩn talk MICCAI đã được cân nhắc nghiêm túc, dựng thành bản chạy được, và **bị loại**. Đừng đề xuất quay về nó như thể đó là lựa chọn an toàn chưa ai nghĩ tới.
+   *Ghi lại để không phải tranh luận lại:* chuẩn talk MICCAI đã được cân nhắc nghiêm túc, dựng thành bản chạy được, và **bị loại**. Đừng đề xuất quay về nó như thể đó là lựa chọn an toàn chưa ai nghĩ tới. Dashboard PACS nền đen với gauge phát sáng cũng đã được dựng (bản bolt.new) và **bị loại** — đó là mặc định của thể loại, không phải một lựa chọn.
 
 ## Evidence on Hand
 
