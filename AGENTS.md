@@ -237,6 +237,7 @@ Ba điều rút ra từ bộ số này:
 | Chạy web app | `uvicorn webapp.backend.main:app --reload` | chưa có |
 | Test | `pytest -q` | sẵn sàng (113 test; 8 test cần torch/monai sẽ tự skip nếu chưa cài) |
 | Lint | `ruff check src tests` · `ruff format src tests` | sẵn sàng (W2 ngày 1) |
+| **Kết xuất báo cáo ra PDF** | `python scripts/md2pdf.py reports/W2_REPORT.md` | sẵn sàng; Markdown → HTML → Chrome/Edge headless. Không cần pandoc hay LaTeX. `--keep-html` để soi bản trung gian |
 
 ---
 

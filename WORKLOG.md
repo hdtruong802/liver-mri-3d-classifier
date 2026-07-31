@@ -2872,3 +2872,35 @@ F1 từng lớp, E4 so E1: u máu +0,27 · nang +0,26 · áp-xe +0,25 · di căn
 - **Đừng dùng E3 làm đối chứng cho bất cứ điều gì** cho tới khi nó được chạy đủ 300 epoch. Con số 0.5566 chỉ nói "sau 145 epoch thì cấu hình này đang ở đây", không nói gì về trần của nó. `AGENTS.md` §5 đã ghi cảnh báo này ngay trên bảng.
 - **Bài học chung: kiểm số epoch trước khi so hai run.** Ba phiên liên tiếp đã so E3 với E1 như hai run cùng điều kiện mà không ai kiểm cột epoch. Cột "Epoch tốt nhất" nay đã được thêm vào bảng trong `AGENTS.md` §5 để lần sau nhìn là thấy.
 - Người dùng vẫn sửa tay trực tiếp trên `reports/W2_REPORT.md` giữa các phiên; phiên này họ đã tự xoá mục 2.5D khỏi bảng Definition of Done. **Đọc `git diff` trước khi viết đè.**
+## S-075 · 2026-07-31 21:30 · claude-code
+
+**Mục tiêu phiên:** Rút gọn tiếp báo cáo W2 theo yêu cầu, rồi kết xuất nó ra PDF.
+
+**Nhánh / commit:** `main` · `a9dfa85` → *(commit đang chờ)*
+
+**Đã đụng file:**
+- `scripts/md2pdf.py` — **mới**, kết xuất Markdown ra PDF.
+- `reports/W2_REPORT.pdf` — **mới**, bản kết xuất của báo cáo W2.
+- `AGENTS.md` §6 — thêm dòng lệnh cho script mới.
+- `WORKLOG.md` — entry này.
+
+**Quyết định & lý do:**
+
+- **Đường đi Markdown → HTML → Chrome headless, không dùng pandoc hay LaTeX.** Máy này không có pandoc, wkhtmltopdf hay weasyprint, nhưng có sẵn `markdown` của Python và cả Chrome lẫn Edge. Chrome dựng bảng markdown và dấu tiếng Việt đúng hơn hẳn các thư viện PDF thuần Python như reportlab. Không phải cài thêm gì.
+- **Không nhúng font ngoài.** Chỉ dùng Cambria cho phần chữ chạy và Segoe UI cho tiêu đề và bảng — cả hai có sẵn trên Windows và phủ đủ dấu tiếng Việt. Bản PDF vì thế mở được ở máy khác mà không lệch chữ.
+- **File HTML trung gian ghi vào thư mục tạm của hệ điều hành, không vào `reports/`.** `reports/` là thư mục deliverable và quality gate chạy Impeccable detect trên nó; một file HTML tạm nằm ở đó vừa bẩn vừa có thể làm gate hiểu nhầm.
+- **Chốt kiểu chữ ở 10pt / line-height 1,42 / lề 18mm sau khi thử bốn mức.** Ở mức mặc định 10,5pt báo cáo tràn sang trang thứ 8 chỉ để chứa mỗi khối RUO, nhìn như lỗi in. Mức đã chốt cho **7 trang** và trang cuối chứa trọn phần kết luận.
+- **Commit cả file PDF.** Nó là deliverable để gửi đi, không phải sản phẩm trung gian của quá trình train. Đánh đổi: mỗi lần sửa báo cáo rồi kết xuất lại là thêm một bản nhị phân 300 KiB vào lịch sử. Nếu về sau thấy phiền thì thêm `reports/*.pdf` vào `.gitignore`, script vẫn dựng lại được bất cứ lúc nào.
+
+**Kết quả / số liệu:** PDF **7 trang A4**, 300 KiB. Kiểm bằng cách rút chữ ngược từ PDF: **không thiếu một con số nào** có trong Markdown, **đủ cả 16 tiêu đề**, **0 khối tràn lề**, dấu tiếng Việt và các ký hiệu `κ Δ ± → − · ≥` đều hiện đúng. Quality gate PASS.
+
+**Dang dở:**
+- [ ] CV 5-fold vẫn chưa chạy — vẫn là việc kế tiếp.
+- [ ] External và Duke OOD chưa bắt đầu.
+
+**Điểm vào phiên sau:** Không có việc treo ở khâu tài liệu. Bước kế tiếp vẫn là chạy notebook CV 5-fold trên Kaggle với `FOLDS = [2, 3]`.
+
+**Cảnh báo cho tool sau:**
+- **PDF không tự cập nhật theo Markdown.** Sửa `reports/W2_REPORT.md` xong phải chạy lại `python scripts/md2pdf.py reports/W2_REPORT.md`, nếu không bản PDF trong repo sẽ lệch với bản nguồn mà không có gì báo.
+- **Số trang phụ thuộc độ dài nội dung.** Nếu báo cáo dài thêm, kiểm lại xem trang cuối có bị hụt còn mỗi khối RUO không; chỉnh `font-size` hoặc `line-height` trong `CSS` của script là đủ.
+- Người dùng đã tự rút gọn thêm nhiều chỗ trong `reports/W2_REPORT.md` ở phiên này (bỏ hẳn mục Bài học phương pháp, cắt phần diễn giải ở bảng kết quả, sửa tiêu đề). **Đọc `git diff` trước khi viết đè.**
