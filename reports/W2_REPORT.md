@@ -95,18 +95,6 @@ Recipe được áp nguyên khối, mỗi dòng cấu hình kèm trích nguồn,
 
 > **Mọi số trong bảng là val fold 1, 82 bệnh nhân, 1 seed.** Không phải kết quả báo cáo được: chưa có CV 5-fold, và ở n=82 bề rộng CI vào khoảng ±0,10. Chúng dùng để sàng lọc giữa các phương án, không để công bố.
 
-**E1 so với E0, can thiệp đầu tiên ăn tiền.** Hai lần train dùng đúng cùng một cấu hình, cùng seed, cùng 82 bệnh nhân val; khác biệt duy nhất là cách cắt dữ liệu. Bootstrap ghép cặp trên cùng tập bệnh nhân: chênh lệch **+0,1496**, 95% CI **[−0,005; +0,295]**, P(E1 > E0) = 0,973.
-
-Luật quyết định đã chốt trước khi chạy: E0 rơi vào dải 0,35–0,50 nên recipe giải thích phần lớn khoảng cách và pipeline được coi là lành; E1 − E0 vượt xa ngưỡng +0,05 nên cắt bám tổn thương thành mặc định. Cả hai phán quyết được đọc theo luật đó, không diễn giải hậu nghiệm.
-
-Đáng chú ý: **giả thuyết cơ chế thì sai dù can thiệp đúng.** Dự đoán trước khi chạy là cắt sát sẽ ăn tiền nhờ giảm overfitting, kèm 4 chỉ báo cụ thể. Ba trong bốn chỉ báo trượt: val loss vẫn chạm đáy ở epoch 9 và gap train/val cuối vẫn +2,5. Cơ chế thật là cắt sát làm tín hiệu phân biệt mạnh hơn, chứ không làm model bớt học thuộc. Hai chuyện độc lập.
-
-**E2 bị huỷ vì một biến gây nhiễu đã được cảnh báo trước.** Siamese chạy backbone 8 lượt nên chi phí gấp khoảng 8 lần; để lọt ngân sách phải hạ in-plane từ 96 xuống 48, trong khi mọi phương pháp công bố dùng 112–128. E2 vì thế là *Siamese ở in-plane 48* so với *early concat ở in-plane đủ*, không phải phép thử kiến trúc sạch. Luật ghi trước khi chạy là E2 thắng thì kết luận mạnh, E2 thua thì không kết luận được. E2 thua, nên hướng Siamese vẫn chưa từng được thử công bằng.
-
-**E3 bị dừng sớm, nên chưa kết luận được.** Giả thuyết: tỉ lệ trục của ta lệch văn liệu (Z=48 so với 14–16, in-plane 96 so với 112–128) và đó là nút thắt. E3 đổi hình học sang 112×112×32, giữ nguyên mọi thứ khác. Khoảng 150 epoch đầu không cho thấy dấu hiệu khá hơn E1, nên lần train bị chủ động dừng ở epoch 145 với macro-F1 0,5566, thay vì chạy hết 300 epoch như E0, E1 và E4.
-
-Quyết định dừng tiết kiệm được vài giờ GPU nhưng làm E3 mất tư cách đối chứng: **cả ba lần train chạy hết đều đạt đỉnh sau epoch 145**, lần lượt ở epoch 162, 200 và 231. E3 bị cắt trước cả vùng mà chúng mới bộc lộ kết quả tốt nhất, nên 0,5566 là một cận dưới chứ không phải trần của cấu hình đó. Giả thuyết tỉ lệ trục vì thế **chưa bị bác bỏ, chỉ là chưa được ủng hộ**.
-
 ### 3.3. E4: giả thuyết đã được xác nhận
 
 Con số 23,3mm đo ở phần nền dữ liệu chưa từng được nối với chất lượng model. Nối vào thì nó lớn hơn hình dung:
@@ -132,7 +120,7 @@ Một gate chạy trước khi train đã kiểm rằng phép căn thật sự c
 
 E4 − E1 là lần đầu tiên trong cả loạt có một khoảng tin cậy **nằm hẳn về một phía của 0** với biên rộng rãi. Lưu ý E4 khác E1 ở *hai* khoá, hình học và phép căn. Phép so một biến lẽ ra là E4 với E3, vì hai lần train đó cùng hình học 112×112×32 và chỉ khác cách căn; nhưng E3 đã bị dừng ở epoch 145 nên không gánh được vai trò này. Nói cho đúng: **mức tăng +0,126 là chắc chắn, còn việc quy nó cho phép căn thay vì cho hình học thì chưa.** Muốn tách hai biến phải chạy lại E3 đủ 300 epoch.
 
-**Ba chỉ báo cơ chế lần này đều trúng**, khác hẳn E1 nơi can thiệp đúng nhưng cơ chế giải thích sai:
+**Ba chỉ báo cơ chế lần này đều trúng**, khác hẳn E1: ở đó can thiệp ăn tiền nhưng ba trong bốn chỉ báo dự đoán trước đều trượt, tức chọn đúng việc mà giải thích sai lý do.
 
 | | E1 | E4 |
 |---|---|---|
@@ -163,17 +151,18 @@ F1 tăng ở 5/7 lớp, mạnh nhất ở đúng những lớp trước đây y�
 
 ## 4. Bài học phương pháp
 
-### 4.1. Bốn chẩn đoán sai, và nguyên nhân chung của cả bốn
+### 4.1. Bốn chẩn đoán sai, và nguyên nhân chung
 
 | # | Giả thuyết | Cách bác bỏ | Chi phí |
 |---|---|---|---|
-| 1 | "BatchNorm với batch 2 làm val loss phân kỳ" | Đổi sang InstanceNorm, macro-F1 đứng yên 0,0668 qua 4 epoch | 1 lần train |
+| 1 | "BatchNorm với batch 2 làm val loss phân kỳ" | Đổi sang InstanceNorm, macro-F1 đứng yên 0,0668 | 1 lần train |
 | 2 | "InstanceNorm sập vì global average pooling xoá mất tín hiệu" | Phép thử overfit 8 mẫu, InstanceNorm vẫn đạt accuracy 1,00 | 1 lần train |
-| 3 | "Model thiếu bước cập nhật, chỉ khoảng 20 bước mỗi epoch" | Gấp 4 lần số bước, 0,2647 so với 0,2725, chênh nằm trong nhiễu | 1 lần train |
+| 3 | "Model thiếu bước cập nhật, chỉ khoảng 20 bước mỗi epoch" | Gấp 4 lần số bước, 0,2647 so với 0,2725, chênh trong nhiễu | 1 lần train |
+| 4 | "2D thắng 3D" | Đọc nhầm một bảng của CGHNet; bản gốc cho kết quả ngược | rút đề xuất |
 
-Cả ba đều là suy luận từ đường cong, và cả ba đều tốn một lần train để bác bỏ. Hai lỗi cụ thể đáng ghi: **bê lập luận từ bài toán segmentation sang classification**, và **chẩn đoán từ 4 epoch khi mỗi epoch chỉ có 20 bước cập nhật**.
+Cả bốn đều là suy đoán khi chưa đủ dữ kiện, và ba cái đầu mỗi cái tốn một lần train mới bác bỏ được.
 
-Nguyên nhân chung là debug mà không biết ngưỡng đạt được là bao nhiêu, trong khi leaderboard chính thức đã có sẵn từ đầu tuần và không được tra:
+Nguyên nhân chung chỉ có một: **debug mà không biết mức nào mới là đạt.** Hai mốc đối chiếu dưới đây đã nằm sẵn trong tài liệu dự án từ đầu tuần nhưng không được tra.
 
 | | macro-F1 (test-104) | κ |
 |---|---|---|
@@ -181,23 +170,24 @@ Nguyên nhân chung là debug mà không biết ngưỡng đạt được là ba
 | **Baseline chính thức** (UniFormer-S 3D, from scratch) | **0,6083** | 0,5414 |
 | Hạng 20–24 | 0,5047 – 0,6076 | |
 
-Muộn hơn, một nguồn còn hữu ích hơn xuất hiện: bảng so sánh cùng protocol của CGHNet (Comput Med Imaging Graph 132, 2026), mọi hàng dùng đúng một cách tiền xử lý và đều báo trên test-104:
+Bảng của CGHNet (Comput Med Imaging Graph 132, 2026) còn giá trị hơn, vì mọi hàng dùng chung một protocol và đều báo trên test-104:
 
 | ViT3D | ResNet2D | ConvNeXt2D | ResNet3D | Swin3D | Uniformer | SDR-Former | RadioFormer | CGHNet |
 |---|---|---|---|---|---|---|---|---|
 | 0,645 | 0,684 | 0,696 | **0,709** | 0,709 | 0,719 | 0,791 | 0,806 | **0,818** |
 
-Con số đắt nhất trong bảng: **một ResNet3D trần đạt 0,709**, vượt baseline chính thức 0,10 điểm, chỉ nhờ hình học đầu vào 16×128×128 rồi crop còn 14×112×112. Đây là bằng chứng mạnh nhất cho hướng "dữ liệu quan trọng hơn kiến trúc" mà E0 và E1 đã xác nhận bằng thực nghiệm. Bảng ablation huấn luyện của họ cũng cho ba đòn bẩy: Focal Loss 81,8 so với CE 79,9; **bỏ random crop mất 8,8 điểm**, là biến augmentation nặng nhất; và lr 1e-4 tốt hơn cả 1e-3 lẫn 1e-5.
+Ba điều rút ra:
 
-Chẩn đoán sai thứ tư nằm ở khâu đọc tài liệu: một bảng ablation nội bộ của CGHNet bị đọc nhầm thành phép thử 2D so với 3D, dẫn tới đề xuất nâng nhánh 2.5D lên ứng viên chính; đọc lại bản gốc thì phép thử sạch cho kết quả ngược và đề xuất đã bị rút lại. Luật rút ra và đã ghi vào tài liệu dự án: **ai định debug chất lượng model đều phải đối chiếu mốc ngoài trước.**
+- **Một ResNet3D trần đạt 0,709**, vượt baseline chính thức 0,10 điểm chỉ nhờ hình học đầu vào. Đúng điều E0 và E1 đã cho thấy: dữ liệu quan trọng hơn kiến trúc.
+- Ba đòn bẩy huấn luyện đáng thử: Focal Loss hơn CrossEntropy 1,9 điểm, bỏ random crop mất 8,8 điểm, lr 1e-4 tốt hơn cả 1e-3 lẫn 1e-5.
+- **Luật đã ghi vào tài liệu dự án: đối chiếu mốc ngoài trước, rồi mới debug chất lượng model.**
 
-### 4.2. Giới hạn của phép so sánh, và thiên lệch chọn epoch
+### 4.2. Hai giới hạn của cách đọc số
 
-Suốt E0 đến E3, số của dự án là **val fold 1 (82 bệnh nhân)** trong khi số văn liệu là **test-104**. Hai tập khác nhau. Các so sánh nội bộ vẫn sạch vì cùng tập, cùng seed, cùng cấu hình; nhưng mọi câu dạng "E1 còn cách baseline chính thức 0,034" là **không có cơ sở vững**, và 0,5740 không được đặt cạnh 0,6083 như thể chúng cùng thang đo.
+- **Số của dự án và số của văn liệu không cùng thang đo.** Ta đo trên val fold 1 với 82 bệnh nhân, văn liệu đo trên test-104. So các lần train của ta với nhau thì hợp lệ, nhưng không được viết "E1 còn cách baseline chính thức 0,034".
+- **Chọn epoch tốt nhất trên tập val nhỏ là chọn nhiễu.** Ở lần train baseline, macro-F1 dao động không xu hướng suốt 26 epoch, nên epoch "tốt nhất" chỉ là lần bốc may nhất trong 26 lần. Pipeline nay lưu thêm xác suất của epoch cuối để W3 đo được độ lệch này.
 
-Một thiên lệch thứ hai: chọn epoch tốt nhất theo macro-F1 trên 82 ca val là chọn nhiễu. Ở lần train baseline, đường cong dao động không xu hướng qua 26 epoch và epoch tốt nhất chỉ là lần bốc may nhất trong 26 lần, cùng bệnh lý với best-of-many-seeds mà nguyên tắc dự án cấm. Pipeline nay lưu thêm xác suất của epoch cuối để W3 đo được chính độ lệch này.
-
-Cơ chế đối phó chung cho cả hai là **chốt luật quyết định trước khi chạy**, đã dùng để đọc E0, E1 và E4. Nó chống việc hợp lý hoá hậu nghiệm, vốn là cách một kết quả nhiễu dễ được đọc thành một kết quả thật nhất.
+Cách đối phó cho cả hai là **chốt luật quyết định trước khi chạy**, đã dùng cho E0, E1 và E4. Nó chặn việc đọc một kết quả nhiễu thành một kết quả thật.
 
 ## 5. Trạng thái và giới hạn
 
@@ -208,7 +198,6 @@ Cơ chế đối phó chung cho cả hai là **chốt luật quyết định tr�
 | Cache cửa sổ mm cố định | Hoàn thành | 498 khối, Kaggle Dataset v1 | Đã bị E1 thay thế làm mặc định. |
 | Cache cắt bám tổn thương | Hoàn thành | E1 chạy trên nó | Đã bị cache E4 thay thế làm mặc định. |
 | Baseline 3D-patch, 1 fold | Hoàn thành | **0,7001** val fold 1 (E4) | Chưa có CV, chưa phải số báo cáo. |
-| Baseline 2.5D | **Bị cắt** | — | Cắt có chủ ý, đúng thứ tự đã định trước. Bảng CGHNet cho thấy ResNet3D thắng ResNet2D nên nhánh 3D vẫn là hướng đúng. |
 | Fusion Siamese (E2) | **Chưa kết luận** | lần train bị huỷ vì biến gây nhiễu | Phải chạy lại ở hình học đúng mới đánh giá được. |
 | Ablation hình học (E3) | **Dừng sớm** | 0,5566 ở epoch 145/300 | Chưa kết luận được: dừng trước vùng epoch mà cả ba lần train chạy hết mới đạt đỉnh. |
 | Căn từng thì (E4) | **Hoàn thành, thắng rõ** | 0,7001; Δ so E1 +0,126 CI [+0,033; +0,230] | **Cấu hình chốt.** Gate căn pha đã qua (trung vị 19,65mm, 0 ca fallback). |
@@ -228,18 +217,16 @@ Cơ chế đối phó chung cho cả hai là **chốt luật quyết định tr�
 
 ## 6. Công việc tiếp theo theo thứ tự ưu tiên
 
-Thứ tự này đổi so với luật chốt trước khi chạy E4, vốn nói E4 đạt ≥0,62 thì đi tiếp sang registration rigid rồi Siamese. Lý do: nút thắt bây giờ không còn là tìm cấu hình tốt hơn mà là chưa có con số nào báo cáo được, và bất định epistemic cần đủ 5 model của 5 fold mới đo được.
+E4 là cấu hình chốt. Mọi việc dưới đây đều cải tiến từ nó, không quay lại các nhánh đã dừng.
 
 1. Chạy đủ 5-fold cho cấu hình E4, dựng bảng CV macro-F1 và κ kèm CI bootstrap mức bệnh nhân.
 2. Gộp out-of-fold 394 ca, tính lại calibration và risk–coverage trên cỡ mẫu đó.
 3. Dựng deep ensemble từ 5 checkpoint để đo bất định epistemic; đây là điều kiện của đóng góp headline.
-4. Chạy lại E3 đủ 300 epoch để tách phần đóng góp của hình học khỏi phần của phép căn; hiện chưa quy kết được mức tăng của E4 cho biến nào.
-5. Chạy registration rigid thật; E4 mới chỉ khử tịnh tiến, chưa khử xoay và biến dạng.
-6. Đổi backbone sang ResNet3D ở đúng 14×112×112; DenseNet121-3D không chịu được Z=14.
-7. Thử Focal Loss và ablation augmentation theo bảng ablation CGHNet.
-8. Đánh giá lại fusion Siamese ở hình học đúng; E2 chưa từng được thử công bằng.
-9. Audit và tải external cùng Duke OOD; việc chạy trên CPU nên song song được với mục 1.
-10. Khoá protocol, threshold và temperature trên validation trước khi chạm test-104 đúng một lần.
+4. Chạy registration rigid thật; E4 mới chỉ khử tịnh tiến, chưa khử xoay và biến dạng.
+5. Đổi backbone sang ResNet3D ở đúng 14×112×112; DenseNet121-3D không chịu được Z=14.
+6. Thử Focal Loss và ablation augmentation theo bảng ablation CGHNet.
+7. Audit và tải external cùng Duke OOD; việc chạy trên CPU nên song song được với mục 1.
+8. Khoá protocol, threshold và temperature trên validation trước khi chạm test-104 đúng một lần.
 
 ## 7. Timeline
 
