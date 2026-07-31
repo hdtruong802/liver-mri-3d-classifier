@@ -2735,3 +2735,68 @@ Hạng 2 của challenge thắng chính bằng cách sửa registration (UAE).
 **Điểm vào phiên sau:** Không có việc treo ở khâu git. Bước kế tiếp: đọc kết quả E4 theo luật ba nhánh ở S-067, điền vào §3.2 của `reports/W2_REPORT.md`, rồi sang W3 (5-fold + CI bootstrap).
 
 **Cảnh báo cho tool sau:** `papers/` giờ ngoài git nên **chỉ tồn tại trên máy này**. Clone sang máy khác sẽ không có. Đừng viết code hay test nào đọc từ `papers/`; mọi số đã trích ra đều nằm trong `AGENTS.md` §5 và WORKLOG S-064/S-065.
+## S-072 · 2026-07-31 15:20 · claude-code
+
+**Mục tiêu phiên:** Đọc kết quả E4 theo luật ba nhánh đã chốt ở S-067, rồi làm bước tiếp theo mà kết quả chỉ ra.
+
+**Nhánh / commit:** `main` · `74056bb` → *(commit đang chờ)*
+
+**Đã đụng file:**
+- `AGENTS.md` — thêm §5 "Kết quả nội bộ đã đo": bảng E0/E1/E3/E4 + ba điều đã chốt, đặt ngay sau bảng đối chiếu văn liệu.
+- `reports/W2_REPORT.md` — điền hàng E4 vào bảng §3.2; viết lại §3.3 (giả thuyết → xác nhận); cập nhật tóm tắt, bảng trạng thái §5, giới hạn #4, §6 thứ tự ưu tiên, timeline, kết luận.
+- `notebooks/07_e4_cv_folds.ipynb` — **mới**, chạy các fold còn lại của cấu hình E4.
+- `WORKLOG.md` — entry này.
+
+**Kết quả / số liệu:**
+
+Cổng kiểm trước train **đã qua**: 498/498 ca cắt theo mask, **0 ca fallback** về tâm tham chiếu, `max_shift_mm` trung vị **19,65mm** (min 2,80 · max 111,0). Phép căn có hiệu lực thật ⇒ kết quả không phải bản sao của E3.
+
+| | Cửa sổ | Kích thước | Căn pha | macro-F1 [95% CI] | κ | AURC | ECE thô → sau T | T |
+|---|---|---|---|---|---|---|---|---|
+| E0 | 144mm cố định | 96×96×48 | tham chiếu | 0,4244 [0,314–0,530] | 0,276 | 0,5395 | 0,3218 → 0,1455 | 4,150 |
+| E1 | bám tổn thương | 96×96×48 | tham chiếu | 0,5740 [0,455–0,678] | 0,520 | 0,2753 | 0,2935 → 0,2505 | 5,010 |
+| E3 | bám tổn thương | 112×112×32 | tham chiếu | 0,5566 | — | — | — | — |
+| **E4** | bám tổn thương | 112×112×32 | **từng pha** | **0,7001 [0,599–0,793]** | **0,646** | **0,2033** | 0,2458 → 0,1489 | **2,570** |
+
+So cặp (bootstrap trên hiệu, phân tầng theo lớp, 2000 lần, cùng 82 bệnh nhân):
+
+| | Δ macro-F1 | 95% CI | P |
+|---|---|---|---|
+| **E4 − E1** | **+0,1261** | **[+0,0332, +0,2302]** | **0,009** |
+| E4 − E0 | +0,2757 | [+0,1454, +0,4153] | <0,001 |
+| E1 − E0 | +0,1496 | [+0,0073, +0,2890] | 0,040 |
+
+Động lực huấn luyện — đây là phần thuyết phục hơn cả điểm số:
+
+| | E1 | E4 |
+|---|---|---|
+| `val_loss` chạm đáy ở epoch | 9 | **100** |
+| Gap train/val epoch cuối | +2,55 | **+1,50** |
+| macro-F1 TB 50 epoch cuối | 0,512 | **0,607** |
+| Số epoch cuối đạt ≥0,60 | 0/50 | **29/50** |
+| NLL thô so với đoán mò (1,946) | 3,32 (tệ hơn) | **1,72 (tốt hơn)** |
+
+F1 từng lớp, E4 so E1: u máu +0,27 · nang +0,26 · áp-xe +0,25 · di căn +0,16 · HCC +0,08 · ICC −0,09 (n=10) · FNH −0,05 (n=8).
+
+**Quyết định & lý do:**
+
+- **Chốt cấu hình E4 (`configs/preprocess_e4.yaml`) làm mặc định.** Đây là can thiệp duy nhất trong cả loạt có CI nằm hẳn một phía của 0 với biên rộng rãi.
+- **Quy toàn bộ mức tăng cho phép căn, không cho hình học.** E4 khác E1 ở *hai* khoá, nhưng E3 (đúng hình học của E4, căn tham chiếu) = 0,5566 tức E3 − E1 = −0,017. Hình học không đóng góp gì ⇒ +0,1435 của E4 − E3 là của `align_phases`. Không cần đốt thêm GPU để tách hai biến này.
+- **Đính chính một chẩn đoán cũ:** chứng overfit kinh niên (`val_loss` đáy epoch 9–10 suốt E0–E3) **không phải** vấn đề recipe train. Nó là triệu chứng của đầu vào lệch pha: 8 thì không khớp voxel-với-voxel thì lớp conv đầu không có đặc trưng liên-thì để học nên quay sang ghi nhớ. Mọi hướng "chỉnh dropout / weight-decay / augmentation" trước đây đều nhắm sai chỗ. Đã ghi vào AGENTS.md §5 để phiên sau không thử lại.
+- **ĐỔI THỨ TỰ so với luật đã chốt ở S-067.** Luật viết: ≥0,62 ⇒ đi tiếp rigid registration thật rồi Siamese. E4 đạt 0,7001 nên theo chữ nghĩa là nhánh đó. **Tôi đổi sang chạy CV 5-fold trước**, vì ràng buộc đã đổi: nút thắt bây giờ không còn là "tìm cấu hình tốt hơn" mà là **chưa có con số nào báo cáo được** — không CV, không ensemble, CI rộng ±0,10. Quan trọng nhất: bất định *epistemic* đo bằng mức bất đồng giữa các thành viên ensemble, nên **đóng góp headline của cả đề tài đang bị chặn bởi việc thiếu 4 fold kia**, không bởi thiếu điểm số. Thêm một run sàng lọc nữa chỉ làm CV về sau đắt hơn. Người dùng có quyền bác quyết định này.
+- **Dùng đúng quy ước cũ khi tính calibration/selective** — `crossfit_T(seed=1337, idx[i::k])`, confidence = max-prob. Đã kiểm: E0 và E1 tái lập **chính xác** con số đã công bố (0,5395 / 0,2753 / ECE 0,1455 / 0,2505). Nếu dùng `-entropy` thì AURC lệch (E0 0,5502 thay vì 0,5395) và bảng sẽ không còn so được với nhau.
+- **Trả lại `notebooks/notebookf104ced082.ipynb` về chỗ cũ.** Tôi đã lỡ chuyển nó ra ngoài repo trước khi đọc S-071 — entry đó ghi rõ các phiên trước cố ý giữ nguyên, không stage/commit/xoá. Đã khôi phục, `git status` trở lại đúng trạng thái mong đợi.
+
+**Dang dở:**
+- [ ] **CV 5-fold chưa chạy.** `notebooks/07_e4_cv_folds.ipynb` đã dựng và validate cú pháp nhưng **chưa chạy lần nào trên Kaggle**. Tham số duy nhất cần sửa giữa hai session là `FOLDS` ở cell bootstrap (`[2,3]` rồi `[4,5]`).
+- [ ] Fold 1 nằm ở cây output cũ (`runs/E4_per_phase_results/`), không nằm trong cây CV. Phải chép tay vào `runs/E4_cv_results/fold1_4c2cf705/` trước khi chạy `src.eval.run` — hướng dẫn in sẵn ở cell cuối notebook 07.
+- [ ] External / Duke OOD vẫn chưa bắt đầu (deliverable Sprint 1).
+- [ ] E3 **không có** `val_probs_best.npz` ở local (chỉ có con số 0,5566 từ log), nên không so cặp có CI với E4 được. Không đáng chạy lại 4h chỉ để lấy CI cho một so sánh mà chuỗi suy luận đã đủ chặt.
+
+**Điểm vào phiên sau:** Chạy `notebooks/07_e4_cv_folds.ipynb` trên Kaggle với `FOLDS = [2, 3]` (~8h kể cả build cache). Session kế tiếp đổi thành `[4, 5]`. Sau đó ở local: gộp fold 1 vào cây rồi `python -m src.eval.run --run-dir runs/E4_cv_results` để ra bảng out-of-fold 394 ca kèm CI.
+
+**Cảnh báo cho tool sau:**
+- **Cổng quan trọng nhất của notebook 07 là cổng kiểm `cache_meta.json`.** Chạy CV trên cache của E1 hay E3 **không báo lỗi gì cả** — nó cho ra một bảng kết quả sai mà trông vẫn hợp lý. Ba khoá phân biệt: `align_phases == "per_phase"`, `target_size == [112,112,32]`, `crop_mode == "lesion_tight"`. Đừng bỏ qua cell đó cho nhanh.
+- **`LLDMMRI_OUTPUT_DIR` phải đặt riêng** (`/kaggle/working/runs/E4_cv`). `run_dir` chỉ băm khối `model:`, mà E1/E3/E4 dùng chung y hệt model ⇒ không đặt riêng thì chúng **dùng chung thư mục và resume đè lên nhau** (đã ghi ở S-060, vẫn còn nguyên hiệu lực).
+- **Giữ nguyên tên thư mục `fold{N}_{hash}` khi gói mang về.** `src/eval/run.py::find_fold_predictions` glob theo `fold*/`, đổi tên là gộp out-of-fold hỏng. Hash hiện tại là `4c2cf705`.
+- **Đừng viết "ta ngang ResNet3D 0,709".** 0,7001 đo trên val fold 1 (82 ca), 0,709 đo trên test-104. Khác tập. Sai lầm này đã mắc một lần ở S-064 và được đính chính ở báo cáo W2 §4.3.

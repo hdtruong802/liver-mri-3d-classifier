@@ -12,7 +12,7 @@
 
 Đầu W2 dự án chưa có `src/`, chưa tải LLD-MMRI, chưa có một dòng code chạy được. Cuối W2 có một pipeline hoàn chỉnh từ MRI thô đến bảng metric: reader 8 thì, gate hình học chạy trên dữ liệu thật, split official 316/78/104 đã tái lập và khoá, cache tiền xử lý 498 ca đẩy lên Kaggle Dataset, vòng train có checkpoint/resume, và bộ eval gồm bootstrap CI, calibration và selective prediction. 245 test xanh, trong đó có test chống leakage.
 
-Về kết quả, số mốc đầu tiên là macro-F1 val **0,2725**. Bốn thí nghiệm có kiểm soát sau đó đưa con số lên **0,5740** (E1), và toàn bộ mức tăng đó đến từ **một thay đổi về dữ liệu chứ không phải hyperparam**: cắt patch bám sát tổn thương thay cho cửa sổ mm cố định. Ba thí nghiệm còn lại cho kết quả âm hoặc bị huỷ. E4 đang chạy.
+Về kết quả, số mốc đầu tiên là macro-F1 val **0,2725**. Năm thí nghiệm có kiểm soát sau đó đưa con số lên **0,7001** (E4), và **toàn bộ mức tăng đến từ thay đổi về dữ liệu, không một hyperparam nào bị đụng tới**: cắt patch bám sát tổn thương (+0,15) rồi căn từng thì về tổn thương của chính nó (+0,13, 95% CI [+0,033, +0,230]). Hai thí nghiệm còn lại cho kết quả âm hoặc bị huỷ — trong đó giả thuyết "tỉ lệ trục là nút thắt" bị bác bỏ sạch.
 
 Phần lớn thời gian W2 bị tiêu vào một chuỗi bốn chẩn đoán sai — được ghi lại đầy đủ ở §4, vì bài học phương pháp rút ra từ đó có giá trị lâu dài hơn bất kỳ con số nào ở §3.
 
@@ -26,7 +26,7 @@ Mục tiêu W2: đưa LLD-MMRI vào một pipeline tái lập được, có file
 | Preprocessing v0 cache thành Kaggle Dataset có version | Đạt | 498 `.npz`, `marcohoang/lld-mmri-3` v1, private |
 | `splits/` official 12 file đã commit, bất biến, validate | Đạt | `labels_trainval.txt` 394 + `test_official.txt` 104 = 498 |
 | `pytest` leakage test pass (giao tập bệnh nhân mọi cặp fold = ∅) | Đạt | 245 passed, 17 skipped |
-| Baseline **3D-patch** chạy 1 fold, ra macro-F1 val | Đạt | 0,2725 → 0,5740 sau các thí nghiệm |
+| Baseline **3D-patch** chạy 1 fold, ra macro-F1 val | Đạt | 0,2725 → **0,7001** sau các thí nghiệm |
 | Baseline **2.5D** chạy 1 fold, ra macro-F1 val | **Không đạt** | Bị cắt có chủ ý |
 | Cập nhật bảng lệnh `AGENTS.md` §6 | Đạt | mọi entrypoint đều có dòng lệnh tương ứng |
 
@@ -136,7 +136,7 @@ Trước khi tốn GPU, một cổng chặn đo thời gian thật 2 epoch rồi
 | **E1** | cache `lesion_tight` (cắt bám tổn thương) | **0,5740** [0,455 – 0,678] | 0,520 | **0,2753** | 0,2935 → 0,2505 | xong |
 | **E2** | Siamese đa pha, trọng số dùng chung | ~0,35 – 0,49 @ ep100 | — | — | — | **huỷ** |
 | **E3** | hình học 112×112×32 theo văn liệu | 0,5566 | — | — | — | xong, **âm** |
-| **E4** | căn từng thì theo tổn thương của chính nó | *đang chạy* | | | | *chờ* |
+| **E4** | căn từng thì theo tổn thương của chính nó | **0,7001** [0,599 – 0,793] | **0,646** | **0,2033** | 0,2458 → 0,1489 | xong, **thắng rõ** |
 
 > **Mọi số trong bảng là val fold 1, 82 bệnh nhân, 1 seed.** Không phải kết quả báo cáo được: chưa có CV 5-fold, và ở n=82 bề rộng CI vào khoảng ±0,10. Chúng dùng để **sàng lọc** giữa các phương án, không để công bố.
 
@@ -152,7 +152,7 @@ Luật quyết định đã chốt **trước** khi chạy: E0 rơi vào dải 0
 
 Kết quả âm này nhất quán với — chứ không mâu thuẫn — giả thuyết misalignment: nếu bản thân các thì không khớp nhau thì đổi khung hình không giải quyết gì.
 
-### 3.3. E4: giả thuyết đang được kiểm chứng
+### 3.3. E4: giả thuyết đã được xác nhận
 
 Con số 23,3mm đo ở §2.3 chưa từng được nối với chất lượng model. Nối vào thì nó lớn hơn hình dung:
 
@@ -169,6 +169,37 @@ Cổng kiểm quan trọng nhất chạy **trước** khi train: `max_shift_mm` 
 
 Giới hạn phải ghi vào báo cáo cuối: E4 **không** phải phép sửa trung tính. Nó chỉ khử tịnh tiến, không khử xoay hay biến dạng; và mô xung quanh sẽ **thôi khớp** giữa các thì, chỉ tổn thương khớp. Với bài phân loại tổn thương thì đó có thể là điều mong muốn, nhưng nó là một thay đổi ngữ nghĩa dữ liệu.
 
+**Kết quả: 0,7001 — mức tăng lớn nhất và là mức tăng duy nhất có ý nghĩa thống kê của cả loạt.**
+
+Cổng kiểm chạy trước train đã qua: cả 498 ca cắt theo mask, **không ca nào** phải lùi về tâm tham chiếu, `max_shift_mm` trung vị **19,65mm** (min 2,80 · max 111,0). Phép căn có hiệu lực thật, nên kết quả bên dưới không phải trùng lặp của E3.
+
+| So cặp (bootstrap trên hiệu, phân tầng, 2000 lần) | Δ macro-F1 | 95% CI | P |
+|---|---|---|---|
+| E4 − E1 | **+0,1261** | **[+0,033, +0,230]** | 0,009 |
+| E4 − E0 | +0,2757 | [+0,145, +0,415] | <0,001 |
+| E1 − E0 | +0,1496 | [+0,007, +0,289] | 0,040 |
+
+E4 − E1 là lần đầu tiên trong cả loạt có một khoảng tin cậy **nằm hẳn về một phía của 0** với biên rộng rãi. Lưu ý E4 khác E1 ở *hai* khoá (hình học và phép căn), nên phép so một biến sạch là **E4 − E3 = +0,1435**, cùng hình học 112×112×32, chỉ đổi `align_phases`. Vì E3 − E1 = −0,017 (hình học không có tác dụng), toàn bộ mức tăng quy về phép căn.
+
+**Ba chỉ báo cơ chế lần này đều trúng**, khác hẳn E1 (§3.2, nơi can thiệp đúng nhưng cơ chế giải thích sai):
+
+| | E1 | E4 |
+|---|---|---|
+| `val_loss` chạm đáy ở epoch | 9 | **100** |
+| Gap train/val ở epoch cuối | +2,55 | **+1,50** |
+| macro-F1 trung bình 50 epoch cuối | 0,512 | **0,607** |
+| Số epoch cuối đạt ≥ 0,60 | 0/50 | **29/50** |
+| NLL thô so với đoán mò (1,946) | 3,32 — **tệ hơn đoán mò** | **1,72 — tốt hơn** |
+| Temperature cross-fit | 5,010 | **2,570** |
+
+Hai dòng cuối quan trọng nhất. Ở E0 và E1, xác suất thô có NLL **cao hơn** mức đoán mò đều — tức phần "độ tin cậy" của model là nhiễu có hại, phải hạ nhiệt gấp 5 lần mới dùng được. E4 là run đầu tiên mà xác suất thô mang thông tin thật.
+
+Điều này cũng **giải thích luôn chứng overfit kinh niên** bị ghi nhận suốt E0–E3: `val_loss` chạm đáy ở epoch 9–10 rồi model chỉ còn học thuộc. Nguyên nhân không nằm ở recipe train mà ở đầu vào — khi 8 thì không khớp voxel-với-voxel thì lớp conv đầu tiên không có đặc trưng liên-thì nào để học, nên nó quay sang ghi nhớ. Sửa phép căn đẩy đáy từ epoch 9 sang epoch 100.
+
+F1 tăng ở 5/7 lớp, mạnh nhất ở đúng những lớp trước đây yếu nhất: u máu +0,27, nang +0,26, áp-xe +0,25, di căn +0,16. Hai lớp giảm nhẹ (ICC −0,09 n=10, FNH −0,05 n=8) đều ở cỡ mẫu quá nhỏ để đọc.
+
+**Vẫn phải nói rõ điều này:** 0,7001 đo trên val fold 1 (82 ca), còn 0,709 của `ResNet3D` trong bảng CGHNet đo trên test-104. **Hai tập khác nhau, không được viết là ngang nhau.** Bề rộng CI ở đây là ±0,10 — đủ để một chênh lệch hệ thống 0,03–0,05 ẩn trong đó.
+
 ### 3.4. Số trustworthiness đầu tiên
 
 Đây là đóng góp headline của dự án, nên phần này quan trọng hơn các con số phân loại ở trên.
@@ -177,7 +208,7 @@ Giới hạn phải ghi vào báo cáo cuối: E4 **không** phải phép sửa 
 
 **Cách fit temperature ảnh hưởng tới con số nhiều hơn dự kiến.** Fit ngay trên tập đánh giá cho ECE 0,1011; cross-fit 5 phần cho **0,1455**. Chênh 44%. Chỉ số cross-fit được dùng; số in-sample không vào báo cáo.
 
-**Một metric đã phải đổi.** Mục tiêu ban đầu là "macro-F1 ≥ 0,90 ở coverage 80%". Ở n=82 nó không tính được có nghĩa: tại coverage 50%, một lớp hiếm chỉ còn 1–2 ca, F1 của lớp đó do một bệnh nhân quyết định rồi chiếm 1/7 trọng số macro. Quan sát thực tế trên E1: macro-F1 nhảy loạn (0,5740 → 0,5559 → 0,5816 → 0,5211) trong khi accuracy tăng đều và đơn điệu (0,6098 → 0,7561). Metric headline của selective prediction vì thế **đổi sang risk–coverage / AURC**, và phải tính trên tập gộp out-of-fold 394 ca thay vì một fold. Theo AURC thì E1 (0,2753) tốt hơn E0 (0,5395) gần gấp đôi.
+**Một metric đã phải đổi.** Mục tiêu ban đầu là "macro-F1 ≥ 0,90 ở coverage 80%". Ở n=82 nó không tính được có nghĩa: tại coverage 50%, một lớp hiếm chỉ còn 1–2 ca, F1 của lớp đó do một bệnh nhân quyết định rồi chiếm 1/7 trọng số macro. Quan sát thực tế trên E1: macro-F1 nhảy loạn (0,5740 → 0,5559 → 0,5816 → 0,5211) trong khi accuracy tăng đều và đơn điệu (0,6098 → 0,7561). Metric headline của selective prediction vì thế **đổi sang risk–coverage / AURC**, và phải tính trên tập gộp out-of-fold 394 ca thay vì một fold. Theo AURC thì E1 (0,2753) tốt hơn E0 (0,5395) gần gấp đôi, và E4 (0,2033) tốt hơn E1 thêm một bậc nữa.
 
 ## 4. Bài học phương pháp
 
@@ -263,15 +294,15 @@ Một quy trình cũng được thiết lập: **trước khi bàn giao thứ g�
 | Split official + khoá + leakage test | Hoàn thành | 12 file `splits/`, 245 test xanh | Khôi phục khả năng so benchmark trực tiếp. |
 | Gate hình học trên dữ liệu thật | Hoàn thành | PASS 3.984/3.984 | Điều kiện tiên quyết cho crop theo bbox. |
 | Cache v0 `fixed_mm` | Hoàn thành | 498 `.npz`, Kaggle Dataset v1 | Đã bị E1 thay thế làm mặc định. |
-| Cache `lesion_tight` | Hoàn thành | E1 chạy trên nó | Cấu hình dữ liệu tốt nhất hiện có. |
-| Baseline 3D-patch, 1 fold | Hoàn thành | 0,5740 val fold 1 | Chưa có CV, chưa phải số báo cáo. |
+| Cache `lesion_tight` | Hoàn thành | E1 chạy trên nó | Đã bị cache E4 thay thế làm mặc định. |
+| Baseline 3D-patch, 1 fold | Hoàn thành | **0,7001** val fold 1 (E4) | Chưa có CV, chưa phải số báo cáo. |
 | Baseline 2.5D | **Bị cắt** | — | Đúng thứ tự cắt đã định; bằng chứng ngoài ủng hộ. |
 | Fusion Siamese (E2) | **Chưa kết luận** | run bị huỷ vì biến gây nhiễu | Phải chạy lại ở hình học đúng mới đánh giá được. |
 | Ablation hình học (E3) | Hoàn thành, kết quả âm | 0,5566 so với 0,5740 | Bác bỏ giả thuyết tỉ lệ trục. |
-| Căn từng thì (E4) | Đang chạy | cổng `max_shift_mm` đã đặt | Ứng viên số một hiện tại. |
-| Calibration + selective | Code xong, số mới 1 fold | ECE/AURC/T của E0, E1 | Cần gộp out-of-fold 394 ca. |
-| CV 5-fold + CI bootstrap | Chưa bắt đầu | hạ tầng `bootstrap.py` đã sẵn | Việc đầu tiên của W3. |
-| Registration thật (rigid) | Chưa bắt đầu | — | Hoãn từ W2; E4 là bản rẻ tiền thay thế. |
+| Căn từng thì (E4) | **Hoàn thành, thắng rõ** | 0,7001; Δ so E1 +0,126 CI [+0,033, +0,230] | **Cấu hình chốt.** Cổng `max_shift_mm` đã qua (trung vị 19,65mm, 0 ca fallback). |
+| Calibration + selective | Code xong, số mới 1 fold | ECE/AURC/T của E0, E1, E4 | Cần gộp out-of-fold 394 ca. |
+| CV 5-fold + CI bootstrap | Đã dựng notebook, chưa chạy | `notebooks/07_e4_cv_folds.ipynb` | Việc đầu tiên của W3; ~3,9h/fold, 2 fold mỗi session. |
+| Registration thật (rigid) | Chưa bắt đầu | — | E4 cho thấy hướng này đáng đầu tư, nhưng xếp sau CV. |
 | External / OOD | Chưa bắt đầu | — | Theo kế hoạch W3. |
 | **test-104** | **Chưa chạm** | không có đường code nào tới nó | Đúng quy trình; chỉ chạm một lần ở W5. |
 
@@ -280,18 +311,22 @@ Một quy trình cũng được thiết lập: **trước khi bàn giao thứ g�
 1. **Mọi con số của dự án là 1 fold, 82 bệnh nhân val, 1 seed.** Không có CI cho phần lớn chúng, và ở n=82 bề rộng CI khoảng ±0,10 — đủ để nuốt trọn chênh lệch giữa E1 và E3.
 2. **Không so trực tiếp được với văn liệu** (§4.3). Số văn liệu là test-104.
 3. **Ngay cả khi có kết quả tốt, việc chứng minh vượt SOTA là bất khả thi ở cỡ mẫu này.** Bootstrap ở n=104 cho bề rộng CI ±0,077 tại mức 0,8322 và ±0,061 tại 0,90 — hai CI chồng nhau. (So hai CI biên là phép bảo thủ; kiểm định ghép cặp mạnh hơn. Nhưng thông điệp không đổi: định vị của dự án phải là trustworthiness, không phải leaderboard.)
-4. **Overfitting chưa được xử lý.** `val_loss` chạm đáy ở epoch 9–10 ở cả E0 lẫn E1, trong khi train chạy 300 epoch.
+4. **Overfitting đã nhẹ đi nhiều nhưng chưa hết.** `val_loss` chạm đáy ở epoch 9–10 ở E0/E1/E3; ở E4 là epoch 100 và gap cuối giảm từ +2,55 xuống +1,50. Nguyên nhân gốc hoá ra là lệch pha ở đầu vào chứ không phải recipe train — nên các hướng chỉnh dropout/weight-decay trước đây đều là nhắm sai chỗ.
 5. **`deterministic: true` không cho tái lập bit-exact** — DenseNet `spatial_dims=3` là non-deterministic trên CUDA. Seed cố định cho phép lặp lại *thí nghiệm*, không phải lặp lại từng chữ số. Đây là một lý do nữa để mọi số đều kèm CI.
 
 ## 6. Công việc tiếp theo theo thứ tự ưu tiên
 
-1. **Đọc E4 theo luật đã chốt trước**, kiểm `max_shift_mm` trước khi tin kết quả. Nếu E4 thắng rõ thì rigid registration thật trở nên đáng đầu tư.
-2. **Đổi backbone sang 3D ResNet ở đúng 14×112×112** — ứng viên mạnh nhất theo bằng chứng hiện có (ResNet3D trần đạt 0,709 dưới protocol thống nhất). DenseNet121-3D không chịu được Z=14 nên đây bắt buộc là đổi kiến trúc, không chỉ đổi config.
-3. **Chạy đủ 5-fold cho cấu hình thắng** → bảng CV macro-F1/κ ± CI bootstrap mức bệnh nhân (≥2000 lần). Đây là deliverable chính của W3 và là điều kiện để mọi so sánh sau này có nghĩa.
-4. **Gộp out-of-fold 394 ca** rồi tính lại calibration và risk–coverage trên cỡ mẫu đó.
-5. **Xử lý overfitting**; ablation augmentation (đặc biệt `rot90`) và Focal Loss (+1,9 điểm theo bảng ablation CGHNet).
-6. **Đánh giá lại fusion Siamese ở hình học đúng** — E2 chưa từng được thử công bằng.
-7. **Khoá protocol, threshold và temperature trên validation**, ghi WORKLOG, rồi chạm test-104 đúng một lần.
+Thứ tự này **đổi so với luật đã chốt ở §3.3**, và lý do phải nói rõ. Luật viết trước khi chạy E4 nói: nếu ≥0,62 thì đi tiếp sang rigid registration thật rồi Siamese. E4 đạt 0,7001, vượt xa ngưỡng đó — nhưng chính vì vượt xa mà ràng buộc đã đổi. Nút thắt bây giờ không còn là "tìm cấu hình tốt hơn" mà là **chưa có một con số nào báo cáo được**: không CV, không ensemble, CI rộng ±0,10. Thêm một thí nghiệm sàng lọc nữa chỉ làm CV về sau đắt hơn. Vì vậy:
+
+1. **Chạy đủ 5-fold cho cấu hình E4** → bảng CV macro-F1/κ ± CI bootstrap mức bệnh nhân (≥2000 lần). Notebook đã dựng: `notebooks/07_e4_cv_folds.ipynb`, ~3,9h/fold, 2 fold mỗi session. Đây là deliverable chính của W3 và là điều kiện để mọi so sánh sau có nghĩa.
+2. **Gộp out-of-fold 394 ca** rồi tính lại calibration và risk–coverage trên cỡ mẫu đó. Ở 394 ca thì `macro-F1 @ coverage` mới dùng được — ở n=82 nó vô nghĩa (§3.4).
+3. **Dựng deep ensemble từ 5 checkpoint đó.** Đây không phải việc phụ: bất định *epistemic* được đo bằng mức bất đồng giữa các thành viên, nên **toàn bộ đóng góp headline của đề tài phụ thuộc vào bước 1**. Một model đơn lẻ không đo được nó.
+4. **Registration rigid thật.** E4 mới chỉ khử tịnh tiến theo tâm tổn thương; nó không khử xoay hay biến dạng, và làm mô xung quanh thôi khớp. Việc E4 ăn tiền lớn đến vậy là bằng chứng mạnh rằng phần dư còn lại cũng đáng lấy.
+5. **Đổi backbone sang 3D ResNet ở đúng 14×112×112** (ResNet3D trần đạt 0,709 dưới protocol thống nhất). DenseNet121-3D không chịu được Z=14 nên đây bắt buộc là đổi kiến trúc, không chỉ đổi config.
+6. **Focal Loss** (+1,9 điểm theo bảng ablation CGHNet) và ablation augmentation.
+7. **Đánh giá lại fusion Siamese ở hình học đúng** — E2 chưa từng được thử công bằng, và giờ nó còn có thêm lý do: trên dữ liệu đã căn đúng, encoder dùng chung trọng số hợp lý hơn hẳn.
+8. **External + Duke OOD** — deliverable của Sprint 1 chưa bắt đầu, và là việc CPU nên chạy song song được, không tranh ngân sách GPU với bước 1.
+9. **Khoá protocol, threshold và temperature trên validation**, ghi WORKLOG, rồi chạm test-104 đúng một lần.
 
 ## 7. Timeline
 
@@ -303,15 +338,17 @@ Một quy trình cũng được thiết lập: **trước khi bàn giao thứ g�
 | 28/07/2026 | Cache `lesion_tight`; `calibration.py` + `selective.py`; tính bề rộng CI ở n=104. |
 | 29/07/2026 | **E0 = 0,4244 · E1 = 0,5740**; phân tích calibration và selective; dựng E2 Siamese. |
 | 30/07/2026 | Đọc CGHNet (bảng so sánh cùng protocol); huỷ E2; **E3 = 0,5566, kết quả âm**; dựng E4 và notebook. |
-| 31/07/2026 | E4 chạy; tổng hợp báo cáo W2. |
+| 31/07/2026 | Tổng hợp báo cáo W2; **E4 = 0,7001 — mức tăng duy nhất có ý nghĩa thống kê** (Δ so E1 +0,126, CI [+0,033, +0,230]); chốt cấu hình E4; dựng notebook CV 5-fold. |
 
 ## Kết luận cho mentor
 
 **Về hạ tầng:** pipeline từ MRI thô đến bảng metric đã chạy được và tái lập được. Mọi cổng an toàn khoa học đều đứng: split khoá ở mức bệnh nhân và đã commit, test chống leakage xanh, thống kê chuẩn hoá không xuyên bệnh nhân, và **test-104 chưa bị chạm một lần nào** — không có đường code nào dẫn tới nó.
 
-**Về kết quả:** con số tốt nhất hiện tại là macro-F1 **0,5740** trên val fold 1. Nó chưa so trực tiếp được với văn liệu (khác tập đánh giá), chưa có CV, và chưa nên được coi là kết quả. Điều đáng nói không phải bản thân con số mà là **cách nó tăng**: toàn bộ mức tăng từ 0,26 lên 0,57 đến từ tái lập recipe và một thay đổi về cách cắt dữ liệu, không từ một dòng thay đổi kiến trúc nào.
+**Về kết quả:** con số tốt nhất hiện tại là macro-F1 **0,7001** trên val fold 1. Nó chưa so trực tiếp được với văn liệu (khác tập đánh giá), chưa có CV, và chưa nên được coi là kết quả cuối. Điều đáng nói không phải bản thân con số mà là **cách nó tăng**: toàn bộ mức tăng từ 0,26 lên 0,70 đến từ tái lập recipe và **hai thay đổi về cách chuẩn bị dữ liệu** — cắt bám tổn thương, rồi căn từng thì về tổn thương của chính nó. **Không một dòng nào của kiến trúc model bị đụng tới.** Ba thí nghiệm đi theo hướng kiến trúc hoặc hình học (E2, E3, và các lần chỉnh regularization) đều không cho gì.
 
-**Về trustworthiness** — đóng góp headline của dự án — đã có số thật đầu tiên, và chúng nói rằng vấn đề là có thật: xác suất thô của model có NLL tệ hơn đoán mò, temperature cần thiết lên tới `T ≈ 5`. Một mục tiêu đã phải phát biểu lại vì cỡ mẫu (macro-F1 ở coverage cố định không tính được có nghĩa ở n=82; chuyển sang risk–coverage/AURC).
+**Về trustworthiness** — đóng góp headline của dự án — đã có số thật, và chúng cho thấy vấn đề vừa có thật vừa cải thiện được. Ở E0/E1, xác suất thô của model có NLL **tệ hơn đoán mò** (3,32 so với 1,95) và cần `T ≈ 5` mới dùng được — tức phần "độ tin cậy" là nhiễu có hại. Ở E4, NLL thô xuống 1,72, tốt hơn đoán mò lần đầu tiên, và `T` giảm còn 2,57. AURC đi từ 0,540 → 0,275 → **0,203**. Một mục tiêu đã phải phát biểu lại vì cỡ mẫu (macro-F1 ở coverage cố định không tính được có nghĩa ở n=82; chuyển sang risk–coverage/AURC cho tới khi gộp được out-of-fold 394 ca).
+
+**Điều cần lưu ý nhất khi đọc báo cáo này:** đóng góp headline vẫn **chưa đo được đầy đủ**, vì bất định epistemic cần 5 model của 5 fold và hiện mới có 1. Đó là lý do việc đầu tiên của W3 là chạy nốt CV chứ không phải thử thêm ý tưởng.
 
 **Bài học lớn nhất của W2** là về phương pháp chứ không về mô hình: bốn chẩn đoán sai đều sinh ra từ việc debug mà không biết ngưỡng đạt được là bao nhiêu. Luật "đối chiếu mốc ngoài trước khi debug chất lượng model" nay đã được ghi vào tài liệu ngữ cảnh của dự án, cùng một bộ cổng chặn tự động để những sai lầm cùng loại tốn 30 giây thay vì một session GPU.
 
