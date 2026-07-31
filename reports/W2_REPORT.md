@@ -11,8 +11,6 @@
 
 Về kết quả, số mốc đầu tiên là macro-F1 val **0,2725**. 5 lần train có kiểm soát sau đó đưa con số lên **0,7001** (E4), và **toàn bộ mức tăng đến từ thay đổi về dữ liệu, không một hyperparam nào bị đụng tới**: cắt patch bám sát tổn thương (+0,15) rồi căn từng thì về tổn thương của chính nó (+0,13, 95% CI [+0,033; +0,230]). Hai lần train còn lại đều không cho kết luận: một bị huỷ vì biến gây nhiễu, một bị chủ động dừng sớm.
 
-Phần lớn thời gian W2 bị tiêu vào một chuỗi bốn chẩn đoán sai. Chúng được ghi lại trong báo cáo này vì bài học phương pháp rút ra từ đó có giá trị lâu dài hơn bất kỳ con số nào.
-
 ## 1. Mục tiêu W2 và trạng thái Definition of Done
 
 Mục tiêu W2: đưa LLD-MMRI vào một pipeline tái lập được, có split khoá ở mức bệnh nhân, và một con số baseline đầu tiên làm mốc so sánh cho các tuần sau.
@@ -137,7 +135,7 @@ Hai dòng cuối quan trọng nhất. Ở E0 và E1, xác suất thô có NLL ca
 
 F1 tăng ở 5/7 lớp, mạnh nhất ở đúng những lớp trước đây yếu nhất: u máu +0,27, nang +0,26, áp-xe +0,25, di căn +0,16. Hai lớp giảm nhẹ (ICC −0,09 với n=10, FNH −0,05 với n=8) đều ở cỡ mẫu quá nhỏ để đọc.
 
-**Vẫn phải nói rõ điều này:** 0,7001 đo trên val fold 1 (82 ca), còn 0,709 của ResNet3D trong bảng CGHNet đo trên test-104. **Hai tập khác nhau, không được viết là ngang nhau.** Bề rộng CI ở đây là ±0,10, đủ để một chênh lệch hệ thống 0,03–0,05 ẩn trong đó.
+**Vẫn phải nói rõ điều này:** 0,7001 đo trên val fold 1 (82 ca), còn 0,709 của ResNet3D trong bài CGHNet đo trên test-104. **Hai tập khác nhau, không được viết là ngang nhau.** Bề rộng CI ở đây là ±0,10, đủ để một chênh lệch hệ thống 0,03–0,05 ẩn trong đó.
 
 ### 3.4. Số trustworthiness đầu tiên
 
@@ -149,47 +147,7 @@ F1 tăng ở 5/7 lớp, mạnh nhất ở đúng những lớp trước đây y�
 
 **Một metric đã phải đổi.** Mục tiêu ban đầu là macro-F1 ≥ 0,90 ở coverage 80%. Ở n=82 nó không tính được có nghĩa: tại coverage 50%, một lớp hiếm chỉ còn 1–2 ca, F1 của lớp đó do một bệnh nhân quyết định rồi chiếm 1/7 trọng số macro. Quan sát thực tế trên E1: macro-F1 nhảy loạn (0,5740 → 0,5559 → 0,5816 → 0,5211) trong khi accuracy tăng đều và đơn điệu (0,6098 → 0,7561). Metric headline của selective prediction vì thế đổi sang risk–coverage và AURC, và phải tính trên tập gộp out-of-fold 394 ca thay vì một fold. Theo AURC thì E1 (0,2753) tốt hơn E0 (0,5395) gần gấp đôi, và E4 (0,2033) tốt hơn E1 thêm một bậc nữa.
 
-## 4. Bài học phương pháp
-
-### 4.1. Bốn chẩn đoán sai, và nguyên nhân chung
-
-| # | Giả thuyết | Cách bác bỏ | Chi phí |
-|---|---|---|---|
-| 1 | "BatchNorm với batch 2 làm val loss phân kỳ" | Đổi sang InstanceNorm, macro-F1 đứng yên 0,0668 | 1 lần train |
-| 2 | "InstanceNorm sập vì global average pooling xoá mất tín hiệu" | Phép thử overfit 8 mẫu, InstanceNorm vẫn đạt accuracy 1,00 | 1 lần train |
-| 3 | "Model thiếu bước cập nhật, chỉ khoảng 20 bước mỗi epoch" | Gấp 4 lần số bước, 0,2647 so với 0,2725, chênh trong nhiễu | 1 lần train |
-| 4 | "2D thắng 3D" | Đọc nhầm một bảng của CGHNet; bản gốc cho kết quả ngược | rút đề xuất |
-
-Cả bốn đều là suy đoán khi chưa đủ dữ kiện, và ba cái đầu mỗi cái tốn một lần train mới bác bỏ được.
-
-Nguyên nhân chung chỉ có một: **debug mà không biết mức nào mới là đạt.** Hai mốc đối chiếu dưới đây đã nằm sẵn trong tài liệu dự án từ đầu tuần nhưng không được tra.
-
-| | macro-F1 (test-104) | κ |
-|---|---|---|
-| Đội nhất | 0,8322 | 0,7801 |
-| **Baseline chính thức** (UniFormer-S 3D, from scratch) | **0,6083** | 0,5414 |
-| Hạng 20–24 | 0,5047 – 0,6076 | |
-
-Bảng của CGHNet (Comput Med Imaging Graph 132, 2026) còn giá trị hơn, vì mọi hàng dùng chung một protocol và đều báo trên test-104:
-
-| ViT3D | ResNet2D | ConvNeXt2D | ResNet3D | Swin3D | Uniformer | SDR-Former | RadioFormer | CGHNet |
-|---|---|---|---|---|---|---|---|---|
-| 0,645 | 0,684 | 0,696 | **0,709** | 0,709 | 0,719 | 0,791 | 0,806 | **0,818** |
-
-Ba điều rút ra:
-
-- **Một ResNet3D trần đạt 0,709**, vượt baseline chính thức 0,10 điểm chỉ nhờ hình học đầu vào. Đúng điều E0 và E1 đã cho thấy: dữ liệu quan trọng hơn kiến trúc.
-- Ba đòn bẩy huấn luyện đáng thử: Focal Loss hơn CrossEntropy 1,9 điểm, bỏ random crop mất 8,8 điểm, lr 1e-4 tốt hơn cả 1e-3 lẫn 1e-5.
-- **Luật đã ghi vào tài liệu dự án: đối chiếu mốc ngoài trước, rồi mới debug chất lượng model.**
-
-### 4.2. Hai giới hạn của cách đọc số
-
-- **Số của dự án và số của văn liệu không cùng thang đo.** Ta đo trên val fold 1 với 82 bệnh nhân, văn liệu đo trên test-104. So các lần train của ta với nhau thì hợp lệ, nhưng không được viết "E1 còn cách baseline chính thức 0,034".
-- **Chọn epoch tốt nhất trên tập val nhỏ là chọn nhiễu.** Ở lần train baseline, macro-F1 dao động không xu hướng suốt 26 epoch, nên epoch "tốt nhất" chỉ là lần bốc may nhất trong 26 lần. Pipeline nay lưu thêm xác suất của epoch cuối để W3 đo được độ lệch này.
-
-Cách đối phó cho cả hai là **chốt luật quyết định trước khi chạy**, đã dùng cho E0, E1 và E4. Nó chặn việc đọc một kết quả nhiễu thành một kết quả thật.
-
-## 5. Trạng thái và giới hạn
+## 4. Trạng thái và giới hạn
 
 | Hạng mục | Trạng thái | Bằng chứng | Nhận xét |
 |---|---|---|---|
@@ -215,7 +173,7 @@ Cách đối phó cho cả hai là **chốt luật quyết định trước khi 
 4. **Overfitting đã nhẹ đi nhiều nhưng chưa hết.** Val loss chạm đáy ở epoch 9–10 ở E0, E1, E3; ở E4 là epoch 100 và gap cuối giảm từ +2,55 xuống +1,50. Nguyên nhân gốc hoá ra là lệch thì ở đầu vào chứ không phải recipe train, nên các hướng chỉnh dropout hay weight decay trước đây đều nhắm sai chỗ.
 5. **Chế độ tất định không cho tái lập tới từng bit**, vì DenseNet 3D không tất định trên CUDA. Seed cố định cho phép lặp lại *lần train*, không phải lặp lại từng chữ số. Đây là một lý do nữa để mọi số đều kèm CI.
 
-## 6. Công việc tiếp theo theo thứ tự ưu tiên
+## 5. Công việc tiếp theo theo thứ tự ưu tiên
 
 E4 là cấu hình chốt. Mọi việc dưới đây đều cải tiến từ nó, không quay lại các nhánh đã dừng.
 
@@ -223,12 +181,12 @@ E4 là cấu hình chốt. Mọi việc dưới đây đều cải tiến từ n
 2. Gộp out-of-fold 394 ca, tính lại calibration và risk–coverage trên cỡ mẫu đó.
 3. Dựng deep ensemble từ 5 checkpoint để đo bất định epistemic; đây là điều kiện của đóng góp headline.
 4. Chạy registration rigid thật; E4 mới chỉ khử tịnh tiến, chưa khử xoay và biến dạng.
-5. Đổi backbone sang ResNet3D ở đúng 14×112×112; DenseNet121-3D không chịu được Z=14.
-6. Thử Focal Loss và ablation augmentation theo bảng ablation CGHNet.
+5. Đổi backbone sang ResNet3D ở đúng 14×112×112; dưới protocol thống nhất của CGHNet, một ResNet3D trần đạt 0,709 trên test-104. DenseNet121-3D không chịu được Z=14 nên đây là đổi kiến trúc, không chỉ đổi cấu hình.
+6. Thử Focal Loss và ablation augmentation; theo ablation của CGHNet, Focal Loss hơn CrossEntropy 1,9 điểm và bỏ random crop mất 8,8 điểm.
 7. Audit và tải external cùng Duke OOD; việc chạy trên CPU nên song song được với mục 1.
 8. Khoá protocol, threshold và temperature trên validation trước khi chạm test-104 đúng một lần.
 
-## 7. Timeline
+## 6. Timeline
 
 | Thời điểm | Mốc |
 |---|---|
@@ -244,7 +202,7 @@ E4 là cấu hình chốt. Mọi việc dưới đây đều cải tiến từ n
 
 Về hạ tầng, pipeline từ MRI thô đến bảng metric đã chạy được và tái lập được, với mọi gate an toàn khoa học đứng vững: split khoá ở mức bệnh nhân, test chống leakage pass, thống kê chuẩn hoá không xuyên bệnh nhân, và test-104 chưa bị chạm một lần nào. Về kết quả, con số tốt nhất hiện tại là macro-F1 **0,7001** trên val fold 1; nó chưa so trực tiếp được với văn liệu vì khác tập đánh giá, chưa có CV, và chưa nên coi là kết quả cuối. Điều đáng nói không phải bản thân con số mà là cách nó tăng: toàn bộ mức tăng từ 0,26 lên 0,70 đến từ tái lập recipe và hai thay đổi về cách chuẩn bị dữ liệu, không một dòng nào của kiến trúc model bị đụng tới. Hai hướng đi theo kiến trúc và hình học đều chưa cho gì, và cả hai đều chưa được thử đến nơi.
 
-Về trustworthiness, đóng góp headline của dự án đã có số thật và chúng cho thấy vấn đề vừa có thật vừa cải thiện được: NLL thô đi từ chỗ tệ hơn đoán mò (3,32 so với 1,95) xuống 1,72, nhiệt độ cần thiết giảm từ 5,0 còn 2,57, AURC từ 0,540 xuống 0,203. Nhưng đóng góp này vẫn chưa đo được đầy đủ, vì bất định epistemic cần 5 model của 5 fold mà hiện mới có một; đó là lý do việc đầu tiên của W3 là chạy nốt CV chứ không phải thử thêm ý tưởng. Bài học lớn nhất của W2 lại là về phương pháp chứ không về mô hình: bốn chẩn đoán sai đều sinh ra từ việc debug mà không biết ngưỡng đạt được là bao nhiêu, và luật đối chiếu mốc ngoài trước khi debug nay đã được ghi vào tài liệu ngữ cảnh của dự án cùng một bộ gate tự động.
+Về trustworthiness, đóng góp headline của dự án đã có số thật và chúng cho thấy vấn đề vừa có thật vừa cải thiện được: NLL thô đi từ chỗ tệ hơn đoán mò (3,32 so với 1,95) xuống 1,72, nhiệt độ cần thiết giảm từ 5,0 còn 2,57, AURC từ 0,540 xuống 0,203. Nhưng đóng góp này vẫn chưa đo được đầy đủ, vì bất định epistemic cần 5 model của 5 fold mà hiện mới có một; đó là lý do việc đầu tiên của W3 là chạy nốt CV chứ không phải thử thêm ý tưởng. Bài học lớn nhất của W2 lại là về phương pháp chứ không về mô hình: bốn lần chẩn đoán sai trong tuần đều sinh ra từ cùng một chỗ, là debug khi chưa biết mức nào mới là đạt. Luật đối chiếu mốc ngoài trước khi debug nay đã được ghi vào tài liệu ngữ cảnh của dự án.
 
 ---
 
