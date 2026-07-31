@@ -1,40 +1,41 @@
 /**
  * DIRECTION CONTRACT
  *
- * THESIS: Một bản demo tự vẽ ra độ tin cậy của chính nó. Từ chối mặc định của thể
- * loại — dashboard PACS nền đen với gauge phát sáng — và dựng output của model thành
- * một tấm hải đồ đã khảo sát, có khai báo chỗ nào đo kỹ và chỗ nào chưa ai đo.
+ * THESIS: Bàn đọc tối của một trạm chẩn đoán hình ảnh, dựng theo bố cục bản bolt.new
+ * gốc. Điều bố cục đó không tự có, và là điều bề mặt này bắt buộc phải làm: người xem
+ * phân biệt được ngay đâu là dữ liệu thật, đâu là số minh hoạ.
  *
- * OWN-WORLD: Giấy hải đồ #F5F6F4, dải marginalia buff #E4D8B8, ba dải lam mã hoá mức
- * tin cậy, mực đen ngả lam, magenta #C0247E dành riêng cho `defer`. Archivo Narrow
- * cho nhãn, Archivo cho số, chữ số bảng khắp nơi. Bo góc 0, đổ bóng 0, hairline, gạch
- * chéo 45° nghĩa là chưa có dữ liệu, chữ đứng so với chữ nghiêng mang nghĩa số đo
- * thật so với số minh hoạ.
+ * OWN-WORLD: Nền mực xanh đen #070A13, panel #0F1525 bo 1rem viền mảnh, một sắc cyan
+ * #22D3EE làm accent duy nhất. Inter cho giao diện, JetBrains Mono cho định danh và
+ * giá trị đo. Bảy màu lớp chỉ sống trong biểu đồ và dải chú giải. Ảnh MRI là thứ sáng
+ * nhất màn hình.
  *
- * STORY: Người review mở một ca, thấy ảnh MRI thật, đọc bảy sounding xác suất, rồi
- * gặp panel Zone of Confidence nói cho họ biết đọc số này được tới đâu — kèm overprint
- * magenta khi model từ chối quyết.
+ * STORY: Người review chọn một ca demo, thấy tám thì đã đủ, chạy phân tích, rồi đọc
+ * ba thẻ kết quả và biểu đồ bảy lớp — mọi con số đều mang badge "minh hoạ" và in
+ * nghiêng vì chưa có checkpoint. Panel defer nói cho họ biết mô hình có nhận quyết ca
+ * này hay không.
  *
- * FIRST VIEWPORT: Dải marginalia dính trên cùng mang RUO, định danh ca và provenance.
- * Dưới đó hai cột: trái là bộ chuyển lát với ảnh MRI thật, phải là trường sounding rồi
- * tới panel Zone of Confidence. Hành động chính nằm ở khối chọn ca.
+ * FIRST VIEWPORT: Header dính trên; ngay dưới là dải RUO không thể cuộn khuất; rồi dải
+ * thông tin ca, bộ chọn ca demo, và lưới 8 thẻ thì 4×2. Hành động chính là nút chạy
+ * phân tích ở cuối lưới.
  *
- * FORM: hải đồ đo sâu, ứng viên 4 trên 7 trong danh sách grounded, staging "wound
- * medium" cho bộ chuyển lát, seed 9b1535ee.
+ * FORM: bố cục bản bolt.new, người dùng chốt sau khi xem bản dựng trước; theme tối
+ * theo yêu cầu. Hệ đầy đủ ở `webapp/DESIGN.md`.
  */
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { Activity, AlertTriangle, RotateCcw, Stethoscope } from 'lucide-react';
 
 import { ApiError, getCase, getMeta, listCases, predictCase, predictUpload } from '@/api/client';
 import type { CaseDetail, CaseSummary, MetaResponse, PredictResult } from '@/api/types';
 import { isProvisional } from '@/api/types';
-import { CasePicker } from '@/components/CasePicker';
-import { MarkBenign, MarkCaution, MarkMalignant, MarkSquare } from '@/components/ChartMarks';
-import { ConfidenceZone } from '@/components/ConfidenceZone';
-import { ProvenanceTag, Unsurveyed } from '@/components/Provenance';
-import { SliceTransport } from '@/components/SliceTransport';
-import { SoundingField } from '@/components/SoundingField';
-import { UploadPanel } from '@/components/UploadPanel';
+import { CaseStrip } from '@/components/CaseStrip';
+import { ClassLegend, ClassProbabilityChart } from '@/components/ClassProbabilityChart';
+import { DeferPanel } from '@/components/DeferPanel';
+import { PhaseGrid } from '@/components/PhaseGrid';
+import { ProvenanceBadge } from '@/components/Provenance';
+import { MalignancyGauge, PredictionCard, UncertaintyCard } from '@/components/ResultCards';
+import { SliceViewer } from '@/components/SliceViewer';
 
 export default function App() {
   const [meta, setMeta] = useState<MetaResponse | null>(null);
@@ -46,11 +47,11 @@ export default function App() {
 
   useEffect(() => {
     Promise.all([getMeta(), listCases()])
-      .then(([m, c]) => {
-        setMeta(m);
-        setCases(c);
+      .then(([metaResponse, caseList]) => {
+        setMeta(metaResponse);
+        setCases(caseList);
       })
-      .catch((e: ApiError) => setError(e.message));
+      .catch((cause: ApiError) => setError(cause.message));
   }, []);
 
   const openCase = useCallback(async (caseId: string) => {
@@ -60,8 +61,8 @@ export default function App() {
       const [caseDetail, prediction] = await Promise.all([getCase(caseId), predictCase(caseId)]);
       setDetail(caseDetail);
       setResult(prediction);
-    } catch (e) {
-      setError(e instanceof ApiError ? e.message : String(e));
+    } catch (cause) {
+      setError(cause instanceof ApiError ? cause.message : String(cause));
     } finally {
       setBusy(false);
     }
@@ -73,152 +74,162 @@ export default function App() {
     try {
       setDetail(null);
       setResult(await predictUpload(files));
-    } catch (e) {
-      setError(e instanceof ApiError ? e.message : String(e));
+    } catch (cause) {
+      setError(cause instanceof ApiError ? cause.message : String(cause));
     } finally {
       setBusy(false);
     }
   }, []);
 
+  const reset = useCallback(() => {
+    setDetail(null);
+    setResult(null);
+    setError(null);
+  }, []);
+
   const provisional = result ? isProvisional(result.provenance) : true;
+  const referenceVolume = useMemo(
+    () => detail?.volumes.find((v) => v.file_token === 'C+V') ?? detail?.volumes[0] ?? null,
+    [detail],
+  );
 
   return (
-    <div className="min-h-full bg-paper">
-      {/* Dải marginalia: khối title-block của hải đồ. Dính trên cùng, không bao giờ
-          cuộn khuất — RUO phải có mặt trên mọi bề mặt có kết quả. */}
-      <header className="sticky top-0 z-10 border-b-hair border-rule bg-land">
-        <div className="mx-auto flex max-w-chart flex-wrap items-baseline justify-between gap-x-lg gap-y-xs px-lg py-sm">
-          <p className="flex items-center gap-sm font-narrow text-marginalia text-ink">
-            <MarkSquare className="h-[11px] w-[11px]" />
-            {meta?.ruo_notice ?? 'Research Use Only: chưa kiểm định lâm sàng'}
-          </p>
-          <p className="font-narrow text-marginalia text-ink-secondary">
-            {result ? (
-              <>
-                Ca {result.case_id} · <ProvenanceTag provenance={result.provenance} />
-              </>
-            ) : (
-              'Chưa chọn ca'
-            )}
+    <div className="min-h-full">
+      {/* 1. Header */}
+      <header className="sticky top-0 z-30 border-b border-pacs-700 bg-pacs-900/95 backdrop-blur">
+        <div className="mx-auto flex max-w-shell flex-wrap items-center justify-between gap-4 px-6 py-3">
+          <div className="flex items-center gap-3">
+            <span className="grid h-10 w-10 place-items-center rounded-control border border-accent/40 bg-accent/10">
+              <Stethoscope className="h-5 w-5 text-accent" aria-hidden="true" />
+            </span>
+            <div>
+              <h1 className="text-base font-bold leading-tight text-white">
+                Phân loại tổn thương gan trên MRI đa thì
+              </h1>
+              <p className="text-data text-slate-400">
+                Bảy lớp tổn thương · tám thì · bản demo research
+              </p>
+            </div>
+          </div>
+
+          {/* Chỗ bản bolt để "Model online" cùng số phiên bản bịa. Thay bằng trạng
+              thái thật của lớp suy luận. */}
+          <div className="flex flex-wrap items-center gap-3">
+            <span className="chip border border-warn/40 bg-warn/10 text-warn-soft">
+              chưa nạp checkpoint
+            </span>
+            <span className="font-mono text-data text-slate-400">
+              {meta ? `${meta.classes.length} lớp · ${meta.phases.length} thì` : 'đang nạp'}
+            </span>
+          </div>
+        </div>
+
+        {/* 2. Dải RUO. Khối duy nhất thêm so với bản tham chiếu, và là ràng buộc
+            (AGENTS.md §3.1, PRODUCT.md Brand Commitment 1) chứ không phải lựa chọn. */}
+        <div className="border-t border-pacs-700 bg-pacs-950">
+          <p className="mx-auto flex max-w-shell items-center gap-2 px-6 py-2 label text-slate-400">
+            <span
+              className="inline-block h-2 w-2 border border-slate-400"
+              aria-hidden="true"
+            />
+            {meta?.ruo_notice ?? 'Research Use Only: chưa kiểm định lâm sàng'} · không dùng để chẩn
+            đoán
           </p>
         </div>
       </header>
 
-      <main className="mx-auto max-w-chart px-lg py-lg">
-        <div className="mb-xl max-w-measure">
-          <h1 className="font-narrow text-chart-title text-ink">
-            Model biết chỗ nào nó không đọc được
-          </h1>
-          <p className="mt-sm text-body text-ink-secondary">
-            Bộ phân loại bảy lớp tổn thương gan trên MRI 3D tám thì. Đóng góp không nằm ở
-            accuracy mà ở chỗ nó báo được mức tin cậy của từng ca và từ chối những ca nó
-            không chắc, thay vì luôn trả về một nhãn.
-          </p>
+      <main className="mx-auto max-w-shell px-6 py-6">
+        {/* 3. Dải thông tin ca */}
+        <div className="panel flex flex-wrap items-center gap-x-10 gap-y-4 px-5 py-4">
+          <Field label="Ca" value={detail?.case_id ?? result?.case_id ?? 'chưa chọn'} mono />
+          <Field label="Nguồn" value={detail ? 'LLD-MMRI' : '—'} />
+          <Field
+            label="Số lát"
+            value={referenceVolume ? `${referenceVolume.n_slices} lát` : '—'}
+            mono
+          />
+          <Field
+            label="Thì đã có"
+            value={detail ? `${detail.volumes.length}/${meta?.phases.length ?? 8} thì` : '—'}
+          />
+          <div className="ml-auto flex items-center gap-3">
+            {result ? <ProvenanceBadge provenance={result.provenance} /> : null}
+            <button type="button" onClick={reset} disabled={busy} className="btn-ghost">
+              <RotateCcw className="h-4 w-4" aria-hidden="true" />
+              Xoá kết quả
+            </button>
+          </div>
         </div>
 
         {error ? (
           <div
             role="alert"
-            className="mb-lg flex items-start gap-sm border-hair border-caution bg-paper p-md"
+            className="mt-6 flex items-start gap-3 rounded-panel border border-danger/50 bg-danger/10 p-4"
           >
-            <MarkCaution className="mt-[3px] h-[14px] w-[14px] shrink-0 text-caution" />
-            <p className="max-w-measure text-body text-ink">{error}</p>
+            <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-danger" aria-hidden="true" />
+            <p className="max-w-measure text-sm text-slate-300">{error}</p>
           </div>
         ) : null}
 
-        <div className="grid grid-cols-1 gap-lg lg:grid-cols-12">
-          <div className="lg:col-span-5">
-            <CasePicker cases={cases} selected={detail?.case_id ?? null} busy={busy} onSelect={openCase} />
-          </div>
-          <div className="lg:col-span-7">
-            {meta ? (
-              <UploadPanel phases={meta.phases} busy={busy} onSubmit={runUpload} />
-            ) : (
-              <Unsurveyed label="Đang nạp danh sách thì từ backend" />
-            )}
-          </div>
-        </div>
+        {/* 4. Bộ chọn ca demo */}
+        <CaseStrip cases={cases} selected={detail?.case_id ?? null} busy={busy} onSelect={openCase} />
 
+        {/* 5 + 6. Lưới 8 thì và thanh chạy phân tích */}
+        {meta ? <PhaseGrid phases={meta.phases} busy={busy} onSubmit={runUpload} /> : null}
+
+        {/* 7 → 10. Kết quả */}
         {result ? (
-          <div className="mt-xl grid grid-cols-1 gap-lg lg:grid-cols-12">
-            <div className="lg:col-span-7">
+          <section aria-labelledby="results-heading" className="mt-8 animate-fade-in">
+            <div className="mb-4 flex items-center gap-2">
+              <Activity className="h-5 w-5 text-accent" aria-hidden="true" />
+              <h2 id="results-heading" className="text-lg font-bold text-white">
+                Kết quả phân tích
+              </h2>
+            </div>
+
+            <div className="grid grid-cols-1 gap-4 lg:grid-cols-12">
+              <PredictionCard result={result} provisional={provisional} />
+              <MalignancyGauge result={result} provisional={provisional} />
+              <UncertaintyCard result={result} provisional={provisional} />
+            </div>
+
+            <div className="mt-4 grid grid-cols-1 gap-4 lg:grid-cols-12">
+              <ClassProbabilityChart probs={result.probs} provisional={provisional} />
+              <DeferPanel result={result} provisional={provisional} />
+            </div>
+
+            <div className="mt-6">
               {detail && meta ? (
-                <SliceTransport caseId={detail.case_id} phases={meta.phases} volumes={detail.volumes} />
-              ) : (
-                <Unsurveyed
-                  label="Không có ảnh cho kết quả này"
-                  detail="Đường tải lên chưa lưu volume ở server. Chọn một ca demo dựng sẵn để xem ảnh."
-                />
-              )}
-
-              <div className="mt-lg plate p-lg">
-                <h2 className="mb-sm font-narrow text-headline text-ink">Vùng model đang nhìn</h2>
-                <Unsurveyed
-                  label="Chưa khảo sát: Grad-CAM chưa xây dựng"
-                  detail="Bản đồ chú ý 3D thuộc giai đoạn sau. Vùng gạch chéo nghĩa là chưa có dữ liệu, không phải không có tín hiệu."
-                />
-              </div>
+                <SliceViewer caseId={detail.case_id} phases={meta.phases} volumes={detail.volumes} />
+              ) : null}
             </div>
 
-            <div className="flex flex-col gap-lg lg:col-span-5">
-              <div className="plate p-lg">
-                <SoundingField probs={result.probs} provisional={provisional} />
-              </div>
-              <ConfidenceZone result={result} provisional={provisional} />
-            </div>
-          </div>
+            <ClassLegend probs={result.probs} />
+          </section>
         ) : null}
       </main>
 
-      {/* Chân hải đồ: chú giải ký hiệu. Mọi ký hiệu dùng trên mặt đều phải có ở đây. */}
-      <footer className="mt-xxl border-t-hair border-rule bg-land">
-        <div className="mx-auto max-w-chart px-lg py-lg">
-          <h2 className="mb-md font-narrow text-legend text-ink">Chú giải</h2>
-          <dl className="grid grid-cols-1 gap-md sm:grid-cols-2 lg:grid-cols-4">
-            <div className="flex items-baseline gap-sm">
-              <MarkMalignant className="h-[11px] w-[11px] shrink-0 text-ink" />
-              <div>
-                <dt className="font-narrow text-marginalia text-ink">nhóm ác tính</dt>
-                <dd className="font-narrow text-marginalia text-ink-secondary">ICC, di căn, HCC</dd>
-              </div>
-            </div>
-            <div className="flex items-baseline gap-sm">
-              <MarkBenign className="h-[11px] w-[11px] shrink-0 text-ink" />
-              <div>
-                <dt className="font-narrow text-marginalia text-ink">nhóm lành tính</dt>
-                <dd className="font-narrow text-marginalia text-ink-secondary">
-                  u máu, áp-xe, nang, FNH
-                </dd>
-              </div>
-            </div>
-            <div className="flex items-baseline gap-sm">
-              <MarkCaution className="h-[11px] w-[11px] shrink-0 text-caution" />
-              <div>
-                <dt className="font-narrow text-marginalia text-ink">defer</dt>
-                <dd className="font-narrow text-marginalia text-ink-secondary">
-                  model từ chối quyết, chuyển bác sĩ
-                </dd>
-              </div>
-            </div>
-            <div className="flex items-baseline gap-sm">
-              <span className="unsurveyed mt-[2px] block h-[11px] w-[11px] shrink-0 border-hair border-dashed border-ink-tertiary" />
-              <div>
-                <dt className="font-narrow text-marginalia text-ink">gạch chéo</dt>
-                <dd className="font-narrow text-marginalia text-ink-secondary">chưa có dữ liệu</dd>
-              </div>
-            </div>
-          </dl>
-
-          <p className="mt-lg max-w-measure border-t-hair border-rule pt-md font-narrow text-marginalia text-ink-secondary">
-            <span className="italic">Chữ nghiêng</span> đánh dấu con số minh hoạ, chưa phải kết quả
-            đo được. Trên hải đồ, chữ nghiêng nghĩa là đối tượng chìm hoặc ngập nước, tức chỉ đôi
-            khi mới thấy.
+      <footer className="mt-10 border-t border-pacs-700 bg-pacs-900">
+        <div className="mx-auto max-w-shell space-y-2 px-6 py-6">
+          <p className="max-w-measure text-data text-slate-400">
+            <span className="italic">Chữ nghiêng</span> và badge "minh hoạ" đánh dấu con số chưa
+            phải kết quả đo được. Chưa có checkpoint, nên mọi giá trị suy luận trên màn hình này là
+            số giả lập dùng để dựng và kiểm giao diện.
           </p>
-          <p className="mt-sm max-w-measure font-narrow text-marginalia text-ink-secondary">
-            Research Use Only. Công cụ này chưa được kiểm định lâm sàng và không dùng để chẩn đoán.
+          <p className="max-w-measure text-data text-slate-400">
+            Research Use Only. Công cụ chưa được kiểm định lâm sàng và không dùng để chẩn đoán.
           </p>
         </div>
       </footer>
+    </div>
+  );
+}
+
+function Field({ label, value, mono = false }: { label: string; value: string; mono?: boolean }) {
+  return (
+    <div>
+      <p className="label">{label}</p>
+      <p className={`text-sm font-semibold text-white ${mono ? 'font-mono' : ''}`}>{value}</p>
     </div>
   );
 }

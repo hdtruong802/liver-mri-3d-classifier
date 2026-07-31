@@ -2954,3 +2954,43 @@ F1 từng lớp, E4 so E1: u máu +0,27 · nang +0,26 · áp-xe +0,25 · di căn
 - **Kiểm tương phản bằng SỐ, đừng tin mắt.** Hai giá trị trượt AA trong phiên này đều trông ổn trên màn hình.
 - **`pip install -r webapp/backend/requirements.txt` từng hạ Pillow toàn cục xuống 11.1.0 và làm hỏng `pdfplumber` đang cài sẵn.** Đã pin lại `pillow==12.3.0`. Interpreter này dùng chung giữa các dự án, nên pin nào cũng phải kiểm bằng `pip check`.
 - Người dùng đã **chuyển PDF báo cáo sang `output/pdf/`**, và `output/` nằm trong `.gitignore`. `scripts/md2pdf.py` vẫn ghi ra cạnh file Markdown, nên chạy nó sẽ lại đẻ PDF vào `reports/`. Chưa sửa vì chưa được yêu cầu.
+## S-077 · 2026-08-01 01:30 · claude-code
+
+**Mục tiêu phiên:** Dựng lại lớp thị giác web app theo bố cục bản bolt.new gốc, theme tối, theo yêu cầu người dùng sau khi xem bản dựng ở S-076.
+
+**Nhánh / commit:** `main` · `2faceb2` → *(commit đang chờ)*
+
+**Đã đụng file:**
+- `webapp/DESIGN.md` — **viết lại toàn bộ**: hệ "bàn đọc tối" thay "hải đồ đo sâu".
+- `webapp/frontend/` — `tailwind.config.js`, `src/index.css`, `src/catalog.ts` (mới), 7 component mới, `App.tsx` viết lại; xoá 6 component của hướng cũ.
+- `AGENTS.md` §2, §4, §12 · `PRODUCT.md` Brand Commitment 3 · `webapp/README.md` — cập nhật cho khớp hướng mới.
+- **Backend không đụng một dòng nào.**
+
+**Quyết định & lý do:**
+
+- **Đổi hướng thị giác, lần thứ hai trong hai phiên.** S-076 dựng "hải đồ đo sâu" nền sáng; người dùng xem xong và chọn quay về bố cục bolt.new với theme tối, kèm hai ảnh chụp làm tham chiếu. Đây là quyết định của người dùng sau khi có bản chạy được để so, không phải tranh luận trên giấy. Hướng cũ **bị loại hoàn toàn**, không giữ lại mảnh nào.
+- **Giữ bố cục bolt, đổ nội dung đúng sự thật.** Người dùng chọn phương án này khi được hỏi. Sáu chỗ trong ảnh không có đối tượng thật để hiển thị và đã được thay: 6 lớp kèm "Healthy" → 7 lớp từ `/api/meta`; thì ADC và Hepatobiliary → In Phase và Out Phase; hai thanh Epistemic/Aleatoric → `confidence` và entropy chuẩn hoá (`entropy / ln 7`) vì pipeline không phân rã bất định như vậy; "Nguy cơ ác tính cao — cần sinh thiết" → câu mô tả không chỉ định; `PT-2026-04827` và `HepatoNet-3D v2.4.1` → `case_id` thật và "chưa nạp checkpoint"; "Model online" → trạng thái provenance thật.
+- **Dải RUO là khối duy nhất thêm so với ảnh.** Ảnh bolt không có nó ở đâu cả. `AGENTS.md` §3.1 và `PRODUCT.md` Brand Commitment 1 buộc nó có mặt trên mọi bề mặt có kết quả, ở vị trí không thể bỏ sót. Đặt dính ngay dưới header.
+- **Hai màu chữ phải lệch khỏi bảng màu bolt vì WCAG AA.** `slate-500` cho 3,82:1 và `slate-600` cho 2,40:1 trên nền panel — đó đúng là hai màu ảnh dùng cho chữ metadata nhỏ và dòng disclaimer chân trang. Cả hai bị loại khỏi bảng token như màu chữ; sàn là `slate-400` (7,10:1). Mọi accent và màu trạng thái khác của bolt đều đạt và giữ nguyên.
+- **Bảy màu lớp thay vì sáu.** Mở rộng bảng của bolt: nhóm ác dùng dải ấm (HCC `#EF4444`, di căn `#F97316`, ICC `#FB7185`), nhóm lành dùng dải lạnh (FNH `#22C55E`, u máu `#14B8A6`, nang `#38BDF8`, áp-xe `#A3E635`). Nang đổi sang `#38BDF8` để không đụng accent cyan. Đây là tuyến mã hoá **thứ hai**; mọi lớp vẫn kèm nhãn chữ và nhãn nhóm.
+- **Bỏ animation `scan` của bolt.** Hiệu ứng quét không giải thích chuyển trạng thái nào, nó chỉ để trông có vẻ kỹ thuật. Giữ `fade-in` và `pulse-soft`.
+- **Bỏ `uppercase` khỏi class `.label`.** Bản bolt dùng `uppercase tracking-wider` cho mọi nhãn; dấu thanh chồng dấu phụ vỡ trên chữ hoa cỡ nhỏ (Ế, Ữ, Ậ, Ổ).
+- **Giữ bộ chọn ca demo và bộ xem ảnh MRI**, hai thứ ảnh bolt không có. Ca demo là đường đi chính vì pipeline cắt bám tổn thương nên cần ROI; bộ xem ảnh là phần duy nhất hiển thị dữ liệu thật.
+
+**Kết quả / số liệu:** `npm run typecheck` và `npm run build` sạch. **15 file font subset `vietnamese`** trong `dist/`, 0 file Archivo sót lại. **Kiểm tương phản 14 cặp chữ cộng 7 màu lớp: 0 cặp trượt AA.** 165 test backend xanh y nguyên (không đụng backend). `impeccable detect webapp/frontend` → `[]`. Quality gate PASS. Chạy thật xuyên proxy: 7 lớp, `defer=true`, `source=simulated`, ảnh lát PNG 99KB.
+
+**Dang dở:**
+- [ ] **CV 5-fold vẫn chưa chạy** — không đổi từ S-072, và web app không chặn nó.
+- [ ] Chưa xem bản mới bằng mắt: phiên này vẫn không có công cụ chụp màn hình.
+- [ ] `/impeccable critique` và `audit` chưa chạy.
+- [ ] External và Duke OOD chưa bắt đầu.
+- [ ] Checkpoint thật, Grad-CAM, ca demo từ prediction out-of-fold: thuộc W5.
+
+**Điểm vào phiên sau:** Chạy `notebooks/07_e4_cv_folds.ipynb` trên Kaggle với `FOLDS = [2, 3]`.
+
+**Cảnh báo cho tool sau:**
+- **`TaskStop` trên `npm run dev` không giết tiến trình vite con.** Nó chỉ giết wrapper npm; vite cũ vẫn giữ cổng 5173 và **vẫn phục vụ config tailwind cũ**, nên mọi lệnh curl vào 5173 trả lỗi postcss của bản trước trong khi `npm run build` sạch hoàn toàn. Mất một lúc mới nhận ra. Dọn bằng `Get-NetTCPConnection -LocalPort 5173 -State Listen` rồi `Stop-Process`.
+- **`slate-500` và `slate-600` cố ý không có trong bảng token.** Nếu thấy thiếu và định thêm vào cho tiện, đọc The 4.5 Rule ở `webapp/DESIGN.md` trước.
+- **recharts 3 nới kiểu của `formatter`**: `value` và `item` thành union có `undefined`. Khai `(value: number)` sẽ đỏ typecheck; phải ép `Number(value ?? 0)`.
+- **Bundle vượt 500 kB** vì recharts. Chấp nhận được với demo chạy local; nếu về sau đem host thì cân nhắc code-split.
+- Người dùng đã **chuyển PDF báo cáo sang `output/pdf/`** (S-076), và `scripts/md2pdf.py` vẫn ghi ra cạnh file Markdown. Chưa sửa vì chưa được yêu cầu.

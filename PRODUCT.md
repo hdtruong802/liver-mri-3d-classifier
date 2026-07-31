@@ -70,9 +70,9 @@ Không có thương hiệu, logo, hay identity có sẵn. Ba cam kết bắt bu�
 
 1. **Cảnh báo Research Use Only phải xuất hiện trên mọi bề mặt có kết quả**, ở vị trí không thể bỏ sót. Không màn hình nào được ngụ ý công cụ đã kiểm định lâm sàng.
 2. **Ngôn ngữ hiển thị là tiếng Việt** cho cả web app, slide và report. Thuật ngữ y khoa và thống kê giữ nguyên tiếng Anh (xem mục trên).
-3. **Hai thế giới thị giác, theo phạm vi.** Slide và report dùng **bản khắc atlas giải phẫu** ([`DESIGN.md`](DESIGN.md)) — chốt 2026-07-24 sau khi so trực tiếp với chuẩn talk MICCAI/MIDL; thiết bị **chú số và chú giải** của nó đúng thứ cần để mọi số liệu truy được về nguồn công bố. Web app dùng **hải đồ đo sâu** ([`webapp/DESIGN.md`](webapp/DESIGN.md)) — chốt 2026-07-31; hải đồ đã có sẵn sơ đồ *Zone of Confidence* và quy ước vẽ vùng chưa khảo sát, tức là calibration cộng selective prediction dưới dạng một quy ước in ấn có thật.
+3. **Hai thế giới thị giác, theo phạm vi.** Slide và report dùng **bản khắc atlas giải phẫu** ([`DESIGN.md`](DESIGN.md)) — chốt 2026-07-24 sau khi so trực tiếp với chuẩn talk MICCAI/MIDL; thiết bị **chú số và chú giải** của nó đúng thứ cần để mọi số liệu truy được về nguồn công bố. Web app dùng **bàn đọc tối** ([`webapp/DESIGN.md`](webapp/DESIGN.md)) — chốt 2026-07-31 sau khi người dùng xem hai bản dựng và chọn bố cục bản bolt.new gốc với theme tối. Nền mực xanh đen, accent cyan, ảnh MRI là thứ sáng nhất màn hình.
 
-   *Ghi lại để không phải tranh luận lại:* chuẩn talk MICCAI đã được cân nhắc nghiêm túc, dựng thành bản chạy được, và **bị loại**. Đừng đề xuất quay về nó như thể đó là lựa chọn an toàn chưa ai nghĩ tới. Dashboard PACS nền đen với gauge phát sáng cũng đã được dựng (bản bolt.new) và **bị loại** — đó là mặc định của thể loại, không phải một lựa chọn.
+   *Ghi lại để không phải tranh luận lại:* với **slide và report**, chuẩn talk MICCAI đã được cân nhắc nghiêm túc, dựng thành bản chạy được, và **bị loại**; đừng đề xuất quay về nó như thể đó là lựa chọn an toàn chưa ai nghĩ tới. Với **web app**, một hướng nền sáng kiểu bản khắc atlas cũng đã được dựng đầy đủ (2026-07-31) và **bị loại** sau khi so trực tiếp; người dùng chọn bàn đọc tối. Cả hai lựa chọn đều đã qua bản dựng chạy được, không phải qua tranh luận trên giấy.
 
 ## Evidence on Hand
 

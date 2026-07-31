@@ -1,23 +1,22 @@
 /**
- * Bộ chuyển lát — staging "wound medium" (băng từ hai cuộn).
+ * Bộ xem ảnh MRI — khối 9 của bố cục, đúng chỗ `SliceViewer` của bản bolt vốn nằm.
  *
- * Cuộn qua một khối 3D chính là quay qua một môi trường tuyến tính: muốn tới lát 40
- * thì phải đi qua 39 lát trước đó. Hai chỉ báo cuộn cho biết còn bao nhiêu lát ở mỗi
- * phía — readout thật hơn một thanh trượt trơn, vốn không nói gì về vị trí tương đối
- * trong khối.
+ * Ảnh là ảnh MRI **THẬT**, render từ file NIfTI ở backend. Bản bolt có một module 308
+ * dòng sinh ảnh bụng giả bằng thuật toán; nó đã bị bỏ và không được dựng lại.
+ * `PRODUCT.md` gọi dữ liệu giả trông như thật là rủi ro nghiêm trọng nhất của dự án,
+ * và một ảnh MRI giả còn nguy hiểm hơn một con số giả vì không ai kiểm được bằng mắt.
  *
- * Đây là chỗ DUY NHẤT trong app được phép có chuyển động liên tục
- * (`webapp/DESIGN.md`, mục Motion), vì ở đây chuyển động chính là dữ liệu.
- *
- * Ảnh là ảnh MRI THẬT, render từ NIfTI ở backend. Bản bolt sinh ảnh bụng giả bằng
- * thuật toán; module đó đã bị bỏ và không được dựng lại.
+ * Cuộn qua khối 3D được dựng như quay một băng từ giữa hai cuộn: hai chỉ báo cho biết
+ * còn bao nhiêu lát mỗi phía. Đây là chỗ duy nhất trong app có chuyển động liên tục,
+ * vì ở đây chuyển động chính là dữ liệu.
  */
 
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { Flame, Layers } from 'lucide-react';
 
 import { sliceUrl } from '@/api/client';
 import type { CaseVolumeInfo, PhaseInfo } from '@/api/types';
-import { Unsurveyed } from '@/components/Provenance';
+import { EmptyState } from '@/components/Provenance';
 
 interface Props {
   caseId: string;
@@ -25,9 +24,13 @@ interface Props {
   volumes: CaseVolumeInfo[];
 }
 
-export function SliceTransport({ caseId, phases, volumes }: Props) {
-  const available = phases.filter((p) => volumes.some((v) => v.file_token === p.file_token));
-  const [token, setToken] = useState(() => available.find((p) => p.file_token === 'C+V')?.file_token ?? available[0]?.file_token ?? '');
+export function SliceViewer({ caseId, phases, volumes }: Props) {
+  const available = phases.filter((phase) =>
+    volumes.some((volume) => volume.file_token === phase.file_token),
+  );
+  const [token, setToken] = useState(
+    () => available.find((p) => p.file_token === 'C+V')?.file_token ?? available[0]?.file_token ?? '',
+  );
 
   const volume = volumes.find((v) => v.file_token === token);
   const total = volume?.n_slices ?? 0;
@@ -72,10 +75,12 @@ export function SliceTransport({ caseId, phases, volumes }: Props) {
 
   if (available.length === 0 || !volume) {
     return (
-      <Unsurveyed
-        label="Chưa có volume để hiển thị"
-        detail="Dữ liệu bệnh nhân không nằm trong repo. Đặt LLDMMRI_SAMPLE_DIR trỏ tới thư mục chứa 8 file .nii của ca."
-      />
+      <div className="panel p-5">
+        <EmptyState
+          label="Chưa có volume để hiển thị"
+          detail="Dữ liệu bệnh nhân nằm ngoài repo. Đặt LLDMMRI_SAMPLE_DIR trỏ tới thư mục chứa 8 file .nii của ca."
+        />
+      </div>
     );
   }
 
@@ -83,21 +88,22 @@ export function SliceTransport({ caseId, phases, volumes }: Props) {
   const after = total - 1 - z;
 
   return (
-    <section aria-labelledby="transport-heading" className="plate p-lg">
-      <div className="mb-md flex flex-wrap items-baseline justify-between gap-md border-b-hair border-rule pb-sm">
-        <h2 id="transport-heading" className="font-narrow text-headline text-ink">
-          Ảnh MRI theo thì
-        </h2>
-        <p className="font-narrow text-marginalia text-ink-secondary">
-          ảnh thật, đọc từ file gốc · {volume.shape[0]}×{volume.shape[1]}×{volume.shape[2]} voxel ·{' '}
+    <section aria-labelledby="viewer-heading" className="panel p-5">
+      <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+        <div className="flex items-center gap-2">
+          <Layers className="h-4 w-4 text-accent" aria-hidden="true" />
+          <h3 id="viewer-heading" className="label">
+            Ảnh MRI theo thì
+          </h3>
+          <span className="chip border border-ok/40 bg-ok/10 text-ok-soft">ảnh thật</span>
+        </div>
+        <p className="font-mono text-data text-slate-400">
+          {volume.shape.join('×')} voxel ·{' '}
           {volume.spacing_mm.map((s) => s.toFixed(2).replace('.', ',')).join(' × ')} mm
         </p>
       </div>
 
-      {/* Tám thì. Thì đang xem nhấn bằng nét đậm 2px, không bằng màu.
-          Dùng `aria-pressed` chứ không phải tablist: không có `tabpanel` thật ở đây,
-          và một tablist thiếu panel là ARIA sai — tệ hơn là không khai gì. */}
-      <div role="group" aria-label="Chọn thì MRI" className="mb-md flex flex-wrap gap-0">
+      <div role="group" aria-label="Chọn thì MRI" className="mb-4 flex flex-wrap gap-2">
         {available.map((phase) => {
           const active = phase.file_token === token;
           return (
@@ -108,11 +114,10 @@ export function SliceTransport({ caseId, phases, volumes }: Props) {
               title={phase.description_vi}
               onClick={() => setToken(phase.file_token)}
               className={[
-                'border-hair border-hairline px-sm py-xs font-narrow text-legend',
-                '-ml-px first:ml-0',
+                'rounded-control border px-3 py-1.5 text-data font-semibold transition',
                 active
-                  ? 'border-b-mark border-b-ink bg-land font-semibold text-ink'
-                  : 'bg-paper text-ink-secondary hover:text-ink',
+                  ? 'border-accent bg-accent/15 text-accent-glow'
+                  : 'border-pacs-700 bg-pacs-800 text-slate-400 hover:text-white',
               ].join(' ')}
             >
               {phase.label_vi}
@@ -126,10 +131,10 @@ export function SliceTransport({ caseId, phases, volumes }: Props) {
         onPointerMove={onPointerMove}
         onPointerUp={onPointerUp}
         onPointerCancel={onPointerUp}
-        className="relative cursor-ew-resize touch-none select-none border-hair border-hairline bg-ink active:cursor-grabbing"
+        className="relative cursor-ew-resize touch-none select-none overflow-hidden rounded-control border border-pacs-700 bg-black active:cursor-grabbing"
       >
         {failed ? (
-          <Unsurveyed label="Không đọc được lát này" detail={`Thì ${token}, lát ${z}.`} />
+          <EmptyState label="Không đọc được lát này" detail={`Thì ${token}, lát ${z + 1}.`} />
         ) : (
           <img
             key={`${token}-${z}`}
@@ -142,28 +147,27 @@ export function SliceTransport({ caseId, phases, volumes }: Props) {
         )}
       </div>
 
-      {/* Hai cuộn: bên trái là phần đã quay qua, bên phải là phần còn lại. Tổng chiều
-          dài không đổi, nên tỉ lệ giữa hai bên chính là vị trí trong khối. */}
-      <div className="mt-md flex items-center gap-sm" aria-hidden="true">
-        <span className="h-[6px] flex-1 bg-shoal-1">
+      {/* Hai cuộn băng: trái là phần đã quay qua, phải là phần còn lại. */}
+      <div className="mt-4 flex items-center gap-3" aria-hidden="true">
+        <span className="h-1.5 flex-1 overflow-hidden rounded-full bg-pacs-700">
           <span
-            className="ml-auto block h-full bg-shoal-3"
+            className="ml-auto block h-full bg-accent"
             style={{ width: `${total > 1 ? (before / (total - 1)) * 100 : 0}%` }}
           />
         </span>
-        <span className="shrink-0 font-narrow text-legend text-ink">
+        <span className="shrink-0 font-mono text-data font-semibold text-white">
           {z + 1} / {total}
         </span>
-        <span className="h-[6px] flex-1 bg-shoal-1">
+        <span className="h-1.5 flex-1 overflow-hidden rounded-full bg-pacs-700">
           <span
-            className="block h-full bg-shoal-3"
+            className="block h-full bg-accent"
             style={{ width: `${total > 1 ? (after / (total - 1)) * 100 : 0}%` }}
           />
         </span>
       </div>
 
-      <label className="mt-sm block">
-        <span className="font-narrow text-marginalia text-ink-secondary">
+      <label className="mt-3 block">
+        <span className="text-data text-slate-400">
           Vị trí lát trong khối. Kéo ngang trên ảnh, hoặc dùng phím mũi tên.
         </span>
         <input
@@ -173,13 +177,21 @@ export function SliceTransport({ caseId, phases, volumes }: Props) {
           value={z}
           onChange={(event) => setZ(clamp(Number(event.target.value)))}
           aria-label={`Lát ${z + 1} trên ${total}`}
-          className="mt-xs h-[6px] w-full appearance-none bg-shoal-2 accent-ink"
+          className="mt-2 h-1.5 w-full appearance-none rounded-full bg-pacs-700 accent-accent"
         />
       </label>
 
-      <p className="mt-sm font-narrow text-marginalia text-ink-tertiary">
-        Còn {before} lát phía trên, {after} lát phía dưới.
-      </p>
+      <div className="mt-4 border-t border-pacs-700 pt-4">
+        <p className="mb-2 flex items-center gap-2 label">
+          <Flame className="h-3.5 w-3.5 text-accent" aria-hidden="true" />
+          Vùng mô hình đang nhìn
+        </p>
+        <EmptyState
+          label="Grad-CAM chưa xây dựng"
+          detail="Bản đồ chú ý 3D thuộc giai đoạn sau. Ô này để trống có nhãn thay vì hiển thị một overlay bịa."
+          icon={Flame}
+        />
+      </div>
     </section>
   );
 }

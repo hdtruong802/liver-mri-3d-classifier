@@ -1,63 +1,89 @@
 /**
- * Token lấy thẳng từ frontmatter của `webapp/DESIGN.md`.
+ * Token lấy từ frontmatter của `webapp/DESIGN.md` — hệ "bàn đọc tối".
  *
- * Lớp thị giác được ép ở mức CẤU HÌNH chứ không ở mức kỷ luật: `borderRadius` chỉ
- * có `0`, `boxShadow` chỉ có `none`. Viết `rounded-2xl` hay `shadow-xl` trong JSX
- * sẽ không sinh ra class nào — build hỏng ngay thay vì trôi dần khỏi hệ thống.
- * Đây là bài học từ bản bolt: ràng buộc chỉ nằm trong tài liệu thì không giữ được.
+ * Bảng màu mặc định của Tailwind bị loại hẳn: ngân sách màu là đúng những gì khai
+ * dưới đây. Đặc biệt `slate` chỉ còn ba bậc dùng cho chữ (300/400 và trắng) cộng hai
+ * bậc tối chỉ dùng cho viền và nền — `slate-500` và `slate-600` trượt WCAG AA trên
+ * nền này (3,82:1 và 2,40:1) nên chúng KHÔNG có mặt như màu chữ. Bản bolt gốc dùng
+ * đúng hai màu đó cho chữ nhỏ; đây là chỗ duy nhất hệ này cố ý lệch khỏi nó.
  */
 export default {
   content: ['./index.html', './src/**/*.{ts,tsx}'],
   theme: {
-    // `extend` bị bỏ có chủ ý cho colors/radius/shadow: bảng màu mặc định của
-    // Tailwind (slate, cyan, rose...) không được phép lọt vào. Ngân sách màu là
-    // toàn bộ những gì liệt kê dưới đây.
     colors: {
       transparent: 'transparent',
       current: 'currentColor',
-      paper: '#F5F6F4',
-      land: '#E4D8B8',
-      shoal: { 1: '#DCE9F0', 2: '#B8D4E4', 3: '#8FBBD4' },
-      // `tertiary` phải đạt AA trên CẢ giấy lẫn nền buff, vì marginalia xuất hiện
-      // trên cả hai. Bản đầu để #75838F: 3,59:1 trên giấy và 2,74:1 trên buff, tức
-      // trượt AA ở đúng cỡ chữ nhỏ nhất của hệ thống. #525C66 cho 6,29:1 và 4,81:1.
-      ink: { DEFAULT: '#16202A', secondary: '#4A5A66', tertiary: '#525C66' },
-      hairline: '#C3CBD1',
-      rule: '#8C99A2',
-      caution: '#C0247E',
-      drying: '#7C9455',
+      white: '#FFFFFF',
+      black: '#000000',
+
+      // Nền, từ sâu nhất tới nổi nhất.
+      pacs: {
+        950: '#070A13',
+        900: '#0B1020',
+        850: '#0F1525',
+        800: '#141B2E',
+        700: '#1C2540',
+        600: '#283357',
+      },
+
+      accent: { DEFAULT: '#22D3EE', glow: '#67E8F9' },
+
+      // Chữ. 400 là SÀN — không thêm bậc nào tối hơn vào nhóm này.
+      slate: { 300: '#CBD5E1', 400: '#94A3B8' },
+
+      // Trạng thái. Mỗi màu một nghĩa, không dùng chéo.
+      ok: { DEFAULT: '#34D399', soft: '#6EE7B7' },
+      warn: { DEFAULT: '#FBBF24', soft: '#FCD34D' },
+      danger: { DEFAULT: '#FB7185', soft: '#FDA4AF' },
+
+      // Bảy lớp tổn thương. Ác = dải ấm, lành = dải lạnh; đây là tuyến mã hoá THỨ
+      // HAI, luôn đi kèm nhãn chữ. Chỉ dùng trong biểu đồ và dải chú giải.
+      lesion: {
+        hcc: '#EF4444',
+        metastasis: '#F97316',
+        icc: '#FB7185',
+        fnh: '#22C55E',
+        hemangioma: '#14B8A6',
+        cyst: '#38BDF8',
+        abscess: '#A3E635',
+      },
     },
-    borderRadius: { none: '0', DEFAULT: '0' },
-    boxShadow: { none: 'none' },
+
     fontFamily: {
-      // Hai độ rộng của một superfamily, đúng kỷ luật hải đồ. Cả hai phủ đủ dấu
-      // tiếng Việt — ràng buộc quyết định, không phải sở thích.
-      narrow: ['Archivo Narrow', 'Arial Narrow', 'Segoe UI', 'system-ui', 'sans-serif'],
-      sans: ['Archivo', 'Segoe UI', 'system-ui', 'sans-serif'],
+      sans: ['Inter', 'system-ui', 'Segoe UI', 'sans-serif'],
+      mono: ['JetBrains Mono', 'ui-monospace', 'Consolas', 'monospace'],
     },
-    fontSize: {
-      marginalia: ['clamp(0.72rem, 0.95vw, 0.8rem)', { lineHeight: '1.35', letterSpacing: '0.02em' }],
-      legend: ['clamp(0.8rem, 1.05vw, 0.88rem)', { lineHeight: '1.4', letterSpacing: '0.015em' }],
-      body: ['clamp(0.94rem, 1.3vw, 1.05rem)', { lineHeight: '1.55' }],
-      headline: ['clamp(1.25rem, 1.9vw, 1.5rem)', { lineHeight: '1.3' }],
-      sounding: ['clamp(1.3rem, 2.1vw, 1.65rem)', { lineHeight: '1.1' }],
-      'sounding-lead': ['clamp(1.7rem, 2.9vw, 2.2rem)', { lineHeight: '1.05' }],
-      'chart-title': ['clamp(1.75rem, 2.6vw, 2.2rem)', { lineHeight: '1.15', letterSpacing: '0.01em' }],
-    },
-    spacing: {
-      0: '0',
-      xs: '4px',
-      sm: '8px',
-      md: '16px',
-      lg: '28px',
-      xl: '44px',
-      xxl: '72px',
-      px: '1px',
-      full: '100%',
-    },
+
     extend: {
-      borderWidth: { hair: '1px', mark: '2px' },
-      maxWidth: { chart: '1600px', measure: '68ch' },
+      fontSize: {
+        label: ['0.6875rem', { lineHeight: '1.35', letterSpacing: '0.05em' }],
+        data: ['0.75rem', { lineHeight: '1.4' }],
+        metric: ['1.875rem', { lineHeight: '1.1' }],
+      },
+      borderRadius: { panel: '1rem', control: '0.75rem' },
+      boxShadow: {
+        // Chỉ cho hành động chính lúc hover và vùng thả file đang active.
+        // Không rải lên panel tĩnh (`webapp/DESIGN.md`, mục Shapes & Depth).
+        glow: '0 0 24px -4px rgba(34, 211, 238, 0.45)',
+        'glow-soft': '0 0 40px -8px rgba(34, 211, 238, 0.25)',
+      },
+      maxWidth: { shell: '1600px', measure: '68ch' },
+      keyframes: {
+        'fade-in': {
+          '0%': { opacity: '0', transform: 'translateY(8px)' },
+          '100%': { opacity: '1', transform: 'translateY(0)' },
+        },
+        'pulse-soft': {
+          '0%, 100%': { opacity: '1' },
+          '50%': { opacity: '0.55' },
+        },
+      },
+      animation: {
+        // `scan` của bản bolt bị bỏ: hiệu ứng quét không giải thích chuyển trạng
+        // thái nào, nó chỉ để trông có vẻ kỹ thuật.
+        'fade-in': 'fade-in 0.35s ease-out both',
+        'pulse-soft': 'pulse-soft 1.8s ease-in-out infinite',
+      },
     },
   },
   plugins: [],

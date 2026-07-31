@@ -49,13 +49,14 @@ App đọc ảnh lúc chạy từ `LLDMMRI_SAMPLE_DIR`, mặc định `data/samp
 
 ## Thiết kế
 
-Thế giới thị giác ở [`DESIGN.md`](DESIGN.md) trong thư mục này — **"hải đồ đo sâu"**, riêng cho web app. `DESIGN.md` ở gốc repo là hệ khác ("bản khắc atlas") và thuộc về `slides/` với `reports/`. Hai hệ cố ý khác nhau; cái phải khớp giữa chúng là con số, thuật ngữ và giọng.
+Thế giới thị giác ở [`DESIGN.md`](DESIGN.md) trong thư mục này — **"bàn đọc tối"**, riêng cho web app. `DESIGN.md` ở gốc repo là hệ khác ("bản khắc atlas") và thuộc về `slides/` với `reports/`. Hai hệ cố ý khác nhau; cái phải khớp giữa chúng là con số, thuật ngữ và giọng.
 
-Ba luật dễ phá nhất khi sửa tiếp:
+Bốn luật dễ phá nhất khi sửa tiếp:
 
-1. **Magenta chỉ dành cho `defer`.** Không dùng nó cho nhãn, tiêu đề, hover, hay bất cứ thứ gì khác.
-2. **Chữ nghiêng nghĩa là số giả lập**, gạch chéo nghĩa là chưa có dữ liệu. Cả hai đã có nghĩa, không được dùng để trang trí hay nhấn mạnh.
-3. **Bo góc 0, không đổ bóng.** Điều này được ép ở `frontend/tailwind.config.js` chứ không chỉ ghi trong tài liệu: viết `rounded-2xl` hay `shadow-xl` sẽ không sinh ra class nào.
+1. **Sàn màu chữ là `slate-400` `#94A3B8`.** `slate-500` và `slate-600` trượt WCAG AA trên nền này (3,82:1 và 2,40:1) nên chúng **không có mặt trong bảng token** như màu chữ. Bản bolt gốc dùng đúng hai màu đó cho chữ nhỏ; đây là chỗ duy nhất bản dựng này cố ý lệch khỏi nó.
+2. **Chữ nghiêng cộng badge "minh hoạ" nghĩa là số giả lập.** Hai tín hiệu độc lập, bắt buộc cả hai, và màu không nằm trong đó. Không dùng chữ nghiêng để nhấn mạnh — nghĩa đó đã bị chiếm.
+3. **Không `text-transform: uppercase` cho chữ tiếng Việt.** Dấu thanh chồng dấu phụ vỡ trên chữ hoa ở cỡ nhỏ (Ế, Ữ, Ậ, Ổ). Class `.label` cố ý bỏ `uppercase` so với bản bolt.
+4. **Không hiển thị chỉ số pipeline không tính.** Không có epistemic/aleatoric tách đôi — chỉ có `entropy` và `ensemble_std`. Và không viết câu chỉ định lâm sàng ("cần sinh thiết"): ràng buộc RUO, không phải lựa chọn giọng.
 
 ## Test
 

@@ -1,265 +1,207 @@
 ---
 name: Liver MRI Classifier — Web App
-description: Hệ thị giác riêng cho bề mặt web app demo, dựng trên ngữ pháp hải đồ đo sâu
+description: Hệ thị giác riêng cho web app demo, bàn đọc tối kiểu trạm chẩn đoán hình ảnh
 scope: webapp/
 colors:
-  paper: "#F5F6F4"
-  land: "#E4D8B8"
-  shoal-1: "#DCE9F0"
-  shoal-2: "#B8D4E4"
-  shoal-3: "#8FBBD4"
-  ink: "#16202A"
-  ink-secondary: "#4A5A66"
-  ink-tertiary: "#525C66"
-  hairline: "#C3CBD1"
-  rule: "#8C99A2"
-  caution: "#C0247E"
-  drying: "#7C9455"
+  pacs-950: "#070A13"
+  pacs-900: "#0B1020"
+  pacs-850: "#0F1525"
+  pacs-800: "#141B2E"
+  pacs-700: "#1C2540"
+  accent: "#22D3EE"
+  accent-glow: "#67E8F9"
+  text-primary: "#FFFFFF"
+  text-secondary: "#CBD5E1"
+  text-muted: "#94A3B8"
+  state-ok: "#34D399"
+  state-warn: "#FBBF24"
+  state-danger: "#FB7185"
 typography:
-  chart-title:
-    fontFamily: "Archivo Narrow, Arial Narrow, Segoe UI, system-ui, sans-serif"
-    fontSize: "clamp(1.75rem, 2.6vw, 2.2rem)"
-    fontWeight: 600
-    lineHeight: 1.15
-    letterSpacing: "0.01em"
   headline:
-    fontFamily: "Archivo Narrow, Arial Narrow, Segoe UI, system-ui, sans-serif"
-    fontSize: "clamp(1.25rem, 1.9vw, 1.5rem)"
-    fontWeight: 600
-    lineHeight: 1.3
-    letterSpacing: "normal"
-  sounding:
-    fontFamily: "Archivo, Segoe UI, system-ui, sans-serif"
-    fontSize: "clamp(1.3rem, 2.1vw, 1.65rem)"
-    fontWeight: 500
+    fontFamily: "Inter, system-ui, Segoe UI, sans-serif"
+    fontSize: "1.5rem"
+    fontWeight: 700
+    lineHeight: 1.2
+  metric:
+    fontFamily: "Inter, system-ui, Segoe UI, sans-serif"
+    fontSize: "1.875rem"
+    fontWeight: 700
     lineHeight: 1.1
-    letterSpacing: "normal"
     fontFeature: "tnum"
+  title:
+    fontFamily: "Inter, system-ui, Segoe UI, sans-serif"
+    fontSize: "1.125rem"
+    fontWeight: 700
+    lineHeight: 1.3
   body:
-    fontFamily: "Archivo, Segoe UI, system-ui, sans-serif"
-    fontSize: "clamp(0.94rem, 1.3vw, 1.05rem)"
+    fontFamily: "Inter, system-ui, Segoe UI, sans-serif"
+    fontSize: "0.875rem"
     fontWeight: 400
     lineHeight: 1.55
-    letterSpacing: "normal"
-  legend:
-    fontFamily: "Archivo Narrow, Arial Narrow, Segoe UI, system-ui, sans-serif"
-    fontSize: "clamp(0.8rem, 1.05vw, 0.88rem)"
+  label:
+    fontFamily: "Inter, system-ui, Segoe UI, sans-serif"
+    fontSize: "0.6875rem"
+    fontWeight: 600
+    lineHeight: 1.35
+    letterSpacing: "0.05em"
+  data:
+    fontFamily: "JetBrains Mono, ui-monospace, Consolas, monospace"
+    fontSize: "0.75rem"
     fontWeight: 400
     lineHeight: 1.4
-    letterSpacing: "0.015em"
-  marginalia:
-    fontFamily: "Archivo Narrow, Arial Narrow, Segoe UI, system-ui, sans-serif"
-    fontSize: "clamp(0.72rem, 0.95vw, 0.8rem)"
-    fontWeight: 400
-    lineHeight: 1.35
-    letterSpacing: "0.02em"
+    fontFeature: "tnum"
 rounded:
-  none: "0"
+  chip: "9999px"
+  control: "0.75rem"
+  panel: "1rem"
 spacing:
   xs: "4px"
   sm: "8px"
-  md: "16px"
-  lg: "28px"
-  xl: "44px"
-  xxl: "72px"
+  md: "12px"
+  lg: "16px"
+  xl: "24px"
+  xxl: "40px"
 components:
-  chart-panel:
-    backgroundColor: "{colors.paper}"
-    textColor: "{colors.ink}"
+  panel:
+    backgroundColor: "{colors.pacs-850}"
+    textColor: "{colors.text-secondary}"
     typography: "{typography.body}"
-    rounded: "{rounded.none}"
-    padding: "28px"
-  marginalia-block:
-    backgroundColor: "{colors.land}"
-    textColor: "{colors.ink-secondary}"
-    typography: "{typography.marginalia}"
-    rounded: "{rounded.none}"
-    padding: "12px 16px"
-  caution-overprint:
-    backgroundColor: "{colors.paper}"
-    textColor: "{colors.caution}"
-    typography: "{typography.legend}"
-    rounded: "{rounded.none}"
-    padding: "16px 20px"
-  sounding-cell:
-    backgroundColor: "{colors.paper}"
-    textColor: "{colors.ink}"
-    typography: "{typography.sounding}"
-    rounded: "{rounded.none}"
-    padding: "8px 12px"
+    rounded: "{rounded.panel}"
+    padding: "20px"
+  ruo-bar:
+    backgroundColor: "{colors.pacs-900}"
+    textColor: "{colors.text-muted}"
+    typography: "{typography.label}"
+    rounded: "0"
+    padding: "8px 24px"
+  chip:
+    backgroundColor: "{colors.pacs-800}"
+    textColor: "{colors.text-muted}"
+    typography: "{typography.label}"
+    rounded: "{rounded.chip}"
+    padding: "4px 10px"
+  btn-primary:
+    backgroundColor: "{colors.accent}"
+    textColor: "{colors.pacs-950}"
+    typography: "{typography.body}"
+    rounded: "{rounded.control}"
+    padding: "10px 16px"
 ---
 
 # Design System: Liver MRI Classifier — Web App
 
-> **Phạm vi: chỉ `webapp/`.** `DESIGN.md` ở gốc repo ("bản khắc atlas") vẫn chi phối `slides/` và `reports/`, và `slides/overview_v2.html` đang dùng nó. Hai hệ thống cố ý khác nhau. Cái phải khớp giữa ba bề mặt là **con số, thuật ngữ và giọng** (`PRODUCT.md` Product Principle 4), không phải lớp nhìn.
+> **Phạm vi: chỉ `webapp/`.** `DESIGN.md` ở gốc repo ("bản khắc atlas") chi phối `slides/` và `reports/`, và `slides/overview_v2.html` đang dùng nó. Hai hệ cố ý khác nhau. Cái phải khớp giữa các bề mặt là **con số, thuật ngữ và giọng** (`PRODUCT.md` Product Principle 4), không phải lớp nhìn.
+>
+> **Lịch sử:** hệ này thay hướng "hải đồ đo sâu" nền sáng dựng ở WORKLOG S-076. Người dùng xem bản dựng rồi chọn quay về bố cục bản bolt.new gốc với theme tối (S-077). Hướng cũ không còn hiệu lực ở đâu cả; đừng khôi phục từng mảnh của nó.
 
 ## Overview
 
-**Creative North Star: "The Sounding Chart"**
+**Bàn đọc tối — trạm chẩn đoán hình ảnh.**
 
-Thế giới thị giác là **hải đồ đo sâu**.
+Nền mực xanh đen, panel nổi nhẹ, một sắc cyan làm accent. Đây là ngôn ngữ của phòng đọc phim: màn hình tối để mắt không loá khi nhìn ảnh xám, và **ảnh MRI là thứ sáng nhất trên màn hình**.
 
-Lý do chọn không phải liên tưởng hàng hải. Hải đồ là hệ thông tin duy nhất đã có sẵn, thành quy ước xuất bản, đúng thứ dự án này cần: một tấm bản đồ **tự khai báo chỗ nào của chính nó đáng tin tới đâu**. Người đi biển đọc sơ đồ *Zone of Confidence* để biết vùng nào được khảo sát kỹ, vùng nào chỉ đo thưa, vùng nào chưa ai đo. Vùng chưa khảo sát **được vẽ ra bằng gạch chéo**, không bị làm mượt cho đẹp bản đồ.
+Tính cách: gọn, có nhịp, dày thông tin nhưng không chật. Panel bo góc, chiều sâu nhẹ. Chuyển động ít và chỉ để giải thích trạng thái.
 
-Đó chính là calibration cộng selective prediction, đã tồn tại hàng trăm năm dưới dạng một quy ước in ấn. Hệ trích nguồn và hệ báo bất định không bị dán vào từ ngoài — chúng **mọc ra từ ngữ pháp của thế giới này**.
-
-Bốn thiết bị mượn nguyên vẹn, mỗi thứ mang một nghĩa dữ liệu:
-
-| Thiết bị hải đồ | Nghĩa gốc | Nghĩa trong app |
-|---|---|---|
-| **Sounding** | số đo độ sâu tại một điểm thật | xác suất từng lớp, in ra như số đo chứ không làm mượt thành bề mặt |
-| **Zone of Confidence** | vùng này được khảo sát kỹ tới đâu | mức tin cậy của ca, ngưỡng `defer`, `coverage` |
-| **Gạch chéo "chưa khảo sát"** | chưa ai đo vùng này | chưa có dữ liệu thật: Grad-CAM chưa có, số giả lập |
-| **Overprint magenta** | thông tin mang tính cảnh báo | cờ `defer` và mọi cảnh báo, không dùng vào việc gì khác |
-
-Tính cách: khô, dày đặc, chính xác, không cảm tính. Đây là tài liệu vận hành, không phải sản phẩm tiêu dùng. Phẳng tuyệt đối — hải đồ là giấy in.
-
-**Rủi ro đã biết, ghi lại để không quên.** Hải đồ là hệ dày. Dựng non tay thì nó thành trang trí hàng hải dán lên một dashboard — tệ hơn cả bản bolt đã bỏ. **Ranh giới tự đặt: mọi ký hiệu mượn từ hải đồ phải mang một nghĩa của dữ liệu. Ký hiệu nào chỉ để trông giống hải đồ thì bỏ.** Không có neo, không có bánh lái, không có la bàn hoa gió, không có giấy ố vàng làm giả.
+**Điều hệ này phải làm được, ngoài chuyện trông ổn:** người review nhìn màn hình phải phân biệt ngay **cái gì là dữ liệu thật, cái gì là số minh hoạ**. Chưa có checkpoint, nên mọi con số suy luận hiện tại đều là giả lập. Hệ thị giác nào làm mờ ranh giới đó là đang phản bác chính nghiên cứu.
 
 ## Colors
 
-Bảng màu là **bảng màu hải đồ thật**, không phải bảng lấy cảm hứng. Trên hải đồ, nước càng **nông** thì càng **xanh đậm** — xanh nghĩa là cẩn thận, không phải nghĩa yên tâm. Luật đó được giữ nguyên.
+### Nền
 
-### Ground
-- **Giấy Hải Đồ** (`#F5F6F4`): nền chính, ứng với vùng nước sâu. Trắng ngả xám rất nhẹ, **không phải kem, không phải giấy cũ**.
-- **Đất Liền** (`#E4D8B8`): buff, cấp nền thứ hai. Dùng cho khối marginalia và các vùng "đã biết chắc, không phải chỗ để đo".
+| Token | Hex | Việc |
+|---|---|---|
+| `pacs-950` | `#070A13` | nền trang |
+| `pacs-900` | `#0B1020` | header, dải RUO, chân trang |
+| `pacs-850` | `#0F1525` | panel |
+| `pacs-800` | `#141B2E` | panel nổi, ô số liệu bên trong panel |
+| `pacs-700` | `#1C2540` | viền, đường phân cách |
 
-### Confidence bands
-- **Nông 1 / 2 / 3** (`#DCE9F0` · `#B8D4E4` · `#8FBBD4`): ba dải lam. Chỉ dùng để mã hoá **mức tin cậy**, đậm dần theo mức cảnh giác. Không dùng làm nền trang trí.
+### Accent
 
-### Ink
-- **Mực Sounding** (`#16202A`): mọi con số và chữ chính. Đen ngả lam như mực in hải đồ.
-- **Mực Phụ** (`#4A5A66`) · **Mực Mờ** (`#525C66`): chú giải, siêu dữ liệu. Cả hai đạt WCAG AA trên **cả** Giấy Hải Đồ lẫn Đất Liền — Mực Mờ được ép xuống từ `#75838F` vì giá trị đó chỉ cho 2,74:1 trên nền buff, trượt AA ở đúng cỡ chữ nhỏ nhất của hệ thống.
-- **Hairline** (`#C3CBD1`) · **Kẻ** (`#8C99A2`): đường đẳng sâu và kẻ khung.
+**Cyan** `#22D3EE` — hành động chính, tiêu đề mục, chỉ báo đang hoạt động. `#67E8F9` cho hover.
 
-### Overprint
-- **Magenta Cảnh Báo** (`#C0247E`): lớp overprint. Trên hải đồ magenta luôn có đúng một nghĩa — *thông tin cần chú ý*. Ở đây nó thuộc về **`defer` và chỉ `defer`**, cộng các cảnh báo cùng hạng.
-- **Xanh Ngập Triều** (`#7C9455`): vùng lúc nổi lúc chìm, tức **trạng thái có điều kiện**. Chỉ dùng trong sơ đồ Zone of Confidence cho dải giáp ngưỡng.
+### Chữ
+
+| Token | Hex | Tương phản trên `pacs-850` | Việc |
+|---|---|---|---|
+| trắng | `#FFFFFF` | 17,4:1 | tiêu đề, số chính |
+| `slate-300` | `#CBD5E1` | 12,3:1 | chữ chạy |
+| `slate-400` | `#94A3B8` | 7,1:1 | **sàn — chữ nhỏ nhất được phép** |
+
+### Trạng thái
+
+`#34D399` đủ / xong · `#FBBF24` cần chú ý, `defer` · `#FB7185` nhóm ác
+
+### Bảy màu lớp
+
+- **ác:** HCC `#EF4444` · di căn `#F97316` · ICC `#FB7185`
+- **lành:** FNH `#22C55E` · u máu `#14B8A6` · nang `#38BDF8` · áp-xe `#A3E635`
+
+Nhóm ác dùng dải ấm, nhóm lành dùng dải lạnh. Đây là tuyến mã hoá **thứ hai**, không phải tuyến duy nhất. Nang dùng `#38BDF8` chứ không phải `#06B6D4` để không đụng accent cyan.
 
 ### Named Rules
 
-**The Magenta Rule.** Magenta chỉ có một nghĩa: cần chú ý, ở đây là `defer`. Không dùng magenta cho nhãn, cho tiêu đề, cho hover, cho bất cứ thứ gì khác. Sức mạnh của nó nằm ở chỗ thấy magenta là biết ngay model đang từ chối quyết.
+**The 4.5 Rule.** Chữ nhỏ nhất được phép là `slate-400` `#94A3B8`. `slate-500` (`#64748B`, **3,82:1**) và `slate-600` (`#475569`, **2,40:1**) trượt WCAG AA và **không được dùng cho chữ** — chỉ cho viền và nền. Bản bolt gốc dùng đúng hai màu đó cho chữ metadata và dòng disclaimer; đây là chỗ duy nhất hệ này cố ý lệch khỏi bản tham chiếu.
 
-**The Blue-Means-Caution Rule.** Lam đậm hơn = tin cậy thấp hơn = cẩn thận hơn. Đây là luật ngược với trực giác dashboard thông thường (nơi xanh = tốt). Giữ đúng luật hải đồ và **luôn kèm nhãn chữ**, vì trực giác ngược là chính xác lý do không được để màu làm việc một mình.
+**The Never-Colour-Alone Rule.** Không thông tin nào chỉ mã hoá bằng màu. Lớp tổn thương luôn kèm nhãn chữ và nhãn nhóm "ác"/"lành"; `defer` luôn kèm nhãn chữ và icon; trạng thái thì luôn kèm chữ "đủ"/"thiếu". Bài kiểm: khử màu ảnh chụp màn hình — mất thông tin là thiết kế sai. (`PRODUCT.md` Accessibility & Inclusion; mục này **không** nằm trong phần ràng buộc đã được gỡ.)
 
-**The Never-Colour-Alone Rule.** Không thông tin nào chỉ mã hoá bằng màu. Ác/lành, mức tin cậy, `defer`, thật/giả lập — mỗi thứ luôn kèm **nhãn chữ, hoặc kiểu chữ đứng-nghiêng, hoặc hình dạng ký hiệu**. Hải đồ vốn đã làm đúng thế: đá ngầm, xác tàu, đáy xấu mỗi thứ một hình riêng, phân biệt được cả trên bản in đen trắng. Bài kiểm: in đen trắng, mất thông tin là thiết kế sai.
-
-**The Restraint Rule.** Bảy lớp tổn thương **không được mỗi lớp một màu**. Phân biệt bằng vị trí, nhãn chữ, và độ đậm nét. Bản bolt cho mỗi lớp một hex — đó là chỗ nó hỏng nặng nhất về mặt hệ thống.
+**The Accent Budget.** Cyan là accent duy nhất. Bảy màu lớp chỉ sống trong biểu đồ xác suất và dải chú giải, không tràn ra chrome. Ba màu trạng thái chỉ mang nghĩa trạng thái.
 
 ## Typography
 
-**Chữ hải đồ (condensed):** `Archivo Narrow → Arial Narrow → Segoe UI → system-ui → sans-serif`
-Dùng cho tiêu đề, nhãn, chú giải, marginalia. Hải đồ dùng lettering hẹp vì phải nhồi nhiều nhãn vào ít chỗ; đặc điểm đó được giữ.
+**`Inter`** cho toàn bộ giao diện. **`JetBrains Mono`** cho định danh và giá trị đo: `case_id`, tên file, entropy, spacing mm. Cả hai tự host qua `@fontsource`, không CDN.
 
-**Chữ số liệu (regular):** `Archivo → Segoe UI → system-ui → sans-serif`
-Dùng cho chữ chạy và **mọi con số**.
-
-Một superfamily ở hai độ rộng, đúng kỷ luật của hải đồ thật. Cả hai đều **phủ đủ dấu tiếng Việt** — đây là ràng buộc quyết định, không phải sở thích (`PRODUCT.md` Accessibility & Inclusion).
+**Cả hai phải phủ đủ dấu tiếng Việt** — ràng buộc cứng. Kiểm bằng cách xác nhận subset `vietnamese` có mặt trong `dist/` sau build, không phải bằng cách nhìn.
 
 ### Named Rules
 
-**The Upright-Italic Rule — thiết bị chữ ký của hệ thống.**
-Trên hải đồ, **chữ đứng** nghĩa là đối tượng *luôn nổi trên mặt nước*; **chữ nghiêng** nghĩa là đối tượng *chìm hoặc ngập nước*, tức chỉ đôi khi mới thấy. Luật đó được mang sang nguyên nghĩa:
+**The No-Uppercase Rule.** `text-transform: uppercase` **không dùng cho chữ tiếng Việt**. Lý do là kỹ thuật, không phải khẩu vị: dấu thanh chồng dấu phụ vỡ trên chữ hoa ở cỡ nhỏ (Ế, Ữ, Ậ, Ổ). Bản bolt dùng `uppercase tracking-wider` cho mọi nhãn; ở đây bỏ `uppercase`, giữ `tracking-wider` cộng cỡ chữ và màu để tạo cảm giác nhãn. Viết tắt vốn đã là chữ hoa không dấu (`HCC`, `ICC`, `FNH`, `ECE`, `AURC`, `OOD`, `DWI`, `T2WI`) giữ nguyên — đó không phải `text-transform`.
 
-- **Chữ đứng = số đo thật.** Ảnh MRI thật, kích thước volume thật, tên bệnh nhân thật.
-- **Chữ nghiêng = số giả lập hoặc chưa xác lập.** Mọi output suy luận khi `provenance.source == "simulated"`.
+**The Tabular Rule.** Mọi con số dùng `font-variant-numeric: tabular-nums`. Số nhảy cột khi cập nhật là lỗi đọc.
 
-Đây là tuyến phòng thủ **thứ hai** sau nhãn chữ, và nó hoạt động cả trên bản in đen trắng. Không bao giờ dùng nghiêng để nhấn mạnh — nghĩa đó đã bị chiếm.
+## Shapes & Depth
 
-**The Tabular Rule.** Mọi con số dùng `font-variant-numeric: tabular-nums`, canh theo dấu thập phân. Sounding trên hải đồ xếp thẳng cột được là vì thế.
+Panel bo `1rem`, control bo `0.75rem`, chip bo tròn hoàn toàn. Viền `1px` màu `pacs-700` hoặc `white/10`.
 
-**The No-Uppercase Rule.** `text-transform: uppercase` không dùng cho **chữ tiếng Việt**. Lý do là kỹ thuật: dấu thanh chồng dấu phụ vỡ trên chữ hoa cỡ nhỏ (Ế, Ữ, Ậ, Ổ). Viết tắt sẵn dạng hoa và không dấu (`HCC`, `ICC`, `FNH`, `ECE`, `AURC`, `OOD`) thì giữ nguyên, đó không phải `text-transform`.
+Chiều sâu đến từ hai cấp nền cộng viền mảnh. `shadow-glow` (`0 0 24px -4px rgba(34,211,238,.45)`) chỉ dùng cho **hành động chính lúc hover** và vùng thả file đang active — không rải lên panel tĩnh.
 
-**The Data-Outranks-Prose Rule.** Bậc `sounding` lớn hơn `body` một tỉ lệ đầy đủ. Số liệu là nhân vật chính nên nó phải *nhìn* ra như vậy.
+## Đánh dấu số minh hoạ
 
-## Layout
+Backend khai nguồn gốc ở `provenance.source` của mọi phản hồi. Khi nó là `simulated`, UI bắt buộc dựng **hai tín hiệu độc lập**:
 
-Bố cục theo **khung hải đồ**: một khung kẻ đôi bao quanh toàn mặt, marginalia nằm trong dải trên, chú giải nằm dải dưới. Không bao giờ có nội dung sát mép.
+1. **Badge chữ** cạnh khối số: "minh hoạ, chưa có model".
+2. **Chữ nghiêng** cho chính con số.
 
-- **Dải trên (marginalia):** RUO · định danh ca · provenance · phiên bản model · ngày. Đây là chỗ khối title-block của hải đồ vốn nằm. **Dính trên cùng, không bao giờ cuộn khuất.**
-- **Thân trái:** ảnh MRI thật cùng bộ chuyển lát.
-- **Thân phải:** trường sounding (phân phối 7 lớp) và sơ đồ Zone of Confidence.
-- **Dải dưới:** chú giải ký hiệu, đúng như chân hải đồ.
+Màu **không** nằm trong hai tín hiệu này — chúng phải sống sót qua bản khử màu và qua screen reader.
 
-Nhịp khoảng cách theo thang `xs/sm/md/lg/xl/xxl`. **Luôn nhiều khoảng trống phía trên một tiêu đề hơn phía dưới nó.**
+Khi `source` thành `oof` hoặc `live`, cả hai tự tắt.
 
-Dưới 900px: khung kẻ đôi bỏ, nội dung chảy dọc theo thứ tự marginalia → kết quả → ảnh → chú giải. Dải RUO vẫn dính trên.
+## Dải RUO
 
-`@media print`: đúng một tờ ngang, nền trắng, magenta chuyển sang đen cộng gạch chéo (bản in đen trắng vẫn phải đọc được `defer`).
+Full-width, ngay dưới header, **dính trên cùng, không bao giờ cuộn khuất**. Nội dung: "Research Use Only: chưa kiểm định lâm sàng".
 
-## Elevation & Depth
-
-**Hoàn toàn phẳng. Không `box-shadow` ở bất kỳ đâu.** Hải đồ là giấy in.
-
-Chiều sâu đến từ ba thứ: độ đậm của nét, hairline, và hai cấp nền (Đất Liền nổi trên Giấy Hải Đồ).
-
-## Shapes
-
-- **Bo góc bằng 0** cho mọi khung, panel, nút, ô nhập. Khung hải đồ là khung kẻ.
-- **Hình dữ liệu thì không bị luật đó ràng buộc**: đường đẳng sâu, vùng ZOC, đường viền tổn thương là hình hữu cơ — chúng là *dữ liệu*, không phải *khung*.
-- Kẻ 1px. Độ dày chỉ tăng khi nó mang thông tin.
-- **Gạch chéo (hatching) là ngôn ngữ dành riêng cho "chưa có dữ liệu"** — chưa khảo sát. Không dùng gạch chéo để trang trí, vì sẽ phá tín hiệu duy nhất phân biệt có dữ liệu với không.
-- Đầu mục danh sách là **một đoạn kẻ ngang 12px**, không phải chấm tròn.
-
-## Components
-
-### Trường sounding (thiết bị chính, thay chỗ bar chart)
-- Bảy lớp, mỗi lớp một con số xác suất in ra **như một sounding**: chữ số bảng, canh thập phân.
-- **Lớp dẫn đầu nhấn bằng độ đậm nét**, không bằng màu.
-- Mỗi hàng kèm một dải lam ngang dài theo xác suất — dải là phụ, **con số là chính**.
-- Nhóm ác và nhóm lành phân biệt bằng **ký hiệu hình dạng cộng nhãn chữ**, không bằng màu.
-- Xác suất dưới ngưỡng hiển thị vẫn phải in ra. Hải đồ không giấu sounding nông.
-
-### Sơ đồ Zone of Confidence (panel `defer`)
-- Các dải tin cậy xếp chồng, dải hiện tại của ca được đánh dấu.
-- Ngưỡng `defer` là **một đường đẳng sâu kẻ ngang có nhãn số**.
-- Khi `defer` bật: toàn panel nhận **overprint magenta** cộng nhãn chữ rõ ràng cộng ký hiệu cảnh báo. Ba tín hiệu, không phải một.
-- Đây là panel được phép **to nhất** trên màn hình kết quả. Từ chối là kết quả hợp lệ, không phải lỗi cần giấu (`PRODUCT.md` Product Principle 2).
-
-### Khối marginalia
-- Nền Đất Liền, chữ marginalia.
-- Bắt buộc chứa: dải RUO · định danh ca · `provenance` · phiên bản model · ngày.
-- **Dải RUO**: chữ marginalia kèm một ô vuông rỗng 8px. Nội dung: "Research Use Only: chưa kiểm định lâm sàng". Có mặt trên **mọi** bề mặt có kết quả, không bao giờ cuộn khuất.
-
-### Dấu "chưa khảo sát"
-- Nền gạch chéo 45° màu Mực Mờ, cộng **nhãn chữ bắt buộc**: "Minh hoạ: chưa có dữ liệu thật", "Chưa xây dựng".
-- Gắn liền với khối số hoặc hình mà nó mô tả, không đứng rời ở góc.
-- Đi kèm luật chữ nghiêng ở trên. Hai tín hiệu độc lập cho cùng một sự thật là cố ý.
-
-### Bộ chuyển lát (staging: wound medium)
-- Cuộn qua khối 3D được dựng như **quay một băng từ giữa hai cuộn**: hai chỉ báo cho biết còn bao nhiêu lát phía trên và phía dưới lát hiện tại, cộng một bộ đếm số.
-- Kéo trực tiếp làm đổi vị trí thật, không phải animation trang trí.
-- Bàn phím có tương đương đầy đủ: mũi tên đi từng lát, `Home`/`End` về hai đầu.
-- Đây là **chỗ duy nhất trong app được phép có chuyển động liên tục**.
-
-### Link và focus
-- Link gạch chân 1px màu Kẻ, chữ giữ màu Mực. Hover chuyển gạch chân sang Mực.
-- `:focus-visible` outline 2px **Mực** (không phải magenta — magenta đã bị `defer` chiếm), offset 2px. Bắt buộc ở mọi phần tử tương tác.
+Bản bolt gốc không có khối này. Nó bắt buộc (`AGENTS.md` §3.1, `PRODUCT.md` Brand Commitment 1) và không phải một lựa chọn thiết kế.
 
 ## Motion
 
-Ngân sách chuyển động gần bằng không. Hải đồ là giấy.
+Ngân sách nhỏ. **Được phép:** `fade-in` khi khối kết quả xuất hiện, `pulse-soft` cho chỉ báo đang chạy, đổi lát khi kéo. **Không:** hiệu ứng quét, số đếm lên, panel trượt vào, hover nảy.
 
-- **Được phép:** bộ chuyển lát (chuyển động là dữ liệu thật), và chuyển trạng thái tải.
-- **Không được:** hover nảy, panel trượt vào, số đếm lên, nhấp nháy, hiệu ứng khoe kỹ thuật.
-- `prefers-reduced-motion: reduce` → mọi chuyển động về 0, bộ chuyển lát nhảy thẳng tới lát đích.
+`prefers-reduced-motion: reduce` → mọi chuyển động về 0.
 
 ## Do's and Don'ts
 
 ### Do
-- **Do** in con số ra, ở cỡ đọc được. Sounding là nhân vật chính.
-- **Do** cho mọi thứ mã hoá bằng màu một nhãn chữ hoặc một hình dạng đi kèm.
-- **Do** dùng chữ nghiêng cho mọi số giả lập, và gạch chéo cho mọi vùng chưa có dữ liệu.
-- **Do** giữ magenta cho riêng `defer` (The Magenta Rule).
-- **Do** kiểm bằng cách in đen trắng.
-- **Do** ghi rõ mỗi con số đo trên tập nào, kể cả khi làm bảng dài thêm.
+- **Do** cho mọi thứ mã hoá bằng màu một nhãn chữ hoặc icon đi kèm.
+- **Do** dùng cả badge chữ lẫn chữ nghiêng cho số minh hoạ.
+- **Do** giữ `slate-400` làm sàn cho chữ.
+- **Do** để ảnh MRI là thứ sáng nhất màn hình.
+- **Do** kiểm tương phản bằng số. Nền tối đánh lừa mắt rất giỏi.
 
 ### Don't
-- **Don't** trình bày số giả lập mà không có cả hai tín hiệu: chữ nghiêng và nhãn chữ.
-- **Don't** cho mỗi lớp trong bảy lớp một màu riêng (The Restraint Rule).
-- **Don't** dùng `box-shadow`, gradient, glass, blur.
-- **Don't** dùng bán kính bo góc khác 0 cho khung và điều khiển.
+- **Don't** dùng `slate-500` hay `slate-600` cho chữ (The 4.5 Rule).
 - **Don't** dùng `text-transform: uppercase` cho chữ tiếng Việt.
-- **Don't** thêm ký hiệu hàng hải không mang nghĩa dữ liệu: neo, bánh lái, hoa gió, giấy ố vàng giả cổ.
-- **Don't** dùng gạch chéo hay chữ nghiêng để trang trí — hai thứ đó đã có nghĩa.
-- **Don't** viết câu mang tính chỉ định lâm sàng. Đây là ràng buộc RUO, không phải lựa chọn giọng.
+- **Don't** hiển thị chỉ số pipeline không tính: **không có** epistemic/aleatoric tách đôi, chỉ có `entropy` và `ensemble_std`.
+- **Don't** viết câu chỉ định lâm sàng ("cần sinh thiết", "nên theo dõi sát"). Ràng buộc RUO, không phải lựa chọn giọng.
+- **Don't** bịa định danh bệnh nhân, ngày khám, hay phiên bản model.
+- **Don't** rải `shadow-glow` lên panel tĩnh.
+- **Don't** sinh ảnh MRI giả. Chưa có dữ liệu thì hiện trạng thái rỗng có nhãn.

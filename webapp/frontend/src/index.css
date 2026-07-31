@@ -1,86 +1,103 @@
-/* Font tự host qua @fontsource — không CDN, không webfont tải lúc chạy.
-   Ràng buộc: dấu tiếng Việt phải hiển thị đúng kể cả khi ngoại tuyến. */
-@import '@fontsource/archivo/400.css';
-@import '@fontsource/archivo/500.css';
-@import '@fontsource/archivo/600.css';
-@import '@fontsource/archivo/400-italic.css';
-@import '@fontsource/archivo/500-italic.css';
-@import '@fontsource/archivo-narrow/400.css';
-@import '@fontsource/archivo-narrow/600.css';
-@import '@fontsource/archivo-narrow/400-italic.css';
+/* Font tự host qua @fontsource — không CDN, không tải lúc chạy.
+   Ràng buộc cứng: dấu tiếng Việt phải hiển thị đúng kể cả khi ngoại tuyến.
+   Cả Inter lẫn JetBrains Mono đều có subset `vietnamese`; kiểm bằng cách xác nhận
+   nó có mặt trong dist/ sau build, không phải bằng cách nhìn. */
+@import '@fontsource/inter/400.css';
+@import '@fontsource/inter/500.css';
+@import '@fontsource/inter/600.css';
+@import '@fontsource/inter/700.css';
+@import '@fontsource/inter/400-italic.css';
+@import '@fontsource/inter/600-italic.css';
+@import '@fontsource/jetbrains-mono/400.css';
+@import '@fontsource/jetbrains-mono/400-italic.css';
 
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 @layer base {
-  html {
-    /* Bản đồ đứng yên khi cuộn tới neo; không cuộn mượt vì đó là chuyển động
-       không mang thông tin (webapp/DESIGN.md, mục Motion). */
-    scroll-behavior: auto;
+  html,
+  body,
+  #root {
+    height: 100%;
   }
 
   body {
-    @apply bg-paper font-sans text-body text-ink antialiased;
-    /* Chữ số bảng ở khắp nơi: sounding trên hải đồ xếp thẳng cột được là vì thế. */
+    @apply bg-pacs-950 font-sans text-sm text-slate-300 antialiased;
     font-variant-numeric: tabular-nums;
   }
 
-  /* Focus nhìn thấy được ở mọi phần tử tương tác. Màu Mực, KHÔNG phải magenta —
-     magenta đã bị `defer` chiếm (The Magenta Rule). */
+  /* Focus phải nhìn thấy được trên nền tối ở mọi phần tử tương tác. */
   :focus-visible {
-    outline: 2px solid #16202a;
+    outline: 2px solid #22d3ee;
     outline-offset: 2px;
   }
 
   ::selection {
-    background: #b8d4e4;
-    color: #16202a;
+    @apply bg-accent/30 text-white;
   }
 }
 
 @layer components {
-  /* Khung hải đồ: hai đường kẻ lồng nhau. Phẳng tuyệt đối, không đổ bóng. */
-  .plate {
-    @apply relative border-hair border-rule bg-paper;
+  .panel {
+    @apply rounded-panel border border-pacs-700 bg-pacs-850;
   }
-  .plate::before {
-    content: '';
-    position: absolute;
-    inset: 4px;
-    border: 1px solid #c3cbd1;
-    pointer-events: none;
+  .panel-elevated {
+    @apply rounded-panel border border-pacs-600 bg-pacs-800;
+  }
+  .inset-box {
+    @apply rounded-control border border-pacs-700 bg-pacs-900;
   }
 
-  /* Vùng chưa khảo sát: gạch chéo 45°. Ngôn ngữ dành riêng cho "chưa có dữ liệu";
-     không bao giờ dùng để trang trí. */
-  .unsurveyed {
-    background-image: repeating-linear-gradient(
-      45deg,
-      transparent,
-      transparent 5px,
-      #c3cbd1 5px,
-      #c3cbd1 6px
-    );
+  .chip {
+    @apply inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-label font-semibold;
   }
 
-  /* Overprint cảnh báo: lớp magenta thưa, đúng cách hải đồ in đè thông tin advisory. */
-  .overprint-caution {
-    background-image: repeating-linear-gradient(
-      -45deg,
-      transparent,
-      transparent 7px,
-      rgba(192, 36, 126, 0.14) 7px,
-      rgba(192, 36, 126, 0.14) 9px
-    );
+  /* KHÔNG `uppercase`: dấu thanh chồng dấu phụ vỡ trên chữ hoa ở cỡ nhỏ
+     (Ế, Ữ, Ậ, Ổ). Bản bolt dùng `uppercase tracking-wider` cho mọi nhãn; ở đây
+     cảm giác "nhãn" đến từ cỡ chữ, độ đậm, giãn chữ và màu. */
+  .label {
+    @apply text-label font-semibold tracking-wider text-slate-400;
   }
 
-  /* Số giả lập. Chữ nghiêng là tuyến tín hiệu THỨ HAI sau nhãn chữ, và nó sống sót
-     qua bản in đen trắng. Trên hải đồ, chữ nghiêng nghĩa là "chìm hoặc ngập nước" —
-     tức chỉ đôi khi mới thấy. */
+  .btn-primary {
+    @apply inline-flex items-center justify-center gap-2 rounded-control bg-accent px-4 py-2.5
+      text-sm font-semibold text-pacs-950 transition
+      hover:bg-accent-glow hover:shadow-glow
+      disabled:cursor-not-allowed disabled:bg-pacs-700 disabled:text-slate-400
+      disabled:hover:bg-pacs-700 disabled:hover:shadow-none;
+  }
+  .btn-ghost {
+    @apply inline-flex items-center justify-center gap-2 rounded-control border border-pacs-700
+      bg-pacs-800 px-3 py-2 text-sm font-medium text-slate-300 transition
+      hover:border-pacs-600 hover:text-white
+      disabled:cursor-not-allowed disabled:text-slate-400;
+  }
+
+  /* Con số minh hoạ. Chữ nghiêng là tín hiệu THỨ HAI sau badge chữ, và nó sống sót
+     qua bản khử màu — màu cố ý không nằm trong hai tín hiệu này. */
   .provisional {
     font-style: italic;
   }
+}
+
+/* Thanh cuộn hợp với nền tối. */
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: #1c2540;
+  border-radius: 999px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #283357;
+  background-clip: padding-box;
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -90,24 +107,5 @@
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
-  }
-}
-
-@media print {
-  body {
-    background: #fff;
-  }
-  /* Bản in đen trắng phải đọc được `defer`: magenta chuyển sang đen cộng gạch chéo. */
-  .overprint-caution {
-    background-image: repeating-linear-gradient(
-      -45deg,
-      transparent,
-      transparent 6px,
-      #16202a 6px,
-      #16202a 7px
-    );
-  }
-  .no-print {
-    display: none !important;
   }
 }

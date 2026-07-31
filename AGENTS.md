@@ -64,7 +64,7 @@ Chi tiết đầy đủ, không lặp lại ở đây:
 | `docs/MULTI_TOOL_WORKFLOW.md` | Giao thức chống xung đột giữa 4 tool, tích hợp Impeccable | Mọi tool |
 | `PRODUCT.md` | Sự thật sản phẩm: người dùng, mục đích, ràng buộc, nguyên tắc, a11y | Mọi tool |
 | `DESIGN.md` | Thế giới thị giác **của slide và report** ("bản khắc atlas"). `slides/overview_v2.html` đang dùng | Mọi tool, ghi WORKLOG |
-| `webapp/DESIGN.md` | Thế giới thị giác **riêng của web app** ("hải đồ đo sâu"). Cố ý khác `DESIGN.md` gốc — xem WORKLOG S-076 | Mọi tool, ghi WORKLOG |
+| `webapp/DESIGN.md` | Thế giới thị giác **riêng của web app** ("bàn đọc tối"). Cố ý khác `DESIGN.md` gốc — xem WORKLOG S-076, S-077 | Mọi tool, ghi WORKLOG |
 | `scripts/quality-gate.sh` / `scripts/quality-gate.ps1` | Quality gate chung cho Bash thật / Windows PowerShell | Mọi tool |
 
 **Quy tắc chống trùng lặp:** nếu một thông tin đã có trong Spec Sheet hoặc Plan, AGENTS.md chỉ **link tới**, không chép lại. Nếu bạn (agent) thấy nội dung bị chép ra nhiều chỗ → xoá bản chép, giữ link, ghi vào WORKLOG.
@@ -125,7 +125,7 @@ liver-mri-3d-classifier/
 ├── notebooks/                   # notebook Kaggle (đã strip output)
 ├── webapp/
 │   ├── README.md                # cách chạy, biến môi trường, ràng buộc dữ liệu
-│   ├── DESIGN.md                # thị giác của WEB APP ("hải đồ đo sâu")
+│   ├── DESIGN.md                # thị giác của WEB APP ("bàn đọc tối")
 │   ├── backend/                 # FastAPI — requirements.txt RIÊNG, không có torch
 │   └── frontend/                # React + Vite + Tailwind + TS (node_modules/, dist/ gitignore)
 ├── slides/                      # HTML slide
@@ -317,7 +317,9 @@ Ba mục dưới đây tồn tại vì mỗi tool có cơ chế riêng. **Nội 
 
 Ba thứ có mặt người dùng — **web app** (`webapp/`), **HTML slide** (`slides/`), **HTML report** (`reports/`) — phải khớp nhau về **con số, thuật ngữ và giọng** (`PRODUCT.md` Product Principle 4).
 
-> **Đổi ngày 2026-07-31 (WORKLOG S-076):** ba bề mặt **không còn buộc phải nhìn như một hệ thống**. Web app có thế giới thị giác riêng ở [`webapp/DESIGN.md`](webapp/DESIGN.md) ("hải đồ đo sâu"); `DESIGN.md` ở gốc ("bản khắc atlas") nay chỉ chi phối `slides/` và `reports/`, và `slides/overview_v2.html` đang dùng nó. Cái phải khớp là nội dung, không phải lớp nhìn.
+> **Đổi ngày 2026-07-31 (WORKLOG S-076, cập nhật S-077):** ba bề mặt **không còn buộc phải nhìn như một hệ thống**. Web app có thế giới thị giác riêng ở [`webapp/DESIGN.md`](webapp/DESIGN.md) — **"bàn đọc tối"**, nền `#070A13` accent cyan, dựng theo bố cục bản bolt.new gốc. `DESIGN.md` ở gốc ("bản khắc atlas") nay chỉ chi phối `slides/` và `reports/`, và `slides/overview_v2.html` đang dùng nó. Cái phải khớp là **con số, thuật ngữ và giọng**, không phải lớp nhìn.
+>
+> Hướng "hải đồ đo sâu" nền sáng dựng ở S-076 **đã bị loại** ở S-077 sau khi người dùng xem bản dựng. Đừng khôi phục từng mảnh của nó.
 
 **Bắt buộc, với mọi tool, kể cả tool không có `/impeccable`:**
 
