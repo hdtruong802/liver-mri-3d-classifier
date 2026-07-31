@@ -23,10 +23,12 @@ python -m uvicorn webapp.backend.main:app --reload      # cổng 8000
 
 cd webapp/frontend
 npm install
-npm run dev                                             # cổng 5173, mở http://127.0.0.1:5173
+npm run dev                                             # mở http://localhost:5173
 ```
 
 Frontend proxy `/api` sang cổng 8000, nên ảnh bệnh nhân đi qua cùng origin.
+
+> Dùng **`localhost:5173`**, không phải `127.0.0.1:5173`. Trên Windows, Vite bind vào `::1` (IPv6) chứ không bind IPv4, nên địa chỉ số sẽ bị từ chối kết nối.
 
 ## Dữ liệu
 

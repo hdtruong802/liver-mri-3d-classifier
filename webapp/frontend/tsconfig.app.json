@@ -21,7 +21,11 @@
     "allowImportingTsExtensions": true,
     "isolatedModules": true,
     "moduleDetection": "force",
-    "baseUrl": ".",
+    // Không khai `baseUrl`: nó bị deprecate ở TS 6.0, và từ TS 4.4 `paths` đã tự
+    // giải theo vị trí của chính file tsconfig này. Đường dẫn dưới đây vốn đã tương
+    // đối nên bỏ `baseUrl` không đổi hành vi, chỉ hết cảnh báo. Không dùng
+    // `ignoreDeprecations` để tắt tiếng — TS 5.9 chỉ nhận giá trị "5.0", khai "6.0"
+    // làm cả typecheck đỏ (TS5103).
     "paths": { "@/*": ["./src/*"] }
   },
   "include": ["src"]

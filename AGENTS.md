@@ -240,7 +240,7 @@ Ba điều rút ra từ bộ số này:
 | Cài backend web app (một lần / máy) | `pip install -r webapp/backend/requirements.txt` | sẵn sàng; **tách hẳn** khỏi `requirements.txt` train, không kéo torch/monai |
 | Cài frontend web app (một lần / máy) | `cd webapp/frontend && npm install` | sẵn sàng |
 | **Chạy web app** — backend | `python -m uvicorn webapp.backend.main:app --reload` | sẵn sàng; cổng 8000. Đọc ảnh thật từ `LLDMMRI_SAMPLE_DIR` (mặc định `data/sample`) |
-| **Chạy web app** — frontend | `cd webapp/frontend && npm run dev` | sẵn sàng; cổng 5173, proxy `/api` sang 8000. Mở `http://127.0.0.1:5173` |
+| **Chạy web app** — frontend | `cd webapp/frontend && npm run dev` | sẵn sàng; proxy `/api` sang 8000. Mở **`http://localhost:5173`** — trên Windows Vite bind vào `::1`, nên `127.0.0.1:5173` **không** vào được |
 | Build frontend | `cd webapp/frontend && npm run build` · `npm run typecheck` | sẵn sàng |
 | Test | `pytest -q` | sẵn sàng (113 test; 8 test cần torch/monai sẽ tự skip nếu chưa cài) |
 | Lint | `ruff check src tests` · `ruff format src tests` | sẵn sàng (W2 ngày 1) |
