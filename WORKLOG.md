@@ -2800,3 +2800,35 @@ F1 từng lớp, E4 so E1: u máu +0,27 · nang +0,26 · áp-xe +0,25 · di căn
 - **`LLDMMRI_OUTPUT_DIR` phải đặt riêng** (`/kaggle/working/runs/E4_cv`). `run_dir` chỉ băm khối `model:`, mà E1/E3/E4 dùng chung y hệt model ⇒ không đặt riêng thì chúng **dùng chung thư mục và resume đè lên nhau** (đã ghi ở S-060, vẫn còn nguyên hiệu lực).
 - **Giữ nguyên tên thư mục `fold{N}_{hash}` khi gói mang về.** `src/eval/run.py::find_fold_predictions` glob theo `fold*/`, đổi tên là gộp out-of-fold hỏng. Hash hiện tại là `4c2cf705`.
 - **Đừng viết "ta ngang ResNet3D 0,709".** 0,7001 đo trên val fold 1 (82 ca), 0,709 đo trên test-104. Khác tập. Sai lầm này đã mắc một lần ở S-064 và được đính chính ở báo cáo W2 §4.3.
+## S-073 · 2026-07-31 17:40 · claude-code
+
+**Mục tiêu phiên:** Đưa `reports/W2_REPORT.md` về đúng dạng một bản báo cáo, theo chuẩn `W1_REPORT.md`.
+
+**Nhánh / commit:** `main` · `bbd2423` → *(commit đang chờ)*
+
+**Đã đụng file:**
+- `reports/W2_REPORT.md` — viết lại toàn bộ. Không đụng file nào khác.
+- `WORKLOG.md` — entry này.
+
+**Quyết định & lý do:**
+
+- **Bỏ hết 25 tham chiếu đường dẫn file và định danh nội bộ.** `W1_REPORT.md` không trích một file nào, và người đọc báo cáo không có repo trong tay. Thay bằng cách diễn đạt bằng lời: tên notebook thành "khảo sát chạy trên toàn bộ 498 ca", tên module thành "bộ đánh giá gồm bootstrap CI, calibration, selective prediction", `max_shift_mm` thành "độ dịch giữa các thì". **Vẫn giữ** tên dataset, tên kiến trúc, tên chỉ số và tên siêu tham số — W1 cũng dùng loại này.
+- **Bỏ hết tham chiếu chéo `§x.y`.** W1 không dùng lần nào. Người dùng chọn phương án này khi được hỏi.
+- **Xoá mục "Hai lệch so với kế hoạch"** (giao sớm module W3/W5, tràn sang địa hạt W3/W4) và dòng DoD "cập nhật bảng lệnh AGENTS.md". Đây là chuyện tự quản trị tiến độ và quản trị repo, không phải nội dung báo cáo. Người dùng nêu đích danh.
+- **Gộp mục để giảm phân mảnh:** §2 từ 5 tiểu mục xuống 3, §4 từ 5 xuống 2. Xoá hẳn hai tiểu mục nặng tính nhật ký: khối 26 số macro-F1 thô của từng epoch, và bảng cơ chế kỹ thuật nội bộ. Câu duy nhất đáng giữ từ bảng đó — luật chốt quyết định trước khi chạy — được đưa vào §4.2.
+- **Bỏ khối log train thô** ở §3.1, chuyển thành một câu.
+- **Giữ nguyên §3.3 (E4)** ở độ chi tiết cũ. Đây là kết quả chính của tuần và là phần duy nhất có ý nghĩa thống kê, nên rút gọn nó là sai chỗ.
+- **Không rút xuống cỡ W1 (91 dòng).** W1 kể một lần đổi hướng, W2 báo cáo 5 thí nghiệm có kiểm soát cùng số liệu calibration và selective. Rút thêm sẽ mất số liệu chứ không mất chỗ thừa.
+
+**Kết quả / số liệu:** 348 → **264 dòng**, 6259 → **5479 từ**. Kiểm chứng tự động đều đạt: 0 đường dẫn file, 0 tham chiếu chéo, 0 dấu gạch dài trong văn xuôi, 0 bảng lệch cột. Đối chiếu tập số giữa hai bản: **không mất con số cốt lõi nào**; hai số "mới" là `11,4` (triệu tham số, thay cho `11.403.463`) và `2,71` (GB, nay xuất hiện thêm ở bảng DoD). Quality gate PowerShell **PASS**. Không đụng `src/`, `configs/`, `splits/`, `tests/`, không chạy train.
+
+**Dang dở:**
+- [ ] CV 5-fold vẫn chưa chạy (xem S-072). Notebook đã sẵn, chưa chạy lần nào trên Kaggle.
+- [ ] External và Duke OOD vẫn chưa bắt đầu.
+
+**Điểm vào phiên sau:** Không có việc treo ở khâu tài liệu. Bước kế tiếp vẫn là chạy notebook CV 5-fold trên Kaggle với `FOLDS = [2, 3]`, đúng như S-072 đã ghi.
+
+**Cảnh báo cho tool sau:**
+- **W2_REPORT.md giờ có ba luật ngầm, đừng phá khi sửa tiếp:** (1) không trích đường dẫn file hay định danh nội bộ; (2) không dùng tham chiếu chéo `§x.y`; (3) không dùng dấu gạch dài trong văn xuôi, chỉ dùng trong ô bảng với nghĩa "không có". Cả ba đều lấy từ `W1_REPORT.md` làm chuẩn.
+- **Khi điền kết quả CV vào báo cáo, kiểm lại tập số trước và sau bằng `collections.Counter` trên regex bắt số thập phân và số từ hai chữ số trở lên.** Ba phiên liên tiếp sửa file này và mỗi lần đều suýt làm rơi một con số.
+- Người dùng có sửa tay trực tiếp trên `reports/W2_REPORT.md` giữa các phiên. **Đọc `git diff` trước khi viết đè**, đừng chỉ đọc file — tôi đã một lần ghi đè mất chỉnh sửa của họ ở S-072.
