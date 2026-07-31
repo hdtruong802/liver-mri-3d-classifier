@@ -44,6 +44,14 @@ mlruns/
 # Nếu thấy splits/ biến mất khỏi git, đó là lỗi, không phải chủ ý.
 
 # -----------------------------------------------------------------------------
+# Bài báo tham khảo — PDF có bản quyền nhà xuất bản, không phát tán lại
+# Neo `/` để chỉ khớp thư mục gốc. Nội dung đã rút ra từ chúng nằm ở AGENTS.md §5
+# (bảng so sánh có kiểm soát CGHNet) và WORKLOG S-064/S-065 — đọc ở đó, không cần
+# file. Muốn đọc lại bản gốc thì tải theo DOI ghi trong AGENTS.md §5.
+# -----------------------------------------------------------------------------
+/papers/
+
+# -----------------------------------------------------------------------------
 # Python
 # -----------------------------------------------------------------------------
 __pycache__/

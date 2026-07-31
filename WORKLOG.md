@@ -2711,3 +2711,27 @@ Hạng 2 của challenge thắng chính bằng cách sửa registration (UAE).
 **Cảnh báo cho tool sau:**
 - **WORKLOG thiếu hẳn entry S-068 và S-069.** Cả hai được commit `2e23911` và `f48fb67` trỏ tới bằng dòng "Chi tiết: WORKLOG S-0xx" nhưng chưa bao giờ được append. Nội dung của chúng nằm trong commit message: S-068 = đính chính nguồn gốc mask (đây **là** nhãn segmentation official của LLD-MMRI, MedSAM2 human-in-the-loop, do Dr. Jun Ma đóng góp — không phải mask hạng hai); S-069 = kết quả E3 âm (0.5566 so với E1 0.5740) + sai sót so val fold 1 với test-104. Tôi đã lấy hai nội dung đó vào báo cáo W2 nhưng **không viết hộ hai entry** — file này append-only và chúng thuộc phiên khác. Entry này dùng **S-070**, bỏ trống 068/069 để không tái sử dụng mã.
 - Báo cáo W2 là **snapshot ngày 31/07**. Khi E4 hoặc CV 5-fold có số, sửa đúng ô trong bảng — đừng viết lại toàn bộ §3, vì phần luật quyết định và ghi nhận giả thuyết sai ở đó là bản ghi lịch sử.
+
+## S-071 · 2026-07-31 11:05 · claude-code
+
+**Mục tiêu phiên:** Chốt trạng thái `papers/` — người dùng quyết định ignore.
+
+**Nhánh / commit:** `main` · `74056bb` → *(commit đang chờ)*
+
+**Đã đụng file:**
+- `.gitignore` — thêm khối `/papers/` (5 PDF bài báo tham khảo).
+- `WORKLOG.md` — entry này.
+
+**Quyết định & lý do:**
+- **Ignore thay vì commit** — người dùng chốt. Đây là PDF có bản quyền nhà xuất bản (Elsevier, IEEE), commit vào repo public là phát tán lại. Phương án đã loại: commit vào repo private — repo đang public (cảnh báo S-004), và đổi visibility vì mấy file PDF là đánh đổi sai chiều.
+- **Neo `/papers/`**, không viết `papers/` trần. Bài học S-022/S-023 đã ghi ngay đầu `.gitignore`: pattern không neo khớp mọi thư mục trùng tên ở mọi cấp và có thể nuốt code.
+- **Ghi rõ trong comment nơi tra lại nội dung**: những gì rút ra từ các paper này đã nằm ở `AGENTS.md` §5 (bảng so sánh có kiểm soát CGHNet) và WORKLOG S-064/S-065, kèm DOI để tải lại. Ignore một thư mục mà không nói nội dung của nó đi đâu là để lại lỗ hổng cho phiên sau.
+
+**Kết quả / số liệu:** `git check-ignore -v` xác nhận `/papers/` ăn. `git status` giờ chỉ còn `notebooks/notebookf104ced082.ipynb` untracked — đúng chủ ý (WORKLOG nhiều phiên đã dặn giữ nguyên, không stage/commit/xoá).
+
+**Dang dở:**
+- [ ] E4 vẫn đang chạy; hàng E4 trong `reports/W2_REPORT.md` §3.2 chờ số.
+
+**Điểm vào phiên sau:** Không có việc treo ở khâu git. Bước kế tiếp: đọc kết quả E4 theo luật ba nhánh ở S-067, điền vào §3.2 của `reports/W2_REPORT.md`, rồi sang W3 (5-fold + CI bootstrap).
+
+**Cảnh báo cho tool sau:** `papers/` giờ ngoài git nên **chỉ tồn tại trên máy này**. Clone sang máy khác sẽ không có. Đừng viết code hay test nào đọc từ `papers/`; mọi số đã trích ra đều nằm trong `AGENTS.md` §5 và WORKLOG S-064/S-065.
