@@ -9,7 +9,7 @@
 
 Đầu W2 dự án chưa tải LLD-MMRI và chưa có một dòng code chạy được. Cuối W2 có một pipeline hoàn chỉnh từ MRI thô đến bảng metric: reader 8 thì, gate hình học chạy trên dữ liệu thật, split chính thức 316/78/104 đã tái lập và khoá, cache tiền xử lý 498 ca đẩy lên Kaggle Dataset, vòng train có checkpoint và resume, và bộ eval gồm bootstrap CI, calibration, selective prediction. 245 test xanh, trong đó có test chống leakage.
 
-Về kết quả, số mốc đầu tiên là macro-F1 val **0,2725**. 5 lần train có kiểm soát sau đó đưa con số lên **0,7001** (E4), và **toàn bộ mức tăng đến từ thay đổi về dữ liệu, không một hyperparam nào bị đụng tới**: cắt patch bám sát tổn thương (+0,15) rồi căn từng thì về tổn thương của chính nó (+0,13, 95% CI [+0,033; +0,230]). Hai lần train còn lại cho kết quả âm hoặc bị huỷ, trong đó giả thuyết "tỉ lệ trục là nút thắt" bị bác bỏ sạch.
+Về kết quả, số mốc đầu tiên là macro-F1 val **0,2725**. 5 lần train có kiểm soát sau đó đưa con số lên **0,7001** (E4), và **toàn bộ mức tăng đến từ thay đổi về dữ liệu, không một hyperparam nào bị đụng tới**: cắt patch bám sát tổn thương (+0,15) rồi căn từng thì về tổn thương của chính nó (+0,13, 95% CI [+0,033; +0,230]). Hai lần train còn lại đều không cho kết luận: một bị huỷ vì biến gây nhiễu, một bị chủ động dừng sớm.
 
 Phần lớn thời gian W2 bị tiêu vào một chuỗi bốn chẩn đoán sai. Chúng được ghi lại trong báo cáo này vì bài học phương pháp rút ra từ đó có giá trị lâu dài hơn bất kỳ con số nào.
 
@@ -90,7 +90,7 @@ Recipe được áp nguyên khối, mỗi dòng cấu hình kèm trích nguồn,
 | **E0** | recipe chính thức + cửa sổ mm cố định 96×96×48 | 0,4244 [0,314–0,530] | 0,276 | 0,5395 | 0,3218 → 0,1455 | xong |
 | **E1** | cache cắt bám sát tổn thương | **0,5740** [0,455–0,678] | 0,520 | **0,2753** | 0,2935 → 0,2505 | xong |
 | **E2** | Siamese đa thì, trọng số dùng chung | ~0,35 – 0,49 @ ep100 | — | — | — | **huỷ** |
-| **E3** | hình học 112×112×32 theo văn liệu | 0,5566 | — | — | — | xong, **âm** |
+| **E3** | hình học 112×112×32 theo văn liệu | 0,5566 @ ep145 | — | — | — | **dừng sớm** |
 | **E4** | căn từng thì theo tổn thương của chính nó | **0,7001** [0,599–0,793] | **0,646** | **0,2033** | 0,2458 → 0,1489 | xong, **thắng rõ** |
 
 > **Mọi số trong bảng là val fold 1, 82 bệnh nhân, 1 seed.** Không phải kết quả báo cáo được: chưa có CV 5-fold, và ở n=82 bề rộng CI vào khoảng ±0,10. Chúng dùng để sàng lọc giữa các phương án, không để công bố.
@@ -103,7 +103,9 @@ Luật quyết định đã chốt trước khi chạy: E0 rơi vào dải 0,35�
 
 **E2 bị huỷ vì một biến gây nhiễu đã được cảnh báo trước.** Siamese chạy backbone 8 lượt nên chi phí gấp khoảng 8 lần; để lọt ngân sách phải hạ in-plane từ 96 xuống 48, trong khi mọi phương pháp công bố dùng 112–128. E2 vì thế là *Siamese ở in-plane 48* so với *early concat ở in-plane đủ*, không phải phép thử kiến trúc sạch. Luật ghi trước khi chạy là E2 thắng thì kết luận mạnh, E2 thua thì không kết luận được. E2 thua, nên hướng Siamese vẫn chưa từng được thử công bằng.
 
-**E3 là một kết quả âm sạch.** Giả thuyết: tỉ lệ trục của ta lệch văn liệu (Z=48 so với 14–16, in-plane 96 so với 112–128) và đó là nút thắt. E3 đổi hình học sang 112×112×32, giữ nguyên mọi thứ khác. Kết quả 0,5566 so với E1 0,5740, chênh **−0,017**, nằm sâu trong nhiễu. **Ba hình học khác nhau đều dừng ở trần khoảng 0,57 với cùng kiểu overfit**, nên giả thuyết tỉ lệ trục bị bác bỏ. Kết quả âm này nhất quán với, chứ không mâu thuẫn, giả thuyết lệch thì: nếu bản thân các thì không khớp nhau thì đổi khung hình không giải quyết gì.
+**E3 bị dừng sớm, nên chưa kết luận được.** Giả thuyết: tỉ lệ trục của ta lệch văn liệu (Z=48 so với 14–16, in-plane 96 so với 112–128) và đó là nút thắt. E3 đổi hình học sang 112×112×32, giữ nguyên mọi thứ khác. Khoảng 150 epoch đầu không cho thấy dấu hiệu khá hơn E1, nên lần train bị chủ động dừng ở epoch 145 với macro-F1 0,5566, thay vì chạy hết 300 epoch như E0, E1 và E4.
+
+Quyết định dừng tiết kiệm được vài giờ GPU nhưng làm E3 mất tư cách đối chứng: **cả ba lần train chạy hết đều đạt đỉnh sau epoch 145**, lần lượt ở epoch 162, 200 và 231. E3 bị cắt trước cả vùng mà chúng mới bộc lộ kết quả tốt nhất, nên 0,5566 là một cận dưới chứ không phải trần của cấu hình đó. Giả thuyết tỉ lệ trục vì thế **chưa bị bác bỏ, chỉ là chưa được ủng hộ**.
 
 ### 3.3. E4: giả thuyết đã được xác nhận
 
@@ -120,7 +122,7 @@ E4 căn từng thì về tâm tổn thương của chính nó, dùng bbox có s�
 
 **Kết quả: 0,7001, mức tăng lớn nhất và là mức tăng duy nhất có ý nghĩa thống kê của cả loạt.**
 
-Một gate chạy trước khi train đã kiểm rằng phép căn thật sự có hiệu lực, nếu không thì cache E4 sẽ giống hệt E3 và train sẽ ra lại đúng 0,5566 sau 4 giờ mà đường cong không hé lộ gì. Gate qua: cả 498 ca cắt theo mask, không ca nào phải lùi về tâm tham chiếu, độ dịch giữa các thì có trung vị **19,65mm** (nhỏ nhất 2,80, lớn nhất 111,0).
+Một gate chạy trước khi train đã kiểm rằng phép căn thật sự có hiệu lực, nếu không thì cache E4 sẽ giống hệt E3 và train sẽ lặp lại đúng kết quả của E3 sau 4 giờ mà đường cong không hé lộ gì. Gate qua: cả 498 ca cắt theo mask, không ca nào phải lùi về tâm tham chiếu, độ dịch giữa các thì có trung vị **19,65mm** (nhỏ nhất 2,80, lớn nhất 111,0).
 
 | So cặp (bootstrap trên hiệu, phân tầng, 2000 lần) | Δ macro-F1 | 95% CI | P |
 |---|---|---|---|
@@ -128,7 +130,7 @@ Một gate chạy trước khi train đã kiểm rằng phép căn thật sự c
 | E4 − E0 | +0,2757 | [+0,145; +0,415] | <0,001 |
 | E1 − E0 | +0,1496 | [+0,007; +0,289] | 0,040 |
 
-E4 − E1 là lần đầu tiên trong cả loạt có một khoảng tin cậy **nằm hẳn về một phía của 0** với biên rộng rãi. Lưu ý E4 khác E1 ở *hai* khoá, hình học và phép căn, nên phép so một biến sạch là **E4 − E3 = +0,1435**, cùng hình học 112×112×32, chỉ đổi cách căn. Vì E3 − E1 = −0,017, tức hình học không có tác dụng, toàn bộ mức tăng quy về phép căn.
+E4 − E1 là lần đầu tiên trong cả loạt có một khoảng tin cậy **nằm hẳn về một phía của 0** với biên rộng rãi. Lưu ý E4 khác E1 ở *hai* khoá, hình học và phép căn. Phép so một biến lẽ ra là E4 với E3, vì hai lần train đó cùng hình học 112×112×32 và chỉ khác cách căn; nhưng E3 đã bị dừng ở epoch 145 nên không gánh được vai trò này. Nói cho đúng: **mức tăng +0,126 là chắc chắn, còn việc quy nó cho phép căn thay vì cho hình học thì chưa.** Muốn tách hai biến phải chạy lại E3 đủ 300 epoch.
 
 **Ba chỉ báo cơ chế lần này đều trúng**, khác hẳn E1 nơi can thiệp đúng nhưng cơ chế giải thích sai:
 
@@ -195,7 +197,7 @@ Suốt E0 đến E3, số của dự án là **val fold 1 (82 bệnh nhân)** tr
 
 Một thiên lệch thứ hai: chọn epoch tốt nhất theo macro-F1 trên 82 ca val là chọn nhiễu. Ở lần train baseline, đường cong dao động không xu hướng qua 26 epoch và epoch tốt nhất chỉ là lần bốc may nhất trong 26 lần, cùng bệnh lý với best-of-many-seeds mà nguyên tắc dự án cấm. Pipeline nay lưu thêm xác suất của epoch cuối để W3 đo được chính độ lệch này.
 
-Cơ chế đối phó chung cho cả hai là **chốt luật quyết định trước khi chạy**, đã dùng để đọc E0, E1, E3 và E4. Nó chống việc hợp lý hoá hậu nghiệm, vốn là cách một kết quả nhiễu dễ được đọc thành một kết quả thật nhất.
+Cơ chế đối phó chung cho cả hai là **chốt luật quyết định trước khi chạy**, đã dùng để đọc E0, E1 và E4. Nó chống việc hợp lý hoá hậu nghiệm, vốn là cách một kết quả nhiễu dễ được đọc thành một kết quả thật nhất.
 
 ## 5. Trạng thái và giới hạn
 
@@ -208,7 +210,7 @@ Cơ chế đối phó chung cho cả hai là **chốt luật quyết định tr�
 | Baseline 3D-patch, 1 fold | Hoàn thành | **0,7001** val fold 1 (E4) | Chưa có CV, chưa phải số báo cáo. |
 | Baseline 2.5D | **Bị cắt** | — | Cắt có chủ ý, đúng thứ tự đã định trước. Bảng CGHNet cho thấy ResNet3D thắng ResNet2D nên nhánh 3D vẫn là hướng đúng. |
 | Fusion Siamese (E2) | **Chưa kết luận** | lần train bị huỷ vì biến gây nhiễu | Phải chạy lại ở hình học đúng mới đánh giá được. |
-| Ablation hình học (E3) | Hoàn thành, kết quả âm | 0,5566 so với 0,5740 | Bác bỏ giả thuyết tỉ lệ trục. |
+| Ablation hình học (E3) | **Dừng sớm** | 0,5566 ở epoch 145/300 | Chưa kết luận được: dừng trước vùng epoch mà cả ba lần train chạy hết mới đạt đỉnh. |
 | Căn từng thì (E4) | **Hoàn thành, thắng rõ** | 0,7001; Δ so E1 +0,126 CI [+0,033; +0,230] | **Cấu hình chốt.** Gate căn pha đã qua (trung vị 19,65mm, 0 ca fallback). |
 | Calibration và selective | Xong phần code, số mới 1 fold | ECE, AURC, T của E0, E1, E4 | Cần gộp out-of-fold 394 ca. |
 | CV 5-fold và CI bootstrap | Đã chuẩn bị, chưa chạy | ước tính 3,9h mỗi fold | Việc đầu tiên của W3. |
@@ -218,7 +220,7 @@ Cơ chế đối phó chung cho cả hai là **chốt luật quyết định tr�
 
 **Giới hạn phải nói rõ với người đọc:**
 
-1. **Mọi con số của dự án là 1 fold, 82 bệnh nhân val, 1 seed.** Không có CI cho phần lớn chúng, và ở n=82 bề rộng CI khoảng ±0,10, đủ để nuốt trọn chênh lệch giữa E1 và E3.
+1. **Mọi con số của dự án là 1 fold, 82 bệnh nhân val, 1 seed.** Không có CI cho phần lớn chúng, và ở n=82 bề rộng CI khoảng ±0,10, đủ để nuốt trọn một chênh lệch cỡ 0,02 đến 0,03.
 2. **Không so trực tiếp được với văn liệu**, vì số văn liệu đo trên test-104.
 3. **Ngay cả khi có kết quả tốt, việc chứng minh vượt SOTA là bất khả thi ở cỡ mẫu này.** Bootstrap ở n=104 cho bề rộng CI ±0,077 tại mức 0,8322 và ±0,061 tại 0,90; hai CI chồng nhau. Định vị của dự án vì thế phải là trustworthiness, không phải leaderboard.
 4. **Overfitting đã nhẹ đi nhiều nhưng chưa hết.** Val loss chạm đáy ở epoch 9–10 ở E0, E1, E3; ở E4 là epoch 100 và gap cuối giảm từ +2,55 xuống +1,50. Nguyên nhân gốc hoá ra là lệch thì ở đầu vào chứ không phải recipe train, nên các hướng chỉnh dropout hay weight decay trước đây đều nhắm sai chỗ.
@@ -231,12 +233,13 @@ Thứ tự này đổi so với luật chốt trước khi chạy E4, vốn nói
 1. Chạy đủ 5-fold cho cấu hình E4, dựng bảng CV macro-F1 và κ kèm CI bootstrap mức bệnh nhân.
 2. Gộp out-of-fold 394 ca, tính lại calibration và risk–coverage trên cỡ mẫu đó.
 3. Dựng deep ensemble từ 5 checkpoint để đo bất định epistemic; đây là điều kiện của đóng góp headline.
-4. Chạy registration rigid thật; E4 mới chỉ khử tịnh tiến, chưa khử xoay và biến dạng.
-5. Đổi backbone sang ResNet3D ở đúng 14×112×112; DenseNet121-3D không chịu được Z=14.
-6. Thử Focal Loss và ablation augmentation theo bảng ablation CGHNet.
-7. Đánh giá lại fusion Siamese ở hình học đúng; E2 chưa từng được thử công bằng.
-8. Audit và tải external cùng Duke OOD; việc chạy trên CPU nên song song được với mục 1.
-9. Khoá protocol, threshold và temperature trên validation trước khi chạm test-104 đúng một lần.
+4. Chạy lại E3 đủ 300 epoch để tách phần đóng góp của hình học khỏi phần của phép căn; hiện chưa quy kết được mức tăng của E4 cho biến nào.
+5. Chạy registration rigid thật; E4 mới chỉ khử tịnh tiến, chưa khử xoay và biến dạng.
+6. Đổi backbone sang ResNet3D ở đúng 14×112×112; DenseNet121-3D không chịu được Z=14.
+7. Thử Focal Loss và ablation augmentation theo bảng ablation CGHNet.
+8. Đánh giá lại fusion Siamese ở hình học đúng; E2 chưa từng được thử công bằng.
+9. Audit và tải external cùng Duke OOD; việc chạy trên CPU nên song song được với mục 1.
+10. Khoá protocol, threshold và temperature trên validation trước khi chạm test-104 đúng một lần.
 
 ## 7. Timeline
 
@@ -247,12 +250,12 @@ Thứ tự này đổi so với luật chốt trước khi chạy E4, vốn nói
 | 27/07/2026 | Tiền xử lý trong không gian mm; chốt thứ tự trục; build cache 498 ca; baseline ra **số mốc đầu tiên 0,2725**; ba chẩn đoán sai; tra leaderboard và **áp nguyên khối recipe chính thức**; hạ tầng bootstrap CI. |
 | 28/07/2026 | Cache cắt bám tổn thương; bộ đo calibration và selective; tính bề rộng CI ở n=104. |
 | 29/07/2026 | **E0 = 0,4244 · E1 = 0,5740**; phân tích calibration và selective; dựng E2 Siamese. |
-| 30/07/2026 | Đọc CGHNet; huỷ E2; **E3 = 0,5566, kết quả âm**; dựng E4. |
+| 30/07/2026 | Đọc CGHNet; huỷ E2; **E3 dừng sớm ở epoch 145 với 0,5566**; dựng E4. |
 | 31/07/2026 | Tổng hợp báo cáo W2; **E4 = 0,7001, mức tăng duy nhất có ý nghĩa thống kê** (Δ so E1 +0,126, CI [+0,033; +0,230]); chốt cấu hình E4; chuẩn bị CV 5-fold. |
 
 ## Kết luận cho mentor
 
-Về hạ tầng, pipeline từ MRI thô đến bảng metric đã chạy được và tái lập được, với mọi gate an toàn khoa học đứng vững: split khoá ở mức bệnh nhân, test chống leakage pass, thống kê chuẩn hoá không xuyên bệnh nhân, và test-104 chưa bị chạm một lần nào. Về kết quả, con số tốt nhất hiện tại là macro-F1 **0,7001** trên val fold 1; nó chưa so trực tiếp được với văn liệu vì khác tập đánh giá, chưa có CV, và chưa nên coi là kết quả cuối. Điều đáng nói không phải bản thân con số mà là cách nó tăng: toàn bộ mức tăng từ 0,26 lên 0,70 đến từ tái lập recipe và hai thay đổi về cách chuẩn bị dữ liệu, không một dòng nào của kiến trúc model bị đụng tới. Ba hướng đi theo kiến trúc hoặc hình học đều không cho gì.
+Về hạ tầng, pipeline từ MRI thô đến bảng metric đã chạy được và tái lập được, với mọi gate an toàn khoa học đứng vững: split khoá ở mức bệnh nhân, test chống leakage pass, thống kê chuẩn hoá không xuyên bệnh nhân, và test-104 chưa bị chạm một lần nào. Về kết quả, con số tốt nhất hiện tại là macro-F1 **0,7001** trên val fold 1; nó chưa so trực tiếp được với văn liệu vì khác tập đánh giá, chưa có CV, và chưa nên coi là kết quả cuối. Điều đáng nói không phải bản thân con số mà là cách nó tăng: toàn bộ mức tăng từ 0,26 lên 0,70 đến từ tái lập recipe và hai thay đổi về cách chuẩn bị dữ liệu, không một dòng nào của kiến trúc model bị đụng tới. Hai hướng đi theo kiến trúc và hình học đều chưa cho gì, và cả hai đều chưa được thử đến nơi.
 
 Về trustworthiness, đóng góp headline của dự án đã có số thật và chúng cho thấy vấn đề vừa có thật vừa cải thiện được: NLL thô đi từ chỗ tệ hơn đoán mò (3,32 so với 1,95) xuống 1,72, nhiệt độ cần thiết giảm từ 5,0 còn 2,57, AURC từ 0,540 xuống 0,203. Nhưng đóng góp này vẫn chưa đo được đầy đủ, vì bất định epistemic cần 5 model của 5 fold mà hiện mới có một; đó là lý do việc đầu tiên của W3 là chạy nốt CV chứ không phải thử thêm ý tưởng. Bài học lớn nhất của W2 lại là về phương pháp chứ không về mô hình: bốn chẩn đoán sai đều sinh ra từ việc debug mà không biết ngưỡng đạt được là bao nhiêu, và luật đối chiếu mốc ngoài trước khi debug nay đã được ghi vào tài liệu ngữ cảnh của dự án cùng một bộ gate tự động.
 

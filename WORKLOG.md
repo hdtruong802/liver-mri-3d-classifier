@@ -2832,3 +2832,43 @@ F1 từng lớp, E4 so E1: u máu +0,27 · nang +0,26 · áp-xe +0,25 · di căn
 - **W2_REPORT.md giờ có ba luật ngầm, đừng phá khi sửa tiếp:** (1) không trích đường dẫn file hay định danh nội bộ; (2) không dùng tham chiếu chéo `§x.y`; (3) không dùng dấu gạch dài trong văn xuôi, chỉ dùng trong ô bảng với nghĩa "không có". Cả ba đều lấy từ `W1_REPORT.md` làm chuẩn.
 - **Khi điền kết quả CV vào báo cáo, kiểm lại tập số trước và sau bằng `collections.Counter` trên regex bắt số thập phân và số từ hai chữ số trở lên.** Ba phiên liên tiếp sửa file này và mỗi lần đều suýt làm rơi một con số.
 - Người dùng có sửa tay trực tiếp trên `reports/W2_REPORT.md` giữa các phiên. **Đọc `git diff` trước khi viết đè**, đừng chỉ đọc file — tôi đã một lần ghi đè mất chỉnh sửa của họ ở S-072.
+## S-074 · 2026-07-31 19:05 · claude-code
+
+**Mục tiêu phiên:** Sửa ba chi tiết diễn đạt trong báo cáo W2, rồi đính chính trạng thái thật của E3.
+
+**Nhánh / commit:** `main` · `11ae632` → *(commit đang chờ)*
+
+**Đã đụng file:**
+- `reports/W2_REPORT.md` — đổi cách gọi E0..E4, bỏ chi tiết vận hành, đính chính E3.
+- `AGENTS.md` §5 — đính chính bảng kết quả nội bộ và kết luận số 1.
+- `WORKLOG.md` — entry này.
+
+**Quyết định & lý do:**
+
+- **ĐÍNH CHÍNH QUAN TRỌNG: E3 bị chủ động dừng ở epoch 145/300, không phải chạy hết.** Người dùng cho biết họ thấy đường cong không khá lên trong khoảng 150 epoch đầu nên dừng. Các phiên trước đã ghi E3 thành "xong, kết quả âm" và dùng nó làm đối chứng. **Điều đó sai.**
+
+  Bằng chứng: cả ba run chạy hết đều đạt đỉnh **sau** epoch 145 — E0 ở 162, E1 ở 200, E4 ở 231. E3 bị cắt trước cả vùng mà chúng mới bộc lộ kết quả tốt nhất, nên 0.5566 là **cận dưới**, không phải trần của cấu hình đó.
+
+- **Bốn khẳng định phải rút lại theo:**
+  1. "E3 − E1 = −0.017, đổi tỉ lệ trục không có tác dụng gì" — không có cơ sở, hai run khác số epoch.
+  2. "Giả thuyết tỉ lệ trục là nút thắt đã bị bác" — **chưa bị bác**, chỉ là chưa được ủng hộ.
+  3. "E4 − E3 = +0.1435 là phép so một biến sạch, nên toàn bộ mức tăng quy về phép căn" — phép so đó dựa trên một run bị cắt ngắn. **Mức tăng E4 − E1 = +0.126 vẫn chắc chắn** (cả hai chạy đủ 300 epoch, có xác suất từng ca, CI [+0.033, +0.230]); nhưng **quy nó cho `align_phases` thay vì cho hình học 112×112×32 thì chưa chứng minh được**.
+  4. "Ba hình học khác nhau đều dừng ở trần ~0.57" — chỉ có hai hình học chạy hết.
+
+- **Thêm một mục vào danh sách ưu tiên:** chạy lại E3 đủ 300 epoch để tách đóng góp của hình học khỏi đóng góp của phép căn. Xếp sau CV 5-fold và deep ensemble vì nó chỉ ảnh hưởng tới phần quy kết nguyên nhân, không ảnh hưởng tới việc có số báo cáo được.
+
+- **Ba sửa đổi diễn đạt theo yêu cầu người dùng:** (1) không gọi E0..E4 là "thí nghiệm" mà là "lần train", đồng thời thống nhất luôn chữ "run" đang dùng song song cho cùng khái niệm, nay còn 0 chỗ dùng hai tên cho một thứ; (2) bỏ "bỏ qua 0, lỗi 0, trong 24 phút" và câu về nội dung gói tái lập W6; (3) giữ nguyên thuật ngữ "human-in-the-loop", không dịch.
+
+**Kết quả / số liệu:** Báo cáo 264 dòng. Kiểm chứng: 0 đường dẫn file, 0 tham chiếu chéo, 0 bảng lệch cột, 0 chỗ còn dùng "thí nghiệm" hay "run". Bốn con số bị bỏ đều thuộc các khẳng định vừa rút lại (`0.1435`, `−0.017`, `trần ~0.57`, và một lần nhắc `0.5740` trong phép so E1–E3); mọi số cốt lõi còn nguyên. Quality gate PASS.
+
+**Dang dở:**
+- [ ] CV 5-fold vẫn chưa chạy.
+- [ ] E3 chưa được chạy lại đủ 300 epoch, nên câu hỏi "hình học hay phép căn" còn treo.
+- [ ] External và Duke OOD chưa bắt đầu.
+
+**Điểm vào phiên sau:** Vẫn là chạy notebook CV 5-fold trên Kaggle với `FOLDS = [2, 3]`. Việc chạy lại E3 xếp sau, khi đã có bảng CV.
+
+**Cảnh báo cho tool sau:**
+- **Đừng dùng E3 làm đối chứng cho bất cứ điều gì** cho tới khi nó được chạy đủ 300 epoch. Con số 0.5566 chỉ nói "sau 145 epoch thì cấu hình này đang ở đây", không nói gì về trần của nó. `AGENTS.md` §5 đã ghi cảnh báo này ngay trên bảng.
+- **Bài học chung: kiểm số epoch trước khi so hai run.** Ba phiên liên tiếp đã so E3 với E1 như hai run cùng điều kiện mà không ai kiểm cột epoch. Cột "Epoch tốt nhất" nay đã được thêm vào bảng trong `AGENTS.md` §5 để lần sau nhìn là thấy.
+- Người dùng vẫn sửa tay trực tiếp trên `reports/W2_REPORT.md` giữa các phiên; phiên này họ đã tự xoá mục 2.5D khỏi bảng Definition of Done. **Đọc `git diff` trước khi viết đè.**

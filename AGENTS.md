@@ -195,22 +195,24 @@ Ba điều rút ra, đều đã được dùng để định hướng thí nghi�
 
 Bốn run, **cùng fold 1 · cùng 82 ca val · cùng seed · cùng recipe train**. Chỉ dữ liệu đầu vào đổi:
 
-| | Cửa sổ cắt | Kích thước | Căn pha | macro-F1 |
-|---|---|---|---|---|
-| E0 | 144mm cố định | 96×96×48 | tham chiếu | 0.4244 |
-| E1 | bám tổn thương | 96×96×48 | tham chiếu | 0.5740 |
-| E3 | bám tổn thương | 112×112×32 | tham chiếu | 0.5566 |
-| **E4** | bám tổn thương | 112×112×32 | **từng pha** | **0.7001** |
+| | Cửa sổ cắt | Kích thước | Căn pha | macro-F1 | Epoch tốt nhất |
+|---|---|---|---|---|---|
+| E0 | 144mm cố định | 96×96×48 | tham chiếu | 0.4244 | 162 / 300 |
+| E1 | bám tổn thương | 96×96×48 | tham chiếu | 0.5740 | 200 / 300 |
+| E3 | bám tổn thương | 112×112×32 | tham chiếu | 0.5566 | **145 / 300 — DỪNG SỚM** |
+| **E4** | bám tổn thương | 112×112×32 | **từng pha** | **0.7001** | 231 / 300 |
 
 So cặp (bootstrap trên hiệu, phân tầng, 2000 lần): **E4 − E1 = +0.126, CI95 [+0.033, +0.230], P = 0.009**.
 
-Ba điều đã chốt từ bộ số này, **đừng thử lại**:
+⚠️ **E3 bị chủ động dừng ở epoch 145, không chạy hết 300.** Nó **không dùng làm đối chứng được**: cả ba run chạy hết đều đạt đỉnh *sau* epoch 145 (162, 200, 231), nên 0.5566 là cận dưới chứ không phải trần của cấu hình đó. Đính chính ở WORKLOG S-074; phiên trước đã đọc nhầm nó thành kết quả âm đầy đủ.
 
-1. **Căn pha là biến quan trọng nhất, không phải kiến trúc.** E4 − E3 = +0.1435 với *đúng một* khoá config đổi (`align_phases`). Trong khi E3 − E1 = −0.017: đổi tỉ lệ trục **không** có tác dụng gì. Giả thuyết "tỉ lệ trục là nút thắt" đã bị bác.
+Ba điều rút ra từ bộ số này:
+
+1. **Căn pha ăn tiền, nhưng chưa tách được khỏi hình học.** E4 − E1 = +0.126 là chắc chắn. Việc quy mức tăng đó cho `align_phases` thay vì cho hình học 112×112×32 thì **chưa chứng minh được**, vì phép so một biến (E4 − E3) dựa trên một run bị cắt ngắn. Giả thuyết "tỉ lệ trục là nút thắt" **chưa bị bác**, chỉ là chưa được ủng hộ. Muốn kết luận thì chạy lại E3 đủ 300 epoch.
 2. **Vấn đề overfitting kinh niên là triệu chứng của lệch pha, không phải của recipe train.** `val_loss` chạm đáy ở **epoch 9** (E1) so với **epoch 100** (E4); khoảng cách train/val cuối +2.55 so với +1.50. Đừng đi chỉnh dropout/weight-decay/augmentation để chữa nó.
 3. **0.7001 không phải một đỉnh may mắn.** 29/50 epoch cuối của E4 đạt ≥ 0.60 (E1: 0/50); trung bình 50 epoch cuối 0.607 so với 0.512.
 
-⚠️ **Con số của ta đo trên val fold 1 (82 ca), bảng văn liệu đo trên test-104.** Hai tập khác nhau — **không được** viết "ta ngang ResNet3D 0.709". So sánh nội bộ E0/E1/E3/E4 với nhau thì hợp lệ vì cùng tập.
+⚠️ **Con số của ta đo trên val fold 1 (82 ca), bảng văn liệu đo trên test-104.** Hai tập khác nhau — **không được** viết "ta ngang ResNet3D 0.709". So sánh nội bộ E0/E1/E4 với nhau thì hợp lệ vì cùng tập và cùng số epoch; **E3 thì không**, xem cảnh báo ở trên.
 
 ---
 
