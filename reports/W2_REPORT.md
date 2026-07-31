@@ -1,4 +1,4 @@
-# Báo cáo W2: nền dữ liệu, baseline đầu tiên và 5 lần train có kiểm soát
+# Báo cáo W2: xử lý dữ liệu, xây dựng baseline đầu tiên và tiến hành các lần train có kiểm soát
 
 **Người thực hiện:** Hoàng Đức Trường
 **Ngày tổng hợp:** 31/07/2026
@@ -183,22 +183,21 @@ E4 là cấu hình chốt. Mọi việc dưới đây đều cải tiến từ n
 4. Chạy registration rigid thật; E4 mới chỉ khử tịnh tiến, chưa khử xoay và biến dạng.
 5. Đổi backbone sang ResNet3D ở đúng 14×112×112; dưới protocol thống nhất của CGHNet, một ResNet3D trần đạt 0,709 trên test-104. DenseNet121-3D không chịu được Z=14 nên đây là đổi kiến trúc, không chỉ đổi cấu hình.
 6. Thử Focal Loss và ablation augmentation; theo ablation của CGHNet, Focal Loss hơn CrossEntropy 1,9 điểm và bỏ random crop mất 8,8 điểm.
-7. Audit và tải external cùng Duke OOD; việc chạy trên CPU nên song song được với mục 1.
+7. Audit và tải external cùng Duke OOD (Option*).
 8. Khoá protocol, threshold và temperature trên validation trước khi chạm test-104 đúng một lần.
 
 ## 6. Timeline
 
 | Thời điểm | Mốc |
 |---|---|
-| 24/07/2026 | Lập kế hoạch W2; khảo sát dataset LLD-MMRI; **tái lập và kiểm chứng split chính thức 316/78/104**; test chống leakage đầu tiên. |
-| 24/07/2026 (tối) | Dựng pipeline chạy trên Kaggle; **gate hình học đạt trên dữ liệu thật**. |
+| 24/07/2026 | Lập kế hoạch W2; khảo sát dataset LLD-MMRI; tái lập và kiểm chứng split chính thức 316/78/104; test chống leakage đầu tiên. Dựng pipeline chạy trên Kaggle; gate hình học đạt trên dữ liệu thật. |
 | 27/07/2026 | Tiền xử lý trong không gian mm; chốt thứ tự trục; build cache 498 ca; baseline ra **số mốc đầu tiên 0,2725**; ba chẩn đoán sai; tra leaderboard và **áp nguyên khối recipe chính thức**; hạ tầng bootstrap CI. |
 | 28/07/2026 | Cache cắt bám tổn thương; bộ đo calibration và selective; tính bề rộng CI ở n=104. |
 | 29/07/2026 | **E0 = 0,4244 · E1 = 0,5740**; phân tích calibration và selective; dựng E2 Siamese. |
 | 30/07/2026 | Đọc CGHNet; huỷ E2; **E3 dừng sớm ở epoch 145 với 0,5566**; dựng E4. |
 | 31/07/2026 | Tổng hợp báo cáo W2; **E4 = 0,7001, mức tăng duy nhất có ý nghĩa thống kê** (Δ so E1 +0,126, CI [+0,033; +0,230]); chốt cấu hình E4; chuẩn bị CV 5-fold. |
 
-## Kết luận cho mentor
+## Kết luận
 
 Về hạ tầng, pipeline từ MRI thô đến bảng metric đã chạy được và tái lập được, với mọi gate an toàn khoa học đứng vững: split khoá ở mức bệnh nhân, test chống leakage pass, thống kê chuẩn hoá không xuyên bệnh nhân, và test-104 chưa bị chạm một lần nào. Về kết quả, con số tốt nhất hiện tại là macro-F1 **0,7001** trên val fold 1; nó chưa so trực tiếp được với văn liệu vì khác tập đánh giá, chưa có CV, và chưa nên coi là kết quả cuối. Điều đáng nói không phải bản thân con số mà là cách nó tăng: toàn bộ mức tăng từ 0,26 lên 0,70 đến từ tái lập recipe và hai thay đổi về cách chuẩn bị dữ liệu, không một dòng nào của kiến trúc model bị đụng tới. Hai hướng đi theo kiến trúc và hình học đều chưa cho gì, và cả hai đều chưa được thử đến nơi.
 
