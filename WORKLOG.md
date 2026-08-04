@@ -3241,3 +3241,32 @@ Phép đo miễn phí trên dữ liệu đã có — ensemble 2 thành viên `be
 - **Nhận diện tài nguyên bằng NỘI DUNG, không bằng tên.** Đây là bài học lặp lại ba lần trong hai phiên. `resolve_data_root` trong `src/utils/io.py` đã làm đúng từ đầu — đọc nó trước khi tự viết logic dò.
 - **Đừng chấp nhận một thư mục `.npz` không có `cache_meta.json` làm cache E4**, dù shape có khớp. Shape không phân biệt được E3 với E4.
 - **Cache E4 chưa từng được lưu thành dataset.** Mọi notebook cần nó phải có nhánh build, hoặc người dùng phải upload cache lên trước. Đây là chi phí ~26 phút lặp lại mỗi session — đáng cân nhắc upload một lần cho xong.
+
+## S-084 · 2026-08-04 · claude-code
+
+**Mục tiêu phiên:** Sửa notebook 08 lần thứ tư — người dùng chỉ ra đường dẫn mount thật là `/kaggle/input/datasets/<user>/<slug>/...`.
+
+**Nhánh / commit:** `main` · `0ac9ad5` → *(commit đang chờ)*
+
+**Đã đụng file:**
+- `notebooks/08_mc_dropout.ipynb` — cell 4 viết lại phần dò; cell train dùng `CKPTS[fold]`.
+
+**Quyết định & lý do:**
+
+- **Bỏ hẳn mọi giả định về độ sâu đường dẫn, chuyển sang `rglob` theo tên file mốc.** Kaggle mount ở `/kaggle/input/datasets/marcohoang/best-weights/...`, sâu hơn hai cấp so với `/kaggle/input/<slug>/` mà mọi notebook trong repo đang giả định. `scan_caches` từng dò `glob` tới độ sâu 3, `find_ckpt_root` chỉ xét ứng viên và con trực tiếp — cả hai đều hụt. Giờ dò `rglob("cache_meta.json")` và `rglob("best_fold_{f}.pt")`, sâu bao nhiêu cũng thấy.
+- **Đây là lần thứ tư sửa CÙNG MỘT lớp lỗi trong hai phiên** (S-081 tên file checkpoint, S-082 tên dataset, S-083 sự tồn tại của cache, S-084 độ sâu). Nguyên nhân gốc mỗi lần đều là một giả định về hình dạng đường dẫn. Đã ghi thẳng lý do đó vào comment ở đầu khối dò, để lần sau ai định "dọn cho gọn" thì đọc được.
+- **Bỏ khái niệm `CKPT_ROOT`** (một thư mục chứa đủ 5 fold). Thay bằng `CKPTS: {fold -> path}` dò độc lập từng fold. Checkpoint không nhất thiết nằm cùng một chỗ, và ràng buộc đó không mua lại gì.
+- **Suy fold từ tên thư mục cha khi file tên `best.pt`**, bằng regex `fold_?(\d+)`; không suy được thì bỏ qua chứ không đoán. Trước đây dựa vào thứ tự glob, tức là im lặng gán nhầm nếu layout lạ.
+- **Đối chiếu SHA-256 với bản local** (S-081) và cảnh báo nếu lệch, nhưng **không tự dừng** — người dùng có thể cố ý dùng checkpoint khác, và dừng cứng ở đó sẽ cản việc chính đáng.
+- **Bảng chẩn đoán liệt kê theo NỘI DUNG chứ không theo cây thư mục**: mỗi dòng là một thư mục có `.npz`/`.pt`/`cache_meta.json` kèm số lượng, ở mọi độ sâu. Cây thư mục hai cấp như bản trước chỉ in ra `datasets/marcohoang/` rồi hết — vô dụng đúng lúc cần nhất.
+
+**Kết quả / số liệu:** Không có số khoa học mới. Test trên cây mô phỏng đúng độ sâu thật: 5 checkpoint tìm đủ ở `datasets/marcohoang/best-weights/`; layout `fold_N/best.pt` chôn sâu 4 cấp cũng tìm đủ; thiếu fold 3 thì báo đúng `[3]`; 0 cache có meta → `BUILD_NEEDED = True`. 15 cell, cú pháp hợp lệ, 0 output, không còn tham chiếu tới `ckpt_for`/`CKPT_ROOT`/`CKPT_PATTERNS`.
+
+**Dang dở:** vẫn chưa có số MC-dropout thật.
+
+**Điểm vào phiên sau:** Chạy `notebooks/08_mc_dropout.ipynb`, **mount thêm dataset LLD-MMRI gốc** để cell 1b build được cache (~26 phút).
+
+**Cảnh báo cho tool sau:**
+- **Kaggle mount ở `/kaggle/input/datasets/<user>/<slug>/`, KHÔNG phải `/kaggle/input/<slug>/`.** Notebook 02–07 trong repo đều đang giả định kiểu cũ. Chúng chạy được là vì có nhánh fallback hoặc vì người dùng mount khác; **nếu notebook nào fail ở bước tìm dataset thì nhìn chỗ này trước**.
+- **Dùng `rglob` theo tên file mốc, đừng ghép đường dẫn theo tên dataset.** Bốn lần sai liên tiếp đều từ đó ra.
+- `src/utils/io.py::resolve_data_root` đã làm đúng từ đầu (lùng theo file annotation). Đọc nó trước khi tự viết logic dò.
