@@ -95,6 +95,11 @@ export interface CaseVolumeInfo {
    * phải nói rõ, nếu không người xem sẽ tưởng model tự khoanh được tổn thương.
    */
   has_mask: boolean;
+  /**
+   * Chỉ số lát (0-based) có tổn thương, để đánh dấu trên thanh trượt. Cùng nguồn với
+   * `has_mask`: nhãn của người chú giải, KHÔNG phải vùng model tìm ra.
+   */
+  mask_slices: number[];
 }
 
 export interface CaseSummary {

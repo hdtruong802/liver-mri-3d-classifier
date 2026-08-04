@@ -33,7 +33,12 @@ from webapp.backend.schemas import (
     Provenance,
     ProvenanceSource,
 )
-from webapp.backend.volumes import find_mask_files, find_phase_files, read_geometry
+from webapp.backend.volumes import (
+    find_mask_files,
+    find_phase_files,
+    mask_slice_flags,
+    read_geometry,
+)
 
 REFERENCE_PHASE = "C+V"  # Thì tham chiếu theo Spec Sheet §2 và `configs/preprocess_e4.yaml`.
 
@@ -163,6 +168,8 @@ def get_case_detail(case_id: str) -> CaseDetail:
         if path is None:
             continue
         shape, spacing = read_geometry(path)
+        mask = masks.get(phase.file_token)
+        lesion_slices = [i for i, flag in enumerate(mask_slice_flags(mask)) if flag] if mask else []
         volumes.append(
             CaseVolumeInfo(
                 phase_name=phase.name,
@@ -170,7 +177,8 @@ def get_case_detail(case_id: str) -> CaseDetail:
                 shape=list(shape),
                 spacing_mm=[round(v, 4) for v in spacing],
                 n_slices=shape[2],
-                has_mask=phase.file_token in masks,
+                has_mask=mask is not None,
+                mask_slices=lesion_slices,
             )
         )
 

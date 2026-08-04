@@ -8,6 +8,7 @@ chứa dữ liệu bệnh nhân, nên máy khác clone repo về sẽ không có
 from __future__ import annotations
 
 import io
+from pathlib import Path
 
 import pytest
 
@@ -161,3 +162,55 @@ def test_case_detail_bao_dung_thi_nao_co_mask() -> None:
     masks = find_mask_files(CASE.directory, CASE.file_stem)
     for volume in detail.volumes:
         assert volume.has_mask == (volume.file_token in masks)
+
+
+# --- lát nào có tổn thương --------------------------------------------------
+
+
+def test_mask_slice_flags_dung_do_dai_va_co_lat_duong() -> None:
+    from webapp.backend.volumes import find_mask_files, mask_slice_flags
+
+    masks = find_mask_files(CASE.directory, CASE.file_stem)
+    if "C+V" not in masks:
+        pytest.skip("ca mẫu chưa có mask cho C+V")
+
+    flags = mask_slice_flags(masks["C+V"])
+    shape, _ = read_geometry(masks["C+V"])
+    assert len(flags) == shape[2]
+    # Toàn False nghĩa là đọc sai file hoặc sai ngưỡng — không phải "ca không có tổn thương".
+    assert any(flags), "mask không có lát nào dương"
+    assert not all(flags), "mọi lát đều có tổn thương là bất thường, kiểm lại ngưỡng"
+
+
+def test_mask_slice_flags_duoc_cache() -> None:
+    """Tính lại mỗi request phải đọc ~19MB — cache là điều kiện để dùng được."""
+    from webapp.backend.volumes import find_mask_files, mask_slice_flags
+
+    masks = find_mask_files(CASE.directory, CASE.file_stem)
+    if "C+V" not in masks:
+        pytest.skip("ca mẫu chưa có mask cho C+V")
+    assert mask_slice_flags(masks["C+V"]) is mask_slice_flags(masks["C+V"])
+
+
+def test_mask_rong_thi_toan_False_chu_khong_no(tmp_path: Path) -> None:
+    import nibabel as nib
+    import numpy as np
+
+    path = tmp_path / "rong.nii"
+    nib.save(nib.Nifti1Image(np.zeros((8, 8, 5), dtype=np.uint8), np.eye(4)), str(path))
+
+    from webapp.backend.volumes import mask_slice_flags
+
+    flags = mask_slice_flags(path)
+    assert len(flags) == 5 and not any(flags)
+
+
+def test_case_detail_mask_slices_khop_has_mask() -> None:
+    detail = demo_cases.get_case_detail(CASE_ID)
+    for volume in detail.volumes:
+        if volume.has_mask:
+            assert volume.mask_slices, f"{volume.file_token}: có mask nhưng không lát nào dương"
+            assert all(0 <= i < volume.n_slices for i in volume.mask_slices)
+            assert volume.mask_slices == sorted(volume.mask_slices)
+        else:
+            assert volume.mask_slices == []

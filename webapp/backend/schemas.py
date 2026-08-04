@@ -190,6 +190,14 @@ class CaseVolumeInfo(BaseModel):
             "segmentation (AGENTS.md §3.9)."
         ),
     )
+    mask_slices: list[int] = Field(
+        default_factory=list,
+        description=(
+            "Chỉ số lát (0-based) có ít nhất một voxel tổn thương, để đánh dấu trên "
+            "thanh trượt. Cùng nguồn với `has_mask`: nhãn của người chú giải, KHÔNG "
+            "phải vùng model tìm ra. Rỗng khi thì này không có mask."
+        ),
+    )
 
 
 class CaseSummary(BaseModel):

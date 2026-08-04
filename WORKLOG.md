@@ -3585,3 +3585,61 @@ Bốn ca demo, ảnh thật + dự đoán thật (`source = oof`), mỗi ca đ�
 - **Đừng dùng màu trong bảng bảy lớp cho mask.** Người xem sẽ đọc vùng khoanh thành chẩn đoán. Dùng token `annotation`.
 - **Khoá cache `render_slice_png` gồm cả đường dẫn mask.** Bỏ đi là hai bản đè nhau, có test chặn.
 - Mask ở `labels/` và **không** có hậu tố `_0000` như ảnh (quy ước nnU-Net). Dùng nhầm quy ước sẽ khớp 0 file và mọi thứ chạy tiếp không mask — đã xảy ra một lần ở pipeline train (S-059).
+
+## S-092 · 2026-08-04 · claude-code
+
+**Mục tiêu phiên:** Ba yêu cầu của người dùng sau khi xem app bằng mắt — khung ảnh to hơn, lăn chuột zoom, và biết lát nào có tổn thương.
+
+**Nhánh / commit:** `main` · `f1a8127` → *(commit đang chờ)*
+
+**Đã đụng file:**
+- `webapp/backend/volumes.py` — `mask_slice_flags` + cache.
+- `webapp/backend/schemas.py` — `CaseVolumeInfo.mask_slices`.
+- `webapp/backend/demo_cases.py` — điền `mask_slices`.
+- `webapp/frontend/src/components/SliceViewer.tsx` — viết lại phần khung/thao tác, thêm `LesionTrack`.
+- `webapp/frontend/src/api/types.ts` — `mask_slices`.
+- `tests/test_webapp_volumes.py` — 4 test mới.
+
+**Quyết định & lý do:**
+
+- **Lăn chuột = chuyển lát, Ctrl+lăn = zoom** — người dùng chọn khi được hỏi, ngược với yêu cầu ban đầu ("lăn để zoom"). Lý do đã trình bày và được chấp nhận: trong mọi phần mềm PACS, lăn chuột là đi qua khối, và người dùng đích của app là bác sĩ chẩn đoán hình ảnh (`PRODUCT.md`). Ctrl+lăn là quy ước trình duyệt nên không phải học thêm.
+- **Kéo = pan, bỏ kéo-để-chuyển-lát** (người dùng chọn). Zoom mà không pan được thì zoom sâu vô dụng — tổn thương ở rìa trôi khỏi khung. Chuyển lát vẫn còn bốn đường: lăn, nút mũi tên, thanh trượt, phím mũi tên.
+- **Zoom về phía con trỏ, không về tâm.** Zoom về tâm khiến vùng đang soi trôi đi mỗi lần phóng, và người dùng phải pan bù sau mỗi nấc.
+- **Gắn `wheel` bằng `addEventListener(..., { passive: false })`, không dùng `onWheel` của React.** `onWheel` là passive nên `preventDefault()` không có tác dụng và cả trang sẽ cuộn theo khi lăn trên ảnh. Đây là chỗ dễ mất nửa buổi nếu không biết trước.
+- **Khung ôm đúng tỉ lệ khối thay vì chặn chiều cao trong khung full-width.** Trước đây ảnh 480×480 nằm trong khung rộng ~1790px nên hai cánh đen rộng gấp bốn lần chính ảnh. Tỉ lệ lấy từ `volume.shape[0] / shape[1]` — dữ liệu thật, không hardcode. Chiều cao 52vh → 72vh.
+- **Con trỏ chỉ thành `grab` khi đã zoom.** Ở 1× ảnh vừa khung nên pan không đổi gì; mời kéo lúc đó là một lời hứa suông. `cursor` kế thừa được nên đặt ở khung là đủ — đặt trên `<img>` sẽ đè mất `active:` của khung.
+- **Dải tổn thương vẽ từng ĐOẠN liên tục, không vẽ một dải từ lát đầu tới lát cuối.** Các lát có tổn thương có thể đứt quãng; vẽ liền sẽ khẳng định sai rằng mọi lát ở giữa đều có tổn thương.
+- **Không hạ mẫu khi tính `mask_slice_flags`.** Đọc `dataobj[::4, ::4]` nhanh gấp 16 lần nhưng có thể bỏ sót lát chỉ chứa vài voxel — hệ quả là dẫn người đọc đi qua đúng chỗ cần nhìn. Đo thật: 0.49s lần đầu cho cả 8 thì, 0.002s sau khi cache. Dưới ngưỡng 2s nên **không cần** endpoint nạp lười như plan dự phòng.
+- **"Đi tới tổn thương" nhảy tới lát giữa của đoạn DÀI NHẤT**, không phải lát đầu tiên — đoạn dài nhất là chỗ nhiều khả năng thấy rõ nhất.
+
+**Kết quả / số liệu:**
+
+`mask_slice_flags` trên ca `MR207769`:
+
+| thì | số lát | lát có tổn thương |
+|---|---|---|
+| C-pre | 84 | 11 lát, 26–36 |
+| C+A | 84 | 11 lát, 27–37 |
+| C+V | 84 | 12 lát, 21–32 |
+| C+Delay | 84 | 12 lát, 23–34 |
+| T2WI | 35 | 6 lát, 8–13 |
+| DWI | 35 | 4 lát, 8–11 |
+
+**Quan sát đáng chú ý:** vùng tổn thương lệch nhau giữa các thì — C-pre ở 26–36 còn C+V ở 21–32, lệch 5 lát × 2.5mm ≈ 12mm. Đây là **hiện tượng lệch pha mà S-031 đã đo** (trung vị 23.3mm theo trục Z), giờ nhìn thấy được bằng mắt trên giao diện. Nó cũng là lý do E4 (`align_phases: per_phase`) thắng E1 +0.126 macro-F1.
+
+422 test pass (4 mới), `typecheck` + `build` sạch, quality gate PASS.
+
+**Dang dở:**
+- [ ] **Vẫn chưa kiểm bằng mắt lần nào** — zoom, pan, dải tổn thương mới chỉ qua typecheck/build.
+- [ ] E5 (focal) đang chạy trên Kaggle.
+- [ ] Reliability diagram + risk–coverage chưa vẽ.
+- [ ] Grad-CAM vẫn rỗng.
+- [ ] Chưa chạm test-104.
+
+**Điểm vào phiên sau:** Mở `http://localhost:5173`, kiểm 6 điểm ở mục Kiểm chứng của plan — đặc biệt: lăn chuột đổi lát mà **trang không cuộn theo**, và dải tổn thương có khớp với lát mà bật mask thực sự thấy vùng hồng không.
+
+**Cảnh báo cho tool sau:**
+- **Đừng đổi `wheel` sang `onWheel` của React.** Nó passive, `preventDefault()` vô hiệu, và trang sẽ cuộn khi lăn trên ảnh.
+- **Đừng đặt `cursor-*` lên `<img>` trong khung xem.** Nó đè `active:` của khung cha; `cursor` kế thừa được nên đặt ở khung là đủ.
+- **`mask_slices` là nhãn người chú giải**, không phải vùng model tìm ra. Mọi chữ quanh nó phải giữ đúng điều đó.
+- Vùng tổn thương **lệch nhau giữa các thì** — đó là dữ liệu thật, không phải lỗi hiển thị.

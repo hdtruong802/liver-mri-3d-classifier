@@ -32,6 +32,10 @@ _slice_cache: OrderedDict[tuple[str, int], bytes] = OrderedDict()
 # Cache header (shape, spacing) — rẻ, và tránh mở lại file cho mỗi request lát.
 _geometry_cache: dict[str, tuple[tuple[int, int, int], tuple[float, float, float]]] = {}
 
+# Cache "lát nào có tổn thương" theo đường dẫn mask. Tính nó phải đọc nguyên khối
+# (~19MB mỗi thì), nên không được tính lại cho mỗi request.
+_mask_flags_cache: dict[str, tuple[bool, ...]] = {}
+
 
 class VolumeNotFoundError(FileNotFoundError):
     """Không tìm thấy file volume cho ca và thì được yêu cầu."""
@@ -74,6 +78,26 @@ def find_mask_files(case_dir: Path, case_id: str) -> dict[str, Path]:
             for path in labels_dir.glob(f"{case_id}_{phase.file_token}{suffix}"):
                 found.setdefault(phase.file_token, path)
     return found
+
+
+def mask_slice_flags(mask_path: Path) -> tuple[bool, ...]:
+    """Lát nào của mask có ít nhất một voxel tổn thương. Độ dài = số lát của khối.
+
+    Dùng để đánh dấu trên thanh trượt những lát đáng nhìn. Không có nó, người đọc
+    phải kéo qua cả 84 lát để tìm chỗ tổn thương xuất hiện.
+
+    **Không hạ mẫu để chạy nhanh hơn.** Đọc `dataobj[::4, ::4]` sẽ nhanh gấp 16 lần
+    nhưng có thể bỏ sót lát chỉ chứa vài voxel tổn thương — và hệ quả là dẫn người
+    đọc đi qua đúng chỗ cần nhìn. Chi phí thật được trả một lần rồi cache.
+
+    ⚠️ Đây là **nhãn của người chú giải** trong bộ dữ liệu, không phải đầu ra của
+    model (AGENTS.md §3.9).
+    """
+    key = str(mask_path)
+    if key not in _mask_flags_cache:
+        volume = np.asarray(nib.load(key).dataobj)
+        _mask_flags_cache[key] = tuple(bool(v) for v in (volume > 0).any(axis=(0, 1)))
+    return _mask_flags_cache[key]
 
 
 def read_geometry(path: Path) -> tuple[tuple[int, int, int], tuple[float, float, float]]:
