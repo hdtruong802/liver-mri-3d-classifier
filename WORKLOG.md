@@ -2994,3 +2994,56 @@ F1 từng lớp, E4 so E1: u máu +0,27 · nang +0,26 · áp-xe +0,25 · di căn
 - **recharts 3 nới kiểu của `formatter`**: `value` và `item` thành union có `undefined`. Khai `(value: number)` sẽ đỏ typecheck; phải ép `Number(value ?? 0)`.
 - **Bundle vượt 500 kB** vì recharts. Chấp nhận được với demo chạy local; nếu về sau đem host thì cân nhắc code-split.
 - Người dùng đã **chuyển PDF báo cáo sang `output/pdf/`** (S-076), và `scripts/md2pdf.py` vẫn ghi ra cạnh file Markdown. Chưa sửa vì chưa được yêu cầu.
+
+## S-078 · 2026-08-04 · claude-code
+
+**Mục tiêu phiên:** Chạy nốt CV 5-fold của E4 và ra con số out-of-fold 394 ca — việc đã treo từ S-072 qua sáu entry.
+
+**Nhánh / commit:** `main` · `56359bc` → `d7adadf` → *(commit đang chờ)*
+
+**Đã đụng file:**
+- `notebooks/07_e4_cv_folds.ipynb` — `FOLDS = [2, 3]` → `[4, 5]` cho session Kaggle thứ hai. Đúng một dòng.
+- `runs/E4_cv_results/` — mới; cây eval chuẩn gồm 5 fold, `.npz` đã nén lại. Gitignore.
+- `AGENTS.md` §5 — thêm mục "CV 5-fold của E4 — con số báo cáo được"; cập nhật ngày.
+
+**Quyết định & lý do:**
+
+- **Báo con số gộp out-of-fold, không báo trung bình 5 fold.** Trung bình các fold (0.6875 ± 0.0281) không có CI đúng nghĩa: mỗi fold là một tập nhỏ khác nhau, SD giữa 5 điểm không phải sai số chuẩn của một ước lượng. Bản gộp 394 ca cho CI bootstrap ở mức bệnh nhân, đúng AGENTS.md §3.5.
+- **Đo và công bố thiên lệch do chọn epoch, thay vì lờ đi.** Trên cùng 312 ca (fold 2–5), `best` 0.6824 so với `last` 0.6038 — chênh **+0.079**. Checkpoint `best` chọn theo macro-F1 trên chính tập val đang báo, nên 0.6851 lệch lạc quan. Phương án đã loại: chỉ báo `best` và im lặng; và chuyển hẳn sang `last` (không thiên lệch nhưng bỏ hết chọn lọc, cũng không phải ước lượng đúng).
+- **Không chạy lại fold nào.** Cả 5 fold chạy đủ 300 epoch, cùng seed 1337, config diff đúng một khoá `fold` — đã kiểm bằng script. Không có lý do kỹ thuật để lặp lại.
+
+**Kết quả / số liệu:**
+
+Năm tập val phân hoạch sạch 394 ca trainval (giao mọi cặp = rỗng, hợp = 394 — kiểm trực tiếp trên file `splits/`).
+
+| fold | n | macro-F1 | κ | best epoch | thời gian |
+|---|---|---|---|---|---|
+| 1 | 82 | 0.7001 | 0.6465 | 231 | 3.76h |
+| 2 | 80 | 0.6771 | 0.6273 | 297 | 3.71h |
+| 3 | 78 | 0.7304 | 0.6772 | 104 | 3.74h |
+| 4 | 77 | 0.6680 | 0.6548 | 135 | 3.82h |
+| 5 | 77 | 0.6618 | 0.6031 | 144 | 3.75h |
+
+**Gộp out-of-fold (n=394): macro-F1 0.6851 [0.6394, 0.7308] · κ 0.6419 [0.5907, 0.6940] · balanced-acc 0.6941 · acc 0.7030.** CI rộng 0.091, so với 0.191 khi chỉ có fold 1 — đúng mức thu hẹp đã dự đoán ở notebook 07.
+
+F1 từng lớp out-of-fold: u máu 0.831 (n=63) · HCC 0.776 (125) · nang 0.762 (42) · FNH 0.761 (36) · áp-xe 0.660 (42) · **ICC 0.519 (46)** · **di căn 0.488 (40)**. Ba hướng nhầm lớn nhất: HCC → di căn 15 ca, ICC → áp-xe 10, HCC → ICC 9.
+
+Quality gate PASS.
+
+**Dang dở:**
+- [ ] **Calibration và selective prediction chưa bắt đầu** — giờ mới đủ dữ liệu để làm (394 ca). Đây là đóng góp headline của đề tài, và là việc kế tiếp rõ ràng nhất.
+- [ ] **Deep ensemble chưa dựng.** 5 `best.pt` đã có nhưng đang ở dạng thư mục bung, chưa nén lại thành file torch đọc được (xem cảnh báo).
+- [ ] Web app vẫn chạy trên số giả lập; chưa nạp checkpoint thật.
+- [ ] External và Duke OOD chưa bắt đầu.
+- [ ] Chưa chạm test-104 (đúng như phải thế).
+
+**Điểm vào phiên sau:** Viết `src/eval/calibration.py` — temperature scaling fit trên out-of-fold, rồi ECE và reliability diagram. Dữ liệu vào: `runs/E4_cv_results/fold_*/val_probs_best.npz`. Không cần GPU.
+
+**Cảnh báo cho tool sau:**
+
+- **`best.pt` và `val_probs_best.npz` của fold 2–5 về máy ở dạng THƯ MỤC, không phải file.** Cả `.pt` lẫn `.npz` bản thân là zip, và trình giải nén đã bung đệ quy luôn cả chúng (`fold_2/best/best.tmp/data/0…`). Đã nén lại `.npz` vào `runs/E4_cv_results/`; **`.pt` thì chưa** — ai cần deep ensemble phải xử lý chỗ đó trước, hoặc tải lại từ Kaggle bằng cách giải nén chỉ một lớp.
+- **`runs/E4_per_phase_results/fold_1` không có `val_probs_last`.** Nên bảng `last` trong output của `src.eval.run` là n=312 chứ không phải 394. Đừng so cột `best` (394) với cột `last` (312) rồi kết luận — phải lọc về cùng tập, như đã làm ở trên.
+- **0.6851 là val out-of-fold, KHÔNG phải test-104.** Bảng văn liệu ở AGENTS.md §5 (ResNet3D 0.709, baseline official 0.6083) đo trên test-104. Không được viết câu nào ghép hai con số đó lại.
+- **`NotebookEdit` gộp cả cell `source` thành một chuỗi và bỏ newline cuối file.** Diff một dòng biến thành 46 dòng xoá. Sửa notebook trong repo này thì thay thế trực tiếp trên JSON, giữ nguyên định dạng list-of-lines.
+- **Heredoc `<<'EOF'` trong Bash tool trên máy này nuốt backslash** (`\\n` thành `\n`). Script nào cần escape thì viết ra file rồi chạy, đừng nhét vào heredoc.
+- **Console Windows mặc định cp1252 làm `print()` tiếng Việt crash.** Thêm `PYTHONIOENCODING=utf-8` trước mọi lệnh python có in tiếng Việt.

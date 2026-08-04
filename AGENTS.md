@@ -217,6 +217,27 @@ Ba điều rút ra từ bộ số này:
 
 ⚠️ **Con số của ta đo trên val fold 1 (82 ca), bảng văn liệu đo trên test-104.** Hai tập khác nhau — **không được** viết "ta ngang ResNet3D 0.709". So sánh nội bộ E0/E1/E4 với nhau thì hợp lệ vì cùng tập và cùng số epoch; **E3 thì không**, xem cảnh báo ở trên.
 
+### CV 5-fold của E4 — con số báo cáo được (2026-08-04, WORKLOG S-078)
+
+Đủ 5 fold, mỗi fold 300 epoch, **cùng seed 1337 · config giống hệt nhau trừ đúng khoá `fold`**. Năm tập val phân hoạch sạch 394 ca trainval (kiểm chứng: giao mọi cặp = rỗng, hợp = đúng 394).
+
+| fold | n val | macro-F1 | κ | epoch tốt nhất |
+|---|---|---|---|---|
+| 1 | 82 | 0.7001 | 0.6465 | 231 |
+| 2 | 80 | 0.6771 | 0.6273 | 297 |
+| 3 | 78 | 0.7304 | 0.6772 | 104 |
+| 4 | 77 | 0.6680 | 0.6548 | 135 |
+| 5 | 77 | 0.6618 | 0.6031 | 144 |
+| **gộp out-of-fold** | **394** | **0.6851 [0.6394, 0.7308]** | **0.6419 [0.5907, 0.6940]** | — |
+
+Trung bình 5 fold 0.6875 ± 0.0281 (SD mẫu), khoảng 0.662–0.730. **Con số dùng để báo cáo là bản gộp out-of-fold, không phải trung bình này** — trung bình các fold không có CI đúng nghĩa vì mỗi fold là một tập nhỏ khác nhau.
+
+⚠️ **Thiên lệch do chọn epoch: +0.079.** Checkpoint `best` được chọn theo macro-F1 trên *chính tập val đang báo*. Đo trên cùng 312 ca (fold 2–5, vì fold 1 không có `val_probs_last`): `best` 0.6824 so với `last` (epoch 300) 0.6038. Con số 0.6851 vì thế **lệch lạc quan**; generalization thật nằm đâu đó giữa hai cột, và chỉ test-104 mới chốt được. Mọi báo cáo phải nói rõ điều này, không được im lặng đưa 0.6851 ra như một ước lượng không thiên lệch.
+
+**Hai lớp yếu, nhất quán ở cả 5 fold** (F1 out-of-fold): **di căn 0.488** (n=40) và **ICC 0.519** (n=46). Ba hướng nhầm lớn nhất trong ma trận gộp: HCC → di căn (15 ca), ICC → áp-xe (10), HCC → ICC (9). Các lớp còn lại 0.66–0.83. Đây là chỗ đáng cải thiện, không phải nhiễu một fold.
+
+⚠️ Vẫn là **val out-of-fold, không phải test-104**. Không so trực tiếp 0.6851 với bảng văn liệu ở trên.
+
 ---
 
 ## 6. Lệnh chạy
@@ -336,4 +357,4 @@ Ba thứ có mặt người dùng — **web app** (`webapp/`), **HTML slide** (`
 
 ---
 
-*Cập nhật lần cuối: 2026-07-31 · Mọi thay đổi file này phải kèm một entry trong `WORKLOG.md`.*
+*Cập nhật lần cuối: 2026-08-04 · Mọi thay đổi file này phải kèm một entry trong `WORKLOG.md`.*
