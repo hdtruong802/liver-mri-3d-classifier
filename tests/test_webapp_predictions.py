@@ -11,7 +11,7 @@ import numpy as np
 import pytest
 from webapp.backend.inference import oof_result, predict
 from webapp.backend.predictions import load_store
-from webapp.backend.schemas import ProvenanceSource
+from webapp.backend.schemas import DeferBasis, ProvenanceSource
 
 N_CLASSES = 7
 
@@ -164,3 +164,39 @@ def test_predict_roi_ve_mo_phong_khi_khong_co_ca(run_dir: Path, monkeypatch):
     monkeypatch.setenv("LLDMMRI_PREDICTIONS_DIR", str(run_dir))
     load_store.cache_clear()
     assert predict("KHONG-TON-TAI-9").provenance.source is ProvenanceSource.SIMULATED
+
+
+def test_oof_bao_dung_co_so_va_diem_defer(run_dir: Path):
+    """`defer_score` phải là epistemic, KHÔNG phải confidence — hai số khác nhau."""
+    store = load_store(str(run_dir))
+    case = store.get("MR100")
+    r = oof_result(case, store)
+
+    assert r.defer_basis is DeferBasis.EPISTEMIC
+    assert r.defer_score == pytest.approx(case.epistemic)
+    assert r.defer_threshold == pytest.approx(store.defer_threshold)
+    assert r.defer_score != pytest.approx(r.confidence), "trùng nhau là dấu hiệu nối nhầm trường"
+
+
+def test_mo_phong_van_dung_co_so_confidence(run_dir: Path, monkeypatch):
+    monkeypatch.setenv("LLDMMRI_PREDICTIONS_DIR", str(run_dir))
+    load_store.cache_clear()
+    r = predict("MR999999")  # không có trong run_dir
+    assert r.provenance.source is ProvenanceSource.SIMULATED
+    assert r.defer_basis is DeferBasis.CONFIDENCE
+    assert r.defer_score == pytest.approx(r.confidence)
+
+
+def test_id_khong_co_chu_so_khong_lam_no_api(run_dir: Path):
+    """Chuỗi lạ do người dùng gõ là chuyện bình thường, không phải 500."""
+    store = load_store(str(run_dir))
+    assert store.get("KHONG-CO-CHU-SO") is None
+
+
+def test_chieu_so_sanh_epistemic_la_NGUOC(run_dir: Path):
+    """Epistemic CAO thì từ chối — ngược chiều với confidence."""
+    store = load_store(str(run_dir))
+    cao = max(store.cases.values(), key=lambda c: c.epistemic)
+    thap = min(store.cases.values(), key=lambda c: c.epistemic)
+    assert store.should_defer(cao) is True
+    assert store.should_defer(thap) is False

@@ -30,6 +30,7 @@ from webapp.backend.config import CHECKPOINT_PATH, DEFAULT_DEFER_THRESHOLD
 from webapp.backend.predictions import CasePrediction, PredictionStore, load_store
 from webapp.backend.schemas import (
     ClassProbability,
+    DeferBasis,
     PredictResult,
     Provenance,
     ProvenanceSource,
@@ -87,6 +88,8 @@ def assemble_result(
     ensemble_std: float | None = None,
     inference_ms: int | None = None,
     defer_override: bool | None = None,
+    defer_basis: DeferBasis = DeferBasis.CONFIDENCE,
+    defer_score: float | None = None,
 ) -> PredictResult:
     """Dựng `PredictResult` từ một vector xác suất, bất kể nó từ đâu ra.
 
@@ -115,6 +118,8 @@ def assemble_result(
         uncertainty=Uncertainty(entropy=shannon_entropy(probs), ensemble_std=ensemble_std),
         # Từ chối là kết quả hợp lệ, không phải lỗi (`PRODUCT.md` Product Principle 2).
         defer=(confidence < defer_threshold) if defer_override is None else defer_override,
+        defer_basis=defer_basis,
+        defer_score=confidence if defer_score is None else defer_score,
         defer_threshold=defer_threshold,
         confidence=confidence,
         heatmap_slices=[],  # Grad-CAM thuộc W5; rỗng ⇒ frontend vẽ vùng "chưa khảo sát".
@@ -207,6 +212,8 @@ def oof_result(case: CasePrediction, store: PredictionStore) -> PredictResult:
         ensemble_std=case.epistemic,
         inference_ms=None,  # Tra cứu, không suy luận: báo thời gian là gây hiểu nhầm.
         defer_override=defer,
+        defer_basis=DeferBasis.EPISTEMIC,
+        defer_score=case.epistemic if case.epistemic is not None else 0.0,
     )
 
 

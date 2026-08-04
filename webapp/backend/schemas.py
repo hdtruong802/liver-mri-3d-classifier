@@ -61,6 +61,25 @@ class Uncertainty(BaseModel):
     )
 
 
+class DeferBasis(StrEnum):
+    """Quyết định từ chối dựa trên đại lượng nào.
+
+    Hai đại lượng khác nhau, và chọn sai cái là hỏng cả tính năng:
+
+    - `confidence` — max-prob của phân phối. **Đo được rằng nó vô dụng** để xếp hạng
+      ca khó: từ chối 20% ca theo max-prob thay đổi macro-F1 đúng −0.003, P=0.88
+      (WORKLOG S-087). Chỉ dùng cho nhánh mô phỏng, nơi chưa có epistemic.
+    - `epistemic` — mức bất đồng giữa các lượt dự đoán (MC-dropout). Từ chối theo nó
+      nâng macro-F1@80% thêm +0.035 [+0.004, +0.065], P=0.030.
+
+    Chiều so sánh **ngược nhau**: confidence thấp thì từ chối, epistemic cao thì từ
+    chối. Frontend phải đọc trường này chứ không được giả định một chiều.
+    """
+
+    CONFIDENCE = "confidence"
+    EPISTEMIC = "epistemic"
+
+
 class ClassProbability(BaseModel):
     class_index: int = Field(ge=0, le=6)
     class_name: str = Field(description="Tên lớp trong `src/data/taxonomy.py`.")
@@ -81,8 +100,24 @@ class PredictResult(BaseModel):
     )
     uncertainty: Uncertainty
     defer: bool
+    defer_basis: DeferBasis = Field(
+        default=DeferBasis.CONFIDENCE,
+        description="Đại lượng nào được so với ngưỡng để ra quyết định từ chối.",
+    )
+    defer_score: float = Field(
+        ge=0.0,
+        description=(
+            "Giá trị của chính đại lượng nêu ở `defer_basis`, cho ca này. So nó với "
+            "`defer_threshold`. KHÔNG phải lúc nào cũng bằng `confidence`."
+        ),
+    )
     defer_threshold: float = Field(
-        ge=0.0, le=1.0, description="Ngưỡng confidence khoá trên validation; dưới ngưỡng thì defer."
+        ge=0.0,
+        description=(
+            "Ngưỡng khoá trên validation, cùng đơn vị với `defer_score`. Chiều so sánh "
+            "phụ thuộc `defer_basis`: `confidence` thì DƯỚI ngưỡng là defer, "
+            "`epistemic` thì TRÊN ngưỡng là defer."
+        ),
     )
     confidence: float = Field(ge=0.0, le=1.0, description="max-prob của phân phối đã hiệu chỉnh.")
     heatmap_slices: list[str] = Field(

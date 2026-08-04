@@ -90,8 +90,18 @@ class PredictionStore:
     run_dir: Path
 
     def get(self, patient_id: str) -> CasePrediction | None:
-        """Tra cứu theo ID đã chuẩn hoá chữ số, nên `MR-207769` và `MR207769` như nhau."""
-        return self.cases.get(normalize_pid(patient_id))
+        """Tra cứu theo ID đã chuẩn hoá chữ số, nên `MR-207769` và `MR207769` như nhau.
+
+        ID không chứa chữ số thì trả `None` chứ không nổ: đây là hàm tra cứu trên
+        đường xử lý request, và một chuỗi lạ do người dùng gõ vào là chuyện bình
+        thường, không phải lỗi lập trình. `normalize_pid` raise là đúng ở lớp dữ
+        liệu; ở đây thì phải nuốt.
+        """
+        try:
+            key = normalize_pid(patient_id)
+        except ValueError:
+            return None
+        return self.cases.get(key)
 
     def should_defer(self, case: CasePrediction) -> bool:
         """Từ chối khi bất định epistemic vượt ngưỡng đã khoá trên validation.

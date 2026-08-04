@@ -3432,3 +3432,62 @@ Cổng 0 chạy thật trên config thật: 3 khoá khác biệt, tất cả tro
 - **Chênh lệch từng fold là nhiễu** (CI mỗi fold rộng ~0.19). Đừng kết luận E5 thắng/thua trước khi đủ 5 fold và gộp out-of-fold.
 - **11 test focal bị skip ở máy không có torch.** Đã kiểm bù bằng numpy, nhưng máy nào có torch thì nên chạy `pytest tests/test_losses.py` một lần cho chắc.
 - Notebook 07 coi như **đã bị thay bởi 09**. Đừng sửa 07; nếu cần chạy CV thì dùng 09.
+
+## S-089 · 2026-08-04 · claude-code
+
+**Mục tiêu phiên:** Nối kết quả thật vào web app trong lúc chờ E5 train.
+
+**Nhánh / commit:** `main` · `9889475` → *(hai commit: `fe2439c` + commit đang chờ)*
+
+**Đã đụng file:**
+- `webapp/backend/predictions.py` — **mới**; nạp 394 dự đoán out-of-fold từ `.npz`.
+- `webapp/backend/inference.py` — thêm nhánh `oof_result`, `defer_override`, `defer_basis`.
+- `webapp/backend/schemas.py` — thêm `DeferBasis`, `defer_score`; đổi nghĩa `defer_threshold`.
+- `webapp/frontend/src/components/DeferPanel.tsx` — hai chế độ hiển thị.
+- `webapp/frontend/src/api/types.ts` — hai trường mới.
+- `scripts/export_demo_cases.py` — **mới**; trích ảnh 4 ca demo, chạy trên Kaggle.
+- `tests/test_webapp_predictions.py` — **mới**; 17 test.
+- `AGENTS.md` §6.
+
+**Quyết định & lý do:**
+
+- **Phục vụ dự đoán đã lưu, KHÔNG chạy model trong backend.** Backend bị cấm kéo theo torch/monai (AGENTS.md §4). Không cần: 394 dự đoán out-of-fold đã nằm trong `val_probs_best.npz`, epistemic ở `mc_dropout.npz`. Đây là số đo được thật — mỗi ca do đúng model chưa từng thấy nó chấm. Đánh đổi phải nói rõ: **ảnh mới tải lên không suy luận được**. `PRODUCT.md` vốn đã chọn "ca demo dựng sẵn là đường đi chính" vì lý do độc lập (pipeline cắt bám tổn thương nên cần ROI).
+- **Ba đại lượng, ba nguồn** (thi hành S-087): lớp đoán ← tất định; xác suất hiển thị ← tất định + temperature (`T=3.256`); defer ← **epistemic**. Vì thế `assemble_result` có thêm `defer_override` — defer **không** suy ra được từ vector xác suất.
+- **`T` fit trên toàn bộ OOF ở lớp phục vụ, khác lúc báo cáo.** Lúc báo cáo `trust.py` fit leave-one-fold-out để không ca nào được hiệu chỉnh bởi `T` đã thấy nó. Lúc phục vụ thì không còn khái niệm đó: cần đúng một `T` chốt sẵn, và validation là chỗ hợp lệ để fit. Hai chỗ khác nhau **có chủ ý**, đã ghi trong docstring.
+- **Phát hiện và sửa lỗi tôi tự tạo ra: `defer_threshold` đổi nghĩa mà UI không biết.** Sau khi chuyển sang epistemic, ngưỡng là 0.1715 (nat) chứ không còn là ngưỡng confidence. `DeferPanel` vẫn vẽ "confidence 62% dưới ngưỡng 17%" — vô nghĩa, và tệ hơn là **trông như app hỏng**. Sửa bằng cách làm ngữ nghĩa tường minh trong schema: `defer_basis` + `defer_score` cùng đơn vị với `defer_threshold`. Phương án đã loại: giữ hai ngưỡng riêng trong UI mà không đổi schema — frontend sẽ phải đoán, và đoán sai là im lặng.
+- **Chiều so sánh ngược nhau nên panel có hai chế độ**, và với epistemic thì thanh dài ra là *xấu* đi. Thêm nhãn "đồng thuận / bất đồng" hai đầu, vì thanh tiến triển mặc định được đọc là càng dài càng tốt.
+- **Nói thẳng chỗ dễ hiểu nhầm nhất.** Ca defer mà xác suất 62% sẽ khiến người đọc tưởng mâu thuẫn. Panel có đoạn giải thích riêng khi `defer && confidence ≥ 0.6`.
+- **Chọn 4 ca demo từ hành vi đo được, gồm một ca THẤT BẠI.** `MR127280`: thật là di căn, đoán u máu, confidence 1.000, epistemic 0.0000 — defer không bắt được. Giữ nó là bắt buộc; giấu đi là bán bức tranh sai về mức tin cậy.
+
+**Kết quả / số liệu:**
+
+Backend nạp 394 ca, 5 fold, `T = 3.2563`, ngưỡng defer epistemic `0.1715`, **không kéo torch** (có test khẳng định).
+
+| ca | thật | đoán | conf thô | conf hiệu chỉnh | epistemic | defer |
+|---|---|---|---|---|---|---|
+| MR170828 | u máu | u máu | 1.000 | 0.983 | 0.0000 | không |
+| MR207769 | di căn | áp-xe | 0.936 | **0.623** | 0.3192 | **CÓ** |
+| MR113627 | ICC | ICC | 1.000 | 0.933 | 0.0993 | không |
+| MR127280 | di căn | u máu | 1.000 | 0.977 | 0.0000 | không ⚠ |
+
+Ở ngưỡng này, defer bắt **39/117** ca sai và từ chối nhầm **40/277** ca đúng.
+
+**Lỗi thật đã bắt được nhờ chạy tay:** `PredictionStore.get` nổ `ValueError` với ID không chứa chữ số — người dùng gõ chuỗi lạ là API trả 500. Đã sửa thành trả `None`.
+
+411 test pass (17 mới), `npm run typecheck` + `build` sạch, quality gate PASS.
+
+**Dang dở:**
+- [ ] **Ảnh của 4 ca demo chưa có** — máy local chỉ có `MR-391135`, và ca đó **không nằm trong 394 ca OOF**. Người dùng phải chạy `scripts/export_demo_cases.py` trên Kaggle.
+- [ ] `webapp/backend/demo_cases.py` vẫn khai đúng một ca `MR-391135_1`; sau khi có ảnh thì cập nhật thành 4 ca.
+- [ ] E5 (focal) chưa chạy.
+- [ ] Reliability diagram + risk–coverage chưa vẽ.
+- [ ] Chưa chạm test-104.
+
+**Điểm vào phiên sau:** Chạy `scripts/export_demo_cases.py --out /kaggle/working/demo_cases` trên Kaggle, tải về `data/sample/`, rồi cập nhật `DEMO_CASES` trong `webapp/backend/demo_cases.py`.
+
+**Cảnh báo cho tool sau:**
+- **`defer` KHÔNG suy ra được từ `confidence`.** Đọc `defer_basis` để biết đại lượng nào, và nhớ **chiều so sánh ngược nhau**: confidence thấp thì từ chối, epistemic cao thì từ chối.
+- **Ca `MR-391135` trong `data/sample/` không nằm trong out-of-fold**, nên nó trả `simulated`. Đừng dùng nó để kiểm nhánh `oof`.
+- **`T` ở lớp phục vụ (fit gộp) khác `T` ở lớp báo cáo (fit LOFO).** Cố ý. Đừng "thống nhất" chúng lại.
+- **Đừng để backend import torch.** Có test khẳng định `torch not in sys.modules`.
+- `load_store` có `lru_cache` — test nào đổi `LLDMMRI_PREDICTIONS_DIR` phải gọi `cache_clear()`.

@@ -40,6 +40,15 @@ export interface PredictResult {
   malignant_prob: number;
   uncertainty: Uncertainty;
   defer: boolean;
+  /**
+   * Đại lượng nào được so với ngưỡng. Chiều so sánh NGƯỢC NHAU giữa hai giá trị:
+   * `confidence` thấp thì từ chối, `epistemic` cao thì từ chối. Đừng giả định một
+   * chiều — một ca có thể bị từ chối dù confidence 0,94 (WORKLOG S-087).
+   */
+  defer_basis: 'confidence' | 'epistemic';
+  /** Giá trị của chính đại lượng nêu ở `defer_basis`. KHÔNG phải lúc nào cũng bằng `confidence`. */
+  defer_score: number;
+  /** Ngưỡng khoá trên validation, cùng đơn vị với `defer_score`. */
   defer_threshold: number;
   confidence: number;
   heatmap_slices: string[];
