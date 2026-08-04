@@ -144,7 +144,7 @@ def test_report_members_gop_dung_so_ca(members_dir: Path):
     assert r["n_folds"] == 3
     assert r["n_patients"] == 75
     assert r["n_passes"] == [8]
-    assert set(r["selective"]) == {"max-prob", "-entropy toàn phần", "-epistemic"}
+    assert set(r["selective"]) == {"MC · max-prob", "MC · -entropy", "MC · -epistemic"}
 
 
 def test_report_members_epistemic_duong_khi_cac_thanh_vien_bat_dong(members_dir: Path):
@@ -182,4 +182,51 @@ def test_report_members_tu_choi_member_probs_sai_chieu(tmp_path: Path):
         n_passes=1,
     )
     with pytest.raises(ValueError, match="phải là"):
+        report_members(tmp_path)
+
+
+# --- phép lai: dự đoán tất định + xếp hạng bằng epistemic -------------------
+
+
+def _write_deterministic(directory: Path, n: int, seed: int, offset: int) -> None:
+    """`val_probs_best.npz` khớp thứ tự ca với `mc_dropout.npz` cùng thư mục."""
+    rng = np.random.default_rng(seed + 100)
+    probs = rng.random((n, 7))
+    probs /= probs.sum(axis=1, keepdims=True)
+    np.savez_compressed(
+        directory / "val_probs_best.npz",
+        probs=probs,
+        labels=np.random.default_rng(seed).integers(0, 7, size=n),
+        patient_ids=np.array([f"MR-{offset + i}" for i in range(n)]),
+        epoch=42,
+    )
+
+
+def test_hybrid_xuat_hien_khi_co_val_probs_best(tmp_path: Path):
+    offset = 0
+    for fold, n in enumerate((30, 25), start=1):
+        d = tmp_path / f"fold_{fold}"
+        _write(d, k=8, n=n, seed=fold, offset=offset)
+        _write_deterministic(d, n, seed=fold, offset=offset)
+        offset += n
+
+    r = report_members(tmp_path)
+    assert r["hybrid_available"] is True
+    assert "LAI · tất định + -epistemic" in r["selective"]
+    assert r["macro_f1_deterministic"] is not None
+
+
+def test_khong_co_val_probs_best_thi_khong_co_hang_lai(members_dir: Path):
+    r = report_members(members_dir)
+    assert r["hybrid_available"] is False
+    assert r["macro_f1_deterministic"] is None
+    assert not any(k.startswith("LAI") for k in r["selective"])
+
+
+def test_chan_thu_tu_ca_lech_giua_hai_file(tmp_path: Path):
+    """Ghép nhầm thứ tự cho ra bảng số trông hợp lý mà sai hoàn toàn — phải nổ."""
+    d = tmp_path / "fold_1"
+    _write(d, k=6, n=20, seed=1, offset=0)
+    _write_deterministic(d, 20, seed=1, offset=500)  # id lệch hẳn
+    with pytest.raises(ValueError, match="lệch khỏi"):
         report_members(tmp_path)

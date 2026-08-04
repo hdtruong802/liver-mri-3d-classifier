@@ -263,6 +263,36 @@ Bốn điều rút ra:
 
 ⚠️ Giả thuyết "gộp 5 model khác nhau làm hỏng thứ hạng tin cậy" **đã kiểm và bác bỏ**: AURC trung bình trong từng fold 0.2038, gộp 394 ca 0.2059 — như nhau.
 
+
+### MC-dropout & phép lai — selective prediction cuối cùng cũng có tác dụng (2026-08-04, WORKLOG S-087)
+
+`notebooks/08_mc_dropout.ipynb`, K=20 lượt/ca trên chính model của từng fold (nên mọi thành viên đều mù với val của nó). Đọc bằng `python -m src.eval.trust --run-dir runs/E4_per_phase_results --members`.
+
+**MC-dropout hạ macro-F1 0.6851 → 0.5852 (−0.100).** Không dùng làm bộ dự đoán được. Nhưng ECE của nó là **0.1216** — tốt hơn cả temperature scaling tốt nhất (0.1534) mà không cần fit gì.
+
+**Phép lai là thứ đáng giá:** dự đoán lấy từ model tất định, **chỉ điểm xếp hạng defer** lấy từ epistemic của MC-dropout.
+
+| điểm xếp hạng defer | AURC | F1@100% | F1@90% | F1@80% | F1@70% | F1@50% |
+|---|---|---|---|---|---|---|
+| tất định · max-prob | 0.2059 | 0.6851 | 0.6909 | 0.6799 | 0.7043 | 0.7388 |
+| **LAI · tất định + −epistemic** | **0.1689** | 0.6851 | 0.6923 | **0.7222** | 0.7367 | 0.7484 |
+
+Bootstrap **ghép cặp** trên hiệu (2000 lần, phân tầng, mức bệnh nhân):
+
+| | hiệu | CI95 | P |
+|---|---|---|---|
+| F1@80%(epistemic) − F1@100% | **+0.0350** | [+0.0039, +0.0647] | **0.030** |
+| AURC(epistemic) − AURC(max-prob) | **−0.0346** | [−0.0648, −0.0080] | **0.013** |
+| *đối chứng:* F1@80%(max-prob) − F1@100% | −0.0027 | [−0.0340, +0.0263] | 0.88 |
+
+**Kết luận cho báo cáo:** selective prediction có tác dụng, nhưng **chỉ khi tín hiệu bất định đến từ mức bất đồng giữa các lượt dự đoán, không phải từ softmax của một lượt tất định.** Dòng đối chứng là thứ mang cả lập luận: cùng model, cùng dự đoán, chỉ đổi cách xếp hạng — max-prob cho +0.000, epistemic cho +0.035.
+
+⚠️ F1@50% (+0.060) **không có ý nghĩa thống kê** (P=0.061), và ở coverage thấp lớp hiếm bắt đầu biến mất. Đừng báo con số 0.7484 như một mức đạt được.
+
+⚠️ Đã xem 5 điểm xếp hạng rồi báo cái tốt nhất. `−epistemic` là lựa chọn có lý do từ trước (nó *là* đại lượng headline), và dòng đối chứng mới là thứ chống đỡ kết luận — nhưng phải ghi rõ điều này trong báo cáo.
+
+⚠️ Đây vẫn là **MC-dropout, không phải deep ensemble thật**. Ensemble nhiều seed (mọi thành viên đều mạnh) nhiều khả năng cho cả nền cao lẫn thứ hạng tốt; MC-dropout phải đánh đổi.
+
 ---
 
 ## 6. Lệnh chạy

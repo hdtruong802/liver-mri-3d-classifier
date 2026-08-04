@@ -3323,3 +3323,62 @@ Phép đo miễn phí trên dữ liệu đã có — ensemble 2 thành viên `be
 **Cảnh báo cho tool sau:**
 - **`lld/.cache` chứa bản sao của annotation.** Bất kỳ logic dò nào duyệt cây dữ liệu gốc đều phải loại nó, nếu không sẽ dò ra hai data root.
 - Khi dataset gốc được mount, **mọi `rglob` trên `/kaggle/input` đều đắt**. Duyệt một lần, thu tất cả.
+
+## S-087 · 2026-08-04 · claude-code
+
+**Mục tiêu phiên:** Đọc kết quả MC-dropout người dùng vừa chạy xong trên Kaggle, và quyết định hướng đi cho phần selective prediction.
+
+**Nhánh / commit:** `main` · `50e7dda` → *(commit đang chờ)*
+
+**Đã đụng file:**
+- `src/eval/trust.py` — `report_members` nạp thêm dự đoán tất định cùng fold, thêm hàng LAI; cảnh báo khi MC-dropout làm tệ độ chính xác.
+- `tests/test_mc_dropout.py` — 3 test mới cho phép lai (tổng 14).
+- `AGENTS.md` §5 — mục kết quả MC-dropout & phép lai.
+
+**Quyết định & lý do:**
+
+- **MC-dropout KHÔNG dùng làm bộ dự đoán.** K=20 lượt hạ macro-F1 **0.6851 → 0.5852** (−0.100). Đó là cái giá quá đắt, và nó không lấy lại được ở bất kỳ mức coverage nào (F1@80% của MC là 0.6439, thua 0.6799 của model tất định). ECE thì lại tốt (0.1216, hơn cả temperature scaling tốt nhất 0.1534) — nhưng calibration tốt trên một bộ dự đoán tệ hơn không phải là đánh đổi có lợi.
+- **Phép LAI: dự đoán từ model tất định, CHỈ điểm xếp hạng defer từ epistemic của MC-dropout.** Lập luận: "khó" là tính chất của **ca**, không phải của người dự đoán — nên tín hiệu bất định vẫn dùng được dù bộ sinh ra nó yếu hơn. Đo được và có ý nghĩa thống kê. Đây là hàng nên đưa vào báo cáo và vào web app.
+- **Kiểm bằng bootstrap GHÉP CẶP, không phải so hai CI.** F1@80% là tập con của F1@100% nên hai CI chồng nhau không kết luận được gì; phải lấy mẫu lại bệnh nhân rồi tính hiệu trên từng mẫu.
+- **Dòng đối chứng là thứ mang cả lập luận.** Cùng model, cùng dự đoán, chỉ đổi cách xếp hạng: max-prob cho −0.003 (P=0.88), epistemic cho +0.035 (P=0.030). Không có dòng này thì "+0.035" chỉ là một con số lơ lửng.
+
+**Kết quả / số liệu:**
+
+MC-dropout K=20, 5 fold, 394 ca out-of-fold:
+
+| điểm xếp hạng defer | AURC | F1@100% | F1@80% | F1@50% |
+|---|---|---|---|---|
+| tất định · max-prob | 0.2059 | 0.6851 | 0.6799 | 0.7388 |
+| MC · max-prob | 0.2158 | 0.5852 | 0.6140 | 0.6810 |
+| MC · −epistemic | 0.2040 | 0.5852 | 0.6439 | 0.7264 |
+| **LAI · tất định + −epistemic** | **0.1689** | **0.6851** | **0.7222** | **0.7484** |
+
+Bootstrap ghép cặp, 2000 lần, phân tầng, mức bệnh nhân:
+
+| | hiệu | CI95 | P |
+|---|---|---|---|
+| F1@80%(epistemic) − F1@100% | +0.0350 | [+0.0039, +0.0647] | **0.030** |
+| AURC(epistemic) − AURC(max-prob) | −0.0346 | [−0.0648, −0.0080] | **0.013** |
+| *đối chứng:* F1@80%(max-prob) − F1@100% | −0.0027 | [−0.0340, +0.0263] | 0.88 |
+
+F1@80% theo epistemic: 0.7222 [0.6700, 0.7724].
+
+Dự đoán tất định và trung bình MC khác nhau ở 66/394 ca.
+
+358 → 361 test pass, ruff sạch, quality gate PASS.
+
+**Dang dở:**
+- [ ] **Quyết định về ensemble nhiều seed vẫn treo.** MC-dropout đã chứng minh cơ chế, nhưng phải đánh đổi nền. Ensemble nhiều seed nhiều khả năng cho cả hai — 4 session Kaggle.
+- [ ] Vector/matrix scaling chưa thử.
+- [ ] Reliability diagram chưa vẽ.
+- [ ] Web app chưa nạp `T`, chưa nạp epistemic. **Nay đã rõ phải nạp gì:** dự đoán tất định + epistemic để xếp hạng defer.
+- [ ] Chưa chạm test-104.
+
+**Điểm vào phiên sau:** Phần trustworthiness đã có đủ số để viết báo cáo. Việc tiếp theo đáng làm nhất là nối kết quả này vào web app (đang chạy số giả lập) và vẽ reliability diagram + risk–coverage cho report.
+
+**Cảnh báo cho tool sau:**
+- **Đừng dùng trung bình MC-dropout làm dự đoán.** Nó tệ hơn model tất định 0.10 macro-F1. Chỉ lấy epistemic của nó làm điểm xếp hạng.
+- **Web app: dự đoán + xác suất hiển thị lấy từ model tất định (hiệu chỉnh bằng `T`), thứ hạng/ngưỡng defer lấy từ epistemic.** Ba đường khác nhau, đừng gộp.
+- **F1@50% = 0.7484 KHÔNG có ý nghĩa thống kê** (P=0.061) và ở coverage đó lớp hiếm bắt đầu biến mất. Đừng báo nó như một mức đạt được.
+- **Đã xem 5 điểm xếp hạng rồi báo cái tốt nhất.** `−epistemic` là lựa chọn có lý do từ trước và dòng đối chứng mới là thứ chống đỡ kết luận, nhưng báo cáo phải nói rõ đã so nhiều lựa chọn.
+- **`report_members` chặn lệch thứ tự ca giữa `mc_dropout.npz` và `val_probs_best.npz`.** Đừng nới guard đó — ghép nhầm thứ tự cho ra bảng số trông hợp lý mà sai hoàn toàn.

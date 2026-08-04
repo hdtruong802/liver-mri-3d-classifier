@@ -255,12 +255,15 @@ def report_members(run_root: str | Path, filename: str = "mc_dropout.npz") -> di
     seen: dict[str, str] = {}
     n_passes: set[int] = set()
 
+    deterministic_all: list[np.ndarray] = []
+
     for fold_name, path in paths.items():
         data = np.load(path, allow_pickle=True)
         members = data["member_probs"]
         if members.ndim != 3:
             raise ValueError(f"{path}: member_probs phải là (K, N, C), nhận {members.shape}")
-        for pid in data["patient_ids"].tolist():
+        ids = data["patient_ids"].tolist()
+        for pid in ids:
             if pid in seen:
                 raise ValueError(f"bệnh nhân {pid} có ở cả {seen[pid]} và {fold_name}")
             seen[pid] = fold_name
@@ -271,10 +274,42 @@ def report_members(run_root: str | Path, filename: str = "mc_dropout.npz") -> di
         total_all.append(unc["total"])
         n_passes.add(int(data["n_passes"]))
 
+        # Dự đoán tất định của cùng fold, nếu có. Phải khớp TỪNG ca theo thứ tự —
+        # ghép nhầm thứ tự sẽ cho ra một bảng số trông hợp lý mà sai hoàn toàn.
+        det_path = path.parent / BEST
+        if det_path.exists():
+            det = load_predictions(det_path)
+            if det["patient_ids"] != ids:
+                raise ValueError(f"{fold_name}: thứ tự ca ở {BEST} lệch khỏi {filename}")
+            deterministic_all.append(det["probs"])
+
     labels = np.concatenate(labels_all)
     mean_probs = np.concatenate(mean_all)
     epistemic = np.concatenate(epistemic_all)
     total = np.concatenate(total_all)
+    deterministic = (
+        np.concatenate(deterministic_all) if len(deterministic_all) == len(paths) else None
+    )
+
+    selective_rows = {
+        "MC · max-prob": selective_row(labels, mean_probs, mean_probs.max(axis=1)),
+        "MC · -entropy": selective_row(labels, mean_probs, -total),
+        "MC · -epistemic": selective_row(labels, mean_probs, -epistemic),
+    }
+    if deterministic is not None:
+        # PHÉP LAI: dự đoán lấy từ model tất định, chỉ ĐIỂM XẾP HẠNG defer lấy từ
+        # epistemic của MC-dropout. Lý do: MC-dropout hạ macro-F1 rõ rệt (0.6851 →
+        # 0.5852 trên out-of-fold E4) nên không dùng làm bộ dự đoán được; nhưng mức
+        # bất đồng giữa các lượt vẫn là tín hiệu tốt về ca nào KHÓ, và "khó" là tính
+        # chất của ca chứ không phải của người dự đoán. Đo được: xếp theo epistemic
+        # nâng macro-F1@80% thêm +0.035 [+0.004, +0.065] P=0.030, trong khi xếp theo
+        # max-prob của chính model đó không nâng được gì (−0.003, P=0.88) — WORKLOG S-087.
+        selective_rows["LAI · tất định + -epistemic"] = selective_row(
+            labels, deterministic, -epistemic
+        )
+        selective_rows["tất định · max-prob"] = selective_row(
+            labels, deterministic, deterministic.max(axis=1)
+        )
 
     return {
         "run_root": str(root),
@@ -282,17 +317,17 @@ def report_members(run_root: str | Path, filename: str = "mc_dropout.npz") -> di
         "n_patients": int(len(labels)),
         "n_passes": sorted(n_passes),
         "macro_f1": macro_f1(labels, mean_probs.argmax(axis=1)),
+        "macro_f1_deterministic": (
+            macro_f1(labels, deterministic.argmax(axis=1)) if deterministic is not None else None
+        ),
         "ece": adaptive_calibration_error(mean_probs, labels),
         "epistemic_summary": {
             "mean": float(epistemic.mean()),
             "min": float(epistemic.min()),
             "max": float(epistemic.max()),
         },
-        "selective": {
-            "max-prob": selective_row(labels, mean_probs, mean_probs.max(axis=1)),
-            "-entropy toàn phần": selective_row(labels, mean_probs, -total),
-            "-epistemic": selective_row(labels, mean_probs, -epistemic),
-        },
+        "selective": selective_rows,
+        "hybrid_available": deterministic is not None,
     }
 
 
@@ -410,6 +445,17 @@ def main() -> None:
             f"{m['n_folds']} fold · {m['n_patients']} ca · K = {m['n_passes']} lượt/ca"
         )
         print(f"macro-F1 của trung bình thành viên: {m['macro_f1']:.4f} · ECE {m['ece']:.4f}")
+        if m.get("macro_f1_deterministic") is not None:
+            delta = m["macro_f1"] - m["macro_f1_deterministic"]
+            print(
+                f"macro-F1 của model tất định:        {m['macro_f1_deterministic']:.4f}"
+                f"   (MC-dropout {delta:+.4f})"
+            )
+            if delta < -0.02:
+                print(
+                    "  → MC-dropout LÀM TỆ đi độ chính xác, đừng dùng làm bộ dự đoán.\n"
+                    "    Dùng hàng LAI: dự đoán tất định, chỉ xếp hạng defer bằng epistemic."
+                )
         es = m["epistemic_summary"]
         print(f"epistemic: TB {es['mean']:.4f} · khoảng {es['min']:.4f}–{es['max']:.4f}")
         if es["max"] < 1e-9:
