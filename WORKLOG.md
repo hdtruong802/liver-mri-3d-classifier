@@ -3214,3 +3214,30 @@ Phép đo miễn phí trên dữ liệu đã có — ensemble 2 thành viên `be
 **Cảnh báo cho tool sau:**
 - **Đừng quay lại kiểu dò dataset theo tên.** Đã sai hai lần liên tiếp (S-081 tên file checkpoint, S-082 tên dataset cache). Nhận diện bằng nội dung.
 - Cache đang mount tên `lld-mmri-lesion-tight` — tên đó **không** cho biết nó là E1, E3 hay E4, vì cả ba đều `lesion_tight`. Chỉ `align_phases` và `target_size` phân biệt được.
+
+## S-083 · 2026-08-04 · claude-code
+
+**Mục tiêu phiên:** Sửa notebook 08 sau lần chạy thứ hai trên Kaggle — quét thấy **0 cache**.
+
+**Nhánh / commit:** `main` · `0bd8d70` → *(commit đang chờ)*
+
+**Đã đụng file:**
+- `notebooks/08_mc_dropout.ipynb` — cell 4 (chẩn đoán + quyết định build), thêm cell 1b build dự phòng. 13 → 15 cell.
+
+**Quyết định & lý do:**
+
+- **In cây `/kaggle/input` thật ra màn hình, không đoán nữa.** Ba lần liên tiếp đoán sai (S-081 tên file checkpoint, S-082 tên dataset cache, S-083 sự tồn tại của cache). Cell 4 giờ in mọi dataset đang mount, thư mục con, số `.npz`, và có `cache_meta.json` hay không — trước khi quyết định gì. Cái giá là vài dòng output; cái được là không còn vòng lặp đoán–fail–sửa.
+- **Kết luận từ "0 cache": chưa từng có cache E4 lưu thành Kaggle Dataset.** Notebook 07 có nhánh build fallback nên các session train trước đã build lại mỗi lần (~26 phút) mà không ai để ý. Notebook 08 thiếu nhánh đó nên chết cứng. Đã thêm cell 1b build dự phòng, dùng `resolve_data_root` (nó tự lùng dataset gốc bằng cách tìm file annotation — **đúng cái cách nhận diện theo nội dung** mà lẽ ra tôi phải áp cho cache ngay từ đầu).
+- **`cache_lesion_tight` có nhiều `.npz` nhưng không có `cache_meta.json` → TỪ CHỐI dùng, không đoán.** Hình dạng mảng cho biết `target_size` nhưng **không** phân biệt được E3 (`align=reference`) với E4 (`align=per_phase`) — hai cái cùng shape `[8,112,112,32]`. Nhận nhầm E3 thành E4 sẽ cho ra bảng kết quả sai mà trông hoàn toàn hợp lý. Notebook in cảnh báo nêu đúng lý do đó rồi chuyển sang build.
+- **Ngân sách notebook 08 đổi từ ~8 phút thành ~35 phút** (26 build + 8 inference) cho lần chạy này. Vẫn rẻ hơn nhiều so với 37.5h của ensemble 3 seed.
+
+**Kết quả / số liệu:** Không có số khoa học mới. Đã mô phỏng đúng hiện trạng Kaggle (`best-weights` phẳng + `lld-mmri-lesion-tight/{cache_lesion_tight có 150 .npz không meta, repo}`): quét ra 0 cache có meta → `BUILD_NEEDED = True`; cảnh báo đúng thư mục `cache_lesion_tight`; checkpoint tìm đúng `best-weights`. Thứ tự cell: build (6) < Cổng A (8) < train (12). 15 cell, cú pháp hợp lệ, 0 output.
+
+**Dang dở:** vẫn chưa có số MC-dropout thật.
+
+**Điểm vào phiên sau:** Chạy `notebooks/08_mc_dropout.ipynb`. **Phải mount thêm dataset LLD-MMRI gốc** (ngoài `best-weights`), vì cell 1b sẽ build cache. Nếu chưa mount, cell 1b báo rõ và dừng chứ không build ra cache rỗng.
+
+**Cảnh báo cho tool sau:**
+- **Nhận diện tài nguyên bằng NỘI DUNG, không bằng tên.** Đây là bài học lặp lại ba lần trong hai phiên. `resolve_data_root` trong `src/utils/io.py` đã làm đúng từ đầu — đọc nó trước khi tự viết logic dò.
+- **Đừng chấp nhận một thư mục `.npz` không có `cache_meta.json` làm cache E4**, dù shape có khớp. Shape không phân biệt được E3 với E4.
+- **Cache E4 chưa từng được lưu thành dataset.** Mọi notebook cần nó phải có nhánh build, hoặc người dùng phải upload cache lên trước. Đây là chi phí ~26 phút lặp lại mỗi session — đáng cân nhắc upload một lần cho xong.
