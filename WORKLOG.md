@@ -3270,3 +3270,31 @@ Phép đo miễn phí trên dữ liệu đã có — ensemble 2 thành viên `be
 - **Kaggle mount ở `/kaggle/input/datasets/<user>/<slug>/`, KHÔNG phải `/kaggle/input/<slug>/`.** Notebook 02–07 trong repo đều đang giả định kiểu cũ. Chúng chạy được là vì có nhánh fallback hoặc vì người dùng mount khác; **nếu notebook nào fail ở bước tìm dataset thì nhìn chỗ này trước**.
 - **Dùng `rglob` theo tên file mốc, đừng ghép đường dẫn theo tên dataset.** Bốn lần sai liên tiếp đều từ đó ra.
 - `src/utils/io.py::resolve_data_root` đã làm đúng từ đầu (lùng theo file annotation). Đọc nó trước khi tự viết logic dò.
+
+## S-085 · 2026-08-04 · claude-code
+
+**Mục tiêu phiên:** Sửa cell build cache của notebook 08 — `resolve_data_root` nổ vì bị truyền nhầm config.
+
+**Nhánh / commit:** `main` · `99ab1ef` → *(commit đang chờ)*
+
+**Đã đụng file:**
+- `notebooks/08_mc_dropout.ipynb` — cell 1b (build cache), thêm mục "Dữ liệu gốc" vào bảng chẩn đoán cell 4.
+
+**Quyết định & lý do:**
+
+- **Lỗi thật: truyền `preprocess_e4.yaml` vào `resolve_data_root`.** File đó chỉ chứa tham số tiền xử lý, không có khoá data root nào — nên hàm báo "(không có ứng viên)". Data root khai ở **`configs/data.yaml`**, và `build_cache.main()` cũng đọc đúng file đó (`src/preprocess/build_cache.py:296`). Đáng chú ý: `configs/data.yaml` **đã có sẵn** `/kaggle/input/datasets/marcohoang/lldmmridataset` trong `data_root_candidates` — tức repo vốn đã biết layout `datasets/<user>/` mà tôi mất bốn phiên mới nhận ra (S-084). Đọc config có sẵn trước khi tự viết logic dò.
+- **Xác minh đường dẫn `resolve_data_root` trả về, không tin nó.** Khi mọi cách dò đều trượt, hàm trả về `config['data_root']` (mặc định máy local `data/lldmmridataset`) **mà không kiểm tồn tại** — `src/utils/io.py:219-225`. Trên Kaggle điều đó nghĩa là một đường dẫn tương đối không tồn tại được trả về như thành công, và job build 26 phút sẽ chết giữa chừng với lỗi khó đọc. Cell 1b giờ tự kiểm `data_root / annotation_rel` có thật không. **Không sửa `io.py`** — hành vi đó đang được test và có thể có caller khác dựa vào; sửa nó là việc riêng, không gộp vào đây.
+- **Đổi `SystemExit` thành `RuntimeError`.** `raise SystemExit(...) from exc` trong cell Jupyter làm IPython lỗi khi dựng traceback (`AttributeError: 'tuple' object has no attribute 'f_lineno'` rồi `TypeError: object of type 'NoneType' has no len()`), và trang lỗi của chính IPython che mất thông báo thật. Thông báo cần đọc được nằm cuối một trang traceback vô nghĩa.
+- **Thêm mục "Dữ liệu gốc" vào bảng chẩn đoán cell 4**, dò `LLD_MMRI_Annotation.json` bằng `rglob`. Biết trước ở cell 4 rằng chưa mount dữ liệu gốc thì tốt hơn là phát hiện ở cell 6.
+
+**Kết quả / số liệu:** Không có số khoa học mới. 15 cell, cú pháp hợp lệ, 0 output. Đã kiểm logic xác minh: `data_root=None` → chặn; đường dẫn không tồn tại → chặn; có annotation → qua. Đã xác nhận `configs/data.yaml` load được và `annotation_rel` = `lld/LLD_MMRI_Annotation.json`.
+
+**Dang dở:** vẫn chưa có số MC-dropout thật. Người dùng **chưa mount dataset LLD-MMRI gốc**, đó là thứ duy nhất còn chặn.
+
+**Điểm vào phiên sau:** Mount `lldmmridataset` rồi chạy `notebooks/08_mc_dropout.ipynb`. Cell 4 sẽ in "✓" ở mục Dữ liệu gốc nếu mount đúng.
+
+**Cảnh báo cho tool sau:**
+- **`resolve_data_root` có thể trả về đường dẫn KHÔNG TỒN TẠI** khi mọi cách dò trượt (`io.py:219-225` trả `config['data_root']` không xác minh). Caller nào chuẩn bị chạy job dài phải tự kiểm `data_root / annotation_rel`.
+- **Data root khai ở `configs/data.yaml`, không ở `configs/preprocess_*.yaml`.**
+- **Đừng `raise SystemExit` trong cell Jupyter.** IPython dựng traceback lỗi và che mất thông báo.
+- `configs/data.yaml` đã liệt kê đúng layout `/kaggle/input/datasets/<user>/<slug>`. Khi nghi ngờ về sơ đồ mount, đọc file đó trước.
