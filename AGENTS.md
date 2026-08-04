@@ -238,6 +238,29 @@ Trung bình 5 fold 0.6875 ± 0.0281 (SD mẫu), khoảng 0.662–0.730. **Con s�
 
 ⚠️ Vẫn là **val out-of-fold, không phải test-104**. Không so trực tiếp 0.6851 với bảng văn liệu ở trên.
 
+### Trustworthiness — calibration & selective (2026-08-04, WORKLOG S-079)
+
+Chạy bằng `python -m src.eval.trust --run-dir runs/E4_cv_results`. Temperature fit **leave-one-fold-out**: `T` áp lên fold `f` học từ 4 fold còn lại, nên không ca nào được hiệu chỉnh bởi một `T` đã nhìn thấy nó.
+
+| | ECE | MCE | Brier | NLL | tự tin TB | macro-F1 |
+|---|---|---|---|---|---|---|
+| chưa hiệu chỉnh | 0.2030 | 0.6775 | 0.5488 | 2.0308 | 0.889 (+0.186) | 0.6851 |
+| temp-scaled, fit **NLL** | 0.1756 | 0.8026 | 0.5228 | **1.1687** | 0.606 (−0.097) | 0.6851 |
+| temp-scaled, fit **ECE** | **0.1534** | **0.3510** | **0.5162** | 1.2812 | 0.745 (+0.042) | 0.6851 |
+
+*(accuracy thật 0.7030; cột "tự tin TB" kèm độ lệch so với accuracy)*
+
+Bốn điều rút ra:
+
+1. **Model tự tin quá mức nghiêm trọng.** Tự tin trung bình 0.889 trong khi đúng 70,3%; trung vị 0.987 và phân vị 75 là **1.000**. Đây là hệ quả trực tiếp của 300 epoch CE trần không label smoothing, đúng như `src/eval/calibration.py` mô tả.
+2. **`T` tối ưu NLL ≠ `T` tối ưu ECE, và chênh nhau nhiều.** NLL nhỏ nhất ở `T≈3.26`, ECE nhỏ nhất ở `T≈2.05`. Lấy `T` của NLL thì model **bắn quá sang thiếu tự tin** (0.606 so với accuracy 0.703) và MCE *xấu đi* (0.678 → 0.803). Fit theo ECE tốt hơn ở mọi metric calibration, chỉ thua NLL. Có `fit_temperature_min_ece` cho việc này.
+3. **Một scalar là không đủ.** Ngay cả `T` tốt nhất cũng chỉ hạ ECE xuống 0.153 — vẫn lớn. Bước tiếp theo hợp lý là vector/matrix scaling hoặc ensemble, không phải chỉnh thêm `T`.
+4. **Selective prediction có tác dụng nhưng yếu.** AURC 0.206 so với điểm ngẫu nhiên 0.296 [0.258, 0.335] và oracle 0.049 — tốt hơn ngẫu nhiên rõ rệt, còn xa hoàn hảo. macro-F1@80% = 0.6813 [0.6286, 0.7327], **gần như không hơn** 0.6851 ở coverage 100%. Ở mức sai số ≤10% chỉ tự quyết được **12,9%** số ca.
+
+⚠️ **Hiệu chỉnh xác suất làm selective hơi TỆ đi** (AURC 0.206 → 0.214). Không mâu thuẫn: temperature không thêm thông tin nào, chỉ đổi thang. Kết luận kỹ thuật cho web app: **xếp hạng/defer theo max-prob thô, hiển thị theo xác suất đã hiệu chỉnh.**
+
+⚠️ Giả thuyết "gộp 5 model khác nhau làm hỏng thứ hạng tin cậy" **đã kiểm và bác bỏ**: AURC trung bình trong từng fold 0.2038, gộp 394 ca 0.2059 — như nhau.
+
 ---
 
 ## 6. Lệnh chạy
@@ -257,6 +280,7 @@ Trung bình 5 fold 0.6875 ± 0.0281 (SD mẫu), khoảng 0.662–0.730. **Con s�
 | Tiền xử lý (chạy 1 lần, cache) | `python -m src.preprocess.build_cache --config configs/preprocess.yaml` | sẵn sàng; **cần điền `axis_order` trước**. `crop_mode` chọn `fixed_mm` (cache v0) hay `lesion_tight` (cắt bám tổn thương, dùng mask ở `lld/labels`) — đổi giá trị này là **đổi dữ liệu**, phải build sang thư mục cache khác |
 | Train baseline 3D-patch (1 fold) | `python -m src.train.run --config configs/baseline_3dpatch.yaml --fold 1` | sẵn sàng (W2 ngày 5); resume tự động từ `last.pt`; cần `LLDMMRI_CACHE_DIR` trỏ tới cache |
 | Đánh giá (CPU, không cần GPU) | `python -m src.eval.run --run-dir artifacts/runs/baseline_3dpatch` | sẵn sàng (W3); đọc `val_probs_*.npz` đã lưu → bảng metric ± CI bootstrap + gộp out-of-fold |
+| **Bảng trustworthiness** (CPU) | `python -m src.eval.trust --run-dir runs/E4_cv_results` | sẵn sàng (W3); calibration + selective từ cùng các `.npz`. Temperature fit **leave-one-fold-out**, không fit gộp — xem docstring module |
 | Test (chạm 1 lần!) | `python -m src.eval.run --ckpt <path> --split test --i-know-this-is-final` | chưa có |
 | Cài backend web app (một lần / máy) | `pip install -r webapp/backend/requirements.txt` | sẵn sàng; **tách hẳn** khỏi `requirements.txt` train, không kéo torch/monai |
 | Cài frontend web app (một lần / máy) | `cd webapp/frontend && npm install` | sẵn sàng |

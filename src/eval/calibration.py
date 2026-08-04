@@ -42,6 +42,7 @@ __all__ = [
     "brier_score",
     "expected_calibration_error",
     "fit_temperature",
+    "fit_temperature_min_ece",
     "maximum_calibration_error",
     "negative_log_likelihood",
     "per_class_calibration_error",
@@ -259,6 +260,43 @@ def fit_temperature(
             d = a + inv_phi * (b - a)
             fd = nll(d)
     return float((a + b) / 2.0)
+
+
+def fit_temperature_min_ece(
+    probs: np.ndarray,
+    labels: np.ndarray,
+    bounds: tuple[float, float] = (0.5, 8.0),
+    n_points: int = 151,
+) -> float:
+    """Học `T` tối thiểu hoá **ECE** thay vì NLL, bằng quét lưới.
+
+    Vì sao cần hàm này bên cạnh `fit_temperature`: hai mục tiêu **không** cùng cực
+    tiểu. Trên out-of-fold của E4, NLL nhỏ nhất ở `T≈3.3` còn ECE nhỏ nhất ở
+    `T≈2.1`; lấy `T` của NLL thì độ tự tin trung bình tụt xuống 0.61 trong khi
+    accuracy là 0.70, tức là model chuyển từ tự tin quá mức sang **thiếu** tự tin,
+    và ECE dừng ở 0.18 thay vì 0.139 (WORKLOG S-079).
+
+    Quét lưới chứ không dùng mặt cắt vàng như `fit_temperature`: ECE tính trên bin
+    nên là hàm bậc thang, không trơn và không lồi — thuật toán giả định tính trơn
+    sẽ dừng ở chỗ vô nghĩa.
+
+    ⚠️ Đánh đổi: ECE là hàm mục tiêu **đã rời rạc hoá**, nên fit trực tiếp lên nó
+    dễ bám vào cách chia bin cụ thể hơn là NLL (một proper scoring rule). Dùng khi
+    thứ cần tối ưu đúng là chất lượng hiệu chỉnh; giữ `fit_temperature` làm mặc
+    định cho báo cáo theo chuẩn văn liệu (Guo và cs. 2017).
+
+    ⚠️ Cùng ràng buộc như `fit_temperature`: **chỉ gọi trên validation**.
+    """
+    probs, labels = _check(probs, labels)
+    lo, hi = bounds
+    if lo <= 0 or hi <= lo:
+        raise ValueError(f"bounds không hợp lệ: {bounds}")
+    if n_points < 2:
+        raise ValueError(f"n_points phải ≥ 2, nhận {n_points}")
+
+    grid = np.linspace(lo, hi, n_points)
+    scores = [adaptive_calibration_error(apply_temperature(probs, float(t)), labels) for t in grid]
+    return float(grid[int(np.argmin(scores))])
 
 
 def per_class_calibration_error(

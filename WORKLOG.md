@@ -3047,3 +3047,62 @@ Quality gate PASS.
 - **`NotebookEdit` gộp cả cell `source` thành một chuỗi và bỏ newline cuối file.** Diff một dòng biến thành 46 dòng xoá. Sửa notebook trong repo này thì thay thế trực tiếp trên JSON, giữ nguyên định dạng list-of-lines.
 - **Heredoc `<<'EOF'` trong Bash tool trên máy này nuốt backslash** (`\\n` thành `\n`). Script nào cần escape thì viết ra file rồi chạy, đừng nhét vào heredoc.
 - **Console Windows mặc định cp1252 làm `print()` tiếng Việt crash.** Thêm `PYTHONIOENCODING=utf-8` trước mọi lệnh python có in tiếng Việt.
+
+## S-079 · 2026-08-04 · claude-code
+
+**Mục tiêu phiên:** Dựng bảng trustworthiness out-of-fold — calibration + selective prediction — trên 394 ca vừa có từ S-078. Đây là đóng góp headline của đề tài (AGENTS.md §1).
+
+**Nhánh / commit:** `main` · `aeaa71b` → *(commit đang chờ)*
+
+**Đã đụng file:**
+- `src/eval/trust.py` — **mới**; driver ghép `calibration.py` + `selective.py` thành bảng số, chạy được bằng `python -m src.eval.trust --run-dir ...`.
+- `src/eval/calibration.py` — thêm `fit_temperature_min_ece` (quét lưới, mục tiêu ECE).
+- `tests/test_trust.py` — **mới**; 16 test, trong đó có test chặn leakage temperature.
+- `scripts/quality-gate.ps1` — nhận `python -m ruff` khi không có shim `ruff.exe`; thêm `tests` vào target.
+- `AGENTS.md` §5 (mục trustworthiness mới) · §6 (dòng lệnh mới).
+
+**Quyết định & lý do:**
+
+- **Fit temperature theo leave-one-fold-out, không fit gộp.** Cách hiển nhiên là gộp 394 ca, fit một `T`, rồi báo ECE trên chính 394 ca đó — tự quy chiếu, đúng dạng leakage AGENTS.md §3.3 cấm, chỉ khác quy mô (một tham số thay vì cả model). Cách đã chọn: `T` áp lên fold `f` học từ 4 fold còn lại. Chênh lệch giữa hai cách là 0.1756 so với 0.1884 ECE — không lớn, nhưng nguyên tắc thì không thương lượng, và đã có test chặn (`test_temperature_khong_nhin_thay_fold_cua_no`).
+- **Thêm `fit_temperature_min_ece` bên cạnh `fit_temperature`, không thay thế.** Hai mục tiêu cho hai `T` khác hẳn nhau (3.26 so với 2.05) và `T` của NLL cho kết quả calibration tệ hơn rõ rệt ở đây. Nhưng ECE là mục tiêu **đã rời rạc hoá theo bin** nên fit thẳng lên nó dễ bám vào cách chia bin; NLL là proper scoring rule và là chuẩn văn liệu (Guo và cs. 2017). Giữ NLL làm mặc định cho phần selective và CI, in cả hai trong bảng, để người đọc thấy đánh đổi. Phương án đã loại: đổi hẳn mặc định sang ECE mà không nói gì.
+- **Báo AURC kèm hai mốc ngẫu nhiên và oracle.** Một mình con số 0.206 không đọc được — AURC phụ thuộc mạnh vào risk nền. Không có mốc thì phiên sau sẽ lại đoán như ba phiên S-036/039/040 đã làm với macro-F1.
+- **Sửa quality gate thay vì bỏ qua.** Gate báo `SKIP ruff - not installed` ở mọi phiên trên máy này, trong khi `python -m ruff` chạy tốt. Nghĩa là lint **chưa từng chạy** trong gate ở Windows. Đã sửa; chạy lại thì lint xanh, không có nợ tích tụ.
+
+**Kết quả / số liệu:**
+
+Calibration out-of-fold, 394 ca, accuracy thật 0.7030:
+
+| | ECE | MCE | Brier | NLL | tự tin TB (lệch) |
+|---|---|---|---|---|---|
+| chưa hiệu chỉnh | 0.2030 | 0.6775 | 0.5488 | 2.0308 | 0.889 (+0.186) |
+| temp-scaled, fit NLL | 0.1756 | 0.8026 | 0.5228 | **1.1687** | 0.606 (−0.097) |
+| temp-scaled, fit ECE | **0.1534** | **0.3510** | **0.5162** | 1.2812 | 0.745 (+0.042) |
+
+macro-F1 giữ nguyên 0.6851 ở cả ba — đúng như phải thế.
+
+`T` (LOFO): NLL 3.259 (dao động 3.122–3.472), ECE 2.050 (1.750–2.250).
+
+Selective: AURC 0.206 (max-prob thô) · 0.214 (đã hiệu chỉnh) · 0.219 (−entropy). Mốc: ngẫu nhiên 0.296 [0.258, 0.335], oracle 0.049. macro-F1@80% = 0.6813 [0.6286, 0.7327] so với 0.6851 ở coverage 100%. Coverage ở sai số ≤10%: **12,9%**; ≤20%: 24,6%.
+
+ECE từng lớp giảm rõ nhất ở ICC (0.110 → 0.036) và HCC (0.100 → 0.058).
+
+**Đã kiểm và bác bỏ:** "gộp 5 model khác nhau làm hỏng thứ hạng tin cậy" — AURC trung bình trong từng fold 0.2038, gộp 0.2059. Không phải nguyên nhân.
+
+347 test pass (16 mới), `ruff check` và `ruff format` sạch, quality gate PASS.
+
+**Dang dở:**
+- [ ] **Deep ensemble chưa dựng** — 5 `best.pt` vẫn ở dạng thư mục bung. Đây là chặn duy nhất cho phần bất định epistemic, và có khả năng là cách hạ ECE dưới 0.15 mà một scalar không làm nổi.
+- [ ] **Vector/matrix scaling chưa thử.** Kết luận "một scalar không đủ" đang treo ở đó mà chưa có phương án thay thế nào được đo.
+- [ ] Reliability diagram mới có dữ liệu (`report()["reliability"]`), chưa vẽ ra hình cho report.
+- [ ] Web app vẫn chạy số giả lập; chưa nạp `T` hay checkpoint thật.
+- [ ] Chưa chạm test-104.
+
+**Điểm vào phiên sau:** Nén lại 5 `best.pt` từ `runs/E4_per_phase_results/fold_*/best/best.tmp/` thành file torch hợp lệ (hoặc tải lại từ Kaggle, giải nén một lớp), rồi dựng deep ensemble: `src/eval/selective.py::uncertainty_decomposition` đã sẵn sàng nhận `member_probs` dạng `(K, N, C)`.
+
+**Cảnh báo cho tool sau:**
+
+- **Đừng "đơn giản hoá" `fit_temperature_leave_one_fold_out` thành một `T` chung.** Nó trông thừa nhưng là chỗ duy nhất chặn leakage của phần calibration. Có test đỏ nếu làm vậy.
+- **Hiệu chỉnh xác suất làm selective hơi TỆ đi** (AURC 0.206 → 0.214). Không phải bug: temperature không thêm thông tin, chỉ đổi thang, và phép đổi thang đó không bảo toàn thứ hạng max-prob giữa các ca. Web app nên **defer theo max-prob thô, hiển thị theo xác suất đã hiệu chỉnh** — hai đường khác nhau, đừng gộp.
+- **`macro-F1 @ coverage` gần như phẳng** (0.6813 ở 80% so với 0.6851 ở 100%). Nếu báo cáo định bán câu chuyện "từ chối ca khó thì chất lượng tăng vọt" thì **số liệu hiện tại không đỡ được câu đó**. Phải hoặc đổi cách kể, hoặc cải thiện tín hiệu bất định trước.
+- **Bootstrap ép sàn `n_resamples ≥ 2000`** (AGENTS.md §3.5). Test nào muốn chạy nhanh cũng không hạ được, đó là chủ ý; đừng nới guard đó để test nhanh hơn.
+- **Quality gate trước S-079 chưa từng chạy ruff trên Windows** vì chỉ dò lệnh `ruff` trần. Nếu tool khác thấy lint đỏ hàng loạt ở phiên sau thì đó là nợ cũ vừa lộ ra, không phải do phiên đó gây ra. (Kiểm ngày 2026-08-04: sạch.)

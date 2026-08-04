@@ -148,10 +148,23 @@ else {
 }
 
 # 4. Python lint only when ruff and at least one Python surface exist.
-$ruffTargets = @('src', 'webapp', 'scripts') |
+# Ruff cai bang pip khong phai luc nao cung co shim `ruff.exe` tren PATH, nhung
+# `python -m ruff` van chay. Gate cu chi thu lenh tran nen bao SKIP suot va lint
+# khong bao gio chay tren may Windows nay (WORKLOG S-079).
+$ruffTargets = @('src', 'tests', 'webapp', 'scripts') |
     Where-Object { Test-Path -LiteralPath $_ -PathType Container }
-if ((Get-Command ruff -ErrorAction SilentlyContinue) -and $ruffTargets.Count -gt 0) {
-    & ruff check @ruffTargets
+$ruffCmd = $null
+if (Get-Command ruff -ErrorAction SilentlyContinue) {
+    $ruffCmd = @('ruff')
+}
+elseif (Get-Command python -ErrorAction SilentlyContinue) {
+    & python -m ruff --version *> $null
+    if ($LASTEXITCODE -eq 0) { $ruffCmd = @('python', '-m', 'ruff') }
+}
+
+if ($ruffCmd -and $ruffTargets.Count -gt 0) {
+    $exe, $prefix = $ruffCmd[0], @($ruffCmd[1..($ruffCmd.Count - 1)])
+    & $exe @prefix check @ruffTargets
     if ($LASTEXITCODE -eq 0) {
         Write-Result OK 'ruff check'
     }
