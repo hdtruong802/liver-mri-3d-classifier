@@ -3162,3 +3162,29 @@ Phép đo miễn phí trên dữ liệu đã có — ensemble 2 thành viên `be
 - **Giải nén CHỈ MỘT LỚP khi tải `.npz` về.** Đã dính hai lần (S-078, S-079). Notebook 08 in nhắc ở cell cuối.
 - **`ensemble(2)` ở bảng trên KHÔNG phải kết quả để báo cáo** — thành viên `last` yếu hơn hẳn nên macro-F1 toàn phần bị kéo xuống. Nó chỉ là bằng chứng rẻ tiền rằng hướng đi đúng.
 - **fold 1 không có `val_probs_last`**, nên mọi phép so best-vs-last chỉ chạy trên 312 ca của fold 2–5.
+
+## S-081 · 2026-08-04 · claude-code
+
+**Mục tiêu phiên:** Sửa notebook 08 cho khớp layout dataset checkpoint thật trên Kaggle.
+
+**Nhánh / commit:** `main` · `0575350` → *(commit đang chờ)*
+
+**Đã đụng file:**
+- `notebooks/08_mc_dropout.ipynb` — cell 4 và cell dò checkpoint.
+- `AGENTS.md` §6 — ghi rõ tên dataset và hai layout được chấp nhận.
+
+**Quyết định & lý do:**
+
+- **Chấp nhận cả hai layout checkpoint thay vì ép một kiểu.** Người dùng upload dataset `best-weights` với 5 file **phẳng** `best_fold_1.pt … best_fold_5.pt`; notebook viết ở S-080 lại giả định `fold_N/best.pt` (layout khi gói thẳng từ output run). `CKPT_PATTERNS` giờ dò lần lượt `best_fold_{f}.pt`, `fold_{f}/best.pt`, `fold{f}*/best.pt`. Đã kiểm logic dò trên cây giả lập cả hai layout cộng trường hợp thiếu fold.
+- **Thêm cổng băm SHA-256 cho 5 checkpoint.** Cả 5 file đúng 46.24 MB vì cùng kiến trúc — **kích thước không chứng minh chúng khác nhau**. Một file bị chép 5 lần với 5 cái tên sẽ chạy trót lọt và cho ra 5 "fold" giống hệt nhau. Assert bắt trùng.
+- **Thêm đối chiếu epoch với `KNOWN_EPOCH`** (231/297/104/135/144 từ S-078) để bắt trường hợp nạp nhầm checkpoint sang fold khác, cộng kiểm `state["fold"]` nếu checkpoint có ghi.
+
+**Kết quả / số liệu:** Không có số mới. Notebook 13 cell, cú pháp mọi cell code hợp lệ, 0 output. Logic dò checkpoint đã test trên cây giả lập: layout phẳng OK, layout thư mục OK, thiếu fold → trả None đúng.
+
+**Dang dở:** không đổi so với S-080 — vẫn chưa chạy notebook 08 nên chưa có số MC-dropout thật.
+
+**Điểm vào phiên sau:** Chạy `notebooks/08_mc_dropout.ipynb` trên Kaggle, mount `best-weights` + cache E4. Tải `mc_dropout.npz` về `runs/E4_cv_results/fold_N/`, rồi `python -m src.eval.trust --run-dir runs/E4_cv_results --members`.
+
+**Cảnh báo cho tool sau:**
+- **Đừng tin kích thước file để phân biệt checkpoint.** 5 file cùng kiến trúc luôn bằng nhau đến từng byte về kích thước. Cổng băm ở cell 4 là thứ duy nhất bắt được chuyện chép nhầm.
+- Các cảnh báo của S-080 vẫn nguyên giá trị, đặc biệt: không gộp 5 fold thành ensemble, và không thay `enable_dropout` bằng `model.train()`.

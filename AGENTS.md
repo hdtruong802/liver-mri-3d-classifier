@@ -284,7 +284,7 @@ Bốn điều rút ra:
 | Đánh giá (CPU, không cần GPU) | `python -m src.eval.run --run-dir artifacts/runs/baseline_3dpatch` | sẵn sàng (W3); đọc `val_probs_*.npz` đã lưu → bảng metric ± CI bootstrap + gộp out-of-fold |
 | **Bảng trustworthiness** (CPU) | `python -m src.eval.trust --run-dir runs/E4_cv_results` | sẵn sàng (W3); calibration + selective từ cùng các `.npz`. Temperature fit **leave-one-fold-out**, không fit gộp — xem docstring module |
 | Bảng trên + bất định epistemic | `python -m src.eval.trust --run-dir runs/E4_cv_results --members` | sẵn sàng (W3); cần `fold*/mc_dropout.npz` sinh từ `notebooks/08_mc_dropout.ipynb` |
-| **MC-dropout** (GPU, ~8 phút) | chạy `notebooks/08_mc_dropout.ipynb` trên Kaggle | sẵn sàng (W3); inference thuần, **không train**. Cần mount cache E4 **và** 5 `best.pt` |
+| **MC-dropout** (GPU, ~8 phút) | chạy `notebooks/08_mc_dropout.ipynb` trên Kaggle | sẵn sàng (W3); inference thuần, **không train**. Cần mount **hai** dataset: cache E4, và checkpoint (`best-weights`: `best_fold_1..5.pt` phẳng, hoặc `fold_N/best.pt`) |
 | Test (chạm 1 lần!) | `python -m src.eval.run --ckpt <path> --split test --i-know-this-is-final` | chưa có |
 | Cài backend web app (một lần / máy) | `pip install -r webapp/backend/requirements.txt` | sẵn sàng; **tách hẳn** khỏi `requirements.txt` train, không kéo torch/monai |
 | Cài frontend web app (một lần / máy) | `cd webapp/frontend && npm install` | sẵn sàng |
