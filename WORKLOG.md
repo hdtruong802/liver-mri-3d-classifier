@@ -3188,3 +3188,29 @@ Phép đo miễn phí trên dữ liệu đã có — ensemble 2 thành viên `be
 **Cảnh báo cho tool sau:**
 - **Đừng tin kích thước file để phân biệt checkpoint.** 5 file cùng kiến trúc luôn bằng nhau đến từng byte về kích thước. Cổng băm ở cell 4 là thứ duy nhất bắt được chuyện chép nhầm.
 - Các cảnh báo của S-080 vẫn nguyên giá trị, đặc biệt: không gộp 5 fold thành ensemble, và không thay `enable_dropout` bằng `model.train()`.
+
+## S-082 · 2026-08-04 · claude-code
+
+**Mục tiêu phiên:** Sửa notebook 08 sau khi chạy thật trên Kaggle và fail ở cell dò cache.
+
+**Nhánh / commit:** `main` · `7cf9e62` → *(commit đang chờ)*
+
+**Đã đụng file:**
+- `notebooks/08_mc_dropout.ipynb` — cell 4 (dò cache + checkpoint), Cổng A.
+
+**Quyết định & lý do:**
+
+- **Nhận diện cache bằng NỘI DUNG `cache_meta.json`, không bằng tên dataset.** Cell cũ dò theo danh sách tên đoán trước (`lld-mmri-e4-per-phase`, `lld-mmri-e4`); dataset thật tên `lld-mmri-lesion-tight` và cache nằm ở `cache_lesion_tight/` bên trong. Đoán tên là sai cách: tên do người upload đặt, và đã lệch ngay lần đầu. Giờ quét mọi `cache_meta.json` dưới `/kaggle/input` tới độ sâu 3, in ra bảng tất cả cache tìm được kèm `crop_mode`/`target_size`/`align_phases`, rồi **chọn cái khớp ba khoá E4**. Danh sách checkpoint cũng chuyển sang quét toàn bộ `/kaggle/input` thay vì đoán tên.
+- **`E4_KEYS` khai báo một lần, Cổng A dùng lại.** Trước đó ba khoá nhận diện E4 nằm ở hai chỗ trong cùng notebook — hai bản sẽ trôi khỏi nhau.
+- **Thông báo lỗi nêu cả hai đường đi.** Nếu không cache nào khớp E4, assert in ra bảng cache đang có và hai lựa chọn: mount đúng dataset, hoặc build lại (~26 phút, kèm đúng lệnh). Lỗi cũ chỉ nói "không thấy" mà không nói đang thấy cái gì.
+- **Thêm kiểm số file `.npz` ≥ 498** vào Cổng A, đồng bộ với notebook 07.
+
+**Kết quả / số liệu:** Không có số khoa học mới. Đã test logic quét trên cây mô phỏng đúng layout đang mount (`best-weights` phẳng + `lld-mmri-lesion-tight/{cache_lesion_tight,repo}`): cache E4 đúng → nhận; cache E1 (sai `target_size`) → loại; cache E3 (sai `align_phases`) → loại; checkpoint tìm đúng `best-weights`. Notebook 13 cell, cú pháp hợp lệ, 0 output.
+
+**Dang dở:** không đổi — vẫn chưa có số MC-dropout thật.
+
+**Điểm vào phiên sau:** Chạy lại `notebooks/08_mc_dropout.ipynb`. Nếu bảng cache in ra mà **không dòng nào có dấu ✓ E4** thì cache đang mount không phải E4 và phải build lại — đó là thông tin thật, không phải lỗi notebook.
+
+**Cảnh báo cho tool sau:**
+- **Đừng quay lại kiểu dò dataset theo tên.** Đã sai hai lần liên tiếp (S-081 tên file checkpoint, S-082 tên dataset cache). Nhận diện bằng nội dung.
+- Cache đang mount tên `lld-mmri-lesion-tight` — tên đó **không** cho biết nó là E1, E3 hay E4, vì cả ba đều `lesion_tight`. Chỉ `align_phases` và `target_size` phân biệt được.
