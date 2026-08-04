@@ -3542,3 +3542,46 @@ Bốn ca demo, ảnh thật + dự đoán thật (`source = oof`), mỗi ca đ�
 - **`epistemic` ≠ `ensemble_std`.** Khác định nghĩa, khác đơn vị. `ensemble_std` vẫn `None` cho tới khi có deep ensemble nhiều seed thật.
 - Danh sách ca demo **đổi theo kết quả thí nghiệm**. Test đã bỏ ID viết cứng, đọc từ `DEMO_CASES[0]`; giữ như vậy.
 - Ca `MR-391135` vẫn còn trong `data/sample/` nhưng **không** thuộc danh sách demo và **không** có dự đoán thật.
+
+## S-091 · 2026-08-04 · claude-code
+
+**Mục tiêu phiên:** Hai yêu cầu UI của người dùng — nút mũi tên chuyển lát, và bật/tắt mask tổn thương.
+
+**Nhánh / commit:** `main` · `e87e372` → *(commit đang chờ)*
+
+**Đã đụng file:**
+- `webapp/backend/volumes.py` — `find_mask_files`, `_overlay_mask`, `render_slice_png(..., mask_path)`.
+- `webapp/backend/main.py` — tham số `?mask=true` cho endpoint lát.
+- `webapp/backend/schemas.py` — `CaseVolumeInfo.has_mask`.
+- `webapp/backend/demo_cases.py` — `mask_path()`, điền `has_mask`.
+- `webapp/frontend/src/components/SliceViewer.tsx` — nút mũi tên + nút bật mask.
+- `webapp/frontend/src/api/{client,types}.ts` · `webapp/frontend/tailwind.config.js` · `webapp/DESIGN.md`.
+- `tests/test_webapp_volumes.py`, `tests/test_webapp_api.py` — 7 test mới.
+
+**Quyết định & lý do:**
+
+- **Thêm token màu `annotation` (`#E879F9`) thay vì dùng lại màu lớp.** Ban đầu tôi định dùng `#38BDF8` — nhưng đó là màu lớp **"nang"** trong bảng bảy lớp. Phủ một vùng màu "nang" lên ảnh sẽ khiến người xem đọc vùng khoanh thành **một chẩn đoán**. Mask không phải một lớp, cũng không phải một trạng thái (nên không dùng màu ok/warn/danger được). Token mới nằm ngoài cả hai bảng, có chủ ý. Đã ghi vào `webapp/DESIGN.md`.
+- **Mask vẽ viền đặc + ruột nhuộm 25%, không tô kín.** Bác sĩ cần nhìn thấy pixel bên dưới để tự đánh giá; mảng màu kín che đúng chỗ đang cần đọc.
+- **Xin mask cho ca không có mask thì trả 404, không lặng lẽ trả ảnh trần.** Đây là điểm dễ sai nhất: người dùng bật "hiện vùng tổn thương", nhận về ảnh không có gì, và kết luận **"model không tìm thấy tổn thương nào"** — một câu hoàn toàn sai, vì mask là nhãn của người chú giải chứ không phải đầu ra của model.
+- **Nhấn mạnh khắp nơi rằng mask KHÔNG phải đầu ra của model.** Dự án không làm segmentation (AGENTS.md §3.9). Nhãn này là annotation official của LLD-MMRI, cùng thứ pipeline dùng để cắt `lesion_tight`. Ghi trong docstring backend, mô tả schema, tooltip nút, và `alt` của ảnh.
+- **Khoá cache lát phải gồm đường dẫn mask.** Không thì bản có mask và bản không đè lên nhau, và người dùng thấy ảnh sai với trạng thái nút. Có test riêng.
+- **Chặn mask lệch hình học so với ảnh** (`shape` khác nhau) → 409, thay vì phủ sai chỗ. Phủ lệch trên ảnh y tế còn tệ hơn không phủ.
+- **Nút mũi tên đặt cạnh chỉ số lát, không ra rìa panel.** Đó là chỗ mắt đang nhìn khi cần đi từng lát; đặt ra rìa bắt mắt rời con số rồi quay lại. Vô hiệu ở hai đầu chứ không cuộn vòng — lát 1 và lát cuối là biên giải phẫu thật.
+- **Tách `StepButton` thành component riêng** để hai nút không thể lệch nhau về kích thước hay trạng thái disabled.
+
+**Kết quả / số liệu:** Bốn ca demo đều có mask đủ cả 8 thì. PNG có mask 110 KB so với bản trần 78 KB, khác nhau (đã kiểm bằng byte). 418 test pass (7 mới), `typecheck` + `build` sạch, quality gate PASS.
+
+**Dang dở:**
+- [ ] **Vẫn chưa xem bằng mắt.** Kiểm qua API, test và build; chưa mở trình duyệt lần nào.
+- [ ] E5 (focal) đang chạy trên Kaggle.
+- [ ] Reliability diagram + risk–coverage chưa vẽ.
+- [ ] Grad-CAM vẫn rỗng.
+- [ ] Chưa chạm test-104.
+
+**Điểm vào phiên sau:** Mở **http://localhost:5173** xem bốn ca. Cần soi: (1) `MR207769` — xác suất 62% mà bị từ chối, lời giải thích có đủ rõ không; (2) mask màu `#E879F9` trên nền MRI xám có đọc được không, viền có quá mảnh ở lát mà tổn thương nhỏ không.
+
+**Cảnh báo cho tool sau:**
+- **Mask KHÔNG phải đầu ra của model.** Nó là nhãn official của bộ dữ liệu. Đừng viết bất kỳ chữ nào ngụ ý model tự khoanh được — dự án không làm segmentation.
+- **Đừng dùng màu trong bảng bảy lớp cho mask.** Người xem sẽ đọc vùng khoanh thành chẩn đoán. Dùng token `annotation`.
+- **Khoá cache `render_slice_png` gồm cả đường dẫn mask.** Bỏ đi là hai bản đè nhau, có test chặn.
+- Mask ở `labels/` và **không** có hậu tố `_0000` như ảnh (quy ước nnU-Net). Dùng nhầm quy ước sẽ khớp 0 file và mọi thứ chạy tiếp không mask — đã xảy ra một lần ở pipeline train (S-059).

@@ -33,7 +33,7 @@ from webapp.backend.schemas import (
     Provenance,
     ProvenanceSource,
 )
-from webapp.backend.volumes import find_phase_files, read_geometry
+from webapp.backend.volumes import find_mask_files, find_phase_files, read_geometry
 
 REFERENCE_PHASE = "C+V"  # Thì tham chiếu theo Spec Sheet §2 và `configs/preprocess_e4.yaml`.
 
@@ -155,6 +155,7 @@ def get_case_detail(case_id: str) -> CaseDetail:
     """Hình học thật của 8 volume, đọc từ header NIfTI."""
     case = CASES_BY_ID[case_id]
     files = find_phase_files(case.directory, case.file_stem)
+    masks = find_mask_files(case.directory, case.file_stem)
 
     volumes: list[CaseVolumeInfo] = []
     for phase in PHASES:
@@ -169,6 +170,7 @@ def get_case_detail(case_id: str) -> CaseDetail:
                 shape=list(shape),
                 spacing_mm=[round(v, 4) for v in spacing],
                 n_slices=shape[2],
+                has_mask=phase.file_token in masks,
             )
         )
 
@@ -187,3 +189,11 @@ def volume_path(case_id: str, file_token: str) -> Path | None:
     if case is None:
         return None
     return find_phase_files(case.directory, case.file_stem).get(file_token)
+
+
+def mask_path(case_id: str, file_token: str) -> Path | None:
+    """Nhãn segmentation official cho một thì, `None` nếu ca đó không có."""
+    case = CASES_BY_ID.get(case_id)
+    if case is None:
+        return None
+    return find_mask_files(case.directory, case.file_stem).get(file_token)

@@ -132,6 +132,16 @@ Tính cách: gọn, có nhịp, dày thông tin nhưng không chật. Panel bo g
 
 `#34D399` đủ / xong · `#FBBF24` cần chú ý, `defer` · `#FB7185` nhóm ác
 
+### Vùng chú giải trên ảnh
+
+`#E879F9` mask tổn thương · `#F5D0FE` bản nhạt (chữ trên nền tối)
+
+Cố ý nằm **ngoài** cả bảng bảy lớp lẫn bảng trạng thái. Mask không phải một lớp và không phải một trạng thái — nó là một vùng do **người chú giải** khoanh, có sẵn trong bộ dữ liệu LLD-MMRI. Dùng màu lớp cho nó (ví dụ `#38BDF8` của "nang") sẽ khiến người xem đọc vùng khoanh thành một chẩn đoán; dùng màu trạng thái sẽ đọc thành một cảnh báo.
+
+Vẽ **viền đặc + ruột nhuộm 25%**, không tô kín: bác sĩ cần nhìn thấy pixel bên dưới để tự đánh giá, và một mảng màu kín che đúng chỗ đang cần đọc.
+
+⚠️ Mọi chỗ hiển thị mask phải nói rõ đây **không phải đầu ra của model** — dự án không làm segmentation (`AGENTS.md` §3.9).
+
 ### Bảy màu lớp
 
 - **ác:** HCC `#EF4444` · di căn `#F97316` · ICC `#FB7185`

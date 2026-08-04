@@ -54,6 +54,28 @@ def find_phase_files(case_dir: Path, case_id: str) -> dict[str, Path]:
     return found
 
 
+def find_mask_files(case_dir: Path, case_id: str) -> dict[str, Path]:
+    """Map `file_token -> path` cho mask tổn thương của một ca.
+
+    Mask nằm ở thư mục con `labels/` và **không** mang hậu tố kênh `_0000` (quy ước
+    nnU-Net) — dùng nhầm quy ước đặt tên của ảnh sẽ khớp 0 file và mọi thứ lặng lẽ
+    chạy tiếp không có mask (đã xảy ra một lần ở pipeline train, WORKLOG S-059).
+
+    ⚠️ Đây là **nhãn segmentation official của LLD-MMRI**, không phải đầu ra của model.
+    Dự án này không làm segmentation (AGENTS.md §3.9). Mọi chỗ hiển thị mask phải nói
+    rõ điều đó, nếu không người xem sẽ tưởng model tự khoanh được tổn thương.
+    """
+    labels_dir = case_dir / "labels"
+    if not labels_dir.is_dir():
+        return {}
+    found: dict[str, Path] = {}
+    for phase in PHASES:
+        for suffix in (".nii", ".nii.gz"):
+            for path in labels_dir.glob(f"{case_id}_{phase.file_token}{suffix}"):
+                found.setdefault(phase.file_token, path)
+    return found
+
+
 def read_geometry(path: Path) -> tuple[tuple[int, int, int], tuple[float, float, float]]:
     """Shape và spacing mm, đọc từ header — không nạp mảng dữ liệu vào bộ nhớ."""
     key = str(path)
@@ -86,14 +108,42 @@ def _normalize(slab: np.ndarray) -> np.ndarray:
     return (((clipped - lo) / (hi - lo)) * 255.0).astype(np.uint8)
 
 
-def render_slice_png(path: Path, z: int) -> bytes:
-    """Render lát `z` của một volume ra PNG thang xám.
+def _overlay_mask(gray: np.ndarray, mask: np.ndarray) -> np.ndarray:
+    """Phủ mask lên ảnh xám: viền đặc + ruột mờ, trả về mảng RGB.
+
+    Viền đặc chứ không tô kín: bác sĩ cần **nhìn thấy pixel bên dưới** để tự đánh giá,
+    và một mảng màu kín sẽ che đúng chỗ đang cần đọc. Ruột chỉ nhuộm 25% để vẫn thấy
+    được cấu trúc mà không mất dấu vùng.
+
+    Màu `#E879F9` (token `annotation` trong `tailwind.config.js`) nằm **ngoài** cả bảng
+    bảy lớp lẫn bảng trạng thái, có chủ ý: mask không phải một lớp và không phải một
+    trạng thái. Dùng màu lớp cho nó — ví dụ `#38BDF8` của "nang" — sẽ khiến người xem
+    đọc vùng khoanh thành một chẩn đoán.
+    """
+    rgb = np.stack([gray, gray, gray], axis=-1).astype(np.float32)
+    binary = mask > 0
+    if not binary.any():
+        return rgb.astype(np.uint8)
+
+    # Biên = pixel thuộc mask mà có ít nhất một hàng xóm 4-liên thông không thuộc mask.
+    padded = np.pad(binary, 1, mode="constant", constant_values=False)
+    interior = padded[:-2, 1:-1] & padded[2:, 1:-1] & padded[1:-1, :-2] & padded[1:-1, 2:] & binary
+    edge = binary & ~interior
+
+    colour = np.array([232, 121, 249], dtype=np.float32)  # #E879F9, token `annotation`
+    rgb[binary] = rgb[binary] * 0.75 + colour * 0.25
+    rgb[edge] = colour
+    return np.clip(rgb, 0, 255).astype(np.uint8)
+
+
+def render_slice_png(path: Path, z: int, mask_path: Path | None = None) -> bytes:
+    """Render lát `z` của một volume ra PNG. Có `mask_path` thì phủ mask lên.
 
     Ảnh được xoay để trục hàng của mảng nằm ngang, khớp quy ước hiển thị axial thông
     thường. Không lật trái phải — lật nhầm bên trên ảnh y tế là lỗi nghiêm trọng, nên
     tuyệt đối không "sửa cho đẹp" ở đây.
     """
-    key = (str(path), z)
+    key = (f"{path}|{mask_path or ''}", z)
     cached = _slice_cache.get(key)
     if cached is not None:
         _slice_cache.move_to_end(key)
@@ -107,7 +157,20 @@ def render_slice_png(path: Path, z: int) -> bytes:
     slab = np.asarray(img.dataobj[:, :, z], dtype=np.float32)
     normalized = _normalize(slab)
     # `.T` đưa trục 0 (x) thành cột; `[::-1]` đặt gốc toạ độ lên trên như ảnh axial.
-    picture = Image.fromarray(normalized.T[::-1], mode="L")
+    oriented = normalized.T[::-1]
+
+    if mask_path is None:
+        picture = Image.fromarray(oriented, mode="L")
+    else:
+        mask_img = nib.load(str(mask_path))
+        if tuple(int(v) for v in mask_img.shape[:3]) != tuple(int(v) for v in img.shape[:3]):
+            # Mask lệch hình học so với ảnh thì phủ lên là sai chỗ. Thà không phủ.
+            raise ValueError(
+                f"mask {mask_path.name} có shape {tuple(mask_img.shape[:3])} "
+                f"khác ảnh {tuple(int(v) for v in img.shape[:3])}"
+            )
+        mask_slab = np.asarray(mask_img.dataobj[:, :, z]).T[::-1]
+        picture = Image.fromarray(_overlay_mask(oriented, mask_slab), mode="RGB")
 
     buffer = io.BytesIO()
     picture.save(buffer, format="PNG", optimize=True)

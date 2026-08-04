@@ -106,3 +106,58 @@ def test_case_detail_danh_dau_dung_nguon() -> None:
     store = load_store()
     co_du_doan_that = store is not None and store.get(CASE_ID) is not None
     assert detail.provenance.source.value == ("oof" if co_du_doan_that else "simulated")
+
+
+# --- mask tổn thương --------------------------------------------------------
+
+
+def test_tim_duoc_mask_o_thu_muc_labels() -> None:
+    """Mask KHÔNG mang hậu tố `_0000` như ảnh — dùng nhầm quy ước sẽ khớp 0 file."""
+    from webapp.backend.volumes import find_mask_files
+
+    masks = find_mask_files(CASE.directory, CASE.file_stem)
+    if not masks:
+        pytest.skip("ca mẫu chưa có mask")
+    assert set(masks) <= {p.file_token for p in PHASES}
+    assert all("_0000" not in p.name for p in masks.values())
+
+
+def test_phu_mask_doi_anh_va_van_la_PNG_hop_le(phase_files: dict) -> None:
+    from webapp.backend.volumes import find_mask_files
+
+    masks = find_mask_files(CASE.directory, CASE.file_stem)
+    if "C+V" not in masks:
+        pytest.skip("ca mẫu chưa có mask cho C+V")
+
+    path = phase_files["C+V"]
+    z = n_slices(path) // 2
+    tran = render_slice_png(path, z)
+    phu = render_slice_png(path, z, masks["C+V"])
+
+    assert tran != phu, "phủ mask mà ảnh không đổi là dấu hiệu mask rỗng hoặc lệch"
+    assert phu.startswith(bytes([0x89]) + b"PNG"), "phải là PNG hợp lệ"
+
+
+def test_cache_khong_tron_ban_co_mask_voi_ban_khong(phase_files: dict) -> None:
+    """Khoá cache phải gồm cả đường dẫn mask, nếu không hai bản đè lên nhau."""
+    from webapp.backend.volumes import find_mask_files
+
+    masks = find_mask_files(CASE.directory, CASE.file_stem)
+    if "C+V" not in masks:
+        pytest.skip("ca mẫu chưa có mask cho C+V")
+
+    path = phase_files["C+V"]
+    z = n_slices(path) // 2
+    a1 = render_slice_png(path, z)
+    b1 = render_slice_png(path, z, masks["C+V"])
+    a2 = render_slice_png(path, z)  # lấy lại từ cache
+    assert a1 == a2 and a1 != b1
+
+
+def test_case_detail_bao_dung_thi_nao_co_mask() -> None:
+    detail = demo_cases.get_case_detail(CASE_ID)
+    from webapp.backend.volumes import find_mask_files
+
+    masks = find_mask_files(CASE.directory, CASE.file_stem)
+    for volume in detail.volumes:
+        assert volume.has_mask == (volume.file_token in masks)

@@ -104,20 +104,35 @@ def case_detail(case_id: str) -> CaseDetail:
     responses={200: {"content": {"image/png": {}}}},
     response_class=Response,
 )
-def case_slice(case_id: str, phase: str, z: int) -> Response:
+def case_slice(case_id: str, phase: str, z: int, mask: bool = False) -> Response:
     """Render một lát của một thì ra PNG.
 
     `phase` là `file_token` (vd `C+V`, `InPhase`). Ảnh thật, đọc từ NIfTI trên đĩa.
+
+    `mask=true` phủ **nhãn segmentation official của LLD-MMRI** lên. Đây là nhãn do
+    người chú giải, không phải đầu ra của model — dự án không làm segmentation
+    (AGENTS.md §3.9). Ca không có mask thì trả 404 thay vì lặng lẽ trả ảnh trần: gọi
+    xin mask mà nhận ảnh không mask là một sự im lặng dễ bị đọc nhầm thành
+    "model không tìm thấy tổn thương nào".
     """
     path = demo_cases.volume_path(case_id, phase)
     if path is None:
         raise HTTPException(
             status_code=404, detail=f"không có volume cho ca {case_id!r} thì {phase!r}"
         )
+    overlay = None
+    if mask:
+        overlay = demo_cases.mask_path(case_id, phase)
+        if overlay is None:
+            raise HTTPException(
+                status_code=404, detail=f"không có mask cho ca {case_id!r} thì {phase!r}"
+            )
     try:
-        payload = render_slice_png(path, z)
+        payload = render_slice_png(path, z, overlay)
     except IndexError as exc:
         raise HTTPException(status_code=416, detail=str(exc)) from exc
+    except ValueError as exc:  # mask lệch hình học so với ảnh
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
     # Ảnh bệnh nhân: cache ở trình duyệt trong phiên, không để proxy trung gian giữ.
     return Response(
         content=payload, media_type="image/png", headers={"Cache-Control": "private, max-age=3600"}

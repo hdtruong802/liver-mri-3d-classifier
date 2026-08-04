@@ -237,3 +237,53 @@ def test_health(client: TestClient) -> None:
     body = client.get("/api/health").json()
     assert body["status"] == "ok"
     assert body["model_loaded"] is False
+
+
+# --- endpoint mask ----------------------------------------------------------
+
+
+def _case_voi_mask() -> tuple[str, str] | None:
+    """(case_id, file_token) đầu tiên có mask trên máy này, hoặc None."""
+    for case in demo_cases.DEMO_CASES:
+        if not demo_cases.case_is_available(case):
+            continue
+        for volume in demo_cases.get_case_detail(case.case_id).volumes:
+            if volume.has_mask:
+                return case.case_id, volume.file_token
+    return None
+
+
+def test_xin_mask_cho_ca_khong_co_thi_404_chu_khong_tra_anh_tran(client: TestClient) -> None:
+    """Im lặng trả ảnh trần sẽ bị đọc thành 'không tìm thấy tổn thương nào'."""
+    case = demo_cases.DEMO_CASES[0]
+    response = client.get(
+        f"/api/cases/{case.case_id}/slice",
+        params={"phase": "KHONG-TON-TAI", "z": 0, "mask": "true"},
+    )
+    assert response.status_code == 404
+
+
+def test_mask_tra_ve_PNG_khac_ban_khong_mask(client: TestClient) -> None:
+    found = _case_voi_mask()
+    if found is None:
+        pytest.skip("máy này không có ca nào kèm mask")
+    case_id, token = found
+
+    tran = client.get(f"/api/cases/{case_id}/slice", params={"phase": token, "z": 20})
+    phu = client.get(
+        f"/api/cases/{case_id}/slice", params={"phase": token, "z": 20, "mask": "true"}
+    )
+    assert tran.status_code == 200 and phu.status_code == 200
+    assert phu.headers["content-type"] == "image/png"
+    assert tran.content != phu.content
+
+
+def test_mask_mac_dinh_TAT(client: TestClient) -> None:
+    """Không truyền `mask` thì phải ra ảnh trần — mặc định là không diễn giải thêm."""
+    found = _case_voi_mask()
+    if found is None:
+        pytest.skip("máy này không có ca nào kèm mask")
+    case_id, token = found
+    a = client.get(f"/api/cases/{case_id}/slice", params={"phase": token, "z": 20})
+    b = client.get(f"/api/cases/{case_id}/slice", params={"phase": token, "z": 20, "mask": "false"})
+    assert a.content == b.content

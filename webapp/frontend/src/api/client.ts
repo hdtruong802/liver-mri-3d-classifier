@@ -47,7 +47,15 @@ export function predictUpload(files: File[]): Promise<PredictResult> {
 }
 
 /** URL ảnh một lát. Ảnh MRI thật, render từ NIfTI ở backend. */
-export function sliceUrl(caseId: string, phaseToken: string, z: number): string {
+export function sliceUrl(
+  caseId: string,
+  phaseToken: string,
+  z: number,
+  mask = false,
+): string {
   const params = new URLSearchParams({ phase: phaseToken, z: String(z) });
+  // Chỉ gửi `mask` khi bật: giữ URL của đường đi thường không đổi, nhờ vậy cache
+  // trình duyệt cho ảnh trần không bị vô hiệu mỗi lần người dùng tắt lớp phủ.
+  if (mask) params.set('mask', 'true');
   return `/api/cases/${encodeURIComponent(caseId)}/slice?${params}`;
 }

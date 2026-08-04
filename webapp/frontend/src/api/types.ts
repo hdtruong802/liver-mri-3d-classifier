@@ -89,6 +89,12 @@ export interface CaseVolumeInfo {
   shape: [number, number, number];
   spacing_mm: [number, number, number];
   n_slices: number;
+  /**
+   * Có nhãn segmentation OFFICIAL của LLD-MMRI không. Đây là nhãn do người chú giải,
+   * KHÔNG phải đầu ra của model — dự án không làm segmentation. Mọi chỗ hiển thị nó
+   * phải nói rõ, nếu không người xem sẽ tưởng model tự khoanh được tổn thương.
+   */
+  has_mask: boolean;
 }
 
 export interface CaseSummary {

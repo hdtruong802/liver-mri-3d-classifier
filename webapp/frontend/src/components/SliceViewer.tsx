@@ -12,7 +12,7 @@
  */
 
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Flame, Layers } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Flame, Layers, Scan } from 'lucide-react';
 
 import { sliceUrl } from '@/api/client';
 import type { CaseVolumeInfo, PhaseInfo } from '@/api/types';
@@ -36,6 +36,7 @@ export function SliceViewer({ caseId, phases, volumes }: Props) {
   const total = volume?.n_slices ?? 0;
   const [z, setZ] = useState(() => Math.floor(total / 2));
   const [failed, setFailed] = useState(false);
+  const [showMask, setShowMask] = useState(false);
   const dragging = useRef(false);
   const dragOrigin = useRef({ x: 0, z: 0 });
 
@@ -53,7 +54,7 @@ export function SliceViewer({ caseId, phases, volumes }: Props) {
     previous.current = { token, total };
   }, [token, total, z]);
 
-  useEffect(() => setFailed(false), [token, z]);
+  useEffect(() => setFailed(false), [token, z, showMask]);
 
   const clamp = useCallback((value: number) => Math.max(0, Math.min(total - 1, value)), [total]);
 
@@ -84,8 +85,10 @@ export function SliceViewer({ caseId, phases, volumes }: Props) {
     );
   }
 
+  const hasMask = volume.has_mask;
   const before = z;
   const after = total - 1 - z;
+  const step = (delta: number) => setZ((current) => clamp(current + delta));
 
   return (
     <section aria-labelledby="viewer-heading" className="panel p-5">
@@ -96,6 +99,24 @@ export function SliceViewer({ caseId, phases, volumes }: Props) {
             Ảnh MRI theo thì
           </h3>
           <span className="chip border border-ok/40 bg-ok/10 text-ok-soft">ảnh thật</span>
+          {hasMask && (
+            <button
+              type="button"
+              aria-pressed={showMask}
+              onClick={() => setShowMask((v) => !v)}
+              title="Nhãn tổn thương của bộ dữ liệu, do người chú giải — không phải model vẽ ra"
+              className={[
+                'inline-flex items-center gap-1.5 rounded-control border px-2.5 py-1',
+                'text-data font-semibold transition',
+                showMask
+                  ? 'border-annotation bg-annotation/15 text-annotation-soft'
+                  : 'border-pacs-700 bg-pacs-800 text-slate-400 hover:text-white',
+              ].join(' ')}
+            >
+              <Scan className="h-3.5 w-3.5" aria-hidden="true" />
+              {showMask ? 'Đang hiện vùng tổn thương' : 'Hiện vùng tổn thương'}
+            </button>
+          )}
         </div>
         <p className="font-mono text-data text-slate-400">
           {volume.shape.join('×')} voxel ·{' '}
@@ -137,9 +158,12 @@ export function SliceViewer({ caseId, phases, volumes }: Props) {
           <EmptyState label="Không đọc được lát này" detail={`Thì ${token}, lát ${z + 1}.`} />
         ) : (
           <img
-            key={`${token}-${z}`}
-            src={sliceUrl(caseId, token, z)}
-            alt={`Lát ${z + 1} trên ${total}, thì ${token}, ảnh MRI thật của ca ${caseId}`}
+            key={`${token}-${z}-${showMask ? 'm' : ''}`}
+            src={sliceUrl(caseId, token, z, showMask && hasMask)}
+            alt={
+              `Lát ${z + 1} trên ${total}, thì ${token}, ảnh MRI thật của ca ${caseId}` +
+              (showMask && hasMask ? ', có phủ nhãn tổn thương do người chú giải' : '')
+            }
             onError={() => setFailed(true)}
             draggable={false}
             className="mx-auto block max-h-[52vh] w-auto max-w-full"
@@ -147,18 +171,36 @@ export function SliceViewer({ caseId, phases, volumes }: Props) {
         )}
       </div>
 
-      {/* Hai cuộn băng: trái là phần đã quay qua, phải là phần còn lại. */}
-      <div className="mt-4 flex items-center gap-3" aria-hidden="true">
-        <span className="h-1.5 flex-1 overflow-hidden rounded-full bg-pacs-700">
+      {/* Hai cuộn băng: trái là phần đã quay qua, phải là phần còn lại. Nút mũi tên
+          nằm ngay cạnh chỉ số lát vì đó là chỗ mắt đang nhìn khi cần đi từng lát —
+          đặt chúng ra rìa panel sẽ bắt mắt phải rời khỏi con số rồi quay lại. */}
+      <div className="mt-4 flex items-center gap-3">
+        <span className="h-1.5 flex-1 overflow-hidden rounded-full bg-pacs-700" aria-hidden="true">
           <span
             className="ml-auto block h-full bg-accent"
             style={{ width: `${total > 1 ? (before / (total - 1)) * 100 : 0}%` }}
           />
         </span>
-        <span className="shrink-0 font-mono text-data font-semibold text-white">
-          {z + 1} / {total}
-        </span>
-        <span className="h-1.5 flex-1 overflow-hidden rounded-full bg-pacs-700">
+
+        <div className="flex shrink-0 items-center gap-1">
+          <StepButton
+            direction="prev"
+            disabled={z <= 0}
+            onClick={() => step(-1)}
+            label="Lát trước"
+          />
+          <span className="min-w-[4.5rem] text-center font-mono text-data font-semibold text-white">
+            {z + 1} / {total}
+          </span>
+          <StepButton
+            direction="next"
+            disabled={z >= total - 1}
+            onClick={() => step(1)}
+            label="Lát sau"
+          />
+        </div>
+
+        <span className="h-1.5 flex-1 overflow-hidden rounded-full bg-pacs-700" aria-hidden="true">
           <span
             className="block h-full bg-accent"
             style={{ width: `${total > 1 ? (after / (total - 1)) * 100 : 0}%` }}
@@ -193,5 +235,44 @@ export function SliceViewer({ caseId, phases, volumes }: Props) {
         />
       </div>
     </section>
+  );
+}
+
+
+/**
+ * Nút đi một lát. Tách thành component riêng để hai nút không thể lệch nhau về kích
+ * thước hay trạng thái disabled — hai nút điều hướng trông khác nhau là lỗi dễ lọt.
+ *
+ * Vô hiệu ở hai đầu khối chứ không cuộn vòng: lát 1 và lát cuối là biên giải phẫu
+ * thật, nhảy từ đỉnh gan xuống đáy sẽ đọc như một ảnh khác.
+ */
+function StepButton({
+  direction,
+  disabled,
+  onClick,
+  label,
+}: {
+  direction: 'prev' | 'next';
+  disabled: boolean;
+  onClick: () => void;
+  label: string;
+}) {
+  const Icon = direction === 'prev' ? ChevronLeft : ChevronRight;
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={disabled}
+      aria-label={label}
+      title={label}
+      className={[
+        'grid h-8 w-8 place-items-center rounded-control border transition',
+        disabled
+          ? 'border-pacs-700 bg-pacs-800 text-slate-400 opacity-40'
+          : 'border-pacs-600 bg-pacs-800 text-slate-300 hover:border-accent hover:text-accent-glow',
+      ].join(' ')}
+    >
+      <Icon className="h-4 w-4" aria-hidden="true" />
+    </button>
   );
 }

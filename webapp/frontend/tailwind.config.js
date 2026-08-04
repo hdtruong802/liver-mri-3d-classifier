@@ -36,6 +36,12 @@ export default {
       warn: { DEFAULT: '#FBBF24', soft: '#FCD34D' },
       danger: { DEFAULT: '#FB7185', soft: '#FDA4AF' },
 
+      // Vùng chú giải trên ảnh (mask tổn thương của bộ dữ liệu). CỐ Ý nằm ngoài cả
+      // bảng bảy lớp lẫn bảng trạng thái: mask KHÔNG phải một lớp và KHÔNG phải một
+      // trạng thái. Dùng màu lớp cho nó — ví dụ #38BDF8 của "nang" — sẽ khiến người
+      // xem đọc vùng khoanh thành một chẩn đoán.
+      annotation: { DEFAULT: '#E879F9', soft: '#F5D0FE' },
+
       // Bảy lớp tổn thương. Ác = dải ấm, lành = dải lạnh; đây là tuyến mã hoá THỨ
       // HAI, luôn đi kèm nhãn chữ. Chỉ dùng trong biểu đồ và dải chú giải.
       lesion: {

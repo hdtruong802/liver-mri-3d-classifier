@@ -182,6 +182,14 @@ class CaseVolumeInfo(BaseModel):
     shape: list[int] = Field(min_length=3, max_length=3)
     spacing_mm: list[float] = Field(min_length=3, max_length=3)
     n_slices: int
+    has_mask: bool = Field(
+        default=False,
+        description=(
+            "Có nhãn segmentation OFFICIAL của LLD-MMRI cho thì này không. Đây là nhãn "
+            "do người chú giải, KHÔNG phải đầu ra của model — dự án không làm "
+            "segmentation (AGENTS.md §3.9)."
+        ),
+    )
 
 
 class CaseSummary(BaseModel):
