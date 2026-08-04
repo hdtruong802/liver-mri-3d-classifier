@@ -3382,3 +3382,53 @@ Dự đoán tất định và trung bình MC khác nhau ở 66/394 ca.
 - **F1@50% = 0.7484 KHÔNG có ý nghĩa thống kê** (P=0.061) và ở coverage đó lớp hiếm bắt đầu biến mất. Đừng báo nó như một mức đạt được.
 - **Đã xem 5 điểm xếp hạng rồi báo cái tốt nhất.** `−epistemic` là lựa chọn có lý do từ trước và dòng đối chứng mới là thứ chống đỡ kết luận, nhưng báo cáo phải nói rõ đã so nhiều lựa chọn.
 - **`report_members` chặn lệch thứ tự ca giữa `mc_dropout.npz` và `val_probs_best.npz`.** Đừng nới guard đó — ghép nhầm thứ tự cho ra bảng số trông hợp lý mà sai hoàn toàn.
+
+## S-088 · 2026-08-04 · claude-code
+
+**Mục tiêu phiên:** Chuẩn bị W4 (bắt đầu 08/08). Dựng thí nghiệm GPU để chạy nền, vì compute là tài nguyên chạy song song được còn thời gian thì không.
+
+**Nhánh / commit:** `main` · `10df273` → *(commit đang chờ)*
+
+**Đã đụng file:**
+- `src/train/losses.py` — **mới**; `focal_loss`, `effective_number_weights`, `build_criterion`.
+- `src/train/run.py` — `_build_criterion` uỷ quyền sang module trên.
+- `configs/e5_focal.yaml` — **mới**; baseline + focal, khác đúng khối `loss:`.
+- `tests/test_losses.py` — **mới**; 19 test (11 cần torch nên skip ở local).
+- `notebooks/09_cv_runner.ipynb` — **mới**; CV runner nhận `CONFIG_NAME` làm tham số.
+- `AGENTS.md` §5 (ghi chú loss) · §6 (2 dòng lệnh).
+
+**Quyết định & lý do:**
+
+- **Chọn focal loss làm thí nghiệm W4 đầu tiên, không phải fusion v1 hay pretrained.** Plan W4 liệt kê bốn hướng (fusion v1, pretrained backbone, full-volume, xử lý lớp hiếm). Focal được chọn trước vì nó là hướng duy nhất có **bằng chứng đo trên đúng dataset và đúng protocol này**: CGHNet Bảng 4, Focal 81.8 so với CE 79.9. Ba hướng kia đều là thay đổi kiến trúc, tốn nhiều GPU hơn và không có số tham chiếu trực tiếp. Rẻ nhất, bằng chứng mạnh nhất, làm trước.
+- **Lý do thứ hai mới là lý do chính: calibration.** Đo ở S-079: độ tự tin trung bình 0.889 trong khi accuracy 0.703, trung vị 0.987, phân vị 75 = 1.000. Đó là bệnh của 300 epoch CE trần. Mukhoti và cs. 2020 cho thấy focal sinh model hiệu chỉnh tốt hơn hẳn vì `(1-p)^γ` ngừng thưởng cho ca đã đúng chắc. Ta đang chữa triệu chứng bằng temperature scaling (ECE 0.203 → 0.153, vẫn lớn); focal tấn công nguyên nhân. **H2 quan trọng hơn H1** với dự án lấy trustworthiness làm headline.
+- **`class_weights` giữ `none` trong E5.** Focal đã tự hạ đóng góp của ca dễ, mà ca dễ phần lớn thuộc lớp đông — nên nó *đã là* một cơ chế cân bằng lớp. Bật thêm trọng số lớp là đổi hai biến cùng lúc. `effective_number` đã implement sẵn cho thí nghiệm riêng sau.
+- **Config riêng, không sửa `baseline_3dpatch.yaml`.** File đó bị `tests/test_protocol_conformance.py` khoá theo recipe official và phải giữ nguyên để so sánh. Đã kiểm: `e5_focal.yaml` khác baseline đúng **3 khoá** — `loss.name`, `loss.gamma`, `output_dir`.
+- **Notebook 09 thay notebook 07.** 07 khoá cứng vào `baseline_3dpatch.yaml` và vẫn dùng logic dò đường dẫn cũ đã sai (S-084). 09 nhận `CONFIG_NAME` làm tham số và dùng lại nguyên khối dò đã sửa của notebook 08 — trích tự động từ file 08 lúc sinh, không chép tay, nên không trôi khỏi nhau.
+- **Thêm Cổng 0 vào notebook 09: in diff config so với baseline** và cảnh báo nếu có khác biệt ngoài khối `loss:`. Một so sánh có kiểm soát mà lỡ đổi hai biến thì không quy kết được nguyên nhân, và điều đó **không tự lộ ra ở đâu trong kết quả**.
+
+**Kết quả / số liệu:**
+
+Chưa có số thí nghiệm — đây là phiên chuẩn bị.
+
+**Đã xác minh phép toán focal bằng numpy** (máy local không có torch nên 11 test focal bị skip; để một lỗi âm thầm trôi vào 18h GPU là không chấp nhận được). Bốn trường hợp neo, đối chiếu với định nghĩa `CrossEntropyLoss(reduction='mean')` của PyTorch: γ=0 ≡ CE ✓; γ=0 + trọng số lớp ✓; γ=0 + label smoothing ✓; γ=0 + cả hai ✓. Cơ chế điều biến: ca đã đúng chắc bị hạ **165 000 lần** mạnh hơn ca khó. Ổn định số học ở logit ×50 ✓.
+
+Cổng 0 chạy thật trên config thật: 3 khoá khác biệt, tất cả trong khối `loss:` (+ `output_dir`).
+
+380 test pass (19 mới), ruff sạch, quality gate PASS.
+
+**Dang dở:**
+- [ ] **Chạy E5 trên Kaggle** — 5 fold × 3.75h, 3 session (2+2+1 fold).
+- [ ] Web app vẫn số giả lập. Đã rõ phải nạp gì (S-087) nhưng chưa nối.
+- [ ] Reliability diagram + risk–coverage chưa vẽ ra hình cho report.
+- [ ] Ensemble nhiều seed vẫn treo.
+- [ ] Vector/matrix scaling chưa thử.
+- [ ] Chưa chạm test-104.
+
+**Điểm vào phiên sau:** Người dùng phóng `notebooks/09_cv_runner.ipynb` (`CONFIG_NAME = "e5_focal.yaml"`, `FOLDS = [1, 2]`) lên Kaggle chạy nền. Trong lúc đó làm việc local: nối kết quả thật vào web app, và vẽ hình cho report.
+
+**Cảnh báo cho tool sau:**
+- **Đừng sửa `configs/baseline_3dpatch.yaml`** để thử loss. Có test khoá, và file đó là mốc so sánh với recipe official.
+- **So ECE của E5 với E4 phải cùng trạng thái hiệu chỉnh.** Focal đổi thang xác suất; so ECE thô của focal với ECE thô của CE là so hai thứ khác nhau. Cả hai chưa hiệu chỉnh, hoặc cả hai đã temperature-scale.
+- **Chênh lệch từng fold là nhiễu** (CI mỗi fold rộng ~0.19). Đừng kết luận E5 thắng/thua trước khi đủ 5 fold và gộp out-of-fold.
+- **11 test focal bị skip ở máy không có torch.** Đã kiểm bù bằng numpy, nhưng máy nào có torch thì nên chạy `pytest tests/test_losses.py` một lần cho chắc.
+- Notebook 07 coi như **đã bị thay bởi 09**. Đừng sửa 07; nếu cần chạy CV thì dùng 09.

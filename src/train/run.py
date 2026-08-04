@@ -31,7 +31,6 @@ from src.data.transforms import build_train_transform
 from src.eval.metrics import classification_metrics, confusion_matrix, per_class_f1
 from src.models import build_model, count_parameters
 from src.train.loop import (
-    class_weights_from_labels,
     load_checkpoint,
     make_amp_scaler,
     run_epoch,
@@ -171,19 +170,21 @@ def build_scheduler(optimizer: Any, train_config: dict[str, Any], epochs: int) -
 
 
 def _build_criterion(config: dict[str, Any], train_labels: list[int], device: Any) -> Any:
-    """Cross-entropy, tuỳ chọn trọng số lớp tính **chỉ từ nhãn train**."""
-    import torch
+    """CE hoặc focal, tuỳ chọn trọng số lớp tính **chỉ từ nhãn train**.
+
+    Uỷ quyền cho `src/train/losses.py` — ở đó có lý do khoa học của từng lựa chọn.
+    """
+    from src.train.losses import build_criterion
 
     loss_config = config.get("loss") or {}
-    weight = None
-    if loss_config.get("class_weights", "none") == "balanced":
-        weight = torch.tensor(
-            class_weights_from_labels(train_labels), dtype=torch.float32, device=device
-        )
-        logger.info("class weights (từ train): %s", np.round(weight.cpu().numpy(), 3).tolist())
-    return torch.nn.CrossEntropyLoss(
-        weight=weight, label_smoothing=float(loss_config.get("label_smoothing", 0.0))
+    logger.info(
+        "loss: %s · class_weights=%s · label_smoothing=%s%s",
+        loss_config.get("name", "cross_entropy"),
+        loss_config.get("class_weights", "none"),
+        loss_config.get("label_smoothing", 0.0),
+        f" · gamma={loss_config['gamma']}" if loss_config.get("name") == "focal" else "",
     )
+    return build_criterion(config, train_labels, device)
 
 
 def train(config_path: str | Path, fold_override: int | None = None) -> dict[str, Any]:

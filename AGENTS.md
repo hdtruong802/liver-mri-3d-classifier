@@ -157,6 +157,8 @@ liver-mri-3d-classifier/
 | Slide / Report | HTML tĩnh | không phụ thuộc build tool nặng |
 | Compute | **Kaggle Notebook** (train) · local (web app, slide) | Kaggle KHÔNG dùng để host API |
 
+> **Hàm mất mát** (`src/train/losses.py`, W4): `cross_entropy` · `focal` · trọng số lớp `none|balanced|effective_number`. Chọn qua khối `loss:` trong YAML, không sửa code. `baseline_3dpatch.yaml` bị khoá bởi `tests/test_protocol_conformance.py` nên **mọi thí nghiệm về loss phải sang config riêng**.
+
 Pin version trong `requirements.txt` (train) và `webapp/backend/requirements.txt` (serve) — **hai file tách nhau**, backend không kéo theo cả MONAI training stack nếu không cần.
 
 > **Sửa giả định "n≈500 → tránh transformer lớn" (WORKLOG S-043).** Câu này từng nằm ở cột ghi chú của Backbone và **không đúng như một luật**. Baseline chính thức của MICCAI 2023 LLD-MMRI là **UniFormer-S 3D** — một kiến trúc lai conv + self-attention — train **from scratch, không pretrained**, trên đúng 316 ca của dataset này, và đạt **macro-F1 0.6083** trên test-104. Dữ liệu ít không tự động loại transformer ở bài toán này. Vẫn giữ DenseNet121-3D làm baseline vì lý do khác: nó đã chạy được, đúng Spec Sheet, và MONAI hỗ trợ sẵn — không phải vì transformer bị cấm. UniFormer-S 3D là một mục hợp lệ trong bảng so sánh kiến trúc ở W4.
@@ -311,6 +313,8 @@ Bootstrap **ghép cặp** trên hiệu (2000 lần, phân tầng, mức bệnh n
 | Báo cáo geometry + **phán quyết thứ tự trục** | `python scripts/kaggle_geometry_report.py --limit 0` | sẵn sàng (W2 ngày 2) |
 | Tiền xử lý (chạy 1 lần, cache) | `python -m src.preprocess.build_cache --config configs/preprocess.yaml` | sẵn sàng; **cần điền `axis_order` trước**. `crop_mode` chọn `fixed_mm` (cache v0) hay `lesion_tight` (cắt bám tổn thương, dùng mask ở `lld/labels`) — đổi giá trị này là **đổi dữ liệu**, phải build sang thư mục cache khác |
 | Train baseline 3D-patch (1 fold) | `python -m src.train.run --config configs/baseline_3dpatch.yaml --fold 1` | sẵn sàng (W2 ngày 5); resume tự động từ `last.pt`; cần `LLDMMRI_CACHE_DIR` trỏ tới cache |
+| **Train một fold, config bất kỳ** | `python -m src.train.run --config configs/e5_focal.yaml --fold 1` | sẵn sàng (W4); `configs/e5_focal.yaml` = baseline + focal loss, khác đúng khối `loss:` |
+| **Chạy CV trên Kaggle** | mở `notebooks/09_cv_runner.ipynb`, đặt `CONFIG_NAME` + `FOLDS` | sẵn sàng (W4); **thay cho notebook 07** (07 khoá cứng vào baseline và còn logic dò đường dẫn cũ đã sai) |
 | Đánh giá (CPU, không cần GPU) | `python -m src.eval.run --run-dir artifacts/runs/baseline_3dpatch` | sẵn sàng (W3); đọc `val_probs_*.npz` đã lưu → bảng metric ± CI bootstrap + gộp out-of-fold |
 | **Bảng trustworthiness** (CPU) | `python -m src.eval.trust --run-dir runs/E4_cv_results` | sẵn sàng (W3); calibration + selective từ cùng các `.npz`. Temperature fit **leave-one-fold-out**, không fit gộp — xem docstring module |
 | Bảng trên + bất định epistemic | `python -m src.eval.trust --run-dir runs/E4_cv_results --members` | sẵn sàng (W3); cần `fold*/mc_dropout.npz` sinh từ `notebooks/08_mc_dropout.ipynb` |
