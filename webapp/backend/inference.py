@@ -1,18 +1,22 @@
 """Lớp suy luận.
 
-**Chưa có model.** W5 mới nạp checkpoint (`docs/plan.md`); hiện tại dự án đang ở W3
-và GPU đang chạy CV 5-fold. Module này định nghĩa giao diện, cộng một bản sinh số
-giả lập được đánh dấu `simulated` ở mọi phản hồi.
+Hai nguồn số, phân biệt bằng `provenance.source` trong **mọi** phản hồi:
 
-Vì sao vẫn sinh số thay vì trả 501: giao diện phải dựng được và kiểm được với dữ liệu
-có hình dạng thật (7 lớp, tổng bằng 1, entropy khớp phân phối, ngưỡng defer thật sự
-được so). Cách phòng rủi ro không phải là giấu số đi, mà là **làm cho không thể nhầm
-số giả với số thật**: `provenance.source` đi kèm mọi phản hồi, và
+- **`oof`** — dự đoán out-of-fold THẬT, tra từ `.npz` đã lưu. 394 bệnh nhân trong
+  trainval, mỗi ca được chấm bởi đúng model chưa từng thấy nó khi train. Đây là số
+  đo được. Xem `webapp/backend/predictions.py`.
+- **`simulated`** — sinh ra để dựng giao diện, dùng cho ca không có trong 394 ca đó.
+
+Vì sao vẫn giữ nhánh mô phỏng thay vì trả 404: giao diện phải dựng và kiểm được với
+dữ liệu có hình dạng thật. Cách phòng rủi ro không phải là giấu số đi, mà là **làm
+cho không thể nhầm số giả với số thật**: `provenance.source` đi kèm mọi phản hồi, và
 `webapp/DESIGN.md` buộc frontend đánh dấu bằng hai tín hiệu độc lập (chữ nghiêng và
 nhãn chữ).
 
-Khi có checkpoint: thay `simulate_result` bằng forward pass thật, đổi `source` sang
-`live`, mọi thứ khác giữ nguyên.
+**Không có nhánh `live`** (forward pass từ checkpoint), và đó là chủ ý: backend bị
+ràng buộc không kéo theo torch/monai (AGENTS.md §4), mà 394 ca out-of-fold đã đủ cho
+bản demo. Ảnh mới tải lên không suy luận được — giới hạn thật, phải nói rõ với người
+dùng chứ không che.
 """
 
 from __future__ import annotations
@@ -23,6 +27,7 @@ import numpy as np
 from src.data.taxonomy import CLASS_NAMES, MALIGNANT_INDICES, NUM_CLASSES, SHORT_NAMES
 
 from webapp.backend.config import CHECKPOINT_PATH, DEFAULT_DEFER_THRESHOLD
+from webapp.backend.predictions import CasePrediction, PredictionStore, load_store
 from webapp.backend.schemas import (
     ClassProbability,
     PredictResult,
@@ -81,12 +86,19 @@ def assemble_result(
     defer_threshold: float = DEFAULT_DEFER_THRESHOLD,
     ensemble_std: float | None = None,
     inference_ms: int | None = None,
+    defer_override: bool | None = None,
 ) -> PredictResult:
     """Dựng `PredictResult` từ một vector xác suất, bất kể nó từ đâu ra.
 
     Hàm thuần: cùng đầu vào cho cùng đầu ra, không đọc file, không đụng model. Nhờ
-    vậy nó dùng lại được y nguyên khi chuyển từ `simulated` sang `live`, và test được
+    vậy nó dùng lại được y nguyên khi chuyển từ `simulated` sang `oof`, và test được
     mà không cần torch.
+
+    `defer_override` tồn tại vì quyết định từ chối **không phải lúc nào cũng suy ra
+    được từ `confidence`**. Với dự đoán out-of-fold thật, defer dựa trên bất định
+    epistemic — một đại lượng không nằm trong vector xác suất này (WORKLOG S-087:
+    xếp hạng theo max-prob vô ích, P=0.88). Để `None` thì rơi về so `confidence` với
+    ngưỡng, đúng như hành vi cũ của nhánh mô phỏng.
     """
     total = float(probs.sum())
     if not np.isclose(total, 1.0, atol=1e-4):
@@ -102,7 +114,7 @@ def assemble_result(
         malignant_prob=malignant_probability(probs),
         uncertainty=Uncertainty(entropy=shannon_entropy(probs), ensemble_std=ensemble_std),
         # Từ chối là kết quả hợp lệ, không phải lỗi (`PRODUCT.md` Product Principle 2).
-        defer=confidence < defer_threshold,
+        defer=(confidence < defer_threshold) if defer_override is None else defer_override,
         defer_threshold=defer_threshold,
         confidence=confidence,
         heatmap_slices=[],  # Grad-CAM thuộc W5; rỗng ⇒ frontend vẽ vùng "chưa khảo sát".
@@ -156,14 +168,58 @@ def simulate_result(
     )
 
 
+def oof_result(case: CasePrediction, store: PredictionStore) -> PredictResult:
+    """Dựng kết quả từ dự đoán out-of-fold thật.
+
+    Ba đại lượng lấy từ ba nguồn khác nhau, theo đúng kết quả đo ở WORKLOG S-087 —
+    lý do đầy đủ ở docstring `webapp/backend/predictions.py`:
+
+    - lớp đoán ← model tất định;
+    - xác suất hiển thị ← model tất định **đã temperature scaling**;
+    - quyết định defer ← **epistemic**, không phải max-prob.
+
+    `defer` vì thế **không** suy ra được từ `confidence` hiển thị. Đó là chủ ý, và
+    frontend phải nói rõ lý do từ chối là bất định giữa các lượt dự đoán chứ không
+    phải "xác suất thấp" — nếu không, một ca defer với xác suất 0,94 sẽ trông như lỗi.
+    """
+    probs = case.probs_calibrated
+    defer = store.should_defer(case)
+
+    note = (
+        f"Dự đoán out-of-fold thật: ca này nằm ở tập validation của {case.fold}, "
+        f"model chấm nó chưa từng thấy nó khi train. Xác suất đã hiệu chỉnh "
+        f"(T={store.temperature:.3f}). Quyết định từ chối dựa trên bất định epistemic "
+        f"(MC-dropout), không dựa trên xác suất — xem WORKLOG S-087."
+    )
+    if not store.has_epistemic:
+        note += " CHƯA có epistemic cho ca này nên không đánh giá được từ chối hay không."
+
+    return assemble_result(
+        case_id=case.patient_id,
+        probs=probs,
+        provenance=Provenance(
+            source=ProvenanceSource.OOF,
+            model_version=None,  # Chưa có chuỗi phiên bản chính thức; không bịa.
+            note=note,
+        ),
+        defer_threshold=store.defer_threshold,
+        # Độ lệch chuẩn giữa các thành viên MC — đại lượng bất định thật sự đo được.
+        ensemble_std=case.epistemic,
+        inference_ms=None,  # Tra cứu, không suy luận: báo thời gian là gây hiểu nhầm.
+        defer_override=defer,
+    )
+
+
 def predict(case_id: str, defer_threshold: float = DEFAULT_DEFER_THRESHOLD) -> PredictResult:
     """Điểm vào duy nhất của suy luận.
 
-    W5 thay nhánh dưới bằng forward pass thật khi `model_is_loaded()`.
+    Thứ tự ưu tiên: dự đoán out-of-fold thật → mô phỏng. Nhánh `live` (forward pass
+    từ checkpoint) chưa có và **cố ý chưa có**: backend không được kéo theo torch
+    (AGENTS.md §4), mà 394 ca out-of-fold đã đủ cho bản demo.
     """
-    if model_is_loaded():
-        raise NotImplementedError(
-            "Đã thấy checkpoint nhưng nhánh suy luận thật thuộc W5 và chưa được viết. "
-            "Bỏ biến LLDMMRI_CHECKPOINT để chạy ở chế độ minh hoạ."
-        )
+    store = load_store()
+    if store is not None:
+        case = store.get(case_id)
+        if case is not None:
+            return oof_result(case, store)
     return simulate_result(case_id, defer_threshold=defer_threshold)
