@@ -53,6 +53,7 @@ from src.eval.selective import (
     metric_at_coverage,
     predictive_entropy,
     selective_accuracy,
+    uncertainty_decomposition,
 )
 
 # Mức coverage đem báo cáo. 0.8 là con số trung tâm của dự án (Spec Sheet); các mức
@@ -231,6 +232,70 @@ def report(
     return out
 
 
+def report_members(run_root: str | Path, filename: str = "mc_dropout.npz") -> dict[str, Any]:
+    """Bảng bất định epistemic từ nhiều thành viên mỗi fold (MC-dropout hoặc ensemble).
+
+    Đọc ``fold*/<filename>`` chứa `member_probs` dạng ``(K, N, C)``. Gộp qua các fold
+    rồi so ba điểm tin cậy: max-prob của trung bình, entropy toàn phần, và **epistemic**
+    (mutual information giữa các thành viên).
+
+    ⚠️ Chỉ hợp lệ khi mọi thành viên của một fold đều **mù với val của fold đó**. Đúng
+    với MC-dropout (cùng một model) và với ensemble nhiều seed cùng split; **sai** với
+    5 checkpoint của 5 fold khác nhau — xem docstring `src/eval/mc_dropout.py`.
+    """
+    root = Path(run_root)
+    paths = {p.parent.name: p for p in sorted(root.glob(f"fold*/{filename}"))}
+    if not paths:
+        raise FileNotFoundError(f"không thấy {filename} nào dưới {root}/fold*/")
+
+    labels_all: list[np.ndarray] = []
+    mean_all: list[np.ndarray] = []
+    epistemic_all: list[np.ndarray] = []
+    total_all: list[np.ndarray] = []
+    seen: dict[str, str] = {}
+    n_passes: set[int] = set()
+
+    for fold_name, path in paths.items():
+        data = np.load(path, allow_pickle=True)
+        members = data["member_probs"]
+        if members.ndim != 3:
+            raise ValueError(f"{path}: member_probs phải là (K, N, C), nhận {members.shape}")
+        for pid in data["patient_ids"].tolist():
+            if pid in seen:
+                raise ValueError(f"bệnh nhân {pid} có ở cả {seen[pid]} và {fold_name}")
+            seen[pid] = fold_name
+        unc = uncertainty_decomposition(members)
+        labels_all.append(data["labels"])
+        mean_all.append(members.mean(axis=0))
+        epistemic_all.append(unc["epistemic"])
+        total_all.append(unc["total"])
+        n_passes.add(int(data["n_passes"]))
+
+    labels = np.concatenate(labels_all)
+    mean_probs = np.concatenate(mean_all)
+    epistemic = np.concatenate(epistemic_all)
+    total = np.concatenate(total_all)
+
+    return {
+        "run_root": str(root),
+        "n_folds": len(paths),
+        "n_patients": int(len(labels)),
+        "n_passes": sorted(n_passes),
+        "macro_f1": macro_f1(labels, mean_probs.argmax(axis=1)),
+        "ece": adaptive_calibration_error(mean_probs, labels),
+        "epistemic_summary": {
+            "mean": float(epistemic.mean()),
+            "min": float(epistemic.min()),
+            "max": float(epistemic.max()),
+        },
+        "selective": {
+            "max-prob": selective_row(labels, mean_probs, mean_probs.max(axis=1)),
+            "-entropy toàn phần": selective_row(labels, mean_probs, -total),
+            "-epistemic": selective_row(labels, mean_probs, -epistemic),
+        },
+    }
+
+
 def _fmt_calibration(cal: dict[str, dict[str, float]]) -> str:
     head = f"{'':<26}{'ECE':>9}{'MCE':>9}{'Brier':>9}{'NLL':>9}{'macro-F1':>11}"
     lines = [head, "-" * len(head)]
@@ -263,6 +328,13 @@ def main() -> None:
     parser.add_argument("--n-resamples", type=int, default=N_RESAMPLES)
     parser.add_argument("--seed", type=int, default=DEFAULT_SEED)
     parser.add_argument("--json-out", help="ghi kết quả đầy đủ ra file JSON")
+    parser.add_argument(
+        "--members",
+        nargs="?",
+        const="mc_dropout.npz",
+        help="tên file member_probs trong mỗi fold* (mặc định mc_dropout.npz); "
+        "thêm bảng bất định epistemic",
+    )
     args = parser.parse_args()
 
     r = report(args.run_dir, n_resamples=args.n_resamples, seed=args.seed)
@@ -330,6 +402,20 @@ def main() -> None:
         n_cls = r["selective"][best_key]["at_coverage"][f"classes@{c:.0%}"]
         if n_cls < NUM_CLASSES:
             print(f"  coverage {c:.0%}: chỉ còn {int(n_cls)}/{NUM_CLASSES} lớp")
+
+    if args.members:
+        m = report_members(args.run_dir, args.members)
+        print(
+            f"\n=== Bất định epistemic ({args.members}) ===\n"
+            f"{m['n_folds']} fold · {m['n_patients']} ca · K = {m['n_passes']} lượt/ca"
+        )
+        print(f"macro-F1 của trung bình thành viên: {m['macro_f1']:.4f} · ECE {m['ece']:.4f}")
+        es = m["epistemic_summary"]
+        print(f"epistemic: TB {es['mean']:.4f} · khoảng {es['min']:.4f}–{es['max']:.4f}")
+        if es["max"] < 1e-9:
+            print("⚠ epistemic bằng 0 khắp nơi — các thành viên giống hệt nhau, MC-dropout")
+            print("  không thực sự chạy. Kiểm `count_dropout_modules` và `dropout_prob`.")
+        print(_fmt_selective(m["selective"]))
 
     ci = r["ci"]
     print("\n=== Khoảng tin cậy (bootstrap mức bệnh nhân, phân tầng) ===")

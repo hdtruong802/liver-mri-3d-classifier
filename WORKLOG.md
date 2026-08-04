@@ -3106,3 +3106,59 @@ ECE từng lớp giảm rõ nhất ở ICC (0.110 → 0.036) và HCC (0.100 → 
 - **`macro-F1 @ coverage` gần như phẳng** (0.6813 ở 80% so với 0.6851 ở 100%). Nếu báo cáo định bán câu chuyện "từ chối ca khó thì chất lượng tăng vọt" thì **số liệu hiện tại không đỡ được câu đó**. Phải hoặc đổi cách kể, hoặc cải thiện tín hiệu bất định trước.
 - **Bootstrap ép sàn `n_resamples ≥ 2000`** (AGENTS.md §3.5). Test nào muốn chạy nhanh cũng không hạ được, đó là chủ ý; đừng nới guard đó để test nhanh hơn.
 - **Quality gate trước S-079 chưa từng chạy ruff trên Windows** vì chỉ dò lệnh `ruff` trần. Nếu tool khác thấy lint đỏ hàng loạt ở phiên sau thì đó là nợ cũ vừa lộ ra, không phải do phiên đó gây ra. (Kiểm ngày 2026-08-04: sạch.)
+
+## S-080 · 2026-08-04 · claude-code
+
+**Mục tiêu phiên:** Dựng phần bất định epistemic sau khi người dùng đã nén lại 5 `best.pt` và `.npz` về dạng file đúng.
+
+**Nhánh / commit:** `main` · `c87c2eb` → *(commit đang chờ)*
+
+**Đã đụng file:**
+- `src/eval/mc_dropout.py` — **mới**; `enable_dropout`, `count_dropout_modules`, `mc_dropout_predict`, `save_member_probs`.
+- `src/eval/trust.py` — thêm `report_members` và cờ CLI `--members`.
+- `tests/test_mc_dropout.py` — **mới**; 11 test (5 cần torch nên skip ở máy local).
+- `notebooks/08_mc_dropout.ipynb` — **mới**; 13 cell, chạy inference trên Kaggle.
+- `AGENTS.md` §3 (ghi chú cấm gộp 5 fold thành ensemble) · §6 (3 dòng lệnh mới).
+
+**Quyết định & lý do:**
+
+- **Phát hiện chặn hướng đi cũ: KHÔNG dùng 5 checkpoint của 5 fold làm deep ensemble để báo out-of-fold.** Kiểm trực tiếp trên `splits/`: mỗi ca ở val của fold `f` nằm trong tập train của **cả 4/4 model kia**. Gộp lại rồi chấm trên 394 ca là để 4/5 thành viên chấm bài họ đã học thuộc. Điểm vào phiên mà S-079 để lại ("dựng deep ensemble từ 5 best.pt") vì thế **sai**, và đây là entry đính chính. Ensemble 5 fold chỉ hợp lệ trên test-104 hoặc dữ liệu ngoài. Đã ghi thành ghi chú cảnh báo ngay dưới danh sách nguyên tắc ở AGENTS.md §3, vì nó là dạng leakage rất dễ vô tình phạm.
+- **Chọn MC-dropout, theo quyết định của người dùng khi được hỏi.** Bốn phương án đã trình: MC-dropout (~8 phút GPU, không train), 3 seed × 1 fold (~7.5h, chỉ n=82), 3 seed × 5 fold (~37.5h ≈ 4 session, đầy đủ 394 ca), hoặc dừng hẳn. Người dùng chọn MC-dropout trước — đo rẻ rồi mới quyết có đốt 4 session hay không. MC-dropout là xấp xỉ nghèo hơn ensemble thật (thành viên chung một cực tiểu), và điều đó được ghi thẳng trong docstring module chứ không giấu.
+- **`enable_dropout` chỉ bật lớp Dropout, cố ý GIỮ BatchNorm ở eval.** Gọi `model.train()` cho gọn sẽ kéo BatchNorm sang dùng thống kê batch hiện tại; với `batch_size: 2` thì dự đoán một ca phụ thuộc vào ca tình cờ nằm cùng batch, và kết quả đổi theo thứ tự loader. Đó là nhiễu do chia batch chứ không phải bất định của model — **và nó sẽ trông y hệt một tín hiệu epistemic đẹp**. Có test riêng chặn (`test_batchnorm_o_eval_thi_du_doan_khong_phu_thuoc_ca_khac_trong_batch`).
+- **Chặn chế độ hỏng thầm lặng "không có dropout".** Nếu model không có lớp Dropout nào thì `K` lượt forward cho ra `K` kết quả giống hệt, epistemic = 0 khắp nơi, và mọi bảng vẫn in ra bình thường. `mc_dropout_predict` nổ ngay; notebook có Cổng B kiểm trước khi chạy; `report_members` cảnh báo nếu epistemic ≡ 0.
+- **Báo cáo sẽ nói thẳng mặt yếu của selective** (người dùng chọn khi được hỏi): trình bày cả mặt tích cực (tốt hơn ngẫu nhiên rõ rệt) lẫn hạn chế (từ chối ca gần như không nâng chất lượng), coi đó là đóng góp về *phương pháp đánh giá* chứ không phải về hiệu năng. Phương án đã loại: chuyển headline sang calibration và hạ selective xuống vai phụ.
+
+**Kết quả / số liệu:**
+
+Kiểm chứng trước khi làm gì: 5 `best.pt` là 5 file khác nhau thật (sha256 đầu 16: `2e1f3e1a`, `30a8eb9e`, `00c133e0`, `3fe18f1e`, `d61cc7ed`), cả 10 `.npz` đọc lại được, n = 82/80/78/77/77.
+
+Phép đo miễn phí trên dữ liệu đã có — ensemble 2 thành viên `best`+`last` **trong cùng một fold** (hợp lệ: cả hai đều mù với val đó), gộp 312 ca của fold 2–5:
+
+| | macro-F1 | ECE | AURC | F1@80% |
+|---|---|---|---|---|
+| chỉ `best` | 0.6824 | 0.2117 | 0.2034 | 0.6758 |
+| ensemble(2) | 0.6318 | **0.1844** | 0.2031 | **0.7042** |
+| ensemble(2), xếp theo epistemic | — | — | **0.1993** | **0.7080** |
+
+Đọc: ensemble **tăng** 0.6318 → 0.7080 khi bỏ 20% ca khó (+0.076), trong khi model đơn lẻ **giảm** 0.6824 → 0.6758 (−0.007). Mức bất đồng giữa thành viên xếp hạng ca sai tốt hơn softmax của một model — đúng thứ phần selective đang thiếu. macro-F1 toàn phần của ensemble(2) thấp hơn vì thành viên `last` yếu (0.6042), không phải vì ensemble hỏng.
+
+347 → 358 test (11 mới, 5 skip vì thiếu torch), `ruff check`/`format` sạch, quality gate PASS.
+
+**Dang dở:**
+- [ ] **Chưa chạy `notebooks/08_mc_dropout.ipynb`** — code xong, chưa có số thật. Cần mount cache E4 **và** 5 `best.pt` lên Kaggle.
+- [ ] Quyết định "có đốt 4 session cho ensemble 3 seed × 5 fold không" đang **chờ số MC-dropout**.
+- [ ] Vector/matrix scaling chưa thử; "một scalar không đủ" vẫn treo không có phương án thay thế được đo.
+- [ ] Reliability diagram chưa vẽ ra hình.
+- [ ] Web app vẫn số giả lập; chưa nạp `T` hay checkpoint thật.
+- [ ] Chưa chạm test-104.
+
+**Điểm vào phiên sau:** Chạy `notebooks/08_mc_dropout.ipynb` trên Kaggle (~8 phút GPU, `FOLDS = [1,2,3,4,5]`, `N_PASSES = 20`). Tải `mc_dropout.npz` về đặt vào `runs/E4_cv_results/fold_N/`, rồi `python -m src.eval.trust --run-dir runs/E4_cv_results --members`.
+
+**Cảnh báo cho tool sau:**
+
+- **Đừng gộp 5 checkpoint fold thành ensemble để báo out-of-fold.** Đã ghi ở AGENTS.md §3. Nó chạy trơn tru và cho ra số đẹp — đó chính là chỗ nguy hiểm.
+- **Đừng thay `enable_dropout` bằng `model.train()`.** Xem docstring `src/eval/mc_dropout.py`; BatchNorm ở train mode biến nhiễu chia batch thành thứ trông như epistemic. Có test đỏ.
+- **Notebook 08 cần HAI dataset mount:** cache E4 và 5 `best.pt`. Đường dẫn ứng viên ở cell 4, sửa cho khớp tên dataset thật.
+- **Giải nén CHỈ MỘT LỚP khi tải `.npz` về.** Đã dính hai lần (S-078, S-079). Notebook 08 in nhắc ở cell cuối.
+- **`ensemble(2)` ở bảng trên KHÔNG phải kết quả để báo cáo** — thành viên `last` yếu hơn hẳn nên macro-F1 toàn phần bị kéo xuống. Nó chỉ là bằng chứng rẻ tiền rằng hướng đi đúng.
+- **fold 1 không có `val_probs_last`**, nên mọi phép so best-vs-last chỉ chạy trên 312 ca của fold 2–5.

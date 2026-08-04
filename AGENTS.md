@@ -86,6 +86,8 @@ Vi phạm những điều này = làm hỏng tính hợp lệ khoa học của c
 9. **Không làm segmentation.** Bài toán là classification.
 10. **Không commit dữ liệu bệnh nhân, checkpoint, hay file NIfTI/DICOM.** Xem `.gitignore`.
 
+> ⚠️ **Hệ quả của luật 2 và 3 mà rất dễ vi phạm: KHÔNG gộp 5 checkpoint của 5 fold thành một ensemble rồi báo số out-of-fold.** Mỗi ca ở val của fold `f` nằm trong tập train của **cả 4 model kia** — đã kiểm trực tiếp trên `splits/` (WORKLOG S-080). Gộp lại là để 4/5 thành viên chấm bài họ đã học thuộc. Ensemble 5 fold **chỉ** hợp lệ trên dữ liệu chưa ai thấy: test-104 (một lần, phải xin phép) hoặc dữ liệu ngoài. Muốn có bất định epistemic *trên out-of-fold* thì dùng MC-dropout (`src/eval/mc_dropout.py`) hoặc train nhiều seed **trên cùng một split**.
+
 ---
 
 ## 4. Cấu trúc thư mục
@@ -281,6 +283,8 @@ Bốn điều rút ra:
 | Train baseline 3D-patch (1 fold) | `python -m src.train.run --config configs/baseline_3dpatch.yaml --fold 1` | sẵn sàng (W2 ngày 5); resume tự động từ `last.pt`; cần `LLDMMRI_CACHE_DIR` trỏ tới cache |
 | Đánh giá (CPU, không cần GPU) | `python -m src.eval.run --run-dir artifacts/runs/baseline_3dpatch` | sẵn sàng (W3); đọc `val_probs_*.npz` đã lưu → bảng metric ± CI bootstrap + gộp out-of-fold |
 | **Bảng trustworthiness** (CPU) | `python -m src.eval.trust --run-dir runs/E4_cv_results` | sẵn sàng (W3); calibration + selective từ cùng các `.npz`. Temperature fit **leave-one-fold-out**, không fit gộp — xem docstring module |
+| Bảng trên + bất định epistemic | `python -m src.eval.trust --run-dir runs/E4_cv_results --members` | sẵn sàng (W3); cần `fold*/mc_dropout.npz` sinh từ `notebooks/08_mc_dropout.ipynb` |
+| **MC-dropout** (GPU, ~8 phút) | chạy `notebooks/08_mc_dropout.ipynb` trên Kaggle | sẵn sàng (W3); inference thuần, **không train**. Cần mount cache E4 **và** 5 `best.pt` |
 | Test (chạm 1 lần!) | `python -m src.eval.run --ckpt <path> --split test --i-know-this-is-final` | chưa có |
 | Cài backend web app (một lần / máy) | `pip install -r webapp/backend/requirements.txt` | sẵn sàng; **tách hẳn** khỏi `requirements.txt` train, không kéo torch/monai |
 | Cài frontend web app (một lần / máy) | `cd webapp/frontend && npm install` | sẵn sàng |
