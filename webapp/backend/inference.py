@@ -127,7 +127,6 @@ def assemble_result(
         defer_score=confidence if defer_score is None else defer_score,
         defer_threshold=defer_threshold,
         confidence=confidence,
-        heatmap_slices=[],  # Grad-CAM thuộc W5; rỗng ⇒ frontend vẽ vùng "chưa khảo sát".
         inference_ms=inference_ms,
         provenance=provenance,
     )

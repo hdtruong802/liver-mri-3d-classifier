@@ -30,6 +30,7 @@ from webapp.backend.schemas import (
     CaseDetail,
     CaseSummary,
     CaseVolumeInfo,
+    GradCamInfo,
     Provenance,
     ProvenanceSource,
 )
@@ -135,6 +136,42 @@ def _case_provenance(case: DemoCase) -> Provenance:
     )
 
 
+def _gradcam_info(case_id: str) -> GradCamInfo:
+    """Mô tả bản đồ chú ý, hoặc `available=False` khi chưa tính.
+
+    Import lười: `webapp.backend.gradcam` kéo theo PIL, mà module này còn được dùng ở
+    chỗ chỉ cần danh sách ca.
+    """
+    from webapp.backend import gradcam as gradcam_store
+
+    cam = gradcam_store.get(case_id)
+    if cam is None:
+        return GradCamInfo(
+            available=False,
+            n_slices=0,
+            note=(
+                "Chưa tính bản đồ chú ý cho ca này. Chạy notebooks/10_gradcam.ipynb "
+                "trên Kaggle rồi đặt .npz vào runs/E4_per_phase_results/gradcam/."
+            ),
+        )
+    return GradCamInfo(
+        available=True,
+        n_slices=cam.n_slices,
+        native_shape=list(cam.native_shape),
+        layer=cam.layer,
+        fold=cam.fold,
+        pred_class_index=cam.pred_index,
+        true_class_index=cam.true_index,
+        phase_importance=[float(v) for v in cam.phase_importance],
+        note=(
+            f"Bản đồ tính ở tầng {cam.layer}, kích thước gốc "
+            f"{'×'.join(str(v) for v in cam.native_shape)}, nội suy lên lưới crop. "
+            "Đây là chỗ mô hình nhạy — phỏng đoán của mô hình, không phải vùng do "
+            "người chú giải khoanh."
+        ),
+    )
+
+
 def case_is_available(case: DemoCase) -> bool:
     """Dữ liệu của ca có trên máy này không.
 
@@ -184,6 +221,7 @@ def get_case_detail(case_id: str) -> CaseDetail:
 
     return CaseDetail(
         case_id=case.case_id,
+        gradcam=_gradcam_info(case.case_id),
         label_vi=case.label_vi,
         source_note=case.source_note,
         volumes=volumes,

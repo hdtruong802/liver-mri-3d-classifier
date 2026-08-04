@@ -200,7 +200,13 @@ export default function App() {
 
             <div className="mt-6">
               {detail && meta ? (
-                <SliceViewer caseId={detail.case_id} phases={meta.phases} volumes={detail.volumes} />
+                <SliceViewer
+                  caseId={detail.case_id}
+                  phases={meta.phases}
+                  volumes={detail.volumes}
+                  classes={meta.classes}
+                  gradcam={detail.gradcam}
+                />
               ) : null}
             </div>
 

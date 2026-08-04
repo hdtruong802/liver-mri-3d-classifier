@@ -139,6 +139,38 @@ def case_slice(case_id: str, phase: str, z: int, mask: bool = False) -> Response
     )
 
 
+@app.get(
+    "/api/cases/{case_id}/gradcam",
+    responses={200: {"content": {"image/png": {}}}},
+    response_class=Response,
+)
+def case_gradcam(case_id: str, z: int, target: str = "pred") -> Response:
+    """Một lát của bản đồ chú ý, phủ lên khối 112×112×32 mà mô hình thực sự nhìn.
+
+    ⚠️ Ảnh này **không cùng không gian** với `/slice`: đó là lát gốc 480×480, còn đây
+    là khối đã cắt bám tổn thương. Số lát cũng khác nhau.
+
+    `target='true'` chỉ có khi mô hình đoán sai — khi đó so hai bản đồ cho thấy mô
+    hình đã nhìn nhầm chỗ nào.
+    """
+    from webapp.backend import gradcam as gradcam_store
+
+    cam = gradcam_store.get(case_id)
+    if cam is None:
+        raise HTTPException(status_code=404, detail=f"chưa có bản đồ chú ý cho ca {case_id!r}")
+    try:
+        payload = gradcam_store.render_png(cam, target, z)
+    except KeyError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    except IndexError as exc:
+        raise HTTPException(status_code=416, detail=str(exc)) from exc
+    return Response(
+        content=payload, media_type="image/png", headers={"Cache-Control": "private, max-age=3600"}
+    )
+
+
 @app.post("/api/cases/{case_id}/predict", response_model=PredictResult)
 def predict_case(case_id: str) -> PredictResult:
     """Suy luận trên một ca demo dựng sẵn — đường đi chính."""

@@ -24,13 +24,16 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ChevronLeft, ChevronRight, Flame, Layers, Maximize2, Scan, Target } from 'lucide-react';
 
 import { sliceUrl } from '@/api/client';
-import type { CaseVolumeInfo, PhaseInfo } from '@/api/types';
+import type { CaseVolumeInfo, ClassInfo, GradCamInfo, PhaseInfo } from '@/api/types';
+import { AttentionPanel } from '@/components/AttentionPanel';
 import { EmptyState } from '@/components/Provenance';
 
 interface Props {
   caseId: string;
   phases: PhaseInfo[];
   volumes: CaseVolumeInfo[];
+  classes: ClassInfo[];
+  gradcam: GradCamInfo | null;
 }
 
 const MIN_SCALE = 1;
@@ -48,7 +51,7 @@ function toSegments(indices: number[]): Array<[number, number]> {
   return segments;
 }
 
-export function SliceViewer({ caseId, phases, volumes }: Props) {
+export function SliceViewer({ caseId, phases, volumes, classes, gradcam }: Props) {
   const available = phases.filter((phase) =>
     volumes.some((volume) => volume.file_token === phase.file_token),
   );
@@ -373,10 +376,11 @@ export function SliceViewer({ caseId, phases, volumes }: Props) {
           <Flame className="h-3.5 w-3.5 text-accent" aria-hidden="true" />
           Vùng mô hình đang nhìn
         </p>
-        <EmptyState
-          label="Grad-CAM chưa xây dựng"
-          detail="Bản đồ chú ý 3D thuộc giai đoạn sau. Ô này để trống có nhãn thay vì hiển thị một overlay bịa."
-          icon={Flame}
+        <AttentionPanel
+          caseId={caseId}
+          gradcam={gradcam}
+          classes={classes}
+          phaseLabels={phases.map((p) => p.label_vi)}
         />
       </div>
     </section>

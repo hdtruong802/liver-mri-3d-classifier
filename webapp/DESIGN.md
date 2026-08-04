@@ -142,6 +142,16 @@ Vẽ **viền đặc + ruột nhuộm 25%**, không tô kín: bác sĩ cần nh�
 
 ⚠️ Mọi chỗ hiển thị mask phải nói rõ đây **không phải đầu ra của model** — dự án không làm segmentation (`AGENTS.md` §3.9).
 
+### Bản đồ chú ý của mô hình
+
+`#F59E0B` Grad-CAM · `#FCD34D` bản nhạt
+
+Phải khác hẳn màu vùng chú giải ở trên. Hai thứ trông giống nhau nhưng **ngược nhau về bản chất**: `annotation` là vùng **người** khoanh — ground truth; `attention` là chỗ **mô hình** nhạy — phỏng đoán, và với ca mô hình đoán sai thì nó *nên* trông sai. Lẫn hai thứ này là hiểu nhầm tệ nhất app có thể gây ra, nên chúng nằm ở hai phía đối diện của vòng màu và không bao giờ xuất hiện trong cùng một ảnh.
+
+Phủ theo **alpha trên nền xám**, không thay màu nền: cường độ mô bên dưới phải còn đọc được, nếu không thì bản đồ che mất chính thứ nó đang chỉ vào. Dưới ngưỡng 0.15 thì không tô gì — một lớp mờ phủ khắp ảnh không thêm thông tin nào.
+
+⚠️ Chỗ hiển thị bản đồ **bắt buộc** nói rõ hai điều: (1) đây là khối crop mô hình thực sự nhìn, không phải lát gốc; (2) độ phân giải **gốc** của bản đồ trước khi nội suy. Một bản đồ 7×7×2 phóng lên 112×112×32 trông mịn tới từng voxel nhưng không hề mịn.
+
 ### Bảy màu lớp
 
 - **ác:** HCC `#EF4444` · di căn `#F97316` · ICC `#FB7185`

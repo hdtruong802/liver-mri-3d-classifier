@@ -185,9 +185,14 @@ def test_default_defer_threshold_is_exposed(client: TestClient) -> None:
     assert client.get("/api/meta").json()["default_defer_threshold"] == DEFAULT_DEFER_THRESHOLD
 
 
-def test_heatmap_empty_until_gradcam_exists(client: TestClient) -> None:
+def test_predict_khong_con_heatmap_slices(client: TestClient) -> None:
+    """`heatmap_slices` (base64) đã bỏ ở S-093: luôn rỗng, frontend chưa từng đọc.
+
+    Bản đồ chú ý giờ đi qua `CaseDetail.gradcam` + endpoint ảnh. Hai cơ chế cho cùng
+    một việc là nợ, không phải linh hoạt — test này chặn việc thêm lại.
+    """
     body = client.post(f"/api/cases/{demo_cases.DEMO_CASES[0].case_id}/predict").json()
-    assert body["heatmap_slices"] == [], "Grad-CAM thuộc W5; rỗng ⇒ frontend vẽ vùng chưa khảo sát"
+    assert "heatmap_slices" not in body
 
 
 # ------------------------------------------------------------------------- upload

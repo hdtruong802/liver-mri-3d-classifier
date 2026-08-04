@@ -59,3 +59,12 @@ export function sliceUrl(
   if (mask) params.set('mask', 'true');
   return `/api/cases/${encodeURIComponent(caseId)}/slice?${params}`;
 }
+
+/**
+ * Ảnh bản đồ chú ý. `target='true'` chỉ hợp lệ khi mô hình đoán sai — backend trả 404
+ * nếu không có, thay vì lặng lẽ trả bản đồ của lớp đã đoán.
+ */
+export function gradcamUrl(caseId: string, z: number, target: 'pred' | 'true'): string {
+  const params = new URLSearchParams({ z: String(z), target });
+  return `/api/cases/${encodeURIComponent(caseId)}/gradcam?${params}`;
+}

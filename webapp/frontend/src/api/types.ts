@@ -56,7 +56,6 @@ export interface PredictResult {
   /** Ngưỡng khoá trên validation, cùng đơn vị với `defer_score`. */
   defer_threshold: number;
   confidence: number;
-  heatmap_slices: string[];
   inference_ms: number | null;
   provenance: Provenance;
 }
@@ -81,6 +80,26 @@ export interface MetaResponse {
   phases: PhaseInfo[];
   ruo_notice: string;
   default_defer_threshold: number;
+}
+
+/**
+ * Bản đồ chú ý của MÔ HÌNH. Khác hẳn `CaseVolumeInfo.has_mask` — cái đó là vùng
+ * người chú giải khoanh (ground truth), cái này là chỗ mô hình nhạy (phỏng đoán).
+ */
+export interface GradCamInfo {
+  available: boolean;
+  /** Số lát của khối crop — KHÁC số lát của ảnh gốc ở bộ xem chính. */
+  n_slices: number;
+  /** Kích thước THẬT trước khi nội suy, ví dụ [7, 7, 2]. Phải hiển thị. */
+  native_shape: number[];
+  layer: string;
+  fold: string;
+  pred_class_index: number | null;
+  /** Chỉ khác `pred_class_index` khi mô hình đoán sai; khi đó có thêm target 'true'. */
+  true_class_index: number | null;
+  /** Tổng bằng 1. Là saliency, KHÔNG phải ablation. */
+  phase_importance: number[];
+  note: string;
 }
 
 export interface CaseVolumeInfo {
@@ -116,6 +135,7 @@ export interface CaseDetail {
   source_note: string;
   volumes: CaseVolumeInfo[];
   reference_phase: string;
+  gradcam: GradCamInfo | null;
   provenance: Provenance;
 }
 

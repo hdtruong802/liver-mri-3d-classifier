@@ -3643,3 +3643,48 @@ Bốn ca demo, ảnh thật + dự đoán thật (`source = oof`), mỗi ca đ�
 - **Đừng đặt `cursor-*` lên `<img>` trong khung xem.** Nó đè `active:` của khung cha; `cursor` kế thừa được nên đặt ở khung là đủ.
 - **`mask_slices` là nhãn người chú giải**, không phải vùng model tìm ra. Mọi chữ quanh nó phải giữ đúng điều đó.
 - Vùng tổn thương **lệch nhau giữa các thì** — đó là dữ liệu thật, không phải lỗi hiển thị.
+
+## S-093 · 2026-08-04 · claude-code
+
+**Mục tiêu phiên:** Lấp panel "Vùng mô hình đang nhìn" — Grad-CAM 3D và độ nhạy theo thì.
+
+**Nhánh / commit:** `main` · `b8a07ce` → *(commit đang chờ)*
+
+**Đã đụng file:**
+- `src/xai/{__init__,gradcam}.py` — **mới**; `feature_layer_shapes`, `grad_cam_3d`, `phase_importance`.
+- `notebooks/10_gradcam.ipynb` — **mới**, 15 cell.
+- `webapp/backend/gradcam.py` — **mới**; đọc `.npz`, render PNG, không torch.
+- `webapp/backend/{schemas,demo_cases,main,inference}.py` — `GradCamInfo`, endpoint, bỏ `heatmap_slices`.
+- `webapp/frontend/src/components/AttentionPanel.tsx` — **mới**.
+- `webapp/frontend/src/{App.tsx,components/SliceViewer.tsx,api/types.ts,api/client.ts}` · `tailwind.config.js` · `webapp/DESIGN.md`.
+- `tests/test_xai_gradcam.py`, `tests/test_webapp_gradcam.py` — **mới**, 21 test.
+
+**Quyết định & lý do:**
+
+- **Tính offline trên Kaggle, backend chỉ đọc.** Grad-CAM cần backward pass; backend bị cấm kéo torch (AGENTS.md §4). Cùng khuôn đã dùng cho dự đoán out-of-fold (S-089) và MC-dropout (S-087).
+- **Bản đồ hiển thị trên khối crop 112×112×32, KHÔNG phủ lên lát gốc 480×480** (người dùng chọn khi được hỏi). Mô hình chưa từng thấy ảnh gốc — nó nhận khối đã cắt bám tổn thương. Phủ lên ảnh gốc là một tuyên bố sai về những gì mô hình nhìn thấy. Phương án map ngược đã loại: cache **không** lưu toạ độ tâm crop, phải sửa `build_cache` và build lại 26 phút, đổi lại chỉ được một ô nhỏ giữa lát.
+- **`feature_layer_shapes` tồn tại vì tầng cuối có thể vô dụng.** DenseNet121 hạ mẫu 5 lần; với đầu vào 112×112×32, `norm5` nhiều khả năng còn **Z = 1** — bản đồ giống hệt nhau ở cả 32 lát, mà vẫn phóng lên mượt và vẫn thuyết phục. Lỗi đó **không tự lộ ra**. Nên: đo hình dạng thật (Cổng B trong notebook), `grad_cam_3d` từ chối chạy nếu có chiều bằng 1, và tầng đã dùng được ghi vào kết quả rồi hiển thị lên UI. Mặc định `denseblock3`, chờ Cổng B xác nhận.
+- **Hiển thị độ phân giải GỐC của bản đồ trên giao diện.** Một bản đồ 7×7×2 nội suy lên 112×112×32 trông mịn tới từng voxel. Giấu con số đó là để người xem tin hơn mức dữ liệu cho phép.
+- **Token màu riêng `attention` `#F59E0B`, cách xa `annotation` `#E879F9` của mask.** Hai thứ trông giống nhau nhưng ngược nhau về bản chất: mask là vùng **người** khoanh (ground truth), CAM là chỗ **mô hình** nhạy (phỏng đoán, có thể sai hoàn toàn). Lẫn chúng là hiểu nhầm tệ nhất app có thể gây ra. Hook Impeccable bắt được một hằng số màu inline tôi để sót ở dải chú giải — đã sửa thành utility dùng token, không tắt cảnh báo.
+- **Với ca đoán sai, tính CAM cho CẢ lớp đã đoán lẫn lớp thật.** So hai bản đồ là thứ giải thích nhiều nhất về thất bại — đúng hai ca `MR207769` và `MR127280` đang có trong demo. Xin `target='true'` ở ca đoán đúng → 404, không lặng lẽ trả bản đồ lớp đã đoán.
+- **Mỗi ca dùng model của fold chứa nó ở tập val** — model chưa từng train trên ca đó, nhất quán với nguyên tắc out-of-fold.
+- **`phase_importance` là saliency, không phải ablation.** Nó trả lời "đổi nhẹ thì này thì logit đổi bao nhiêu", không trả lời "bỏ hẳn thì này thì mất bao nhiêu điểm". Câu sau phải train lại mới biết. Ghi rõ ở docstring, mô tả schema, và ngay trên giao diện.
+- **Bỏ `PredictResult.heatmap_slices`.** Trường base64 này luôn rỗng và frontend chưa từng đọc. Giữ lại là có hai cơ chế cạnh tranh cho cùng một việc. Có test chặn việc thêm lại.
+
+**Kết quả / số liệu:** Chưa có số thật — notebook chưa chạy. Backend xuống thang đúng: `available=False` kèm câu chỉ ra cách tạo dữ liệu. 461 test pass (21 mới; 11 test XAI skip vì máy local không có torch), `typecheck` + `build` sạch, quality gate PASS.
+
+**Dang dở:**
+- [ ] **Chạy `notebooks/10_gradcam.ipynb`** — đây là thứ duy nhất còn chặn.
+- [ ] **11 test XAI chưa từng chạy** (thiếu torch ở máy local). Notebook sẽ là lần chạy thật đầu tiên của `grad_cam_3d`.
+- [ ] E5 (focal) đang chạy trên Kaggle.
+- [ ] Reliability diagram + risk–coverage chưa vẽ.
+- [ ] Chưa chạm test-104.
+
+**Điểm vào phiên sau:** Chạy notebook 10 trên Kaggle (mount cache E4 + `best-weights`). **Đọc kỹ bảng ở Cổng B**: nếu `denseblock3` có chiều bằng 1 thì đổi `LAYER` sang tầng nông hơn rồi chạy lại từ cell 0. Tải `gradcam.zip` về `runs/E4_per_phase_results/gradcam/`, giải nén một lớp.
+
+**Cảnh báo cho tool sau:**
+- **Đừng dùng tầng cuối cho Grad-CAM mà không đo.** Bản đồ hằng số theo Z vẫn render đẹp; chỉ `test_cam_khong_phai_hang_so` và Cổng B bắt được.
+- **`attention` (mô hình nhạy) ≠ `annotation` (người khoanh).** Không bao giờ vẽ chúng trong cùng một ảnh, và chữ đi kèm phải phân biệt được hai thứ.
+- **Ảnh Grad-CAM không cùng không gian với `/slice`** — khác cả kích thước lẫn số lát. Đừng đồng bộ hai thanh trượt.
+- **`phase_importance` không dùng để loại thì khỏi pipeline.** Nó là độ nhạy cục bộ.
+- `grad_cam_3d` trả model về đúng chế độ train/eval ban đầu — có test; đừng bỏ khối `finally`.

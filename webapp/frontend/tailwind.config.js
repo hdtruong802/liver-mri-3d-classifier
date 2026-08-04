@@ -42,6 +42,12 @@ export default {
       // xem đọc vùng khoanh thành một chẩn đoán.
       annotation: { DEFAULT: '#E879F9', soft: '#F5D0FE' },
 
+      // Bản đồ chú ý của MÔ HÌNH (Grad-CAM). Phải khác hẳn `annotation` ở trên: một
+      // cái là vùng người chú giải khoanh (ground truth), một cái là chỗ mô hình
+      // nhạy (phỏng đoán, có thể sai hoàn toàn). Lẫn hai thứ này là hiểu nhầm tệ
+      // nhất app có thể gây ra, nên chúng nằm ở hai phía đối diện của vòng màu.
+      attention: { DEFAULT: '#F59E0B', soft: '#FCD34D' },
+
       // Bảy lớp tổn thương. Ác = dải ấm, lành = dải lạnh; đây là tuyến mã hoá THỨ
       // HAI, luôn đi kèm nhãn chữ. Chỉ dùng trong biểu đồ và dải chú giải.
       lesion: {
