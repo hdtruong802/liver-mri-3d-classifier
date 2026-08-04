@@ -167,13 +167,18 @@ export function UncertaintyCard({ result, provisional }: CardProps) {
             {decimal(result.uncertainty.entropy)} nat
           </p>
         </div>
+        {/* Đại lượng ĐIỀU KHIỂN quyết định từ chối, nên nó phải có mặt trên màn hình.
+            Trước đây ô này hiển thị `ensemble_std` — luôn rỗng vì chưa chạy deep
+            ensemble thật, tức là chiếm chỗ mà không nói gì. */}
         <div className="inset-box px-3 py-2">
-          <p className="text-data text-slate-400">Độ lệch chuẩn ensemble</p>
-          <p className="font-mono text-data italic text-slate-400">
-            {result.uncertainty.ensemble_std === null
-              ? 'chưa có, đang chạy một model đơn lẻ'
-              : decimal(result.uncertainty.ensemble_std)}
-          </p>
+          <p className="text-data text-slate-400">Bất đồng giữa các lượt</p>
+          {result.uncertainty.epistemic === null ? (
+            <p className="font-mono text-data italic text-slate-400">chưa đo được</p>
+          ) : (
+            <p className={`font-mono text-sm text-slate-300 ${num}`}>
+              {decimal(result.uncertainty.epistemic)} nat
+            </p>
+          )}
         </div>
       </div>
     </section>

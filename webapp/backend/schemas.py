@@ -44,20 +44,37 @@ class Provenance(BaseModel):
 
 
 class Uncertainty(BaseModel):
-    """Hai đại lượng bất định mà pipeline này thực sự tính được.
+    """Các đại lượng bất định mà pipeline này **thực sự tính được**.
 
-    Cố ý **không** có epistemic/aleatoric tách đôi: dự án không phân rã như vậy, và
-    báo một chỉ số không tính được là bịa. `ensemble_std` là None khi chạy một model
-    đơn lẻ, không phải 0 — 0 nghĩa là các thành viên ensemble đồng thuận tuyệt đối.
+    Trường nào không đo được thì để `None`, không điền 0 — 0 là một khẳng định mạnh
+    ("hoàn toàn không có bất định"), còn `None` là "chưa đo".
+
+    ⚠️ `entropy` và `epistemic` **không thay thế được cho nhau**. Entropy là bất định
+    *toàn phần* của một phân phối duy nhất: nó cao cả khi bài toán vốn mập mờ
+    (aleatoric) lẫn khi model không biết (epistemic). `epistemic` tách riêng phần thứ
+    hai bằng cách đo mức bất đồng **giữa** các lượt dự đoán. Chỉ đại lượng thứ hai
+    được đo là có tác dụng xếp hạng ca khó (WORKLOG S-087) — đó là lý do quyết định
+    từ chối dùng nó chứ không dùng entropy hay max-prob.
     """
 
     entropy: float = Field(
         ge=0.0, description="Shannon entropy của phân phối đã hiệu chỉnh, đơn vị nat."
     )
+    epistemic: float | None = Field(
+        default=None,
+        ge=0.0,
+        description=(
+            "Bất định epistemic = mutual information giữa các lượt dự đoán MC-dropout, "
+            "đơn vị nat. `None` khi chỉ có một lượt (không đo được mức bất đồng)."
+        ),
+    )
     ensemble_std: float | None = Field(
         default=None,
         ge=0.0,
-        description="Độ lệch chuẩn giữa các thành viên ensemble. None khi K=1.",
+        description=(
+            "Độ lệch chuẩn giữa các thành viên ensemble. `None` khi K=1. KHÁC "
+            "`epistemic` cả về định nghĩa lẫn đơn vị — đừng dùng lẫn."
+        ),
     )
 
 

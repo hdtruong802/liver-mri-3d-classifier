@@ -125,14 +125,18 @@ def test_pred_class_is_argmax(client: TestClient) -> None:
     assert body["confidence"] == pytest.approx(leader["probability"], abs=1e-6)
 
 
-def test_uncertainty_has_no_epistemic_aleatoric_split(client: TestClient) -> None:
-    """Pipeline không phân rã epistemic/aleatoric — báo ra là bịa một đại lượng chưa đo.
+def test_uncertainty_chi_bao_dai_luong_do_duoc(client: TestClient) -> None:
+    """Không bịa đại lượng chưa đo. Bản bolt hiển thị cả epistemic lẫn aleatoric với
+    thanh phần trăm riêng; ta chỉ có `epistemic` (đo bằng MC-dropout) và `entropy`.
 
-    Bản bolt hiển thị cả hai với thanh phần trăm riêng.
+    Đổi so với trước: dự án GIỜ có phân rã epistemic (`src/eval/selective.py`), nên
+    trường đó hợp lệ. `aleatoric` vẫn không được báo vì không dùng tới ở đâu cả.
     """
     body = client.post(f"/api/cases/{demo_cases.DEMO_CASES[0].case_id}/predict").json()
-    assert set(body["uncertainty"]) == {"entropy", "ensemble_std"}
-    assert body["uncertainty"]["ensemble_std"] is None, "K=1 thì None, không phải 0"
+    assert set(body["uncertainty"]) == {"entropy", "epistemic", "ensemble_std"}
+    assert "aleatoric" not in body["uncertainty"]
+    # `epistemic` và `ensemble_std` là hai đại lượng khác nhau; không được điền lẫn.
+    assert body["uncertainty"]["ensemble_std"] is None, "chưa chạy deep ensemble thật"
 
 
 def test_entropy_matches_distribution() -> None:
@@ -220,7 +224,7 @@ def test_cases_endpoint_reports_availability(client: TestClient) -> None:
     """`data/` bị gitignore nên máy khác không có dữ liệu. App phải xuống thang tử tế."""
     cases = client.get("/api/cases").json()
     assert len(cases) >= 1
-    assert cases[0]["case_id"] == "MR-391135_1"
+    assert cases[0]["case_id"] == demo_cases.DEMO_CASES[0].case_id
     assert isinstance(cases[0]["available"], bool)
 
 

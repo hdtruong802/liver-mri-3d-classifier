@@ -3491,3 +3491,54 @@ Backend nạp 394 ca, 5 fold, `T = 3.2563`, ngưỡng defer epistemic `0.1715`, 
 - **`T` ở lớp phục vụ (fit gộp) khác `T` ở lớp báo cáo (fit LOFO).** Cố ý. Đừng "thống nhất" chúng lại.
 - **Đừng để backend import torch.** Có test khẳng định `torch not in sys.modules`.
 - `load_store` có `lru_cache` — test nào đổi `LLDMMRI_PREDICTIONS_DIR` phải gọi `cache_clear()`.
+
+## S-090 · 2026-08-04 · claude-code
+
+**Mục tiêu phiên:** Người dùng đã trích và tải 4 ca demo về. Nối chúng vào web app.
+
+**Nhánh / commit:** `main` · `ac2f2ff` → *(commit đang chờ)*
+
+**Đã đụng file:**
+- `webapp/backend/demo_cases.py` — 1 ca → 4 ca; tách `case_id` và `file_stem`; provenance theo thực tế.
+- `webapp/backend/schemas.py` — thêm `Uncertainty.epistemic`, tách khỏi `ensemble_std`.
+- `webapp/backend/inference.py` — điền `epistemic` đúng trường.
+- `webapp/frontend/src/components/ResultCards.tsx` — ô "Bất đồng giữa các lượt" thay ô rỗng.
+- `webapp/frontend/src/api/types.ts` — trường `epistemic`.
+- `tests/test_webapp_api.py`, `tests/test_webapp_volumes.py` — bỏ giả định một-ca.
+
+**Quyết định & lý do:**
+
+- **Tách `case_id` khỏi `file_stem` trong `DemoCase`.** Tên file mang **chỉ số tổn thương** (`MR207769_3`), còn khoá tra cứu dự đoán là **bệnh nhân** (`MR207769`). Chỉ số đó khác nhau giữa các ca (0, 1, 3…) nên không suy ra được. Gộp hai khái niệm sẽ khiến `normalize_pid("MR207769_3")` cho `2077693`, không khớp ai, và app **lặng lẽ rơi về số mô phỏng** thay vì báo lỗi — đúng loại hỏng khó phát hiện nhất.
+- **Sửa lỗi ngữ nghĩa của chính mình ở S-089: nhét epistemic vào `ensemble_std`.** Epistemic là mutual information giữa các lượt (nat); `ensemble_std` là độ lệch chuẩn giữa các thành viên ensemble. Hai đại lượng, hai đơn vị. Test cũ `assert ensemble_std is None` đỏ lên và **đó là test làm đúng việc của nó**. Đã thêm trường `epistemic` riêng; `ensemble_std` giữ nguyên nghĩa và vẫn `None` vì chưa có deep ensemble thật.
+- **Cập nhật docstring `Uncertainty` thay vì để nó nói sai.** Nó vốn ghi "cố ý không có epistemic/aleatoric tách đôi: dự án không phân rã như vậy". Câu đó **đã hết đúng** từ khi có `uncertainty_decomposition`. Giữ nguyên phần `aleatoric` không báo (không dùng tới ở đâu).
+- **Provenance của ca không còn cứng là `simulated`.** Nó tra `load_store` để nói đúng thực tế. Ảnh thật + số mô phỏng vẫn là tổ hợp hợp lệ, nhưng phải được nói ra đúng.
+- **Bỏ ca `MR-391135_1` khỏi danh sách demo.** Nó không nằm trong 394 ca out-of-fold nên chỉ cho ra số mô phỏng — để lẫn vào bốn ca số thật sẽ gây nhầm. File ảnh vẫn còn trên đĩa, không xoá.
+- **Ô "Độ lệch chuẩn ensemble" trên UI đổi thành "Bất đồng giữa các lượt".** Ô cũ luôn rỗng (chưa có ensemble thật) — chiếm chỗ mà không nói gì, trong khi đại lượng *điều khiển* quyết định từ chối lại không có mặt trên màn hình.
+
+**Kết quả / số liệu:**
+
+Bốn ca demo, ảnh thật + dự đoán thật (`source = oof`), mỗi ca đủ 8 thì + 8 mask (655 MiB):
+
+| ca | nhãn thật | đoán | xác suất hiển thị | epistemic | từ chối |
+|---|---|---|---|---|---|
+| MR170828 | u máu | u máu | 0.983 | 0.0000 | không |
+| MR207769 | di căn | áp-xe ✗ | 0.623 | 0.3192 | **CÓ** |
+| MR113627 | ICC | ICC | 0.933 | 0.0993 | không |
+| MR127280 | di căn | u máu ✗ | 0.977 | 0.0000 | không ⚠ |
+
+411 test pass, `typecheck` + `build` sạch, quality gate PASS.
+
+**Dang dở:**
+- [ ] Chưa mở app xem bằng mắt — mới kiểm qua API và test.
+- [ ] E5 (focal) đang chạy trên Kaggle, chưa có kết quả.
+- [ ] Reliability diagram + risk–coverage chưa vẽ.
+- [ ] Grad-CAM (`heatmap_slices`) vẫn rỗng.
+- [ ] Chưa chạm test-104.
+
+**Điểm vào phiên sau:** Chạy `python -m uvicorn webapp.backend.main:app --reload` + `npm run dev`, mở **http://localhost:5173** (trên Windows Vite bind vào `::1`, `127.0.0.1` không vào được), xem bốn ca bằng mắt. Ca `MR207769` là ca cần soi kỹ nhất: xác suất 62% mà bị từ chối.
+
+**Cảnh báo cho tool sau:**
+- **`case_id` ≠ `file_stem`.** Dùng `file_stem` để tìm file, `case_id` để tra dự đoán. Nhầm thì app rơi về số mô phỏng mà không báo gì.
+- **`epistemic` ≠ `ensemble_std`.** Khác định nghĩa, khác đơn vị. `ensemble_std` vẫn `None` cho tới khi có deep ensemble nhiều seed thật.
+- Danh sách ca demo **đổi theo kết quả thí nghiệm**. Test đã bỏ ID viết cứng, đọc từ `DEMO_CASES[0]`; giữ như vậy.
+- Ca `MR-391135` vẫn còn trong `data/sample/` nhưng **không** thuộc danh sách demo và **không** có dự đoán thật.

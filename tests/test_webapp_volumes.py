@@ -25,7 +25,10 @@ from webapp.backend.volumes import (  # noqa: E402
     render_slice_png,
 )
 
-CASE_ID = "MR-391135_1"
+# Lấy từ danh sách thật thay vì viết cứng: danh sách ca demo đổi theo kết quả
+# thí nghiệm (WORKLOG S-089), và test không nên vỡ mỗi lần nó đổi.
+CASE = demo_cases.DEMO_CASES[0]
+CASE_ID = CASE.case_id
 
 pytestmark = pytest.mark.skipif(
     not SAMPLE_DIR.is_dir(),
@@ -35,7 +38,7 @@ pytestmark = pytest.mark.skipif(
 
 @pytest.fixture(scope="module")
 def phase_files() -> dict:
-    files = find_phase_files(SAMPLE_DIR, CASE_ID)
+    files = find_phase_files(CASE.directory, CASE.file_stem)
     if len(files) != len(PHASES):
         pytest.skip(f"ca mẫu chỉ có {len(files)}/{len(PHASES)} thì")
     return files
@@ -91,8 +94,15 @@ def test_case_detail_reports_real_geometry() -> None:
         assert all(s > 0 for s in volume.spacing_mm)
 
 
-def test_case_detail_is_marked_simulated() -> None:
-    """Ảnh thật, dự đoán giả lập. Ghép hai thứ làm số giả đáng tin hơn, nên phải đánh dấu."""
+def test_case_detail_danh_dau_dung_nguon() -> None:
+    """Nguồn phải khớp thực tế: `oof` khi ca có dự đoán thật, `simulated` khi không.
+
+    Ghép ảnh thật với số mô phỏng mà không đánh dấu sẽ làm số giả trông đáng tin hơn
+    bản chất của nó — đó là lý do trường này tồn tại.
+    """
+    from webapp.backend.predictions import load_store
+
     detail = demo_cases.get_case_detail(CASE_ID)
-    assert detail.provenance.source.value == "simulated"
-    assert "thật" in detail.source_note and "minh hoạ" in detail.source_note
+    store = load_store()
+    co_du_doan_that = store is not None and store.get(CASE_ID) is not None
+    assert detail.provenance.source.value == ("oof" if co_du_doan_that else "simulated")

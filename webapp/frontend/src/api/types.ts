@@ -20,7 +20,12 @@ export interface Provenance {
 export interface Uncertainty {
   /** Shannon entropy, đơn vị nat. */
   entropy: number;
-  /** null khi chạy một model đơn lẻ. null ≠ 0: 0 nghĩa là ensemble đồng thuận tuyệt đối. */
+  /**
+   * Bất định epistemic — mutual information giữa các lượt MC-dropout, đơn vị nat.
+   * null khi chỉ có một lượt. null ≠ 0: 0 nghĩa là các lượt đồng thuận tuyệt đối.
+   */
+  epistemic: number | null;
+  /** Độ lệch chuẩn giữa thành viên ensemble. KHÁC `epistemic` cả định nghĩa lẫn đơn vị. */
   ensemble_std: number | null;
 }
 

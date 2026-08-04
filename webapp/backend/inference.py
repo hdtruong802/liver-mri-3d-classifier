@@ -86,6 +86,7 @@ def assemble_result(
     provenance: Provenance,
     defer_threshold: float = DEFAULT_DEFER_THRESHOLD,
     ensemble_std: float | None = None,
+    epistemic: float | None = None,
     inference_ms: int | None = None,
     defer_override: bool | None = None,
     defer_basis: DeferBasis = DeferBasis.CONFIDENCE,
@@ -115,7 +116,11 @@ def assemble_result(
         pred_class_name=CLASS_NAMES[pred_index],
         probs=build_probabilities(probs),
         malignant_prob=malignant_probability(probs),
-        uncertainty=Uncertainty(entropy=shannon_entropy(probs), ensemble_std=ensemble_std),
+        uncertainty=Uncertainty(
+            entropy=shannon_entropy(probs),
+            epistemic=epistemic,
+            ensemble_std=ensemble_std,
+        ),
         # Từ chối là kết quả hợp lệ, không phải lỗi (`PRODUCT.md` Product Principle 2).
         defer=(confidence < defer_threshold) if defer_override is None else defer_override,
         defer_basis=defer_basis,
@@ -208,8 +213,8 @@ def oof_result(case: CasePrediction, store: PredictionStore) -> PredictResult:
             note=note,
         ),
         defer_threshold=store.defer_threshold,
-        # Độ lệch chuẩn giữa các thành viên MC — đại lượng bất định thật sự đo được.
-        ensemble_std=case.epistemic,
+        # Mutual information giữa 20 lượt MC-dropout — KHÔNG phải độ lệch chuẩn.
+        epistemic=case.epistemic,
         inference_ms=None,  # Tra cứu, không suy luận: báo thời gian là gây hiểu nhầm.
         defer_override=defer,
         defer_basis=DeferBasis.EPISTEMIC,
