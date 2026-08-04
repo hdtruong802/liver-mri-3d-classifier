@@ -3298,3 +3298,28 @@ Phép đo miễn phí trên dữ liệu đã có — ensemble 2 thành viên `be
 - **Data root khai ở `configs/data.yaml`, không ở `configs/preprocess_*.yaml`.**
 - **Đừng `raise SystemExit` trong cell Jupyter.** IPython dựng traceback lỗi và che mất thông báo.
 - `configs/data.yaml` đã liệt kê đúng layout `/kaggle/input/datasets/<user>/<slug>`. Khi nghi ngờ về sơ đồ mount, đọc file đó trước.
+
+## S-086 · 2026-08-04 · claude-code
+
+**Mục tiêu phiên:** Người dùng đã mount dataset gốc ở `/kaggle/input/datasets/marcohoang/lldmmridataset`. Xác nhận không còn gì chặn, và xử lý vấn đề phát sinh chính vì dataset đó giờ mới có mặt.
+
+**Nhánh / commit:** `main` · `cad95cd` → *(commit đang chờ)*
+
+**Đã đụng file:**
+- `notebooks/08_mc_dropout.ipynb` — cell 4: gộp mọi phép dò về **một** lượt `os.walk`.
+
+**Quyết định & lý do:**
+
+- **Không sửa gì về cấu hình — đường dẫn đã khớp sẵn.** `/kaggle/input/datasets/marcohoang/lldmmridataset` đúng bằng ứng viên đầu tiên trong `configs/data.yaml`, cấu trúc `lld/LLD_MMRI_Annotation.json` khớp `annotation_rel`, `lld/labels` khớp `labels_rel`, và `label_suffixes: ['.nii.gz', '.nii']` đúng quy ước mask không có hậu tố `_0000` (S-059). `build_cache` đã có cổng cứng chặn trường hợp quét ra 0 mask.
+- **Gộp 11 lượt duyệt cây thành 1.** Cell 4 trước đó gọi `rglob` riêng cho `*.npz`, `*.pt`, `cache_meta.json`, tên annotation, rồi `best_fold_{f}.pt` cho từng fold — mỗi lần là một lượt duyệt **toàn bộ** `/kaggle/input`. Khi chỉ có checkpoint và cache thì không sao; giờ có thêm 83.7GB và ~4000 file ảnh trên ổ mạng thì đó là chờ vô ích. Một `os.walk` thu hết bốn loại cùng lúc.
+- **Bỏ qua `.cache` và `.git` khi duyệt.** `lld/.cache` là rác tải của HuggingFace và **có chứa bản sao `LLD_MMRI_Annotation.json`** — mô phỏng cho thấy nếu không loại thì dò ra 2 annotation thay vì 1, và có khả năng chọn nhầm gốc dữ liệu. `configs/data.yaml` đã ghi chú về `.cache` từ trước; giờ notebook cũng tôn trọng.
+
+**Kết quả / số liệu:** Không có số khoa học mới. 15 cell, cú pháp hợp lệ, 0 output, không còn tham chiếu tới `scan_checkpoints`/`scan_caches`/`CKPT_ROOT`. Chạy thật phần dò trên cây mô phỏng đầy đủ (checkpoint phẳng + dataset gốc có bẫy `.cache` + thư mục 150 `.npz` không meta): annotation ra đúng 1 (bẫy `.cache` bị loại), checkpoint 5/5, cache có meta 0 → `BUILD_NEEDED`.
+
+**Dang dở:** vẫn chưa có số MC-dropout thật — nhưng giờ **không còn gì chặn**, chỉ cần chạy.
+
+**Điểm vào phiên sau:** Chạy `notebooks/08_mc_dropout.ipynb` (~26 phút build + ~8 phút inference). Cân nhắc "Save Version" để giữ `/kaggle/working/cache_e4` thành dataset, khỏi build lại lần sau.
+
+**Cảnh báo cho tool sau:**
+- **`lld/.cache` chứa bản sao của annotation.** Bất kỳ logic dò nào duyệt cây dữ liệu gốc đều phải loại nó, nếu không sẽ dò ra hai data root.
+- Khi dataset gốc được mount, **mọi `rglob` trên `/kaggle/input` đều đắt**. Duyệt một lần, thu tất cả.
