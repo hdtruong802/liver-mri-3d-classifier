@@ -3688,3 +3688,52 @@ Bốn ca demo, ảnh thật + dự đoán thật (`source = oof`), mỗi ca đ�
 - **Ảnh Grad-CAM không cùng không gian với `/slice`** — khác cả kích thước lẫn số lát. Đừng đồng bộ hai thanh trượt.
 - **`phase_importance` không dùng để loại thì khỏi pipeline.** Nó là độ nhạy cục bộ.
 - `grad_cam_3d` trả model về đúng chế độ train/eval ban đầu — có test; đừng bỏ khối `finally`.
+
+## S-094 · 2026-08-05 · claude-code
+
+**Mục tiêu phiên:** Đọc kết quả E5 (focal loss) mà người dùng vừa tải về `runs/E5_focal` — mới có fold 1 và 2.
+
+**Nhánh / commit:** `main` · `77d0615` → *(commit đang chờ)*
+
+**Đã đụng file:** `AGENTS.md` §5 (mục kết quả E5), `WORKLOG.md`.
+
+**Quyết định & lý do:**
+
+- **Xác minh config trước khi đọc số.** `e5_focal.yaml` khác baseline **đúng 3 khoá**: `loss.name`, `loss.gamma`, `output_dir`. Cả hai fold chạy hết 300 epoch. Nếu có khoá thứ tư khác thì mọi so sánh bên dưới vô nghĩa, nên kiểm trước là bắt buộc chứ không phải cẩn thận thừa.
+- **So cặp trên đúng 162 ca của fold 1+2, không so với con số gộp 394 ca của E4.** Hai tập khác nhau thì hiệu số không đọc được.
+- **Bootstrap ghép cặp trên hiệu**, không so hai CI — hai run chấm trên **cùng** bệnh nhân.
+
+**Kết quả / số liệu:**
+
+| | macro-F1 | ECE thô | MCE | Brier | tự tin (lệch) |
+|---|---|---|---|---|---|
+| E4 (CE) | 0.6879 | 0.2212 | 0.3837 | 0.5585 | 0.903 (+0.206) |
+| E5 (focal γ=2) | 0.6601 | 0.1542 | 0.4990 | 0.5033 | 0.833 (+0.136) |
+
+Bootstrap ghép cặp 2000 lần: macro-F1 **−0.029** [−0.105, +0.048] P=0.47 · ECE **−0.050** [−0.123, +0.024] P=0.17. **Không cái nào có ý nghĩa thống kê.**
+
+Từng fold: fold 1 hoà (0.7001 → 0.6971), fold 2 tụt rõ (0.6771 → 0.6086).
+
+**Phát hiện đáng giá hơn cả hai giả thuyết ban đầu — sau khi hiệu chỉnh đúng cách thì hai bên bằng nhau:**
+
+| | T tối ưu ECE | ECE sau |
+|---|---|---|
+| E4 (CE) | 2.00 | 0.1281 |
+| E5 (focal) | 1.50 | 0.1255 |
+
+Focal *thật sự* làm model bớt tự tin quá mức từ đầu — nó cần `T` nhỏ hơn hẳn (1.50 so với 2.00), đúng như lý thuyết dự đoán. Nhưng "CE + temperature fit theo ECE" đã đạt 0.128 rồi, nên lợi thế ECE thô 0.154 của focal **biến mất sau bước hiệu chỉnh mà dự án vốn đã làm**.
+
+Ngoài ra: MCE xấu đi (0.384 → 0.499), AURC xấu đi nhẹ (0.181 → 0.196).
+
+**Dang dở:**
+- [ ] **Fold 3–5 của E5 chưa chạy** — quyết định có chạy tiếp hay không đang chờ người dùng.
+- [ ] Notebook 10 (Grad-CAM) chưa chạy — panel web app vẫn trống có nhãn.
+- [ ] Reliability diagram + risk–coverage chưa vẽ.
+- [ ] Chưa chạm test-104.
+
+**Điểm vào phiên sau:** Nếu người dùng quyết dừng E5 thì ghi rõ kết quả này là **null result trên 2 fold** trong báo cáo và chuyển sang Grad-CAM + report. Nếu chạy tiếp thì mở `notebooks/09_cv_runner.ipynb`, `CONFIG_NAME = "e5_focal.yaml"`, `FOLDS = [3, 4]`.
+
+**Cảnh báo cho tool sau:**
+- **Với focal, BẮT BUỘC dùng `fit_temperature_min_ece`, không dùng `fit_temperature`.** `T` fit theo NLL làm ECE của focal *xấu đi* (0.154 → 0.176) vì bắn quá sang thiếu tự tin (0.596 so với accuracy 0.698). Với CE thì `T` theo NLL vẫn cải thiện, nên lỗi này chỉ lộ ra ở focal.
+- **Đừng báo "focal cải thiện calibration" mà không kèm dòng đã hiệu chỉnh.** Nói ECE 0.221 → 0.154 là đúng nhưng gây hiểu nhầm: sau hiệu chỉnh cả hai đều ~0.126.
+- **n = 162, mọi P đều > 0.17.** Không con số nào trong entry này đủ để kết luận.

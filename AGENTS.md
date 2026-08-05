@@ -242,6 +242,30 @@ Trung bình 5 fold 0.6875 ± 0.0281 (SD mẫu), khoảng 0.662–0.730. **Con s�
 
 ⚠️ Vẫn là **val out-of-fold, không phải test-104**. Không so trực tiếp 0.6851 với bảng văn liệu ở trên.
 
+### E5 focal loss — 2/5 fold, chưa kết luận được (2026-08-05, WORKLOG S-094)
+
+Cùng 162 ca (fold 1+2), cùng split, cùng seed. Config khác baseline **đúng 3 khoá**: `loss.name`, `loss.gamma`, `output_dir`.
+
+| | macro-F1 | ECE thô | MCE | Brier | tự tin (lệch) |
+|---|---|---|---|---|---|
+| E4 (CE) | 0.6879 | 0.2212 | 0.3837 | 0.5585 | 0.903 (+0.206) |
+| E5 (focal γ=2) | 0.6601 | **0.1542** | 0.4990 | **0.5033** | 0.833 (+0.136) |
+
+Bootstrap ghép cặp 2000 lần trên cùng bệnh nhân: macro-F1 **−0.029** [−0.105, +0.048] P=0.47 · ECE **−0.050** [−0.123, +0.024] P=0.17. **Không cái nào có ý nghĩa thống kê.**
+
+⚠️ **Phát hiện quan trọng hơn cả hai giả thuyết: sau khi hiệu chỉnh đúng cách, hai bên bằng nhau.**
+
+| | T tối ưu ECE | ECE sau |
+|---|---|---|
+| E4 (CE) | 2.00 | 0.1281 |
+| E5 (focal) | 1.50 | 0.1255 |
+
+Focal *có* làm model bớt tự tin quá mức từ đầu (T cần nhỏ hơn: 1.50 so với 2.00), nhưng **"CE + temperature fit theo ECE" đã đạt 0.128 rồi**. Lợi thế ECE thô 0.154 của focal biến mất sau bước hiệu chỉnh mà dự án vốn đã làm. Đây là lý do kỹ thuật để **không** đổi loss chỉ vì mục tiêu calibration.
+
+⚠️ Dùng `T` fit theo **NLL** cho focal thì ECE *xấu đi* (0.154 → 0.176) — bắn quá sang thiếu tự tin (0.596 so với accuracy 0.698). Với focal bắt buộc dùng `fit_temperature_min_ece`.
+
+⚠️ MCE xấu đi (0.384 → 0.499) và AURC xấu đi nhẹ (0.181 → 0.196). Fold 2 tụt rõ (0.677 → 0.609) còn fold 1 hoà (0.700 → 0.697).
+
 ### Trustworthiness — calibration & selective (2026-08-04, WORKLOG S-079)
 
 Chạy bằng `python -m src.eval.trust --run-dir runs/E4_cv_results`. Temperature fit **leave-one-fold-out**: `T` áp lên fold `f` học từ 4 fold còn lại, nên không ca nào được hiệu chỉnh bởi một `T` đã nhìn thấy nó.
