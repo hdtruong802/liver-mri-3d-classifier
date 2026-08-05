@@ -4045,3 +4045,36 @@ Train loss cuối cao hơn ở E6 (0.387/0.362 so với 0.301/0.274) — augment
 - **Hai lớp yếu (ICC, di căn) TỆ ĐI ở E6.** Với mục tiêu macro-F1 thì đó là hướng sai, vì chính hai lớp đó đang kéo trung bình xuống.
 - **`RandomIntensity` xáo từng pha độc lập.** Bất kỳ thí nghiệm augmentation nào cũng phải cân nhắc điều này trước, không phải sau.
 - **fold 2 của E6 có `val_loss` đáy ở epoch 5.** Nếu thí nghiệm sau cũng vậy thì vấn đề là ổn định tối ưu hoá, không phải augmentation cụ thể nào.
+
+## S-103 · 2026-08-05 · claude-code
+
+**Mục tiêu phiên:** Người dùng hỏi notebook cho E6b, sau khi cân nhắc có nên nhảy sang E7 luôn.
+
+**Nhánh / commit:** `main` · `a680f14` → *(commit đang chờ)*
+
+**Đã đụng file:** `notebooks/09_cv_runner.ipynb` (cell 0 mô tả, cell 2 `CONFIG_NAME`).
+
+**Quyết định & lý do:**
+
+- **Khuyên E6b trước E7, và người dùng chọn E6b.** Ba lý do, xếp theo mức quan trọng: (1) **thứ tự có hệ quả** — nếu E6b thắng thì nó thay E4 làm cấu hình gốc cho cả E7 và E8, nên đo EMA trên nền E4 rồi mới phát hiện E6b tốt hơn là phải chạy lại; (2) đã trả 7.5h cho E6 mà chưa đọc được nó, vì E6 đổi hai biến cùng lúc; (3) **EMA và E6 KHÔNG độc lập** — fold 2 của E6 sập vì bất ổn (`val_loss` đáy epoch 5), mà EMA đúng là một bộ ổn định, nên rất có thể EMA cứu đúng chỗ đó. Đo EMA trên E4 (vốn đã ổn định) không trả lời được câu đó.
+- **Khung lại câu hỏi của người dùng.** Họ hỏi "chưa đạt 0.8 thì có nên sang E7 luôn". Tiêu chí đó không phân biệt được gì: **không thí nghiệm đơn lẻ nào tới 0.80** (E7 kỳ vọng +0.01…+0.03 trên khoảng cách +0.115). Tiêu chí đúng là "cái nào làm phần GPU còn lại đáng giá hơn", và theo đó E6b thắng rõ.
+- **Chốt cách đọc kết quả TRƯỚC khi chạy, viết vào cell 0** dưới dạng bảng bốn dòng. Chốt trước để phiên sau không hợp lý hoá theo con số đã thấy — cùng lý do phải pre-register.
+- **Không tạo notebook mới.** 09 vẫn là runner chung; `SCOPE` giữ `data.augment.` vì E6b cùng phạm vi với E6.
+- **Đã nêu đường thay thế và đánh đổi của nó**, không giấu: gộp E6b + EMA vào một config sẽ tối đa hoá điểm số nhưng mất khả năng quy nguyên nhân, và Spec Sheet đặt rigor lên trước điểm số. Người dùng chưa quyết; config gộp chưa dựng.
+
+**Kết quả / số liệu:** Không có số mới. Notebook 19 cell, cú pháp hợp lệ, 0 output. Chạy thử Cổng 0 với `e6b_geom_only.yaml`: 6 khoá khác baseline, tất cả trong `data.augment` (+ `output_dir` được miễn) — không báo động giả. 486 test pass.
+
+**Dang dở:**
+- [ ] **E6b** — sẵn sàng chạy, chỉ cần mount cache E4 rồi Run all.
+- [ ] TTA chưa có cell notebook — dùng lại checkpoint E4 sẵn có, vài phút GPU.
+- [ ] E7 (EMA) sau E6b. E8 cần upload MedicalNet weights.
+- [ ] `pytest tests/test_tta_ema.py` chưa từng chạy với torch thật.
+- [ ] Hình cho report, `stats.py`, report cuối, README.
+- [ ] Config gộp `e9` — chờ người dùng quyết.
+
+**Điểm vào phiên sau:** Đọc kết quả E6b theo đúng bảng bốn dòng ở cell 0 của notebook, **không diễn giải lại theo con số nhận được**.
+
+**Cảnh báo cho tool sau:**
+- **Mốc đối chiếu của E6/E6b là fold 1 = 0.7001 và fold 2 = 0.6771** (trung bình 0.6879), KHÔNG phải 0.6851 của bản gộp 394 ca. Hai tập khác nhau.
+- **Đổi thí nghiệm = đổi `CONFIG_NAME` và `SCOPE`.** Quên `SCOPE` thì Cổng 0 báo động giả, và báo giả vài lần thì người ta bỏ qua nó.
+- Bảng cách đọc kết quả ở cell 0 được chốt **trước** khi chạy. Nếu kết quả không khớp dòng nào thì ghi ra điều đó, đừng thêm dòng mới cho vừa số.
