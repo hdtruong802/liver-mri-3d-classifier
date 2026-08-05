@@ -1,0 +1,141 @@
+# E6 — AUGMENTATION MẠNH HƠN. Chép từ baseline_3dpatch.yaml, chỉ đổi khối
+# `data.augment` và `output_dir`.
+#
+#   python -m src.train.run --config configs/e6_aug.yaml --fold 1
+#
+# ---------------------------------------------------------------------------
+# VÌ SAO ĐỔI, VÀ VÌ SAO CHỈ ĐỔI KHỐI NÀY
+#
+# Baseline khoá theo recipe official LLD-MMRI2023, đạt macro-F1 0.6083 trên
+# test-104. Ta đã ở 0.6851 out-of-fold, tức là **đã vượt recipe đó**, nên "official
+# không dùng" không còn là lý do đủ để tắt một biến đổi (WORKLOG S-099).
+#
+# Bằng chứng định lượng cho việc augmentation là biến nặng: CGHNet Bảng 4, cùng
+# test-104 — **bỏ random-crop mất 8.8 điểm F1** (81.8 -> 73.0). Đó là biến có ảnh
+# hưởng lớn nhất trong toàn bộ ablation huấn luyện của họ, lớn hơn cả đổi loss
+# (+1.9) và đổi learning rate.
+#
+# Ta hiện chỉ có: lật, xoay ±10°, tịnh tiến 8 voxel. KHÔNG có nhiễu cường độ,
+# KHÔNG có rot90. Hai thứ đó đã code sẵn ở `src/data/transforms.py` và chỉ đang
+# bị tắt bằng `prob: 0`.
+# ---------------------------------------------------------------------------
+
+# Baseline 3D-patch — mốc so sánh đầu tiên của dự án (W2 ngày 5).
+# Mọi hyperparam ở đây, code chỉ đọc (AGENTS.md §8).
+#
+#   python -m src.train.run --config configs/baseline_3dpatch.yaml --fold 1
+#
+# Đây KHÔNG phải model chính. Model chính chốt ở W4 sau khi có CV 5-fold + CI.
+
+seed: 1337
+fold: 1                       # 1..5; ghi đè bằng --fold
+splits_dir: splits
+
+# Đường dẫn ghi/đọc đi qua config, không hardcode /kaggle/... (AGENTS.md §7).
+cache_dir: artifacts/cache            # env LLDMMRI_CACHE_DIR thắng
+                                      #   Kaggle: /kaggle/input/lld-mmri-3/cache
+output_dir: artifacts/runs/e6_aug   # env LLDMMRI_OUTPUT_DIR thắng
+                                              #   Kaggle: /kaggle/working/runs/...
+
+model:
+  name: densenet121_3d
+  in_channels: 8              # 8 pha ghép kênh = early-concat v0
+  num_classes: 7
+  dropout_prob: 0.2
+  # Bằng chứng đã có, KHÔNG phải phỏng đoán (WORKLOG S-036 → S-039):
+  #   batch            -> macro-F1 val 0.2725 @ epoch 11   (chạy thật, fold 1)
+  #   instance+affine  -> SẬP: đoán 1 lớp, macro-F1 0.0668 đứng yên, loss = ln 7
+  #   group            -> chưa có số trên tập thật
+  # Phép thử overfit 8 mẫu (notebook mục 1b, WORKLOG S-040) — loss cuối sau 160 bước:
+  #   batch 0.009 · group(8) 0.010 · instance+affine 0.581   (cả ba đều acc 1.00)
+  # => InstanceNorm KHÔNG hỏng cấu trúc như tôi đã kết luận vội, chỉ chậm hơn ~60 lần.
+  #    batch và group khoẻ ngang nhau, phép thử này không tách được hai cái đó.
+  # Giữ `batch` vì là lựa chọn duy nhất có số trên tập thật (0.2725). Đổi `norm` là
+  # thí nghiệm riêng, đừng gộp chung với thay đổi nào khác.
+  norm: batch
+
+data:
+  # VRAM ~16GB với khối [8,96,96,48]: batch nhỏ + tích luỹ gradient (AGENTS.md §7).
+  batch_size: 2
+  # Augmentation (xoay ±10° bằng scipy) chạy trên CPU trong worker và là nút cổ chai:
+  # đo thật cho 56,5s/epoch, trong khi phần GPU chỉ ~20s — GPU ngồi chờ CPU
+  # (WORKLOG S-044). Kaggle có 4 vCPU. Ba khoá dưới đây là tối ưu hoá THUẦN KỸ THUẬT,
+  # không đụng gì tới phép toán train.
+  num_workers: 4
+  persistent_workers: true    # mặc định DataLoader dựng lại worker MỖI epoch × 300 epoch
+  prefetch_factor: 4
+  pin_memory: true
+  # Augment theo recipe official: lật cả 3 trục p=0.5, xoay ±10°, random-crop tịnh
+  # tiến. rot90 và nhiễu cường độ là thứ TA tự thêm, official không dùng -> tắt, giữ
+  # code lại để ablate ở W4 (WORKLOG S-043).
+  augment:
+    flip_prob: 0.5
+    flip_axes: [x, y, z]
+    rotate_degrees: 15        # 10 -> 15. Vẫn trong biên độ tư thế bệnh nhân thật.
+    # 8,8,4 -> 12,12,4. Đây là biến CGHNet đo là nặng nhất (bỏ hẳn mất 8.8 điểm).
+    #
+    # NỚI TRONG MẶT PHẲNG, GIỮ NGUYÊN Z — không phải cho cân đối mà vì hình học của
+    # crop. `preprocess_e4.yaml` cắt với `margin_factor: 1.6`, nên trên khung
+    # 112×112×32 tổn thương chiếm ~70×70×20 voxel và lề mỗi bên là:
+    #     x, y: 21 voxel   ->  dịch 12 dùng 57% lề, còn chỗ
+    #     z:     6 voxel   ->  dịch  6 dùng 100% lề, RÌA TỔN THƯƠNG CHẠM BIÊN
+    # Dịch Z quá lề nghĩa là cắt cụt chính vật cần phân loại. Z chỉ có 32 lát nên
+    # lề theo trục đó vốn đã mỏng — đó là hệ quả của tỉ lệ trục, không sửa được
+    # bằng augmentation.
+    translate_voxels: [12, 12, 4]
+    rotate_prob: 0.8          # trước đây luôn xoay (prob mặc định 1.0); để 20% ảnh
+                              # đi qua nguyên vẹn thì model còn thấy tư thế gốc.
+
+    # --- Hai khối dưới đây TRƯỚC ĐÂY BỊ TẮT ---
+    # Nhiễu cường độ: MRI không có đơn vị chuẩn như HU của CT, cùng một tổn thương
+    # chụp ở hai máy cho hai thang xám khác nhau. Đây là biến thiên CÓ THẬT trong
+    # dữ liệu, nên tập nhiễu nó là mô phỏng đúng thực tế chứ không phải bịa.
+    # Biên độ nhỏ (10%) vì tương phản giữa tổn thương và gan lành là tín hiệu
+    # chẩn đoán — làm hỏng nó thì hại nhiều hơn lợi.
+    intensity_prob: 0.5
+    intensity_shift: 0.1
+    intensity_scale: 0.1
+
+    # rot90 VẪN TẮT, có chủ ý. Gan nằm bên phải, lách bên trái, cột sống phía sau —
+    # xoay 90° tạo ra giải phẫu không tồn tại. Lật thì hợp lệ (situs inversus là
+    # bệnh có thật), xoay 90° thì không. Đây là ràng buộc miền, không phải khẩu vị.
+    rot90_prob: 0
+
+# ---------------------------------------------------------------------------
+# Toàn bộ khối này bám theo baseline official LLD-MMRI2023 (macro-F1 0.6083 trên
+# test-104): LMMMEng/LLD-MMRI2023, `main/README.md` + `main/train.py`.
+# KHÔNG có con số nào ở đây do tự nghĩ ra. Sửa thì phải kèm lý do trong WORKLOG,
+# và `tests/test_protocol_conformance.py` sẽ chặn nếu trôi khỏi recipe.
+# ---------------------------------------------------------------------------
+train:
+  # official: --epochs 300, best checkpoint của họ ở epoch 216/300.
+  # Ta từng để 60 + early stop patience 15 -> dừng ở epoch 26, tức là cắt ngang lúc
+  # công thức tham chiếu còn chưa đi được 1/8 chặng đường (WORKLOG S-043).
+  epochs: 300
+  warmup_epochs: 5            # official: --warmup-epochs 5
+  warmup_lr: 0.000001         # official: --warmup-lr 1e-6
+  lr: 0.0001                  # official: --lr 1e-4  (ta đang để 3e-4)
+  min_lr: 0.00001             # official: --min-lr 1e-5, scheduler cosine
+  # official: --weight-decay 0.05. Ta đang để 1e-5 — chênh 5000 lần.
+  # Đi kèm bắt buộc: bias và tham số norm bị loại khỏi decay
+  # (src/train/run.py::build_param_groups), giống mặc định của timm mà official dùng.
+  weight_decay: 0.05
+  # official: batch 4 × 2 GPU = 8. Ta: batch_size 2 (giới hạn VRAM) × 4 = 8.
+  accum_steps: 4
+  # TẮT. official không early stop, chỉ train đủ 300 epoch rồi lấy checkpoint tốt nhất.
+  early_stop_patience: 0
+  amp: true                   # tự tắt khi chạy CPU
+  # Bật cudnn.deterministic, NHƯNG đừng hiểu là tái lập bit-exact: docstring của
+  # MONAI ghi rõ DenseNet với spatial_dims=3 là non-deterministic trên CUDA. Seed cố
+  # định cho phép lặp lại *thí nghiệm*, không phải lặp lại từng chữ số. Báo cáo phải
+  # nói đúng điều này, và đó là một lý do nữa để mọi số đều kèm CI (AGENTS.md §3.5).
+  deterministic: true
+  resume: true                # chạy lại cùng lệnh = tiếp tục từ last.pt
+
+loss:
+  name: cross_entropy
+  # official dùng nn.CrossEntropyLoss() TRẦN: --smoothing mặc định 0, không class
+  # weight, không balanced sampler. Class weighting là thứ TA tự thêm — tắt để tái
+  # lập đúng recipe, và nó nằm trong bảng ablation loss của W4.
+  class_weights: none         # none | balanced (tính CHỈ từ nhãn train)
+  label_smoothing: 0.0        # official: --smoothing 0

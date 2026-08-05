@@ -3896,3 +3896,39 @@ API kiểm đủ: `pred` 200 ở cả 4 ca · `true` 200 ở `MR207769`, 404 ở
 - **n = 4.** "In/Out Phase luôn thấp nhất" là quan sát, không phải kết luận thống kê.
 - **Hai ca `suy-bien`/`ok` khác với mô phỏng S-097.** Nếu tool nào đọc S-097 rồi trích số ở đó thì sai — số thật ở entry này.
 - Dữ liệu nằm ở `runs/E4_per_phase_results/gradcam/` (gitignore). Mất thì chạy lại notebook 10.
+
+## S-099 · 2026-08-05 · claude-code
+
+**Mục tiêu phiên:** Người dùng chốt hướng — dừng E5, chưa chạm test-104, cắt External/OOD, dồn vào cải thiện macro-F1 với mục tiêu ≥0.80. Lên kế hoạch và dựng thí nghiệm đầu.
+
+**Nhánh / commit:** `main` · `644f3dc` → *(commit đang chờ)*
+
+**Đã đụng file:** `configs/e6_aug.yaml` (**mới**), `AGENTS.md` §6 (dòng lệnh sàng 2 fold).
+
+**Quyết định & lý do:**
+
+- **Đã nói rõ khoảng cách trước khi nhận mục tiêu.** Hiện 0.6851; để đạt 0.80 cần **+0.115 cho mỗi lớp**. Sửa hai lớp yếu nhất (di căn 0.488, ICC 0.519) lên 0.75 chỉ tới 0.7555 — đây là bài toán cải thiện toàn diện, không phải vá hai lớp. Trên bảng CGHNet chỉ 2/10 phương pháp đạt ≥0.80, đều là kiến trúc chuyên dụng; CNN 3D thường nằm ở 0.709. Người dùng vẫn giữ mục tiêu sau khi nghe — ghi lại và làm.
+- **Ưu tiên theo bằng chứng, không theo trực giác kiến trúc.** Hai bước nhảy lớn nhất của dự án đều từ **dữ liệu** (cắt bám tổn thương +0.15, căn pha + hình học +0.13), không từ model. CGHNet Bảng 4 cũng cho thấy augmentation là biến nặng nhất (bỏ random-crop mất **8.8 điểm**, lớn hơn đổi loss +1.9 và đổi lr). Nên E6 = augmentation, làm trước, và nó **không cần code**.
+- **Bỏ lý do "official không dùng".** Baseline khoá theo recipe official vì recipe đó đạt 0.6083 và là mốc đối chiếu. Ta đã ở 0.6851, tức **đã vượt nó**, nên "official không dùng" không còn là lập luận đủ để giữ `intensity_prob: 0`. Baseline vẫn giữ nguyên làm mốc; E6 là file riêng.
+- **rot90 VẪN tắt, có chủ ý.** Gan phải, lách trái, cột sống sau — xoay 90° tạo ra giải phẫu không tồn tại. Lật thì hợp lệ (situs inversus có thật), xoay 90° thì không. Ràng buộc miền, không phải khẩu vị.
+- **Bắt được một tham số sai của chính mình trước khi đốt GPU.** Đặt `translate_voxels: [12, 12, 6]`, rồi tính lại theo hình học crop: `margin_factor 1.6` trên khung 112×112×32 cho tổn thương ~70×70×20 và lề mỗi bên 21/21/**6** voxel. Dịch 6 theo Z **dùng 100% lề** — rìa tổn thương chạm biên, tức là cắt cụt chính vật cần phân loại. Sửa về `[12, 12, 4]`: trong mặt phẳng dùng 57% lề, Z giữ nguyên. **Test transform skip toàn bộ ở máy local (không có torch)** nên phép kiểm hình học này là thứ duy nhất bắt được.
+- **Chiến lược ngân sách: sàng trên fold 1+2 (7.4h) rồi mới xác nhận trên 5 fold.** Ba lần sàng mỗi 2 session, thay vì một lần đo đầy đủ. CI của 2 fold (~±0.13) đủ để loại ý tưởng tệ, không đủ để chốt ý tưởng tốt — nên bước xác nhận là bắt buộc.
+- **Đo trên out-of-fold 394 ca** (người dùng chọn), chấp nhận thiên lệch lạc quan +0.079 do chọn epoch, và **phải ghi rõ trong báo cáo**.
+
+**Kế hoạch còn lại đã chốt với người dùng:** cắt External/OOD, cắt ablation kiến trúc, cắt ensemble nhiều seed. Hàng đợi: E6 augmentation → TTA → EMA → backbone pretrained (làm song song).
+
+**Kết quả / số liệu:** Chưa có số mới. `e6_aug.yaml` khác baseline đúng 7 khoá, tất cả trong `data.augment` + `output_dir`; transform dựng ra 4 phép (thêm `RandomIntensity`). `test_protocol_conformance` vẫn xanh (baseline không bị đụng). Gate PASS.
+
+**Dang dở:**
+- [ ] **Chạy E6 trên Kaggle**, `FOLDS = [1, 2]`.
+- [ ] TTA + EMA (code local, chưa làm).
+- [ ] Backbone pretrained (chưa làm).
+- [ ] Hình cho report, `stats.py`, report cuối, README — đều chưa.
+
+**Điểm vào phiên sau:** `notebooks/09_cv_runner.ipynb`, `CONFIG_NAME = "e6_aug.yaml"`, `FOLDS = [1, 2]`. So với E4 **trên đúng hai fold đó** (E4 fold1 0.7001, fold2 0.6771), bằng bootstrap ghép cặp — không so với con số gộp 394 ca.
+
+**Cảnh báo cho tool sau:**
+- **Đừng nới `translate_voxels` theo Z quá 4.** Lề theo Z chỉ 6 voxel do `margin_factor 1.6` trên 32 lát. Muốn nới thì phải đổi `margin_factor` và build lại cache — tức là đổi dữ liệu, thí nghiệm khác.
+- **Đừng bật `rot90_prob`.** Lý do là giải phẫu, không phải hiệu năng.
+- **Test transform skip hết ở máy không có torch.** Mọi tham số augmentation phải kiểm bằng hình học trước khi chạy.
+- **Sàng 2 fold không đủ để chốt.** CI ~±0.13; dùng để loại, không dùng để kết luận.
