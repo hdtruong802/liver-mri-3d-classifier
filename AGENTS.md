@@ -242,6 +242,44 @@ Trung bình 5 fold 0.6875 ± 0.0281 (SD mẫu), khoảng 0.662–0.730. **Con s�
 
 ⚠️ Vẫn là **val out-of-fold, không phải test-104**. Không so trực tiếp 0.6851 với bảng văn liệu ở trên.
 
+### E6 augmentation mạnh hơn — null trên trung bình, nhưng hai fold đi NGƯỢC nhau (2026-08-05, WORKLOG S-102)
+
+Cùng 162 ca (fold 1+2). Khác baseline **chỉ trong `data.augment`**: xoay 10°→15° (áp 80% ảnh), tịnh tiến 8→12 voxel trong mặt phẳng, và **bật nhiễu cường độ** (baseline tắt).
+
+| fold | n | E4 | E6 | hiệu | epoch tốt nhất |
+|---|---|---|---|---|---|
+| 1 | 82 | 0.7001 | **0.7580** | **+0.058** | 231 → 267 |
+| 2 | 80 | 0.6771 | **0.5922** | **−0.085** | 297 → 110 |
+| gộp | 162 | 0.6879 | 0.6739 | −0.014 | — |
+
+Bootstrap ghép cặp 2000 lần: macro-F1 **−0.014** [−0.078, +0.052] P=0.68 · accuracy −0.007 P=0.75 · ECE +0.005 P=0.91. **Không có ý nghĩa thống kê.**
+
+**Nhưng đừng đọc đây là "augmentation vô ích" — có hai hiệu ứng ngược chiều triệt tiêu nhau.**
+
+**Bằng chứng 1 — fold 1 là con số tốt nhất dự án từng có, và nó ổn định.** Trung bình macro-F1 **50 epoch cuối**: E6 **0.701** so với E4 0.607. Không phải một đỉnh may mắn. Khoảng cách train/val cũng hẹp lại (+1.257 so với +1.495).
+
+**Bằng chứng 2 — fold 2 không phải "epoch xấu", cả run sập.** `val_loss` chạm đáy ở **epoch 5** (E4 fold 2: epoch 79). Trung bình 50 epoch cuối 0.535 so với 0.572.
+
+**Bằng chứng 3 — bảng từng lớp có cấu trúc rõ, không phải nhiễu:**
+
+| lớp | n | E4 | E6 | hiệu |
+|---|---|---|---|---|
+| nang | 18 | 0.727 | 0.857 | **+0.130** |
+| FNH | 15 | 0.759 | 0.778 | +0.019 |
+| u máu | 26 | 0.833 | 0.840 | +0.007 |
+| HCC | 50 | 0.783 | 0.761 | −0.022 |
+| áp-xe | 18 | 0.778 | 0.743 | −0.035 |
+| **ICC** | 19 | 0.449 | 0.364 | **−0.085** |
+| **di căn** | 16 | 0.486 | 0.375 | **−0.111** |
+
+⚠️ **Hai lớp yếu nhất — đúng hai lớp đang kéo macro-F1 xuống — TỆ ĐI nhiều nhất.**
+
+**Giả thuyết (chưa chứng minh):** `RandomIntensity` áp scale/shift **độc lập cho từng pha** (`src/data/transforms.py`, `per_channel`). Chẩn đoán u gan trên MRI đa pha dựa vào cường độ **tương đối giữa các pha** — ngấm rồi thải (HCC), ngấm tiến triển (ICC), viền ngấm (di căn). Xáo mỗi pha ±10% độc lập là đổ nhiễu thẳng lên tín hiệu phân biệt. Khớp bảng trên: hai lớp phụ thuộc động học nhất tụt mạnh nhất, còn **nang** — nhận ra bằng tín hiệu tuyệt đối chứ không bằng động học — tăng nhiều nhất.
+
+`configs/e6b_geom_only.yaml` tách đúng một biến (`intensity_prob: 0`) để trả lời.
+
+⚠️ Giả thuyết cạnh tranh chưa loại được: augmentation mạnh làm **tối ưu hoá bất ổn** ở fold 2 (`val_loss` đáy ở epoch 5). Hai cách giải thích này không loại trừ nhau.
+
 ### E5 focal loss — 2/5 fold, chưa kết luận được (2026-08-05, WORKLOG S-094)
 
 Cùng 162 ca (fold 1+2), cùng split, cùng seed. Config khác baseline **đúng 3 khoá**: `loss.name`, `loss.gamma`, `output_dir`.

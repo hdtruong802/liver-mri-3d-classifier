@@ -3998,3 +3998,50 @@ API kiểm đủ: `pred` 200 ở cả 4 ca · `true` 200 ở `MR207769`, 404 ở
 - **Đừng thêm rot90 vào TTA.**
 - **`load_medicalnet_weights` nổ khi khớp <50% là TÍNH NĂNG**, đừng hạ ngưỡng cho "chạy được".
 - `e8_pretrained.yaml` đổi kiến trúc nên khác baseline nhiều hơn một khối — dùng `SCOPE = "model."` ở notebook 09, không phải scope mặc định.
+
+## S-102 · 2026-08-05 · claude-code
+
+**Mục tiêu phiên:** Đánh giá E6 (augmentation mạnh hơn) mà người dùng vừa tải về `runs/E6`.
+
+**Nhánh / commit:** `main` · `f723355` → *(commit đang chờ)*
+
+**Đã đụng file:** `configs/e6b_geom_only.yaml` (**mới**), `AGENTS.md` §5, `WORKLOG.md`.
+
+**Quyết định & lý do:**
+
+- **Xác minh phạm vi trước khi đọc số.** E6 khác baseline đúng trong `data.augment` (6 khoá) + `output_dir`; không có gì ngoài phạm vi. Cổng 0 của notebook 09 đã làm việc của nó.
+- **KHÔNG kết luận "augmentation vô ích" từ con số gộp.** Bootstrap ghép cặp cho −0.014 [−0.078, +0.052] P=0.68 — null. Nhưng hai fold đi **ngược nhau** (+0.058 và −0.085), và null ở đây là kết quả của hai hiệu ứng trái chiều triệt tiêu, không phải "không có hiệu ứng". Báo null mà bỏ qua cấu trúc bên dưới là mất đúng thông tin đáng giá.
+- **Ba bằng chứng cho thấy có cấu trúc thật:** (1) fold 1 đạt **0.7580**, cao nhất dự án từng có, và **trung bình 50 epoch cuối 0.701 so với 0.607** — không phải đỉnh may mắn; (2) fold 2 không phải "epoch xấu" mà **cả run sập** — `val_loss` chạm đáy ở epoch **5**, so với epoch 79 của E4; (3) bảng từng lớp có thứ tự rõ ràng chứ không tán loạn.
+- **Giả thuyết cơ chế, từ bảng từng lớp:** `RandomIntensity` áp scale/shift **độc lập cho từng pha** (`per_channel` trong `src/data/transforms.py`). Chẩn đoán u gan đa pha dựa vào cường độ **tương đối giữa các pha** — ngấm rồi thải (HCC), ngấm tiến triển (ICC), viền ngấm (di căn). Xáo mỗi pha ±10% độc lập là đổ nhiễu lên đúng tín hiệu phân biệt. Bảng khớp: **ICC −0.085, di căn −0.111** (hai lớp phụ thuộc động học nhất) so với **nang +0.130** (nhận ra bằng tín hiệu tuyệt đối, không cần động học).
+- **Docstring của `RandomIntensity` gọi việc lệch giữa kênh là "cố ý"** — mô phỏng dao động khuếch đại giữa các lần chụp. Lập luận đó hợp lý cho biến thiên thu nhận, nhưng ở bài toán này nó đánh vào chính đặc trưng chẩn đoán. **Không sửa transform** — nó vẫn đúng cho mục đích khác; chỉ tắt qua config ở E6b.
+- **E6b tách đúng một biến** (`intensity_prob: 0`, khác E6 duy nhất khoá đó). Ghi rõ ba cách đọc kết quả ngay trong config, để phiên sau không phải suy lại.
+- **Giả thuyết cạnh tranh KHÔNG loại được:** augmentation mạnh làm tối ưu hoá bất ổn ở fold 2 (`val_loss` đáy epoch 5). Hai cách giải thích không loại trừ nhau, và E6b cũng phân biệt được phần nào: nếu E6b vẫn sập ở fold 2 thì nguyên nhân là hình học/bất ổn, không phải cường độ.
+
+**Kết quả / số liệu:**
+
+| fold | n | E4 | E6 | hiệu |
+|---|---|---|---|---|
+| 1 | 82 | 0.7001 | **0.7580** | **+0.058** |
+| 2 | 80 | 0.6771 | **0.5922** | **−0.085** |
+| gộp | 162 | 0.6879 | 0.6739 | −0.014 |
+
+Bootstrap ghép cặp: macro-F1 −0.014 [−0.078, +0.052] P=0.68 · accuracy −0.007 P=0.75 · ECE +0.005 P=0.91.
+
+Từng lớp (gộp): nang +0.130 · FNH +0.019 · u máu +0.007 · HCC −0.022 · áp-xe −0.035 · **ICC −0.085** · **di căn −0.111**.
+
+Train loss cuối cao hơn ở E6 (0.387/0.362 so với 0.301/0.274) — augmentation thật sự làm bài toán khó hơn, không phải cấu hình chạy hờ.
+
+**Dang dở:**
+- [ ] **E6b** (2 fold) — thí nghiệm rẻ nhất và có giá trị thông tin cao nhất hiện tại.
+- [ ] E7 (EMA), E8 (pretrained, cần weights).
+- [ ] TTA chưa chạy — dùng lại checkpoint có sẵn, vài phút.
+- [ ] `pytest tests/test_tta_ema.py` chưa từng chạy với torch thật.
+- [ ] Hình cho report, `stats.py`, report cuối, README.
+
+**Điểm vào phiên sau:** Chạy E6b (`CONFIG_NAME = "e6b_geom_only.yaml"`, `SCOPE = "data.augment."`, `FOLDS = [1, 2]`). Nếu fold 1 giữ được ~0.75 **và** fold 2 không sập nữa thì giả thuyết cường độ đứng, và E6b thành cấu hình chính thay E4.
+
+**Cảnh báo cho tool sau:**
+- **Đừng báo E6 là "augmentation không có tác dụng".** Null gộp che hai hiệu ứng ngược chiều; fold 1 đạt 0.7580 với 50 epoch cuối trung bình 0.701.
+- **Hai lớp yếu (ICC, di căn) TỆ ĐI ở E6.** Với mục tiêu macro-F1 thì đó là hướng sai, vì chính hai lớp đó đang kéo trung bình xuống.
+- **`RandomIntensity` xáo từng pha độc lập.** Bất kỳ thí nghiệm augmentation nào cũng phải cân nhắc điều này trước, không phải sau.
+- **fold 2 của E6 có `val_loss` đáy ở epoch 5.** Nếu thí nghiệm sau cũng vậy thì vấn đề là ổn định tối ưu hoá, không phải augmentation cụ thể nào.
