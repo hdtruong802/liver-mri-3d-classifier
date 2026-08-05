@@ -13,7 +13,7 @@ Ba thứ ở đây đáng đọc kỹ vì chúng là ràng buộc Kaggle chứ k
 
 from __future__ import annotations
 
-from collections.abc import Sequence
+from collections.abc import Callable, Sequence
 from pathlib import Path
 from typing import Any
 
@@ -78,8 +78,14 @@ def run_epoch(
     scaler: Any | None = None,
     accum_steps: int = 1,
     amp: bool = True,
+    on_step: Callable[[], None] | None = None,
 ) -> dict[str, Any]:
     """Chạy một lượt qua loader. Có `optimizer` = train, không có = eval.
+
+    `on_step` được gọi sau **mỗi** lần `optimizer.step()` thật sự chạy (tức là sau khi
+    đã gom đủ `accum_steps`), không phải sau mỗi batch. Dùng cho EMA: hằng số thời gian
+    của EMA tính theo số lần cập nhật trọng số, nên gọi nhầm nhịp sẽ làm nó trơn sai
+    mức mà không có gì báo.
 
     Trả về ``{"loss", "labels", "probs", "patient_ids"}``. Xác suất được trả ra
     (không chỉ nhãn đoán) để W5 dùng lại đúng file này cho calibration và selective
@@ -124,6 +130,8 @@ def run_epoch(
                     else:
                         optimizer.step()
                     optimizer.zero_grad(set_to_none=True)
+                    if on_step is not None:
+                        on_step()
 
             batch_size = labels.shape[0]
             total_loss += float(loss.detach()) * batch_size
@@ -141,6 +149,8 @@ def run_epoch(
         else:
             optimizer.step()
         optimizer.zero_grad(set_to_none=True)
+        if on_step is not None:
+            on_step()
 
     return {
         "loss": total_loss / max(total_count, 1),

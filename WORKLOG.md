@@ -3958,3 +3958,43 @@ API kiểm đủ: `pred` 200 ở cả 4 ca · `true` 200 ở `MR207769`, 404 ở
 **Cảnh báo cho tool sau:**
 - **Đổi thí nghiệm = đổi `CONFIG_NAME` **và** `SCOPE`.** Quên `SCOPE` thì cổng báo động giả, và sau vài lần báo giả người ta sẽ bỏ qua nó — lúc đó nó vô dụng đúng lúc cần nhất.
 - **Đừng tạo notebook mới cho mỗi thí nghiệm.** 09 là runner chung.
+
+## S-101 · 2026-08-05 · claude-code
+
+**Mục tiêu phiên:** Dựng ba hướng cải thiện macro-F1 chạy song song với E6: TTA, EMA, backbone pretrained.
+
+**Nhánh / commit:** `main` · `2e02b4b` → *(commit đang chờ)*
+
+**Đã đụng file:** `src/eval/tta.py` · `src/train/ema.py` · `src/models/resnet3d.py` (**mới**) · `src/models/__init__.py` · `src/train/{loop,run}.py` · `configs/e7_ema.yaml`, `configs/e8_pretrained.yaml` (**mới**) · `tests/test_tta_ema.py` (**mới**) · `AGENTS.md` §6.
+
+**Quyết định & lý do:**
+
+- **TTA chỉ dùng phép LẬT, không rot90.** TTA chỉ đúng khi model *đáng lẽ* bất biến với phép biến đổi. Ở đây đó không phải giả định mà là sự thật của quá trình train: `flip_prob: 0.5` trên cả ba trục. `rot90_prob: 0` (có chủ ý, lý do giải phẫu) nên model chưa từng được dạy bất biến với xoay 90° — thêm nó vào TTA là trung bình hoá qua thứ model chưa học.
+- **Trung bình XÁC SUẤT, không trung bình logit.** Trung bình logit khuếch đại lượt tự tin nhất và phá tính chất "tổng bằng 1" mà toàn bộ phần calibration phía sau dựa vào.
+- **EMA: lý do là một con số, không phải "thường tốt hơn".** Thiên lệch chọn epoch +0.079 (S-078). EMA là trung bình trượt của ~11.7k bước nên không nhảy theo epoch. `decay=0.999` suy từ ngân sách bước của chính fold này (312 mẫu, batch 2, accum 4 ⇒ ~39 cập nhật/epoch), cho hằng số thời gian ~26 epoch — không phải lấy mặc định phổ biến.
+- **EMA chỉ trung bình THAM SỐ, sao chép BUFFER.** `running_mean`/`running_var` bản thân **đã là** thống kê trượt của BatchNorm; EMA chồng lên là làm trơn hai lần, và `num_batches_tracked` là số nguyên đếm bước — trung bình nó ra số vô nghĩa. Có test riêng, vì bản "EMA cả state_dict" vẫn chạy và vẫn ra số.
+- **Khi EMA bật, `best.pt` lưu trọng số ĐƯỢC ĐÁNH GIÁ (EMA), không phải trọng số tức thời.** Nếu không thì con số báo cáo và file checkpoint là hai model khác nhau — sai lệch này về sau không ai truy ra được.
+- **Resume với EMA: nổ nếu checkpoint cũ không có trạng thái EMA.** Bắt đầu lại EMA từ giữa chừng cho ra một đường EMA khác hẳn; đó không còn là cùng một thí nghiệm.
+- **`on_step` gọi sau mỗi `optimizer.step()` THẬT, không phải mỗi batch.** Với `accum_steps: 4` thì hai nhịp lệch nhau 4 lần, và EMA sẽ trơn sai mức mà không có gì báo.
+- **Pretrained: chia trọng số conv đầu cho `C_in` khi nhân bản 1→8 kênh.** Conv cộng theo chiều kênh vào; 8 thì MRI của cùng một ca có thống kê gần nhau nên không triệt tiêu, và nhân bản không chia sẽ làm tiền kích hoạt lớn ~8 lần. Mọi BatchNorm phía sau đã học thống kê cho thang cũ — sai thang 8 lần phá đúng thứ khiến pretrained có giá trị. Cùng thủ thuật inflation của I3D, áp cho chiều kênh.
+- **Cổng tỉ lệ khớp khoá ≥50%.** `load_state_dict(strict=False)` **không báo gì** khi khớp 0 khoá: model vẫn chạy, vẫn train, vẫn ra số, và thí nghiệm "có pretrained" lặng lẽ thành "không pretrained". Đây là chế độ hỏng nguy hiểm nhất của cả ba hướng.
+- **E8 giữ `dropout_prob: 0.2`** dù ResNet của MONAI không có dropout sẵn — `src/eval/mc_dropout.py` cần ít nhất một lớp Dropout, và bất định epistemic là đóng góp headline. Thắng accuracy mà mất nó thì không bù lại.
+
+**Kết quả / số liệu:** Chưa có số. `e7_ema` khác baseline đúng `train.ema_decay` (+ `output_dir`); `e8_pretrained` khác đúng trong `model.` (5 khoá). 486 test pass (16 mới — **10 test TTA/EMA skip** vì máy local không có torch), gate PASS.
+
+⚠️ **Không dòng nào của TTA, EMA, hay pretrained từng chạy với torch thật.** Đây là rủi ro chính của phiên này.
+
+**Dang dở:**
+- [ ] E6 đang chờ người dùng chạy.
+- [ ] E7/E8 chưa chạy. **E8 cần upload MedicalNet weights lên Kaggle trước.**
+- [ ] TTA cần một cell notebook để chạy trên checkpoint đã có.
+- [ ] Hình cho report, `stats.py`, report cuối, README.
+
+**Điểm vào phiên sau:** Chạy `pytest tests/test_tta_ema.py` ở nơi có torch **trước** khi phóng E7 — 10 test đó là thứ duy nhất chặn lỗi số học của EMA, và một lỗi ở đó tốn 7.4h GPU.
+
+**Cảnh báo cho tool sau:**
+- **EMA bật ⇒ mọi số trong `train_log.csv`, `metrics_best.json`, `val_probs_*.npz` là của model EMA.** Không trộn với số của run không EMA mà không ghi rõ.
+- **Đừng EMA cả `state_dict`.** Buffer phải sao chép.
+- **Đừng thêm rot90 vào TTA.**
+- **`load_medicalnet_weights` nổ khi khớp <50% là TÍNH NĂNG**, đừng hạ ngưỡng cho "chạy được".
+- `e8_pretrained.yaml` đổi kiến trúc nên khác baseline nhiều hơn một khối — dùng `SCOPE = "model."` ở notebook 09, không phải scope mặc định.

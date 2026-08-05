@@ -374,6 +374,9 @@ Bootstrap **ghép cặp** trên hiệu (2000 lần, phân tầng, mức bệnh n
 | Train baseline 3D-patch (1 fold) | `python -m src.train.run --config configs/baseline_3dpatch.yaml --fold 1` | sẵn sàng (W2 ngày 5); resume tự động từ `last.pt`; cần `LLDMMRI_CACHE_DIR` trỏ tới cache |
 | **Train một fold, config bất kỳ** | `python -m src.train.run --config configs/e5_focal.yaml --fold 1` | sẵn sàng (W4); `configs/e5_focal.yaml` = baseline + focal loss, khác đúng khối `loss:` |
 | **Sàng thí nghiệm (rẻ)** | `notebooks/09_cv_runner.ipynb` với `FOLDS = [1, 2]` | 7.4h = 1 session. Sàng trên 2 fold rồi mới xác nhận cái thắng trên 5 fold — **đừng chạy 5 fold cho một ý tưởng chưa đo** |
+| **TTA** (GPU, vài phút) | `src/eval/tta.py::tta_predict` — dùng lại checkpoint đã có, **không train lại**. Chỉ lật; `rot90` không hợp lệ về giải phẫu |
+| **EMA** | `configs/e7_ema.yaml` (`train.ema_decay: 0.999`) | mặc định TẮT ở baseline. Khi bật, **mọi số trong `train_log.csv`/`metrics_best.json`/`val_probs_*.npz` là của model EMA** |
+| **Backbone pretrained** | `configs/e8_pretrained.yaml` | cần upload MedicalNet `resnet_18_23dataset.pth` thành Kaggle Dataset trước; `load_medicalnet_weights` nổ nếu khớp <50% khoá |
 | **Chạy CV trên Kaggle** | mở `notebooks/09_cv_runner.ipynb`, đặt `CONFIG_NAME` + `FOLDS` | sẵn sàng (W4); **thay cho notebook 07** (07 khoá cứng vào baseline và còn logic dò đường dẫn cũ đã sai) |
 | Đánh giá (CPU, không cần GPU) | `python -m src.eval.run --run-dir artifacts/runs/baseline_3dpatch` | sẵn sàng (W3); đọc `val_probs_*.npz` đã lưu → bảng metric ± CI bootstrap + gộp out-of-fold |
 | **Bảng trustworthiness** (CPU) | `python -m src.eval.trust --run-dir runs/E4_cv_results` | sẵn sàng (W3); calibration + selective từ cùng các `.npz`. Temperature fit **leave-one-fold-out**, không fit gộp — xem docstring module |
