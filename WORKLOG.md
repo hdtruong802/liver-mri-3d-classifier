@@ -3772,3 +3772,37 @@ Ngoài ra: MCE xấu đi (0.384 → 0.499), AURC xấu đi nhẹ (0.181 → 0.19
 - **Đừng trộn hai chế độ giữa các ca demo.** Chúng không so được với nhau.
 - Trường `layer` trong `.npz` giờ có dạng `"denseblock3 · hires"` — UI hiển thị nguyên chuỗi này, đừng parse nó.
 - `p` cao không phải nguyên nhân bản đồ toàn 0. Sự trùng hợp ở hai ca đầu là ngẫu nhiên; hàm backward qua logit chứ không qua softmax.
+
+## S-096 · 2026-08-05 · claude-code
+
+**Mục tiêu phiên:** `MR207769` vẫn cho bản đồ toàn 0 sau khi đổi sang HiResCAM ở S-095.
+
+**Nhánh / commit:** `main` · `9c7ca50` → *(commit đang chờ)*
+
+**Đã đụng file:** `notebooks/10_gradcam.ipynb`, `src/xai/gradcam.py`, `tests/test_xai_gradcam.py`.
+
+**Quyết định & lý do:**
+
+- **Bằng chứng quyết định nằm ngay trong output, không phải ở chỗ báo lỗi.** `MR170828` in `p=0.533` ở lần chạy trước và `p=0.616` ở lần này. Cùng checkpoint, cùng đầu vào, cùng seed — inference **phải** tất định. Con số đổi nghĩa là model không ở chế độ eval. Chỗ báo lỗi (`bản đồ toàn 0`) chỉ là triệu chứng ở cuối chuỗi.
+- **Nguyên nhân: notebook không gọi `model.eval()`.** `build_model` trả về model ở chế độ train — mặc định của `nn.Module`, không phải lỗi của `build_model`. Hai hậu quả: (1) dropout `p=0.2` vẫn bật → xác suất đổi mỗi lần chạy; (2) BatchNorm dùng thống kê **của batch**, mà batch ở đây là **1 mẫu** → mỗi kênh bị chuẩn hoá bằng chính nó, khác hẳn running stats đã học suốt 300 epoch.
+- **Đây là lý do bản đồ toàn 0, không phải hai giả thuyết trước.** `grad_cam_3d` tự gọi `model.eval()` bên trong, nên bản đồ được tính ở eval — nhưng `target_class` truyền vào lại lấy từ `pred` tính ở **train mode**. Giải thích một lớp mà model ở eval không đoán thì gradient chống lại chính nó, và tổ hợp âm ở mọi voxel là hệ quả tự nhiên. HiResCAM ở S-095 vẫn đúng về mặt phương pháp (dense block có 61% đặc trưng âm, đã đo được), nhưng nó không phải nguyên nhân của ca này.
+- **Đây là lần thứ ba chẩn đoán cùng một triệu chứng.** S-095 giả thuyết bão hoà softmax (sai — backward qua logit), S-095 đổi sang HiResCAM (đúng về phương pháp, không phải nguyên nhân), S-096 mới ra nguyên nhân thật. Bài học: **triệu chứng "bản đồ toàn 0" nằm ở cuối một chuỗi dài; đọc những con số KHÔNG được báo lỗi trước.**
+- **Thêm `assert not any(m.training for m in model.modules())`** ngay sau `eval()` trong notebook. Quên `eval()` là lỗi im lặng: nó không nổ, chỉ làm mọi con số sai một chút.
+- **Thông báo lỗi giờ liệt kê ba bước kiểm theo thứ tự**, đặt `model.eval()` lên đầu.
+
+**Kết quả / số liệu:** Chưa có kết quả thật — phải chạy lại. Mọi con số `p` đã in ở hai lần chạy trước đều **không dùng được** (tính ở train mode). 467 test pass (1 mới), ruff sạch, gate PASS.
+
+⚠️ Test XAI vẫn skip ở máy local; `test_du_doan_o_train_mode_KHAC_o_eval_mode` chưa từng chạy thật.
+
+**Dang dở:**
+- [ ] **Chạy lại notebook 10 lần thứ ba.** Nếu vẫn toàn 0 sau khi đã có `eval()` thì đó mới là kết luận về tầng, và thông báo lỗi chỉ sang bước 3 (chọn tầng nông hơn).
+- [ ] Fold 3–5 của E5 — đang chờ quyết định.
+- [ ] Reliability diagram + risk–coverage chưa vẽ.
+- [ ] Chưa chạm test-104.
+
+**Điểm vào phiên sau:** Chạy lại `notebooks/10_gradcam.ipynb`. Kiểm ngay: `MR170828` phải cho **cùng một `p`** ở hai lần chạy liên tiếp. Nếu còn đổi thì `eval()` chưa ăn.
+
+**Cảnh báo cho tool sau:**
+- **Mọi notebook nạp checkpoint để suy luận PHẢI gọi `model.eval()`.** Kiểm notebook 08 (MC-dropout) — nó cố ý bật lại dropout qua `enable_dropout`, hàm đó gọi `model.eval()` trước nên an toàn. Notebook nào khác nạp model thì phải soi lại.
+- **Xác suất đổi giữa hai lần chạy = model không ở eval.** Đây là dấu hiệu rẻ nhất và chắc nhất, kiểm nó trước mọi chẩn đoán khác.
+- Kết quả `p` in ở WORKLOG S-095 (`MR170828 p=0.533`, `p=0.616`) là **rác**, đừng trích dẫn.

@@ -114,6 +114,27 @@ def test_tu_choi_tang_co_chieu_bang_1(model):
         grad_cam_3d(model, thin, target_class=0, layer="norm5")
 
 
+def test_du_doan_o_train_mode_KHAC_o_eval_mode(model, volume):
+    """Neo lý do notebook phải gọi `model.eval()` (WORKLOG S-096).
+
+    `build_model` trả về model ở chế độ train. Ở đó dropout còn bật và BatchNorm dùng
+    thống kê của batch — với batch = 1 thì mỗi kênh bị chuẩn hoá bằng chính nó. Lớp
+    đoán ra khác hẳn, và Grad-CAM sẽ giải thích một lớp mà model không thật sự đoán.
+    """
+    model.train()
+    with torch.no_grad():
+        a = model(volume)
+        b = model(volume)
+    model.eval()
+    with torch.no_grad():
+        c = model(volume)
+        d = model(volume)
+
+    assert not torch.allclose(a, b), "train mode phải KHÔNG tất định (dropout)"
+    torch.testing.assert_close(c, d)  # eval mode phải tất định
+    assert not torch.allclose(a, c, atol=1e-3), "hai chế độ phải cho kết quả khác nhau"
+
+
 def test_model_ve_dung_che_do_sau_khi_chay(model, volume):
     """Grad-CAM chuyển model sang eval; nếu quên trả về thì vòng train sau đó hỏng."""
     model.train()

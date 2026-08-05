@@ -191,13 +191,20 @@ def grad_cam_3d(
             raise ValueError(f"mode phải là 'hires' hoặc 'gradcam', nhận {mode!r}")
 
         cam_raw = F.relu(combined)
-        if float(cam_raw.max()) <= 0:
+        if float(cam_raw.max().detach()) <= 0:
+            am = float((activations < 0).float().mean().detach())
             raise ValueError(
-                f"bản đồ toàn 0 ở tầng {layer!r} với mode={mode!r}: tổ hợp âm ở mọi "
-                f"voxel (min {float(combined.min()):.3e}, max {float(combined.max()):.3e}). "
-                f"Đặc trưng của tầng này có {float((activations < 0).float().mean()):.0%} "
-                "giá trị âm — giả định 'đặc trưng không âm' của Grad-CAM gốc bị vi phạm. "
-                "Dùng mode='hires', hoặc chọn tầng khác."
+                f"bản đồ toàn 0 ở tầng {layer!r}, mode={mode!r}: tổ hợp ≤ 0 ở mọi voxel "
+                f"(min {float(combined.min().detach()):.3e}, "
+                f"max {float(combined.max().detach()):.3e}; {am:.0%} đặc trưng âm).\n"
+                "Kiểm theo thứ tự này:\n"
+                "  1. `model.eval()` đã gọi CHƯA? `build_model` trả về model ở chế độ "
+                "train, và ở đó BatchNorm dùng thống kê của batch (batch=1 thì vô "
+                "nghĩa) còn dropout vẫn bật. Lớp đích tính ở chế độ train có thể khác "
+                "hẳn lớp model thật sự đoán — khi đó gradient chống lại chính nó.\n"
+                "  2. `target_class` có đúng là lớp model đoán ở chế độ eval không?\n"
+                f"  3. Nếu hai điều trên đã đúng: tầng {layer!r} thật sự không đóng góp "
+                "dương cho lớp này. Thử tầng nông hơn (xem `feature_layer_shapes`)."
             )
 
         size = output_shape or tuple(int(v) for v in volume.shape[2:])
