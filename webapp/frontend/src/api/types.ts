@@ -99,6 +99,11 @@ export interface GradCamInfo {
   true_class_index: number | null;
   /** Tổng bằng 1. Là saliency, KHÔNG phải ablation. */
   phase_importance: number[];
+  /**
+   * 'ok' | 'suy-bien' | 'khong-can'. `suy-bien` nghĩa là mô hình KHÔNG tìm thấy bằng
+   * chứng nào cho lớp thật — là phát hiện, không phải lỗi hiển thị.
+   */
+  true_map_status: string;
   note: string;
 }
 

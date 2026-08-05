@@ -14,6 +14,7 @@ pytest.importorskip("monai", reason="cần monai")
 from src.models import build_model  # noqa: E402
 from src.xai.gradcam import (  # noqa: E402
     CANDIDATE_LAYERS,
+    CamResult,
     feature_layer_shapes,
     grad_cam_3d,
     phase_importance,
@@ -54,7 +55,8 @@ def test_resolve_layer_bao_loi_doc_duoc(model):
 
 
 def test_cam_dung_khoang_va_dung_kich_thuoc(model, volume):
-    cam, native = grad_cam_3d(model, volume, target_class=0, layer="denseblock3")
+    r = grad_cam_3d(model, volume, target_class=0, layer="denseblock3")
+    cam, native = r.cam, r.native_shape
     assert cam.shape == SHAPE[2:]
     assert cam.min() >= 0.0 and cam.max() <= 1.0
     assert len(native) == 3 and all(v >= 2 for v in native)
@@ -62,13 +64,13 @@ def test_cam_dung_khoang_va_dung_kich_thuoc(model, volume):
 
 def test_cam_khong_phai_hang_so(model, volume):
     """Bản đồ phẳng vẫn render ra ảnh đẹp — chỉ test này phát hiện được."""
-    cam, _ = grad_cam_3d(model, volume, target_class=0, layer="denseblock3")
+    cam = grad_cam_3d(model, volume, target_class=0, layer="denseblock3").cam
     assert cam.std() > 1e-6, "bản đồ hằng số: hook sai tầng hoặc gradient không chảy về"
 
 
 @pytest.mark.parametrize("mode", ["hires", "gradcam"])
 def test_hai_che_do_deu_chay_va_cho_ket_qua_khac_nhau(model, volume, mode):
-    cam, _ = grad_cam_3d(model, volume, target_class=0, layer="denseblock3", mode=mode)
+    cam = grad_cam_3d(model, volume, target_class=0, layer="denseblock3", mode=mode).cam
     assert cam.min() >= 0.0 and cam.max() == pytest.approx(1.0)
 
 
@@ -102,9 +104,40 @@ def test_dac_trung_dense_block_CO_gia_tri_am(model, volume):
 
 def test_cam_doi_theo_lop_dich(model, volume):
     """Giống nhau ở hai lớp nghĩa là `target_class` không được dùng."""
-    a, _ = grad_cam_3d(model, volume, target_class=0, layer="denseblock3")
-    b, _ = grad_cam_3d(model, volume, target_class=6, layer="denseblock3")
+    a = grad_cam_3d(model, volume, target_class=0, layer="denseblock3").cam
+    b = grad_cam_3d(model, volume, target_class=6, layer="denseblock3").cam
     assert not np.allclose(a, b)
+
+
+def test_tra_ve_CamResult_du_khoa(model, volume):
+    r = grad_cam_3d(model, volume, target_class=0, layer="denseblock3")
+    assert isinstance(r, CamResult)
+    assert r.degenerate is False
+    assert 0.0 <= r.negative_fraction <= 1.0
+    assert "đặc trưng âm" in r.explain()
+
+
+def test_ban_do_suy_bien_KHONG_no_ma_danh_dau(model, volume):
+    """Suy biến là kết quả, không phải lỗi — thư viện đo, người gọi đặt chính sách.
+
+    Neo hành vi đã sửa ở S-097: trước đó hàm `raise`, và điều đó chặn đúng phép phân
+    tích đáng giá nhất (bản đồ phản chứng cho lớp thật ở ca đoán sai).
+    """
+    import torch
+
+    # Ép suy biến bằng cách đảo dấu gradient: nhân logit đích với -1 không làm được
+    # từ ngoài, nên dùng một lớp mà model gần như chắc chắn không ủng hộ.
+    logits = None
+    model.eval()
+    with torch.no_grad():
+        logits = model(volume)[0]
+    worst = int(logits.argmin())
+    r = grad_cam_3d(model, volume, target_class=worst, layer="denseblock3")
+
+    assert isinstance(r, CamResult)  # không nổ, dù suy biến hay không
+    if r.degenerate:
+        assert r.cam.max() == 0.0
+        assert r.combined_max <= 0.0
 
 
 def test_tu_choi_tang_co_chieu_bang_1(model):

@@ -3806,3 +3806,44 @@ Ngoài ra: MCE xấu đi (0.384 → 0.499), AURC xấu đi nhẹ (0.181 → 0.19
 - **Mọi notebook nạp checkpoint để suy luận PHẢI gọi `model.eval()`.** Kiểm notebook 08 (MC-dropout) — nó cố ý bật lại dropout qua `enable_dropout`, hàm đó gọi `model.eval()` trước nên an toàn. Notebook nào khác nạp model thì phải soi lại.
 - **Xác suất đổi giữa hai lần chạy = model không ở eval.** Đây là dấu hiệu rẻ nhất và chắc nhất, kiểm nó trước mọi chẩn đoán khác.
 - Kết quả `p` in ở WORKLOG S-095 (`MR170828 p=0.533`, `p=0.616`) là **rác**, đừng trích dẫn.
+
+## S-097 · 2026-08-05 · claude-code
+
+**Mục tiêu phiên:** `MR207769` vẫn dừng ở `cam_true` sau khi sửa `model.eval()` ở S-096.
+
+**Nhánh / commit:** `main` · `ac54c42` → *(commit đang chờ)*
+
+**Đã đụng file:** `src/xai/gradcam.py` (thêm `CamResult`, bỏ `raise`), `notebooks/10_gradcam.ipynb`, `webapp/backend/{gradcam,schemas,demo_cases}.py`, `webapp/frontend/src/{api/types.ts,components/AttentionPanel.tsx}`, `tests/test_{xai,webapp}_gradcam.py`.
+
+**Quyết định & lý do:**
+
+- **`model.eval()` đã ăn.** Ba `cam_pred` đều chạy, `p` giờ tất định (1.000 / 0.936 / 1.000), và `p` của `MR207769` khớp đúng con số đã đo ở S-089 khi chọn ca demo. Sửa ở S-096 là đúng.
+- **Chỗ dừng còn lại KHÔNG phải lỗi.** Nó ở `cam_true` — bản đồ **phản chứng** cho lớp thật (di căn) mà model không đoán (nó đoán áp-xe, p=0.936). Model gán gần như 0 cho lớp thật, nên "không voxel nào đóng góp dương cho lớp đó" là một phát biểu **đúng**, và là phát hiện đáng giá nhất về ca thất bại này: model không chỉ chọn nhầm, nó **không tìm thấy bằng chứng nào cho đáp án đúng**.
+- **Lỗi thật là ở thiết kế API của tôi: thư viện không được đặt chính sách.** `grad_cam_3d` `raise` khi bản đồ suy biến — quyết định đó đúng cho lớp *đã đoán* (model chọn lớp nào thì phải có chỗ ủng hộ nó; không có là dấu hiệu sai tầng/sai chế độ) nhưng **sai cho lớp thật**. Cùng một hiện tượng, hai nghĩa ngược nhau. Giờ hàm trả `CamResult` kèm `degenerate` và số liệu chẩn đoán; **người gọi đặt chính sách**: notebook assert với `cam_pred`, ghi nhận với `cam_true`.
+- **Ghi thành chữ, không lưu bản đồ toàn 0.** Một bản đồ phẳng render thành mảng xám và đọc thành "chưa tính" — không phân biệt được với "đã tính, kết quả là không có gì". Hai điều rất khác nhau. Nên `.npz` mang `cam_true_status ∈ {ok, suy-bien, khong-can}`, backend đưa ra `GradCamInfo.true_map_status`, UI in một câu nói thẳng điều đó.
+- **Kiểm bằng mô phỏng toàn luồng vì máy local không có torch.** Thay `grad_cam_3d` bằng bản giả trả `CamResult`, giữ nguyên chính sách của cell 2, chạy notebook → `.npz` → backend → PNG → JSON. Cả 4 ca đúng như mong đợi, gồm ca `suy-bien`. Đây là cách duy nhất bắt lỗi luồng **trước** khi đốt GPU lần thứ tư.
+
+**Kết quả / số liệu:** Chưa có kết quả khoa học. Mô phỏng: `MR170828` khong-can · `MR207769` **suy-bien** (render `pred` OK, `true` không có) · `MR113627` khong-can · `MR127280` ok. `GradCamInfo` ra JSON đúng `true_map_status='suy-bien'`. 470 test pass (4 mới), typecheck + build sạch, gate PASS.
+
+**Bốn lần chẩn đoán cho một triệu chứng, ghi lại để không lặp:**
+
+| | giả thuyết | phán quyết |
+|---|---|---|
+| S-095 | bão hoà softmax | **sai** — backward qua logit |
+| S-095 | Grad-CAM giả định đặc trưng không âm | **đúng về phương pháp**, không phải nguyên nhân |
+| S-096 | thiếu `model.eval()` | **đúng** — sửa được 3/4 ca |
+| S-097 | `raise` là quyết định sai của thư viện | **đúng** — ca còn lại không phải lỗi |
+
+**Dang dở:**
+- [ ] **Chạy lại notebook 10.** Luồng đã mô phỏng xong, nhưng `CamResult` chưa từng chạy với torch thật.
+- [ ] Fold 3–5 của E5 — đang chờ quyết định (S-094 đề xuất dừng).
+- [ ] Reliability diagram + risk–coverage chưa vẽ.
+- [ ] Chưa chạm test-104.
+
+**Điểm vào phiên sau:** Chạy `notebooks/10_gradcam.ipynb`. Nếu `MR207769` in `! bản đồ lớp thật suy biến` rồi chạy tiếp thì đúng như thiết kế, không phải lỗi.
+
+**Cảnh báo cho tool sau:**
+- **`grad_cam_3d` trả `CamResult`, không phải tuple.** Đổi từ S-097.
+- **`degenerate=True` không phải lỗi.** Nghĩa phụ thuộc lớp đích — đọc docstring `CamResult` trước khi thêm `raise` trở lại.
+- **Đừng lưu bản đồ toàn 0.** Nó không phân biệt được với "chưa tính".
+- Máy local không có torch nên toàn bộ `tests/test_xai_gradcam.py` vẫn skip. Mô phỏng luồng bù được phần ghép nối, **không** bù được phép toán.

@@ -42,12 +42,14 @@ không gian, nên nó đúng cho cả đặc trưng có dấu. Grad-CAM gốc v�
 
 from __future__ import annotations
 
+from dataclasses import dataclass
 from typing import Any
 
 import numpy as np
 
 __all__ = [
     "CANDIDATE_LAYERS",
+    "CamResult",
     "feature_layer_shapes",
     "grad_cam_3d",
     "phase_importance",
@@ -65,6 +67,36 @@ CANDIDATE_LAYERS: tuple[str, ...] = (
     "denseblock4",
     "norm5",
 )
+
+
+@dataclass(frozen=True)
+class CamResult:
+    """Bản đồ cùng số liệu chẩn đoán. `degenerate=True` là KẾT QUẢ, không phải lỗi.
+
+    Bản đồ suy biến (tổ hợp ≤ 0 ở mọi voxel) có nghĩa khác nhau tuỳ câu hỏi:
+
+    - Với **lớp model đã đoán**: đáng ngờ. Model chọn lớp đó thì phải có chỗ nào đó
+      ủng hộ nó; không có chỗ nào là dấu hiệu sai tầng hoặc sai chế độ eval.
+    - Với **lớp thật mà model đoán trượt**: hoàn toàn hợp lý, và là một phát hiện —
+      "mô hình không tìm thấy bằng chứng nào cho lớp đúng, ở bất kỳ đâu".
+
+    Hai cách đọc ngược nhau, nên hàm này **không** tự quyết định cái nào là lỗi. Nó
+    trả số liệu; người gọi đặt chính sách.
+    """
+
+    cam: np.ndarray
+    native_shape: tuple[int, ...]
+    degenerate: bool
+    combined_min: float
+    combined_max: float
+    negative_fraction: float
+
+    def explain(self) -> str:
+        """Câu chẩn đoán đọc được, dùng cho thông báo lỗi và cho UI."""
+        return (
+            f"tổ hợp trong [{self.combined_min:.3e}, {self.combined_max:.3e}], "
+            f"{self.negative_fraction:.0%} đặc trưng âm, bản đồ gốc {self.native_shape}"
+        )
 
 
 def resolve_layer(model: Any, name: str) -> Any:
@@ -124,8 +156,8 @@ def grad_cam_3d(
     layer: str = "denseblock3",
     output_shape: tuple[int, int, int] | None = None,
     mode: str = "hires",
-) -> tuple[np.ndarray, tuple[int, ...]]:
-    """Bản đồ Grad-CAM cho một mẫu. Trả về ``(cam, hình_dạng_gốc_của_cam)``.
+) -> CamResult:
+    """Bản đồ Grad-CAM cho một mẫu.
 
     `volume` là tensor ``[1, C, X, Y, Z]``. `cam` được chuẩn hoá về [0, 1] và nội suy
     lên `output_shape` (mặc định: đúng kích thước không gian của `volume`).
@@ -145,9 +177,10 @@ def grad_cam_3d(
     ReLU sau tổ hợp giữ ở cả hai chế độ, đúng tinh thần bản gốc: chỉ giữ phần đẩy logit
     **lên**. Bỏ ReLU sẽ trộn bằng chứng ủng hộ với bằng chứng phản đối vào một thang.
 
-    Bản đồ toàn 0 làm cả panel thành một mảng xám phẳng — người xem sẽ đọc thành "mô
-    hình không nhìn vào đâu cả", một phát biểu sai. Nên hàm này **nổ kèm số liệu chẩn
-    đoán** thay vì trả về mảng 0.
+    **Không nổ khi bản đồ suy biến** (tổ hợp ≤ 0 ở mọi voxel). Nó đánh dấu
+    `degenerate=True` và trả số liệu chẩn đoán, vì cùng một hiện tượng mang hai nghĩa
+    ngược nhau tuỳ lớp đích đang hỏi — xem docstring `CamResult`. Người gọi đặt chính
+    sách; thư viện chỉ đo.
     """
     import torch.nn.functional as F
 
@@ -191,30 +224,32 @@ def grad_cam_3d(
             raise ValueError(f"mode phải là 'hires' hoặc 'gradcam', nhận {mode!r}")
 
         cam_raw = F.relu(combined)
-        if float(cam_raw.max().detach()) <= 0:
-            am = float((activations < 0).float().mean().detach())
-            raise ValueError(
-                f"bản đồ toàn 0 ở tầng {layer!r}, mode={mode!r}: tổ hợp ≤ 0 ở mọi voxel "
-                f"(min {float(combined.min().detach()):.3e}, "
-                f"max {float(combined.max().detach()):.3e}; {am:.0%} đặc trưng âm).\n"
-                "Kiểm theo thứ tự này:\n"
-                "  1. `model.eval()` đã gọi CHƯA? `build_model` trả về model ở chế độ "
-                "train, và ở đó BatchNorm dùng thống kê của batch (batch=1 thì vô "
-                "nghĩa) còn dropout vẫn bật. Lớp đích tính ở chế độ train có thể khác "
-                "hẳn lớp model thật sự đoán — khi đó gradient chống lại chính nó.\n"
-                "  2. `target_class` có đúng là lớp model đoán ở chế độ eval không?\n"
-                f"  3. Nếu hai điều trên đã đúng: tầng {layer!r} thật sự không đóng góp "
-                "dương cho lớp này. Thử tầng nông hơn (xem `feature_layer_shapes`)."
-            )
+        peak = float(cam_raw.max().detach())
+        stats = (
+            float(combined.min().detach()),
+            float(combined.max().detach()),
+            float((activations < 0).float().mean().detach()),
+        )
 
         size = output_shape or tuple(int(v) for v in volume.shape[2:])
-        cam = F.interpolate(cam_raw, size=size, mode="trilinear", align_corners=False)
-        cam = cam[0, 0].detach().cpu().numpy().astype(np.float32)
+        cam_t = F.interpolate(cam_raw, size=size, mode="trilinear", align_corners=False)
+        cam = cam_t[0, 0].detach().cpu().numpy().astype(np.float32)
     finally:
         handle.remove()
         model.train(was_training)
 
-    return cam / float(cam.max()), native
+    # Chia cho đỉnh CHỈ khi có đỉnh. Bản đồ suy biến giữ nguyên toàn 0 và được đánh
+    # dấu — người gọi quyết định đó là lỗi hay là kết quả (xem docstring `CamResult`).
+    if peak > 0:
+        cam = cam / float(cam.max())
+    return CamResult(
+        cam=cam,
+        native_shape=native,
+        degenerate=peak <= 0,
+        combined_min=stats[0],
+        combined_max=stats[1],
+        negative_fraction=stats[2],
+    )
 
 
 def phase_importance(model: Any, volume: Any, target_class: int) -> np.ndarray:

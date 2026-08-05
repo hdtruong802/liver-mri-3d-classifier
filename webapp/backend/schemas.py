@@ -235,6 +235,14 @@ class GradCamInfo(BaseModel):
             "ablation: nó không nói bỏ thì đó đi thì mất bao nhiêu điểm."
         ),
     )
+    true_map_status: str = Field(
+        default="khong-can",
+        description=(
+            "'ok' = có bản đồ cho lớp thật · 'suy-bien' = mô hình KHÔNG tìm thấy bằng "
+            "chứng nào cho lớp thật ở bất kỳ đâu (là phát hiện, không phải lỗi) · "
+            "'khong-can' = mô hình đoán đúng nên không cần bản đồ thứ hai."
+        ),
+    )
     note: str = ""
 
 

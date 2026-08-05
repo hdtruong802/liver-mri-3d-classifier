@@ -64,6 +64,7 @@ class GradCam:
     fold: str
     layer: str
     native_shape: tuple[int, ...]
+    true_status: str
 
     @property
     def n_slices(self) -> int:
@@ -99,6 +100,7 @@ def _load_one(path: Path) -> GradCam:
         fold=str(data["fold"]),
         layer=str(data["layer"]),
         native_shape=tuple(int(v) for v in np.atleast_1d(data["cam_native_shape"])),
+        true_status=str(data["cam_true_status"]) if "cam_true_status" in data else "khong-can",
     )
 
 

@@ -163,6 +163,7 @@ def _gradcam_info(case_id: str) -> GradCamInfo:
         pred_class_index=cam.pred_index,
         true_class_index=cam.true_index,
         phase_importance=[float(v) for v in cam.phase_importance],
+        true_map_status=cam.true_status,
         note=(
             f"Bản đồ tính ở tầng {cam.layer}, kích thước gốc "
             f"{'×'.join(str(v) for v in cam.native_shape)}, nội suy lên lưới crop. "

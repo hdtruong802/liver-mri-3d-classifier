@@ -57,6 +57,7 @@ export function AttentionPanel({ caseId, gradcam, classes, phaseLabels }: Props)
     index === null ? '—' : (classes.find((c) => c.index === index)?.label_vi ?? String(index));
   const wrong =
     gradcam.true_class_index !== null && gradcam.true_class_index !== gradcam.pred_class_index;
+  const trueMapMissing = wrong && gradcam.true_map_status === 'suy-bien';
   const native = gradcam.native_shape.join('×');
 
   return (
@@ -69,7 +70,19 @@ export function AttentionPanel({ caseId, gradcam, classes, phaseLabels }: Props)
         vùng tổn thương do người chú giải khoanh.
       </p>
 
-      {wrong && (
+      {trueMapMissing && (
+        <p className="inset-box max-w-measure border-l-2 border-warn px-3 py-2 text-data text-slate-300">
+          Mô hình đoán <strong>{nameOf(gradcam.pred_class_index)}</strong> trong khi lớp thật là{' '}
+          <strong>{nameOf(gradcam.true_class_index)}</strong>. Không dựng được bản đồ cho lớp thật:{' '}
+          <strong className="text-warn-soft">
+            không voxel nào trong khối đóng góp dương cho lớp đó
+          </strong>
+          . Đây là một phát hiện chứ không phải lỗi hiển thị — mô hình không chỉ chọn nhầm, nó
+          không tìm thấy bằng chứng nào cho đáp án đúng.
+        </p>
+      )}
+
+      {wrong && !trueMapMissing && (
         <div role="group" aria-label="Chọn lớp để giải thích" className="flex flex-wrap gap-2">
           {(['pred', 'true'] as const).map((option) => (
             <button

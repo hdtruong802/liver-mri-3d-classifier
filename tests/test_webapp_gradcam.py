@@ -16,7 +16,7 @@ from webapp.backend import gradcam  # noqa: E402
 SHAPE = (12, 12, 6)
 
 
-def _write(directory: Path, pid: str, *, wrong: bool = False) -> Path:
+def _write(directory: Path, pid: str, *, wrong: bool = False, true_status: str = "") -> Path:
     directory.mkdir(parents=True, exist_ok=True)
     rng = np.random.default_rng(abs(hash(pid)) % 2**32)
     payload = {
@@ -28,8 +28,9 @@ def _write(directory: Path, pid: str, *, wrong: bool = False) -> Path:
         "fold": np.str_("fold_2"),
         "layer": np.str_("denseblock3"),
         "cam_native_shape": np.asarray([7, 7, 2], dtype=np.int64),
+        "cam_true_status": np.str_(true_status or ("ok" if wrong else "khong-can")),
     }
-    if wrong:
+    if wrong and (true_status or "ok") == "ok":
         payload["cam_true"] = rng.random(SHAPE).astype(np.float16)
     path = directory / f"{pid}.npz"
     np.savez_compressed(path, **payload)
@@ -132,3 +133,33 @@ def test_case_detail_bao_available_false_khi_chua_co(tmp_path: Path, monkeypatch
     info = demo_cases.get_case_detail(demo_cases.DEMO_CASES[0].case_id).gradcam
     assert info is not None and info.available is False
     assert "10_gradcam" in info.note, "phải chỉ ra cách tạo dữ liệu, không chỉ báo thiếu"
+
+
+def test_ban_do_lop_that_suy_bien_duoc_ghi_nhan_chu_khong_mat_tich(tmp_path: Path) -> None:
+    """Ca `MR207769` thật: model đoán sai VÀ không có voxel nào ủng hộ lớp đúng.
+
+    Trạng thái đó phải đi ra tới API. Nếu chỉ thiếu `cam_true` mà không kèm lý do thì
+    UI không phân biệt được "chưa tính" với "đã tính, và kết quả là không có gì" —
+    hai điều rất khác nhau về mặt khoa học.
+    """
+    _write(tmp_path, "MR207769", wrong=True, true_status="suy-bien")
+    cam = gradcam.get("MR207769", str(tmp_path))
+
+    assert cam.true_status == "suy-bien"
+    assert cam.map_for("true") is None
+    assert gradcam.render_png(cam, "pred", 2), "bản đồ lớp đã đoán vẫn phải render được"
+
+
+def test_npz_cu_khong_co_truong_trang_thai_van_nap_duoc(tmp_path: Path) -> None:
+    """Tương thích ngược: `.npz` sinh trước S-097 không có `cam_true_status`."""
+    np.savez_compressed(
+        tmp_path / "MR008.npz",
+        cam_pred=np.zeros(SHAPE, dtype=np.float16),
+        crop_ref=np.zeros(SHAPE, dtype=np.uint8),
+        phase_importance=np.full(8, 0.125, dtype=np.float32),
+        pred_index=np.int64(0),
+        fold=np.str_("fold_1"),
+        layer=np.str_("denseblock3"),
+        cam_native_shape=np.asarray([7, 7, 2], dtype=np.int64),
+    )
+    assert gradcam.get("MR008", str(tmp_path)).true_status == "khong-can"
