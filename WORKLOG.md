@@ -3847,3 +3847,52 @@ Ngoài ra: MCE xấu đi (0.384 → 0.499), AURC xấu đi nhẹ (0.181 → 0.19
 - **`degenerate=True` không phải lỗi.** Nghĩa phụ thuộc lớp đích — đọc docstring `CamResult` trước khi thêm `raise` trở lại.
 - **Đừng lưu bản đồ toàn 0.** Nó không phân biệt được với "chưa tính".
 - Máy local không có torch nên toàn bộ `tests/test_xai_gradcam.py` vẫn skip. Mô phỏng luồng bù được phần ghép nối, **không** bù được phép toán.
+
+## S-098 · 2026-08-05 · claude-code
+
+**Mục tiêu phiên:** Nạp kết quả Grad-CAM thật (`runs/gradcam.zip`) và kiểm nó có nói được điều gì không.
+
+**Nhánh / commit:** `main` · `17d27b2` → *(commit đang chờ)*
+
+**Đã đụng file:** `AGENTS.md` §5 (mục kết quả Grad-CAM), `WORKLOG.md`. Dữ liệu giải nén vào `runs/E4_per_phase_results/gradcam/` (gitignore).
+
+**Quyết định & lý do:**
+
+- **Không tin bản đồ chỉ vì nó render đẹp.** Một heatmap luôn trông thuyết phục. Ba phép kiểm trước khi ghi nhận: (1) đỉnh có nằm gần tâm khối không — crop cắt bám tổn thương nên tổn thương *phải* ở giữa; (2) bản đồ có đổi theo lát không hay là hằng số; (3) độ nhạy theo thì có phân biệt gì không hay gần đều.
+- **Chọn đo "lệch tâm của đỉnh" làm phép kiểm chính** vì nó là thứ duy nhất có ground truth rẻ: hình học của crop đã ép tổn thương vào giữa. Không cần mask, không cần đọc ảnh.
+- **Ghi rõ giới hạn phân giải cùng chỗ với con số**, không để ở phần ghi chú xa. Bản đồ gốc 7×7×2: theo Z chỉ 2 mức, nên `z` của đỉnh chỉ nói được nửa trên/nửa dưới; trong mặt phẳng mỗi ô phủ 16 voxel nên **lệch dưới ~8 voxel là trong cùng một ô**. Không ghi kèm thì bảng số mời người đọc diễn giải quá tay.
+
+**Kết quả / số liệu:**
+
+Cả 4 ca nạp được, tầng `denseblock3 · hires`, bản đồ gốc (7, 7, 2).
+
+| ca | thật | đoán | bản đồ lớp thật | đỉnh | lệch tâm |
+|---|---|---|---|---|---|
+| MR113627 | ICC | ICC | không cần | (55, 55, 24) | 8.5 |
+| MR170828 | u máu | u máu | không cần | (54, 55, 24) | 8.6 |
+| MR207769 | di căn | áp-xe | **ok** | (40, 55, 24) | 17.7 |
+| MR127280 | di căn | u máu | **suy biến** | (55, 87, 0) | 35.1 |
+
+Hai ca đoán đúng có đỉnh **đúng tâm trong mặt phẳng** (55, 55) — model nhìn vào tổn thương, không vào rìa.
+
+**`MR127280` là phát hiện đáng giá nhất phiên này.** Đỉnh ở (55, 87, 0): lệch 32 voxel theo y (2 ô gốc, tức là thật) và nằm ở **lát biên**. Cộng với bản đồ lớp thật suy biến. Model không chỉ đoán sai — nó **nhìn nhầm chỗ** *và* **không tìm thấy bằng chứng nào cho đáp án đúng**. Đây là ca cho phần failure analysis.
+
+Lưu ý: hai ca suy biến đã **đổi chỗ** so với mô phỏng ở S-097 (khi đó tôi giả định `MR207769`). Dữ liệu thật nói `MR127280`. Mô phỏng chỉ kiểm luồng, không đoán kết quả.
+
+**Độ nhạy theo thì:** In Phase và Out Phase thấp nhất ở **cả 4 ca** (0.043–0.092, đều dưới mức đều 0.125). Hợp lý lâm sàng — hai thì chemical-shift chủ yếu để phát hiện mỡ. Thì cao nhất luôn thuộc nhóm có thuốc hoặc T2WI/DWI. Mức phân biệt vừa phải: cao nhất chỉ gấp 1.3–1.7 lần mức đều.
+
+API kiểm đủ: `pred` 200 ở cả 4 ca · `true` 200 ở `MR207769`, 404 ở ba ca còn lại · lát ngoài khoảng 416 · ca không tồn tại 404. 470 test pass, gate PASS.
+
+**Dang dở:**
+- [ ] Fold 3–5 của E5 — S-094 đề xuất dừng, chưa có quyết định.
+- [ ] Reliability diagram + risk–coverage chưa vẽ.
+- [ ] Report cuối chưa viết.
+- [ ] Chưa chạm test-104.
+
+**Điểm vào phiên sau:** Phần XAI xong. Việc còn lại đáng làm nhất là **report** — giờ đã có đủ số cho cả bốn phần: hiệu năng (0.6851 out-of-fold), calibration, selective (phép lai +0.035 P=0.030), và failure analysis (`MR127280`).
+
+**Cảnh báo cho tool sau:**
+- **Bản đồ gốc chỉ 7×7×2.** Đừng diễn giải vị trí `z` của đỉnh mịn hơn "nửa trên/nửa dưới", và đừng diễn giải lệch trong mặt phẳng dưới ~8 voxel.
+- **n = 4.** "In/Out Phase luôn thấp nhất" là quan sát, không phải kết luận thống kê.
+- **Hai ca `suy-bien`/`ok` khác với mô phỏng S-097.** Nếu tool nào đọc S-097 rồi trích số ở đó thì sai — số thật ở entry này.
+- Dữ liệu nằm ở `runs/E4_per_phase_results/gradcam/` (gitignore). Mất thì chạy lại notebook 10.

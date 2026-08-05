@@ -266,6 +266,41 @@ Focal *có* làm model bớt tự tin quá mức từ đầu (T cần nhỏ hơn
 
 ⚠️ MCE xấu đi (0.384 → 0.499) và AURC xấu đi nhẹ (0.181 → 0.196). Fold 2 tụt rõ (0.677 → 0.609) còn fold 1 hoà (0.700 → 0.697).
 
+### Grad-CAM 4 ca demo — kết quả thật (2026-08-05, WORKLOG S-098)
+
+`notebooks/10_gradcam.ipynb`, tầng `denseblock3`, **HiResCAM** (không phải Grad-CAM gốc — xem `src/xai/gradcam.py`). Mỗi ca dùng model của fold chứa nó ở val.
+
+| ca | thật | đoán | bản đồ lớp thật | đỉnh (x,y,z) | lệch tâm |
+|---|---|---|---|---|---|
+| MR113627 | ICC | ICC | không cần | (55, 55, 24) | 8.5 |
+| MR170828 | u máu | u máu | không cần | (54, 55, 24) | 8.6 |
+| MR207769 | di căn | áp-xe | có | (40, 55, 24) | 17.7 |
+| **MR127280** | **di căn** | **u máu** | **SUY BIẾN** | **(55, 87, 0)** | **35.1** |
+
+Crop cắt **bám tổn thương** nên tổn thương nằm giữa khối (tâm 55, 55, 15).
+
+**Hai ca đoán đúng có đỉnh đúng tâm trong mặt phẳng** (55,55) — bằng chứng model nhìn vào tổn thương chứ không vào rìa.
+
+**`MR127280` là ca thất bại toàn diện, và bản đồ nói ra điều đó:** đỉnh ở (55, **87**, **0**) — lệch 32 voxel theo y và nằm ở **lát biên**. Cộng với việc bản đồ cho lớp thật **suy biến** (không voxel nào ủng hộ lớp đúng). Nghĩa là model không chỉ đoán sai — nó nhìn nhầm chỗ và không thấy bằng chứng nào cho đáp án đúng. Đây là ca đáng đưa vào phần failure analysis của báo cáo.
+
+**Độ nhạy theo thì** (tổng = 1; mức đều = 0.125):
+
+| ca | C-pre | C+A | C+V | C+Delay | T2WI | DWI | InPhase | OutPhase |
+|---|---|---|---|---|---|---|---|---|
+| MR113627 | 0.120 | 0.105 | 0.129 | **0.161** | 0.151 | 0.150 | 0.091 | 0.092 |
+| MR127280 | **0.214** | 0.139 | 0.166 | 0.183 | 0.083 | 0.105 | 0.053 | 0.057 |
+| MR170828 | 0.125 | 0.124 | 0.194 | **0.201** | 0.186 | 0.072 | 0.046 | 0.053 |
+| MR207769 | 0.094 | 0.158 | 0.152 | **0.178** | 0.129 | 0.158 | 0.043 | 0.087 |
+
+**In Phase và Out Phase thấp nhất ở cả 4 ca** (0.043–0.092, đều dưới mức đều). Hợp lý về lâm sàng: hai thì chemical-shift chủ yếu để phát hiện mỡ, ít phân biệt được giữa 7 lớp này; còn các thì có thuốc mang đúng kiểu ngấm thuốc — thứ dẫn dắt chẩn đoán u gan.
+
+⚠️ **Bốn cảnh báo bắt buộc kèm bộ số này:**
+
+1. **Bản đồ gốc chỉ 7×7×2.** Theo Z chỉ có **2 mức** rồi nội suy lên 32 lát — vị trí `z` của đỉnh chỉ nói được "nửa trên hay nửa dưới", không hơn. Trong mặt phẳng mỗi ô gốc phủ 16 voxel, nên lệch đỉnh **dưới ~8 voxel là trong cùng một ô**, đừng diễn giải.
+2. **n = 4 ca.** "In/Out Phase luôn thấp nhất" là quan sát trên 4 ca, không phải kết luận thống kê.
+3. **Là saliency, không phải ablation.** Không nói bỏ hẳn một thì đi thì mất bao nhiêu điểm.
+4. **Mức phân biệt giữa các thì là vừa phải** — thì cao nhất chỉ gấp 1.3–1.7 lần mức đều. Model trải độ nhạy khá rộng, không dựa hẳn vào một thì.
+
 ### Trustworthiness — calibration & selective (2026-08-04, WORKLOG S-079)
 
 Chạy bằng `python -m src.eval.trust --run-dir runs/E4_cv_results`. Temperature fit **leave-one-fold-out**: `T` áp lên fold `f` học từ 4 fold còn lại, nên không ca nào được hiệu chỉnh bởi một `T` đã nhìn thấy nó.
