@@ -3932,3 +3932,29 @@ API kiểm đủ: `pred` 200 ở cả 4 ca · `true` 200 ở `MR207769`, 404 ở
 - **Đừng bật `rot90_prob`.** Lý do là giải phẫu, không phải hiệu năng.
 - **Test transform skip hết ở máy không có torch.** Mọi tham số augmentation phải kiểm bằng hình học trước khi chạy.
 - **Sàng 2 fold không đủ để chốt.** CI ~±0.13; dùng để loại, không dùng để kết luận.
+
+## S-100 · 2026-08-05 · claude-code
+
+**Mục tiêu phiên:** Người dùng hỏi notebook cho E6.
+
+**Nhánh / commit:** `main` · `d014f59` → *(commit đang chờ)*
+
+**Đã đụng file:** `notebooks/09_cv_runner.ipynb` (cell 0, 2, 4).
+
+**Quyết định & lý do:**
+
+- **KHÔNG tạo notebook riêng cho E6.** Notebook 09 vốn đã nhận `CONFIG_NAME` làm tham số, và đã dùng khối dò đường dẫn bản mới nhất (kiểm: có `_os.walk` một lượt, có bỏ qua `.cache`, không còn `CKPT_ROOT`/`ckpt_for`). Thêm một notebook mỗi thí nghiệm là tạo đúng thứ drift mà S-084 → S-086 vừa mất bốn phiên để dọn. Chỉ đổi `CONFIG_NAME` và phần mô tả.
+- **Cổng 0 trước đây khoá cứng vào `loss.`** — viết cho E5, và sẽ báo động nhầm với mọi thí nghiệm khác. Nhưng bỏ cổng đi thì mất luôn thứ nó bảo vệ: lỗi "đổi hai biến cùng lúc" **không để lại dấu vết nào trong kết quả**, nên không có cách nào phát hiện sau. Giải: thêm tham số `SCOPE` khai báo khối được phép đổi (`"data.augment."` cho E6, `"loss."` cho E5). Kỷ luật giữ nguyên, phạm vi thành tham số.
+- **Thêm chặn trường hợp `diff` rỗng.** Chọn nhầm `CONFIG_NAME` thành `baseline_3dpatch.yaml` sẽ chạy lại chính baseline suốt 7.4h mà không có gì báo. Giờ nó `SystemExit` ngay.
+- **In cả khối config baseline và khối mới cạnh nhau** — đây là thứ sẽ đi vào bảng ablation của báo cáo, nên phải đối chiếu được bằng mắt tại chỗ.
+- **Chạy thử cổng tại chỗ trên 4 tình huống** thay vì tin nó đúng: E6 đúng phạm vi (qua), E5 đúng phạm vi (qua — tương thích ngược), E5 khai **sai** phạm vi (báo động đúng), baseline (dừng đúng).
+
+**Kết quả / số liệu:** Không có số khoa học. Notebook 19 cell, cú pháp hợp lệ, 0 output, không còn tham chiếu tới E5. Cổng 0 phán đúng cả 4 tình huống. 470 test pass.
+
+**Dang dở:** như S-099 — chạy E6, rồi TTA / EMA / pretrained.
+
+**Điểm vào phiên sau:** `notebooks/09_cv_runner.ipynb` đã đặt sẵn `CONFIG_NAME = "e6_aug.yaml"`, `FOLDS = [1, 2]`, `SCOPE = "data.augment."`. Chỉ cần mount cache E4 rồi Run all.
+
+**Cảnh báo cho tool sau:**
+- **Đổi thí nghiệm = đổi `CONFIG_NAME` **và** `SCOPE`.** Quên `SCOPE` thì cổng báo động giả, và sau vài lần báo giả người ta sẽ bỏ qua nó — lúc đó nó vô dụng đúng lúc cần nhất.
+- **Đừng tạo notebook mới cho mỗi thí nghiệm.** 09 là runner chung.
