@@ -3737,3 +3737,38 @@ Ngoài ra: MCE xấu đi (0.384 → 0.499), AURC xấu đi nhẹ (0.181 → 0.19
 - **Với focal, BẮT BUỘC dùng `fit_temperature_min_ece`, không dùng `fit_temperature`.** `T` fit theo NLL làm ECE của focal *xấu đi* (0.154 → 0.176) vì bắn quá sang thiếu tự tin (0.596 so với accuracy 0.698). Với CE thì `T` theo NLL vẫn cải thiện, nên lỗi này chỉ lộ ra ở focal.
 - **Đừng báo "focal cải thiện calibration" mà không kèm dòng đã hiệu chỉnh.** Nói ECE 0.221 → 0.154 là đúng nhưng gây hiểu nhầm: sau hiệu chỉnh cả hai đều ~0.126.
 - **n = 162, mọi P đều > 0.17.** Không con số nào trong entry này đủ để kết luận.
+
+## S-095 · 2026-08-05 · claude-code
+
+**Mục tiêu phiên:** Sửa lỗi `bản đồ toàn 0` khi chạy notebook 10 ở ca `MR207769`.
+
+**Nhánh / commit:** `main` · `a21aa7c` → *(commit đang chờ)*
+
+**Đã đụng file:** `src/xai/gradcam.py`, `notebooks/10_gradcam.ipynb`, `tests/test_xai_gradcam.py`.
+
+**Quyết định & lý do:**
+
+- **Giả thuyết đầu tiên SAI, và may là đã kiểm trước khi sửa.** Ca chạy được có `p=0.533`, ca hỏng có `p=0.936` — rất giống dấu hiệu gradient bão hoà qua softmax. Nhưng đọc lại `grad_cam_3d` thì nó backward qua **logit** (`logits[0, target].backward()`), không qua softmax. Nếu sửa theo giả thuyết đó thì đã thay đúng thành sai.
+- **Nguyên nhân thật: Grad-CAM gốc giả định đặc trưng KHÔNG ÂM, và DenseNet không thoả.** Grad-CAM gộp kênh bằng một trọng số cho cả bản đồ (`w_k = mean(∂y/∂A_k)`) rồi `relu(Σ_k w_k · A_k)`. Phép đó chỉ hợp lý khi tầng được hook nằm ngay sau ReLU — đúng với VGG/ResNet. Mỗi `_DenseLayer` của MONAI là norm→relu→**conv**, nên đầu ra dense block là concat các đầu ra conv và **có giá trị âm**. Khi đó tổ hợp có thể âm ở mọi voxel, ReLU quét sạch, bản đồ toàn 0. **Không phải bug — là giả định bị vi phạm.**
+- **Đổi mặc định sang HiResCAM** (Draelos & Carin 2020): `relu(Σ_k (∂y/∂A_k) ⊙ A_k)`, nhân theo từng phần tử thay vì gộp gradient trước. Tổng chưa ReLU của nó **chính là** khai triển Taylor bậc nhất của logit theo vị trí không gian, nên đúng cho cả đặc trưng có dấu. Giữ `mode="gradcam"` để đối chiếu.
+- **Một chế độ cho mọi ca, không fallback theo ca.** Cân nhắc để notebook tự lùi về `hires` khi `gradcam` suy biến, nhưng khi đó bốn ca demo sẽ được tính bằng hai phương pháp khác nhau và **không so được với nhau**. Chọn một chế độ, ghi vào `layer` của kết quả (`"denseblock3 · hires"`) để UI hiển thị.
+- **Nổ kèm số chẩn đoán thay vì trả về mảng 0.** Bản đồ toàn 0 làm panel thành mảng xám phẳng, người xem đọc thành "mô hình không nhìn vào đâu cả" — một phát biểu sai. Thông báo lỗi giờ in min/max của tổ hợp và **tỉ lệ đặc trưng âm** của tầng đó, tức là đưa luôn bằng chứng cho chẩn đoán.
+- **Thêm `test_dac_trung_dense_block_CO_gia_tri_am`.** Nó neo chính lập luận chọn HiResCAM: nếu ngày nào đó đặc trưng hoá ra không âm thì lập luận sụp và mặc định phải xem lại. Test đỏ sẽ nói điều đó thay vì để mặc định trôi vô căn cứ.
+
+**Kết quả / số liệu:** `MR170828` đã chạy được trước khi sửa (fold 2, đúng lớp, `cam max=1.000`, thì nổi nhất C+Delay) — nhưng bằng Grad-CAM gốc, nên **phải chạy lại cả bốn ca** bằng `hires` để so được với nhau. 466 test pass (5 mới), ruff sạch, gate PASS.
+
+⚠️ Test XAI vẫn skip ở máy local (không có torch). Cả `hires` lẫn `test_dac_trung_dense_block_CO_gia_tri_am` **chưa từng chạy thật**.
+
+**Dang dở:**
+- [ ] **Chạy lại notebook 10 từ đầu** với `MODE = "hires"`.
+- [ ] Fold 3–5 của E5 — đang chờ quyết định (S-094 đề xuất dừng).
+- [ ] Reliability diagram + risk–coverage chưa vẽ.
+- [ ] Chưa chạm test-104.
+
+**Điểm vào phiên sau:** Chạy lại `notebooks/10_gradcam.ipynb`. Nếu vẫn nổ "bản đồ toàn 0" ở `hires` thì đọc tỉ lệ đặc trưng âm trong thông báo — đó là số liệu để quyết chọn tầng khác.
+
+**Cảnh báo cho tool sau:**
+- **Đừng dùng `mode="gradcam"` trên DenseNet cho kết quả chính thức.** Nó cho bản đồ toàn 0 ở một số ca, và ca nào bị thì không đoán trước được.
+- **Đừng trộn hai chế độ giữa các ca demo.** Chúng không so được với nhau.
+- Trường `layer` trong `.npz` giờ có dạng `"denseblock3 · hires"` — UI hiển thị nguyên chuỗi này, đừng parse nó.
+- `p` cao không phải nguyên nhân bản đồ toàn 0. Sự trùng hợp ở hai ca đầu là ngẫu nhiên; hàm backward qua logit chứ không qua softmax.

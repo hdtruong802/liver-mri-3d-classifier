@@ -21,6 +21,23 @@ suy luận. `grad_cam_3d` cũng từ chối chạy nếu tầng được chọn 
 Đánh đổi khi lùi về tầng nông hơn: bản đồ sắc nét hơn nhưng **ít mang tính lớp hơn**
 (đặc trưng nông chung cho mọi lớp). Đây là đánh đổi thật, không có lựa chọn đúng
 tuyệt đối; ghi lại tầng đã dùng cùng kết quả để người đọc tự đánh giá.
+
+## Cạm bẫy thứ hai: Grad-CAM gốc giả định đặc trưng KHÔNG ÂM
+
+Grad-CAM (Selvaraju và cs. 2017) gộp kênh bằng **một trọng số cho cả bản đồ**:
+``w_k = mean(∂y/∂A_k)``, rồi ``relu(Σ_k w_k · A_k)``. Phép đó chỉ hợp lý khi `A_k ≥ 0`
+— đúng với VGG/ResNet, nơi tầng được hook nằm ngay sau ReLU.
+
+**DenseNet không thoả.** Mỗi `_DenseLayer` của MONAI là norm→relu→conv, nên đầu ra của
+một dense block là **concat các đầu ra conv** và có cả giá trị âm. Khi đó tổ hợp
+``Σ_k w_k · A_k`` có thể âm ở *mọi* voxel, ReLU quét sạch, và bản đồ **toàn 0** — đúng
+lỗi gặp ở ca `MR207769` (WORKLOG S-095). Nó không phải bug: nó là giả định bị vi phạm.
+
+Vì vậy mặc định của module này là **HiResCAM** (Draelos & Carin 2020):
+``relu(Σ_k (∂y/∂A_k) ⊙ A_k)`` — nhân theo từng phần tử thay vì gộp gradient trước.
+Tổng chưa ReLU của nó **chính là** khai triển Taylor bậc nhất của logit theo vị trí
+không gian, nên nó đúng cho cả đặc trưng có dấu. Grad-CAM gốc vẫn gọi được bằng
+``mode="gradcam"`` để đối chiếu.
 """
 
 from __future__ import annotations
@@ -106,6 +123,7 @@ def grad_cam_3d(
     target_class: int,
     layer: str = "denseblock3",
     output_shape: tuple[int, int, int] | None = None,
+    mode: str = "hires",
 ) -> tuple[np.ndarray, tuple[int, ...]]:
     """Bản đồ Grad-CAM cho một mẫu. Trả về ``(cam, hình_dạng_gốc_của_cam)``.
 
@@ -116,8 +134,20 @@ def grad_cam_3d(
     bản đồ 7×7×2 phóng lên 112×112×32 trông mịn tới từng voxel nhưng không hề mịn, và
     giấu con số đó đi là để người xem tự tin hơn mức dữ liệu cho phép.
 
-    ReLU sau tổ hợp là đúng bản gốc (Selvaraju và cs. 2017): chỉ giữ phần đẩy logit
+    `mode`:
+
+    - ``"hires"`` (mặc định) — HiResCAM: ``relu(Σ_k grad_k ⊙ A_k)``, nhân theo từng
+      phần tử. Đúng cho đặc trưng **có dấu**, tức là đúng cho DenseNet. Xem docstring
+      module.
+    - ``"gradcam"`` — bản gốc: ``relu(Σ_k mean(grad_k) · A_k)``. Giữ lại để đối chiếu;
+      trên kiến trúc này nó **có thể cho bản đồ toàn 0** ở một số ca.
+
+    ReLU sau tổ hợp giữ ở cả hai chế độ, đúng tinh thần bản gốc: chỉ giữ phần đẩy logit
     **lên**. Bỏ ReLU sẽ trộn bằng chứng ủng hộ với bằng chứng phản đối vào một thang.
+
+    Bản đồ toàn 0 làm cả panel thành một mảng xám phẳng — người xem sẽ đọc thành "mô
+    hình không nhìn vào đâu cả", một phát biểu sai. Nên hàm này **nổ kèm số liệu chẩn
+    đoán** thay vì trả về mảng 0.
     """
     import torch.nn.functional as F
 
@@ -152,21 +182,32 @@ def grad_cam_3d(
                 "(xem `feature_layer_shapes`)."
             )
 
-        # Trọng số kênh = gradient trung bình theo không gian (bản gốc Grad-CAM).
-        weights = gradients.mean(dim=(2, 3, 4), keepdim=True)
-        cam = F.relu((weights * activations).sum(dim=1, keepdim=True))
+        if mode == "hires":
+            combined = (gradients * activations).sum(dim=1, keepdim=True)
+        elif mode == "gradcam":
+            weights = gradients.mean(dim=(2, 3, 4), keepdim=True)
+            combined = (weights * activations).sum(dim=1, keepdim=True)
+        else:
+            raise ValueError(f"mode phải là 'hires' hoặc 'gradcam', nhận {mode!r}")
+
+        cam_raw = F.relu(combined)
+        if float(cam_raw.max()) <= 0:
+            raise ValueError(
+                f"bản đồ toàn 0 ở tầng {layer!r} với mode={mode!r}: tổ hợp âm ở mọi "
+                f"voxel (min {float(combined.min()):.3e}, max {float(combined.max()):.3e}). "
+                f"Đặc trưng của tầng này có {float((activations < 0).float().mean()):.0%} "
+                "giá trị âm — giả định 'đặc trưng không âm' của Grad-CAM gốc bị vi phạm. "
+                "Dùng mode='hires', hoặc chọn tầng khác."
+            )
 
         size = output_shape or tuple(int(v) for v in volume.shape[2:])
-        cam = F.interpolate(cam, size=size, mode="trilinear", align_corners=False)
+        cam = F.interpolate(cam_raw, size=size, mode="trilinear", align_corners=False)
         cam = cam[0, 0].detach().cpu().numpy().astype(np.float32)
     finally:
         handle.remove()
         model.train(was_training)
 
-    peak = float(cam.max())
-    # CAM toàn 0 xảy ra thật khi gradient của lớp đích âm ở mọi kênh. Trả về mảng 0
-    # thay vì chia cho 0 — và người gọi thấy `max == 0` thì biết là không có gì để vẽ.
-    return (cam / peak if peak > 0 else cam), native
+    return cam / float(cam.max()), native
 
 
 def phase_importance(model: Any, volume: Any, target_class: int) -> np.ndarray:

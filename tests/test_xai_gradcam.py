@@ -66,6 +66,40 @@ def test_cam_khong_phai_hang_so(model, volume):
     assert cam.std() > 1e-6, "bản đồ hằng số: hook sai tầng hoặc gradient không chảy về"
 
 
+@pytest.mark.parametrize("mode", ["hires", "gradcam"])
+def test_hai_che_do_deu_chay_va_cho_ket_qua_khac_nhau(model, volume, mode):
+    cam, _ = grad_cam_3d(model, volume, target_class=0, layer="denseblock3", mode=mode)
+    assert cam.min() >= 0.0 and cam.max() == pytest.approx(1.0)
+
+
+def test_mode_khong_hop_le_thi_no(model, volume):
+    with pytest.raises(ValueError, match="mode phải"):
+        grad_cam_3d(model, volume, target_class=0, layer="denseblock3", mode="khong-co")
+
+
+def test_dac_trung_dense_block_CO_gia_tri_am(model, volume):
+    """Sự thật khiến `mode='hires'` phải là mặc định — xem docstring module.
+
+    Nếu test này đỏ (đặc trưng hoá ra không âm) thì lập luận chọn HiResCAM sụp, và
+    phải xem lại mặc định.
+    """
+    import torch
+    from src.xai.gradcam import resolve_layer
+
+    store = {}
+    handle = resolve_layer(model, "denseblock3").register_forward_hook(
+        lambda _m, _i, out: store.__setitem__("a", out)
+    )
+    model.eval()
+    try:
+        with torch.no_grad():
+            model(volume)
+    finally:
+        handle.remove()
+    am = (store["a"] < 0).float().mean().item()
+    assert am > 0.01, f"chỉ {am:.1%} giá trị âm — giả định của Grad-CAM gốc KHÔNG bị vi phạm"
+
+
 def test_cam_doi_theo_lop_dich(model, volume):
     """Giống nhau ở hai lớp nghĩa là `target_class` không được dùng."""
     a, _ = grad_cam_3d(model, volume, target_class=0, layer="denseblock3")
