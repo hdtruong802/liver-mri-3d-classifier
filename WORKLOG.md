@@ -4126,3 +4126,34 @@ Từng lớp so E4: nang **+0.155** · FNH **+0.099** · u máu +0.042 · ICC +0
 - **Mức tăng của E6b đến từ lớp dễ, không phải lớp yếu.** Với macro-F1 thì đó là trần thấp.
 - **Có HAI vấn đề, không phải một.** Nhiễu cường độ (đã sửa) và bất ổn tối ưu hoá (chưa). Đừng gộp chúng lại khi viết.
 - **Mốc đối chiếu vẫn là fold 1+2** (E4 0.6879), không phải 0.6851 của bản gộp 394 ca.
+
+## S-105 · 2026-08-05 · claude-code
+
+**Mục tiêu phiên:** Người dùng còn 16h GPU trên một tài khoản, hỏi làm gì trước.
+
+**Nhánh / commit:** `main` · `6afb21f` → *(commit đang chờ)*
+
+**Đã đụng file:** `notebooks/09_cv_runner.ipynb` (cell 2 `FOLDS`, cell 12 ngân sách).
+
+**Quyết định & lý do:**
+
+- **Chạy nốt E6b fold 3–5, không mở thí nghiệm mới.** Bốn lý do: (1) E9/E10/E11 đều định nghĩa là "E6b + X", nên nếu E6b không thật thì cả ba xây trên nền sai; (2) nó biến +0.024 **P=0.44** trên 162 ca thành một phép so cặp trên **394 ca** — cùng cỡ mẫu E4 đã dùng, đủ lực để quyết; (3) là hoàn tất khoản 6.4h đã trả, không phải cược mới; (4) rẻ nhất và không phụ thuộc gì (E8b chờ weights, E11 chưa có config).
+- **Rút lại lời khuyên "luôn chạy 5 fold" ở lượt trước cho tình huống này.** Lời khuyên đó đúng khi compute không giới hạn; với đúng 16h thì 5 fold của một config mới (18.75h) không vừa, và ép vào sẽ thành hai session dở dang.
+- **`SECONDS_PER_EPOCH` phải theo từng config, không dùng chung.** Đo thật: E4 44.5–45.1 s/epoch, E6 43.9–44.5, **E6b 38.0–38.6** — tắt nhiễu cường độ làm nhanh hơn ~15%. Hằng số 45.0 (đo trên E4) khiến 3 fold E6b ước tính 11.25h và **assert chặn nhầm** một lịch chạy thực tế chỉ mất 9.6h. Đã thay bằng 40.0 kèm bảng số đo của cả ba config, và nới cổng lên 11.5h.
+- **Không hạ cổng xuống mức tuỳ tiện.** 11.5h giữ được biên an toàn so với trần 12h; thông báo lỗi giờ nhắc `resume: true` là đường thoát khi phải chia session.
+
+**Kết quả / số liệu:** Không có số khoa học. Ngân sách 3 fold: 10.0h ước tính (thực tế ~9.6h), cổng PASS. Còn dư ~6h trong 16h.
+
+**Dang dở:**
+- [ ] **E6b fold 3–5** — sẵn sàng chạy.
+- [ ] **TTA** — chưa có cell notebook; chạy được ngay sau khi E6b đủ 5 fold, vài phút GPU.
+- [ ] E9 (config sẵn) · E10 kênh hiệu (chưa dựng) · E11 siamese (chưa dựng, cần đối chứng độ phân giải) · E8b (cần MedicalNet weights).
+- [ ] Multi-seed ensemble — thứ có giá trị kép (macro-F1 + sửa phần epistemic vốn đang dùng MC-dropout kém).
+- [ ] Hình cho report, `stats.py`, report cuối, README.
+
+**Điểm vào phiên sau:** Đọc E6b 5 fold bằng `python -m src.eval.run --run-dir runs/E6b` rồi so cặp với E4 trên **394 ca**. Tiêu chí đã chốt ở S-105: CI95 của hiệu không chứa 0 thì E6b thay E4 làm cấu hình gốc.
+
+**Cảnh báo cho tool sau:**
+- **Chi phí/epoch phụ thuộc config.** Đừng dùng một hằng số chung; bảng đo thật nằm ở cell 12 của notebook 09.
+- **E6b fold 1+2 đã chạy rồi** — chỉ chạy 3, 4, 5. Chạy lại 1+2 là phí 6.4h và không thêm thông tin.
+- Khi gộp: `runs/E6b` sẽ có đủ 5 fold, dùng được `src.eval.run` và `src.eval.trust` như với E4.
