@@ -4078,3 +4078,51 @@ Train loss cuối cao hơn ở E6 (0.387/0.362 so với 0.301/0.274) — augment
 - **Mốc đối chiếu của E6/E6b là fold 1 = 0.7001 và fold 2 = 0.6771** (trung bình 0.6879), KHÔNG phải 0.6851 của bản gộp 394 ca. Hai tập khác nhau.
 - **Đổi thí nghiệm = đổi `CONFIG_NAME` và `SCOPE`.** Quên `SCOPE` thì Cổng 0 báo động giả, và báo giả vài lần thì người ta bỏ qua nó.
 - Bảng cách đọc kết quả ở cell 0 được chốt **trước** khi chạy. Nếu kết quả không khớp dòng nào thì ghi ra điều đó, đừng thêm dòng mới cho vừa số.
+
+## S-104 · 2026-08-05 · claude-code
+
+**Mục tiêu phiên:** Đọc kết quả E6b theo bảng đã chốt trước ở S-103.
+
+**Nhánh / commit:** `main` · `fba154a` → *(commit đang chờ)*
+
+**Đã đụng file:** `configs/e9_e6b_ema.yaml` (**mới**), `AGENTS.md` §5, `WORKLOG.md`.
+
+**Quyết định & lý do:**
+
+- **Kết quả KHÔNG khớp gọn dòng nào trong bảng đã chốt, và tôi ghi đúng như vậy.** S-103 chốt bốn cách đọc; thực tế **hai dòng cùng đúng một lúc**: "E6b > E6" (dòng 1) *và* "fold 2 vẫn sụt sớm" (dòng 4). Bảng giả định một nguyên nhân; thực tế có hai. Đây chính là tình huống S-103 đã dặn: *"nếu kết quả không khớp dòng nào thì ghi ra điều đó, đừng thêm dòng mới cho vừa số"*.
+- **Giả thuyết nhiễu cường độ được ỦNG HỘ, không phải chứng minh.** Dự đoán ra trước ở S-102 là hai lớp phụ thuộc động học sẽ hồi phục khi tắt nó. Số liệu đi đúng hướng: **ICC +0.091, di căn +0.069** so với E6. Nhưng E6b − E6 = +0.038 với **P=0.18** — chưa qua ngưỡng. Dự đoán đúng hướng trên n=162 không phải bằng chứng đủ.
+- **Vấn đề thứ hai lộ ra và nó tách bạch:** augmentation hình học mạnh làm tối ưu hoá bất ổn. `val_loss` chạm đáy ở epoch **10** ở E6b (E6: 5, E4: 79). Fold 2 của E6b là 0.6611, **vẫn thấp hơn E4** 0.6771 — toàn bộ mức tăng của E6b đến từ fold 1.
+- **Dựng E9 = E6b + EMA, và đó là bước MỘT BIẾN so với E6b.** Chuỗi ablation giữ nguyên tính quy kết: E4 → E6b (augment) → E9 (ema). EMA nhắm đúng vấn đề 2 — nó là trung bình trượt ~11.7k bước nên không bám theo cú sụt sớm. Đây không phải "thử EMA xem sao"; nó là phương án nhắm vào một triệu chứng đã đo.
+- **Chốt cách đọc E9 trước khi chạy**, viết vào đầu config, cùng lý do như S-103.
+- **Không tuyên bố E6b là cấu hình chính.** P=0.44 so với E4. Nó là **ứng viên tốt nhất hiện có**, không phải kết luận. Muốn chốt thì cần fold 3–5.
+
+**Kết quả / số liệu:**
+
+| | fold 1 | fold 2 | gộp 162 | ECE |
+|---|---|---|---|---|
+| E4 | 0.7001 | 0.6771 | 0.6879 | 0.2212 |
+| E6 | 0.7580 | 0.5922 | 0.6739 | 0.2262 |
+| **E6b** | **0.7660** | 0.6611 | **0.7119** | 0.2349 |
+
+Bootstrap ghép cặp: E6b − E4 = **+0.024** [−0.038, +0.083] **P=0.44** · E6b − E6 = **+0.038** [−0.021, +0.095] **P=0.18**.
+
+Từng lớp so E4: nang **+0.155** · FNH **+0.099** · u máu +0.042 · ICC +0.006 · HCC −0.035 · di căn −0.042 · áp-xe −0.056.
+
+`val_loss` chạm đáy: E4 fold1 ep100 / fold2 ep79 · E6 ep184 / **ep5** · E6b ep158 / **ep10**.
+
+**Điều đáng lo nhất cho mục tiêu 0.80:** hai lớp yếu **vẫn yếu** (ICC 0.455, di căn 0.444). Mức tăng của E6b đến từ các lớp vốn đã dễ (nang, FNH, u máu). Không thể tới 0.80 khi hai lớp còn ở mức 0.45 — chúng kéo trung bình xuống ~0.05 so với nếu chúng đạt mức trung bình của các lớp còn lại.
+
+**Dang dở:**
+- [ ] **E9** (E6b + EMA) — sẵn sàng, nhắm đúng vấn đề còn lại.
+- [ ] E6b fold 3–5 nếu muốn chốt nó thay E4.
+- [ ] E8 pretrained — cần MedicalNet weights.
+- [ ] TTA chưa có cell notebook.
+- [ ] Hình cho report, `stats.py`, report cuối, README.
+
+**Điểm vào phiên sau:** Chạy E9 (`CONFIG_NAME = "e9_e6b_ema.yaml"`, `SCOPE = "train.ema_decay"`). Nhớ: **mọi số của E9 là của model EMA**, ghi rõ khi so với E6b.
+
+**Cảnh báo cho tool sau:**
+- **E6b CHƯA phải cấu hình chính.** P=0.44 so với E4. Đừng viết vào báo cáo như một cải thiện đã chốt.
+- **Mức tăng của E6b đến từ lớp dễ, không phải lớp yếu.** Với macro-F1 thì đó là trần thấp.
+- **Có HAI vấn đề, không phải một.** Nhiễu cường độ (đã sửa) và bất ổn tối ưu hoá (chưa). Đừng gộp chúng lại khi viết.
+- **Mốc đối chiếu vẫn là fold 1+2** (E4 0.6879), không phải 0.6851 của bản gộp 394 ca.

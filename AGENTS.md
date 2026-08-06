@@ -280,6 +280,33 @@ Bootstrap ghép cặp 2000 lần: macro-F1 **−0.014** [−0.078, +0.052] P=0.6
 
 ⚠️ Giả thuyết cạnh tranh chưa loại được: augmentation mạnh làm **tối ưu hoá bất ổn** ở fold 2 (`val_loss` đáy ở epoch 5). Hai cách giải thích này không loại trừ nhau.
 
+### E6b — tắt nhiễu cường độ: cấu hình tốt nhất hiện có, nhưng lộ ra vấn đề THỨ HAI (2026-08-05, WORKLOG S-104)
+
+E6b = E6 với `intensity_prob: 0`. Khác E6 **đúng một khoá**. Cùng 162 ca (fold 1+2).
+
+| | fold 1 | fold 2 | gộp 162 | ECE |
+|---|---|---|---|---|
+| E4 | 0.7001 | 0.6771 | 0.6879 | 0.2212 |
+| E6 | 0.7580 | 0.5922 | 0.6739 | 0.2262 |
+| **E6b** | **0.7660** | 0.6611 | **0.7119** | 0.2349 |
+
+Bootstrap ghép cặp: **E6b − E4 = +0.024** [−0.038, +0.083] P=0.44 · **E6b − E6 = +0.038** [−0.021, +0.095] P=0.18. **Không cái nào có ý nghĩa thống kê** — n=162, lực kiểm định thấp.
+
+**Giả thuyết nhiễu cường độ được ỦNG HỘ.** Hai lớp phụ thuộc động học hồi phục đúng như dự đoán khi tắt nó: **ICC +0.091**, **di căn +0.069** (so với E6). Không chứng minh được, nhưng dự đoán ra trước và số liệu đi đúng hướng.
+
+⚠️ **Kết quả KHÔNG khớp gọn dòng nào trong bảng đã chốt trước khi chạy — có HAI vấn đề tách bạch, không phải một:**
+
+1. **Nhiễu cường độ độc-lập-theo-pha gây hại** → đã sửa bằng E6b.
+2. **Augmentation hình học mạnh làm tối ưu hoá bất ổn** → **chưa sửa**. `val_loss` chạm đáy ở epoch **10** (E6: 5, E4: 79). Fold 2 của E6b vẫn 0.6611, **thấp hơn E4** 0.6771 — toàn bộ mức tăng của E6b đến từ fold 1.
+
+Từng lớp so với E4: nang **+0.155** · FNH **+0.099** · u máu +0.042 · ICC +0.006 · HCC −0.035 · di căn −0.042 · áp-xe −0.056.
+
+⚠️ **Hai lớp yếu vẫn yếu** (ICC 0.455, di căn 0.444). Mức tăng của E6b đến từ các lớp vốn đã dễ. Với mục tiêu macro-F1 thì đây là giới hạn: không thể tới 0.80 nếu hai lớp này còn ở mức 0.45.
+
+⚠️ **ECE xấu đi** (0.2212 → 0.2349).
+
+`configs/e9_e6b_ema.yaml` = E6b + EMA, nhắm đúng vấn đề 2.
+
 ### E5 focal loss — 2/5 fold, chưa kết luận được (2026-08-05, WORKLOG S-094)
 
 Cùng 162 ca (fold 1+2), cùng split, cùng seed. Config khác baseline **đúng 3 khoá**: `loss.name`, `loss.gamma`, `output_dir`.
