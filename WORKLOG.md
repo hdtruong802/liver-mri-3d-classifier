@@ -4157,3 +4157,38 @@ Từng lớp so E4: nang **+0.155** · FNH **+0.099** · u máu +0.042 · ICC +0
 - **Chi phí/epoch phụ thuộc config.** Đừng dùng một hằng số chung; bảng đo thật nằm ở cell 12 của notebook 09.
 - **E6b fold 1+2 đã chạy rồi** — chỉ chạy 3, 4, 5. Chạy lại 1+2 là phí 6.4h và không thêm thông tin.
 - Khi gộp: `runs/E6b` sẽ có đủ 5 fold, dùng được `src.eval.run` và `src.eval.trust` như với E4.
+
+## S-106 · 2026-08-05 · claude-code
+
+**Mục tiêu phiên:** Viết cell TTA để dùng nốt ~6h còn lại sau khi E6b chạy xong fold 3–5.
+
+**Nhánh / commit:** `main` · `9a76709` → *(commit đang chờ)*
+
+**Đã đụng file:** `notebooks/09_cv_runner.ipynb` (chèn 2 cell TTA, cập nhật `KEEP`), `src/eval/run.py` (đọc được file TTA).
+
+**Quyết định & lý do:**
+
+- **Chèn TTA vào notebook 09 thay vì làm notebook riêng.** Checkpoint vừa train đã nằm sẵn trong `/kaggle/working` của chính session đó — chạy TTA ngay tại chỗ **né hẳn vòng upload rồi mount lại**. Notebook riêng sẽ bắt người dùng đóng gói checkpoint, tạo dataset, mount, chỉ để chạy vài phút inference.
+- **Ghi ra `val_probs_best_tta.npz`, KHÔNG đè `val_probs_best.npz`.** Hai file phải cùng tồn tại thì mới so cặp được; đè lên là mất đối chứng vĩnh viễn.
+- **Dùng lượt 0 làm bản không-TTA.** `flip_combinations` đặt tổ hợp rỗng ở đầu (đã có test neo), nên `probs_per_view[0]` chính là ảnh gốc — so được trực tiếp mà không tốn thêm lượt inference nào.
+- **Bắt được hai lỗi thật khi tự kiểm, trước khi commit:**
+  1. `views` lưu dạng object array cần pickle, mà `load_predictions` mở file với `allow_pickle=False` → sẽ nổ lúc đọc. Đổi sang mảng chuỗi (`"1-2"`, `"goc"`).
+  2. Thiếu khoá `epoch` → `load_predictions` trả `-1`, mất thông tin. Đã lấy từ `metrics_best.json`.
+- **`src/eval/run.py` giờ đọc cả nhãn `best+TTA`.** Không có nó thì file TTA sinh ra rồi nằm im — CLI chỉ lặp qua `best` và `last`. Vòng lặp có sẵn `continue` khi thiếu file nên notebook/run cũ không đổi hành vi.
+- **Kiểm end-to-end bằng file .npz dựng đúng định dạng cell sẽ ghi**, không tin là nó đúng: `load_predictions` đọc được (n=82, epoch=165), `report` ra đủ hai nhãn `best` và `best+TTA` ở cả mức fold lẫn mức gộp. Đây là cách duy nhất kiểm được phần này ở máy không có torch.
+
+**Kết quả / số liệu:** Không có số khoa học — TTA chưa chạy thật. Notebook 21 cell, cú pháp hợp lệ, 0 output. CLI xuống thang đúng khi chưa có file TTA (chạy `runs/E6b` vẫn ra `best`/`last` bình thường). 486 test pass, gate PASS.
+
+**Dang dở:**
+- [ ] **E6b fold 3–5** rồi **TTA** — cả hai trong cùng một session 16h.
+- [ ] E9 (sẵn) · E10 kênh hiệu (chưa dựng) · E11 siamese (chưa dựng) · E8b (cần weights).
+- [ ] Multi-seed ensemble.
+- [ ] Hình cho report, `stats.py`, report cuối, README.
+
+**Điểm vào phiên sau:** Sau khi tải về, `python -m src.eval.run --run-dir runs/E6b` sẽ tự in cả ba nhãn `best`, `last`, `best+TTA` — không cần cờ gì thêm.
+
+**Cảnh báo cho tool sau:**
+- **`load_predictions` mở `.npz` với `allow_pickle=False`.** Mọi khoá ghi vào file dự đoán phải là kiểu numpy thuần; object array sẽ nổ lúc đọc chứ không phải lúc ghi.
+- **Đừng đè `val_probs_best.npz` bằng bản TTA.** Mất đối chứng thì không đo lại được mức tăng.
+- **Lượt 0 của TTA là ảnh gốc**, không phải một lượt lật. Dùng nó làm mốc so; đừng chạy thêm một lượt "không TTA" riêng.
+- TTA chỉ dùng phép lật. `rot90` không hợp lệ về giải phẫu — lý do đầy đủ ở `src/eval/tta.py`.

@@ -34,6 +34,9 @@ from src.utils.io import resolve_repo_path
 
 BEST = "val_probs_best.npz"
 LAST = "val_probs_last.npz"
+# Sinh bởi cell TTA của `notebooks/09_cv_runner.ipynb`. Vắng mặt là bình thường —
+# `report` bỏ qua nhãn nào không có file, không nổ.
+TTA = "val_probs_best_tta.npz"
 
 
 def load_predictions(path: str | Path) -> dict[str, Any]:
@@ -136,7 +139,7 @@ def report(run_root: str | Path, n_resamples: int = 2000, seed: int = 20260727) 
     root = resolve_repo_path(run_root)
     output: dict[str, Any] = {"run_root": str(root), "folds": {}, "pooled": {}}
 
-    for label, filename in (("best", BEST), ("last", LAST)):
+    for label, filename in (("best", BEST), ("last", LAST), ("best+TTA", TTA)):
         found = find_fold_predictions(root, filename)
         if not found:
             continue
