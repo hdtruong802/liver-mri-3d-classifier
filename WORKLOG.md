@@ -4192,3 +4192,60 @@ Từng lớp so E4: nang **+0.155** · FNH **+0.099** · u máu +0.042 · ICC +0
 - **Đừng đè `val_probs_best.npz` bằng bản TTA.** Mất đối chứng thì không đo lại được mức tăng.
 - **Lượt 0 của TTA là ảnh gốc**, không phải một lượt lật. Dùng nó làm mốc so; đừng chạy thêm một lượt "không TTA" riêng.
 - TTA chỉ dùng phép lật. `rot90` không hợp lệ về giải phẫu — lý do đầy đủ ở `src/eval/tta.py`.
+
+---
+
+## S-107 · 2026-08-06 · claude-code
+
+**Mục tiêu phiên:** Đánh giá E6b khi đủ 5 fold, chốt cấu hình gốc, rồi dựng đường chạy TTA trên checkpoint E4 đã có.
+
+**Nhánh / commit:** `main` · `6b77709` → *(commit đang chờ)*
+
+**Đã đụng file:**
+- `notebooks/11_tta_e4.ipynb` — mới, 15 cell. TTA trên 5 checkpoint E4 đã có, không train lại.
+- `AGENTS.md` — §5 thêm mục "E6b đủ 5 fold"; đánh dấu mục S-104 là **đã bị bác**; §6 sửa dòng TTA (dòng cũ thiếu một cột nên vỡ bảng) và siết lại dòng "sàng thí nghiệm".
+- `src/eval/run.py` — comment ở hằng `TTA` giờ trỏ cả notebook 11.
+
+**Quyết định & lý do:**
+
+- **Giữ E4 làm cấu hình gốc, khép E6b.** E6b − E4 = −0.0022, CI95 [−0.0423, +0.0363], **P=0.92** trên đủ 394 ca. Đây đúng là luật đã chốt trước khi chạy (CI chứa 0 thì giữ E4), nên không có chỗ để diễn giải lại. `configs/e9_e6b_ema.yaml` bỏ theo, vì gốc của nó không đứng.
+- **Fold 1 (0.7660) là ngoại lệ, không phải tín hiệu.** Bốn trên năm fold không dương. Ghi thẳng vào AGENTS.md rằng **2 fold chỉ đủ để LOẠI, không đủ để CHỌN** — sàng 2 fold cho +0.038, 5 fold cho −0.002. Đây là lỗi suýt mắc, không phải lỗi lý thuyết.
+- **Notebook TTA riêng (11) thay vì dùng cell TTA trong notebook 09.** S-106 chọn nhúng vào 09 để né vòng upload–mount, và với run vừa train xong thì đúng. Nhưng E4 train từ nhiều session trước, checkpoint đã nằm ở dataset `best-weights` chứ không ở `/kaggle/working`; cell của 09 dò `OUT.glob("fold*")` nên không thấy gì. Hai hoàn cảnh khác nhau, giữ cả hai đường.
+- **Trích cell dò đường dẫn của notebook 08 bằng code, không chép tay** (`scratchpad/make_nb11.py` đọc `08_mc_dropout.ipynb` rồi ghép). Khối đó đã sửa bốn lần cùng một lớp lỗi (S-081→S-084); chép tay là tạo bản thứ năm để sửa.
+- **Cổng nghiệm thu của notebook 11 là lượt 0 so với macro-F1 lưu trong chính checkpoint.** `flip_combinations` đặt tổ hợp rỗng ở đầu nên `probs_per_view[0]` là ảnh gốc, và `best.pt` có sẵn khoá `metrics`. Nghĩa là notebook **tự chứng minh** cache/fold/chế độ eval đều đúng mà không cần con số nào gõ tay. Lệch quá 2e-3 thì `assert` nổ trước khi đọc số TTA.
+- **Xác minh 5 checkpoint local khớp mã băm ghi ở S-081** (`2e1f3e1a…`, `30a8eb9e…`, `00c133e0…`, `3fe18f1e…`, `d61cc7ed…`) trước khi bảo người dùng mount dataset đó. Nếu lệch thì mọi thứ phía sau là rác.
+
+**Kết quả / số liệu:**
+
+E6b so E4, bootstrap ghép cặp 2000 lần, 394 ca:
+
+| | hiệu | CI95 | P |
+|---|---|---|---|
+| macro-F1 | −0.0022 | [−0.0423, +0.0363] | 0.92 |
+| accuracy | −0.0052 | [−0.0431, +0.0330] | 0.75 |
+| ECE | +0.0248 | [−0.0199, +0.0705] | 0.29 |
+
+Gộp out-of-fold: E4 0.6851 · E6b 0.6828. Từng fold (E6b − E4): +0.066, −0.016, +0.001, −0.042, −0.047.
+
+**Phát hiện có giá trị nhất lại không phải về E6b.** SD giữa các fold 0.0280 → 0.0661. Trên cả 10 lần train (5 fold × 2 cấu hình), **epoch mà `val_loss` chạm đáy tương quan với macro-F1 cuối cùng ở ρ = +0.770, P = 0.0092**. Đúng cả với E4: hai fold yếu nhất của E4 (4 và 5) cũng là hai fold chạm đáy sớm nhất (epoch 3 và 14). Đây là cơ sở định lượng để ưu tiên E7 = E4 + EMA.
+
+Hai lớp yếu không nhúc nhích: di căn 0.488 → 0.415, ICC 0.519 → 0.547. Precision di căn 0.476 → 0.405 (sai hướng). HCC → ICC 9→12 ca, HCC → di căn 15→14 ca. Calibration xấu đi nhất quán (ECE 0.2030 → 0.2344, NLL 2.03 → 2.35).
+
+Ruff sạch, 486 test pass (16 skip vì máy không có torch). Notebook 11: 15 cell, cú pháp hợp lệ, 0 output.
+
+**Dang dở:**
+- [ ] **Chạy `notebooks/11_tta_e4.ipynb`** — chưa chạy lần nào, mọi phần torch của nó chưa được thực thi.
+- [ ] E7 = E4 + EMA (`configs/e7_ema.yaml`, sẵn, chưa chạy) — hướng ưu tiên sau TTA.
+- [ ] E8 pretrained (cần upload MedicalNet weights) · E10 kênh hiệu · E11 siamese (chưa dựng).
+- [ ] `tests/test_tta_ema.py` và `tests/test_xai_gradcam.py` **chưa từng chạy có torch** — 16 test skip ở máy này.
+- [ ] Multi-seed ensemble · hình cho report · `src/eval/stats.py` · report cuối · README.
+- [ ] **Test-104 chưa có đường chạy code.** `src/eval/run.py` không có `--split`/`--ckpt`/`--i-know-this-is-final`; AGENTS.md §6 vẫn ghi "chưa có". Người dùng đã nêu ý định chạm, cần viết đường chạy + pre-registration trước.
+
+**Điểm vào phiên sau:** Mở `notebooks/11_tta_e4.ipynb` trên Kaggle, mount cache E4 và dataset `best-weights`, chạy tuần tự. Tải `E4_tta_results/` về, giải nén **một lớp** vào `runs/E4_per_phase_results/fold_N/`, rồi `python -m src.eval.run --run-dir runs/E4_per_phase_results` — nó tự in cả nhãn `best+TTA`.
+
+**Cảnh báo cho tool sau:**
+- **Đừng dựa vào mục E6b của S-104 trong AGENTS.md.** Nó kết luận trên 2 fold và đã bị 5 fold bác; mục đó giờ có banner cảnh báo ở đầu. Giữ lại vì nó ghi lại cách đọc đã chốt trước, không phải vì kết luận còn đúng.
+- **`ndarray.ptp()` đã bị bỏ ở NumPy 2.0** — dùng `np.ptp(arr)`. Dính khi viết script so sánh.
+- **`SHORT_NAMES` trong `src/data/taxonomy.py` là `dict[int, str]`, không phải list.** `enumerate` hay `.index()` lên nó đều sai.
+- **Console Windows mặc định cp1252** nên `python -m src.eval.run` nổ `UnicodeEncodeError` ở dòng tiếng Việt đầu tiên. Chạy với `PYTHONIOENCODING=utf-8`.
+- **Cell TTA của notebook 09 và notebook 11 dò checkpoint theo hai cách khác nhau** và cố ý như vậy: 09 lấy từ output của chính session (`OUT.glob("fold*")`), 11 lấy từ dataset đã mount. Dùng nhầm cái nào cũng chỉ ra "không tìm thấy checkpoint".

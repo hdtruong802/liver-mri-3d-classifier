@@ -280,7 +280,9 @@ Bootstrap ghép cặp 2000 lần: macro-F1 **−0.014** [−0.078, +0.052] P=0.6
 
 ⚠️ Giả thuyết cạnh tranh chưa loại được: augmentation mạnh làm **tối ưu hoá bất ổn** ở fold 2 (`val_loss` đáy ở epoch 5). Hai cách giải thích này không loại trừ nhau.
 
-### E6b — tắt nhiễu cường độ: cấu hình tốt nhất hiện có, nhưng lộ ra vấn đề THỨ HAI (2026-08-05, WORKLOG S-104)
+### E6b, bản sàng 2 fold — ⚠️ KẾT LUẬN ĐÃ BỊ BÁC BỞI 5 FOLD (2026-08-05, WORKLOG S-104)
+
+> **Giữ lại làm hồ sơ, KHÔNG dùng làm căn cứ.** Mục này kết luận E6b là "cấu hình tốt nhất hiện có" dựa trên 2 fold. Đủ 5 fold thì E6b − E4 = **−0.002, P=0.92** — xem mục ngay dưới. Toàn bộ mức tăng ở đây đến từ fold 1, và fold 1 hoá ra là ngoại lệ.
 
 E6b = E6 với `intensity_prob: 0`. Khác E6 **đúng một khoá**. Cùng 162 ca (fold 1+2).
 
@@ -305,7 +307,67 @@ Từng lớp so với E4: nang **+0.155** · FNH **+0.099** · u máu +0.042 · 
 
 ⚠️ **ECE xấu đi** (0.2212 → 0.2349).
 
-`configs/e9_e6b_ema.yaml` = E6b + EMA, nhắm đúng vấn đề 2.
+`configs/e9_e6b_ema.yaml` = E6b + EMA, nhắm đúng vấn đề 2. ⚠️ **Đã bỏ** — gốc của nó (E6b) không đứng vững trên 5 fold.
+
+### E6b đủ 5 fold — NULL, và fold 1 là ngoại lệ. E4 được giữ làm cấu hình gốc (2026-08-06, WORKLOG S-107)
+
+Đủ 394 ca, cùng bệnh nhân cùng thứ tự với E4. Bootstrap ghép cặp 2000 lần:
+
+| | hiệu (E6b − E4) | CI95 | P |
+|---|---|---|---|
+| macro-F1 | **−0.0022** | [−0.0423, +0.0363] | **0.92** |
+| accuracy | −0.0052 | [−0.0431, +0.0330] | 0.75 |
+| ECE | +0.0248 | [−0.0199, +0.0705] | 0.29 |
+
+Gộp out-of-fold: E4 **0.6851** · E6b **0.6828**. Theo luật đã chốt trước khi chạy (CI chứa 0 thì giữ E4), **E4 là cấu hình gốc mang sang test-104.**
+
+| fold | E4 | E6b | hiệu |
+|---|---|---|---|
+| 1 | 0.7001 | **0.7660** | **+0.066** |
+| 2 | 0.6771 | 0.6611 | −0.016 |
+| 3 | 0.7304 | 0.7311 | +0.001 |
+| 4 | 0.6680 | 0.6262 | −0.042 |
+| 5 | 0.6618 | 0.6151 | −0.047 |
+
+**Bài học về quy trình, quan trọng hơn kết quả:** sàng 2 fold cho +0.038 và trông rất hứa hẹn; 5 fold cho −0.002. **Hai fold chỉ đủ để LOẠI một ý tưởng, không đủ để CHỌN nó.** Con số 0.7660 từng là cao nhất dự án có được — nó là một fold may mắn.
+
+#### Phát hiện đáng giá nhất của E6b không phải về E6b
+
+Độ phân tán giữa các fold tăng hơn gấp đôi: SD mẫu 0.0280 → **0.0661**, trải 0.069 → 0.151. Ghép với chẩn đoán ổn định thì có một quy luật rất mạnh **trên cả 10 lần train** (5 fold × 2 cấu hình):
+
+> **Epoch mà `val_loss` chạm đáy dự báo gần trọn vẹn macro-F1 cuối cùng của fold đó.** Spearman ρ = **+0.770**, P = **0.0092**.
+
+```
+ E4 f4  đáy@ep   3  F1 0.6680      E6b f3  đáy@ep  64  F1 0.7311
+E6b f5  đáy@ep   6  F1 0.6151       E4 f2  đáy@ep  79  F1 0.6771
+E6b f2  đáy@ep  10  F1 0.6611       E4 f1  đáy@ep 100  F1 0.7001
+E6b f4  đáy@ep  12  F1 0.6262      E6b f1  đáy@ep 158  F1 0.7660
+ E4 f5  đáy@ep  14  F1 0.6618       E4 f3  đáy@ep 227  F1 0.7304
+```
+
+Nút thắt là **thời điểm bắt đầu overfit**, và nó đúng với **cả E4** chứ không riêng E6b: E4 fold 4 và 5 chạm đáy ở epoch 3 và 14, và đúng là hai fold yếu nhất của E4. Augmentation mạnh chỉ làm tệ hơn — trung vị epoch chạm đáy 79 → 12, khoảng cách train/val cuối +1.91 → +2.45.
+
+⚠️ Tương quan trên 10 run, và hai đại lượng cùng sinh từ một đường cong train nên **không tách được nhân quả**. Đây là chẩn đoán tốt, không phải bằng chứng rằng chặn overfit sẽ nâng điểm. Nhưng nó là cơ sở định lượng để ưu tiên **E7 = E4 + EMA**.
+
+#### Giả thuyết nhiễu cường độ: đúng một nửa, không đổi được kết quả
+
+So với E6 trên 162 ca thì cả ICC lẫn di căn đều hồi. Nhưng so với **E4** trên 394 ca thì hai lớp yếu đi ngược nhau và triệt tiêu:
+
+| lớp | n | E4 | E6b | hiệu |
+|---|---|---|---|---|
+| di căn | 40 | 0.488 | 0.415 | **−0.073** |
+| ICC | 46 | 0.519 | 0.547 | +0.028 |
+| áp-xe | 42 | 0.660 | 0.689 | +0.029 |
+| FNH | 36 | 0.761 | 0.753 | −0.007 |
+| nang | 42 | 0.762 | 0.800 | +0.038 |
+| HCC | 125 | 0.776 | 0.749 | −0.027 |
+| u máu | 63 | 0.831 | 0.826 | −0.004 |
+
+Precision hai lớp yếu: ICC 0.466 → 0.483 (đúng hướng, không đáng kể) · di căn 0.476 → **0.405** (sai hướng). Hướng nhầm chính không suy chuyển: HCC → ICC 9 → 12 ca, HCC → di căn 15 → 14 ca. **Nút thắt không nhúc nhích.**
+
+⚠️ Calibration xấu đi nhất quán: ECE 0.2030 → 0.2344, NLL 2.03 → 2.35. Chưa có ý nghĩa thống kê (P=0.29) nhưng cùng chiều với kết quả trên 162 ca. Với dự án lấy calibration làm đóng góp headline, đây là thêm một lý do không chọn E6b.
+
+Điểm sáng duy nhất, đo trên **cùng fold 2–5**: thiên lệch chọn epoch E4 +0.0787 so với E6b +0.0608. Không đủ để bù.
 
 ### E5 focal loss — 2/5 fold, chưa kết luận được (2026-08-05, WORKLOG S-094)
 
@@ -438,8 +500,8 @@ Bootstrap **ghép cặp** trên hiệu (2000 lần, phân tầng, mức bệnh n
 | Tiền xử lý (chạy 1 lần, cache) | `python -m src.preprocess.build_cache --config configs/preprocess.yaml` | sẵn sàng; **cần điền `axis_order` trước**. `crop_mode` chọn `fixed_mm` (cache v0) hay `lesion_tight` (cắt bám tổn thương, dùng mask ở `lld/labels`) — đổi giá trị này là **đổi dữ liệu**, phải build sang thư mục cache khác |
 | Train baseline 3D-patch (1 fold) | `python -m src.train.run --config configs/baseline_3dpatch.yaml --fold 1` | sẵn sàng (W2 ngày 5); resume tự động từ `last.pt`; cần `LLDMMRI_CACHE_DIR` trỏ tới cache |
 | **Train một fold, config bất kỳ** | `python -m src.train.run --config configs/e5_focal.yaml --fold 1` | sẵn sàng (W4); `configs/e5_focal.yaml` = baseline + focal loss, khác đúng khối `loss:` |
-| **Sàng thí nghiệm (rẻ)** | `notebooks/09_cv_runner.ipynb` với `FOLDS = [1, 2]` | 7.4h = 1 session. Sàng trên 2 fold rồi mới xác nhận cái thắng trên 5 fold — **đừng chạy 5 fold cho một ý tưởng chưa đo** |
-| **TTA** (GPU, vài phút) | `src/eval/tta.py::tta_predict` — dùng lại checkpoint đã có, **không train lại**. Chỉ lật; `rot90` không hợp lệ về giải phẫu |
+| **Sàng thí nghiệm (rẻ)** | `notebooks/09_cv_runner.ipynb` với `FOLDS = [1, 2]` | 7.4h = 1 session. ⚠️ **2 fold chỉ để LOẠI, không để CHỌN** — E6b sàng 2 fold cho +0.038 nhưng 5 fold cho −0.002 (S-107). Dương trên 2 fold thì mới chỉ là "chưa loại được" |
+| **TTA trên checkpoint đã có** (GPU, vài phút) | `notebooks/11_tta_e4.ipynb` trên Kaggle | sẵn sàng (W4); inference thuần, **không train lại**. Mount cache E4 + `best-weights`. Chỉ lật; `rot90` không hợp lệ về giải phẫu (`src/eval/tta.py`). Lượt 0 là ảnh gốc nên tự có đối chứng, và cell tự đối chiếu nó với macro-F1 lưu trong checkpoint |
 | **EMA** | `configs/e7_ema.yaml` (`train.ema_decay: 0.999`) | mặc định TẮT ở baseline. Khi bật, **mọi số trong `train_log.csv`/`metrics_best.json`/`val_probs_*.npz` là của model EMA** |
 | **Backbone pretrained** | `configs/e8_pretrained.yaml` | cần upload MedicalNet `resnet_18_23dataset.pth` thành Kaggle Dataset trước; `load_medicalnet_weights` nổ nếu khớp <50% khoá |
 | **Chạy CV trên Kaggle** | mở `notebooks/09_cv_runner.ipynb`, đặt `CONFIG_NAME` + `FOLDS` | sẵn sàng (W4); **thay cho notebook 07** (07 khoá cứng vào baseline và còn logic dò đường dẫn cũ đã sai) |
