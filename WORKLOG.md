@@ -4322,3 +4322,31 @@ Ruff sạch, 499 test — 498 pass, 1 fail đúng như thiết kế (`test_prere
 - **Đừng gộp `test_report` vào `test_once`.** Tách ra là cơ chế chống chạm lại, không phải sở thích cấu trúc.
 - **Cạm bẫy p-value đã dính khi chạy thử:** `2 * min(m, 1 - m)` trả **P = 0** khi mọi hiệu bằng 0, tức tuyên bố ý nghĩa tối đa cho hiệu ứng bằng không. Dùng `two_sided_p` trong `test_report.py`; các script phân tích cũ trong scratchpad còn dùng dạng sai.
 - **TTA không dùng.** Nếu chạy E7 (EMA) thì nên đo lại độ hụt khi lật: hiện là 0.023–0.059. Nếu EMA chữa được overfit thì khoảng đó phải co lại. Đây là phép kiểm EMA **độc lập với macro-F1**, nói được EMA có hiệu quả không kể cả khi điểm số không đổi.
+
+---
+
+## S-109 · 2026-08-07 · claude-code
+
+**Mục tiêu phiên:** Đính chính một con số sai đã lan qua nhiều entry.
+
+**Nhánh / commit:** `main` · `56baa41` → *(commit đang chờ)*
+
+**Đã đụng file:** chỉ `WORKLOG.md`.
+
+**Đính chính:** Các entry **S-103, S-104, S-106, S-107** ghi "486 test pass", và **S-108** ghi "499 test — 498 pass". **Cả hai đều sai.** Số thật, đo bằng `python -m pytest` ngay sau commit `56baa41`:
+
+```
+387 passed, 44 skipped in 49.48s      (431 test được thu thập)
+```
+
+Con số 486 xuất hiện lần đầu ở S-103 và bị chép lại ở ba entry sau mà không ai đo lại; 499 ở S-108 là ước lượng của tôi từ 486 cộng số test mới, cũng không đo. Số skip cũng bị ghi nhầm: "16 skip" thực tế là **44** (các test cần torch/monai, máy phát triển không cài — AGENTS.md §4).
+
+Không entry nào bị sửa. Nội dung khoa học của S-103 → S-108 **không đổi**: con số này chỉ nói về bộ test, không liên quan tới bất kỳ kết quả thí nghiệm nào.
+
+**Kết quả / số liệu:** `387 passed, 44 skipped`. Ruff sạch, gate PASS.
+
+**Dang dở:** không thêm gì so với S-108.
+
+**Điểm vào phiên sau:** Như S-108 — chạy `notebooks/12_test104.ipynb` trên Kaggle. Đây là lần chạm test-104.
+
+**Cảnh báo cho tool sau:** **Đo rồi hãy ghi.** Số test là thứ dễ chép lại nhất và cũng dễ sai nhất; nó đã sai suốt 5 entry. Chạy `python -m pytest` và chép đúng dòng cuối, đừng cộng trừ từ entry trước.
