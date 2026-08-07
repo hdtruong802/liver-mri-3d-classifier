@@ -76,6 +76,22 @@ def test_cli_tu_choi_khi_thieu_co():
     assert "TỪ CHỐI CHẠY" in result.stdout + result.stderr
 
 
+def test_predict_members_co_do_latency():
+    """Lần chạm test-104 đầu tiên có sẵn con số này miễn phí và không ghi lại.
+
+    Test chạm đúng một lần nên không chạy lại để đo được. Neo lại ba thứ: có bấm
+    giờ, có `torch.cuda.synchronize` (thiếu nó thì đồng hồ dừng lúc xếp xong hàng
+    đợi CUDA chứ không phải lúc GPU tính xong), và latency đi vào file meta.
+    """
+    from pathlib import Path
+
+    src = Path("src/eval/test_once.py").read_text(encoding="utf-8")
+    assert "perf_counter" in src, "không bấm giờ suy luận"
+    assert src.count("torch.cuda.synchronize") >= 2, "thiếu synchronize quanh vòng đo"
+    assert '"latency": result["latency"]' in src, "latency không được ghi vào meta"
+    assert "per_case_ensemble_ms" in src, "thiếu con số ms/ca của ensemble"
+
+
 def test_prereg_da_commit():
     """Pre-registration phải nằm trong lịch sử git trước khi chạm test.
 

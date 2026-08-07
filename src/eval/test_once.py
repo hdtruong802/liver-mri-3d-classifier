@@ -37,6 +37,7 @@ import argparse
 import hashlib
 import json
 import subprocess
+import time
 from pathlib import Path
 from typing import Any
 
@@ -164,6 +165,10 @@ def predict_members(
     members: list[np.ndarray] = []
     labels_ref: np.ndarray | None = None
     ids_ref: list[str] | None = None
+    # Đo latency ngay trong lượt chạy này. Lần chạm test-104 đầu tiên (S-110) đã có
+    # sẵn con số này miễn phí và không ghi lại, nên sau đó không truy ra được nữa —
+    # test chạm một lần nên không chạy lại để đo được (WORKLOG S-116).
+    seconds_per_member: list[float] = []
 
     for fold in sorted(checkpoints):
         state = torch.load(checkpoints[fold], map_location=device)
@@ -182,6 +187,12 @@ def predict_members(
         chunks: list[np.ndarray] = []
         labels: list[np.ndarray] = []
         ids: list[str] = []
+        # Bấm giờ SAU khi nạp checkpoint: đo suy luận, không đo I/O đọc file .pt.
+        # `synchronize` là bắt buộc — lệnh CUDA chạy bất đồng bộ, thiếu nó thì đồng
+        # hồ dừng lúc hàng đợi được xếp xong chứ không phải lúc GPU tính xong.
+        if device.type == "cuda":
+            torch.cuda.synchronize()
+        t0 = time.perf_counter()
         with torch.no_grad():
             for batch in loader:
                 images = batch["image"].to(device, non_blocking=True)
@@ -190,6 +201,9 @@ def predict_members(
                 chunks.append(torch.softmax(logits.float(), dim=1).cpu().numpy())
                 labels.append(batch["label"].cpu().numpy())
                 ids.extend(batch["patient_id"])
+        if device.type == "cuda":
+            torch.cuda.synchronize()
+        seconds_per_member.append(time.perf_counter() - t0)
 
         found_labels = np.concatenate(labels)
         if labels_ref is None:
@@ -205,11 +219,24 @@ def predict_members(
             torch.cuda.empty_cache()
 
     assert labels_ref is not None and ids_ref is not None
+    n = len(labels_ref)
+    total = float(sum(seconds_per_member))
     return {
         "member_probs": np.stack(members),
         "labels": labels_ref,
         "patient_ids": ids_ref,
         "folds": sorted(checkpoints),
+        "latency": {
+            "device": device.type,
+            "batch_size": loader.batch_size,
+            "amp": amp,
+            "n_cases": n,
+            "seconds_per_member": [round(s, 3) for s in seconds_per_member],
+            # Hai con số đáng báo cáo. `per_case_1model_ms` so được với văn liệu;
+            # `per_case_ensemble_ms` là thứ hệ thống thật phải trả.
+            "per_case_1model_ms": round(total / len(seconds_per_member) / n * 1000, 1),
+            "per_case_ensemble_ms": round(total / n * 1000, 1),
+        },
     }
 
 
@@ -271,6 +298,7 @@ def run(
                 "checkpoint_sha256": digests,
                 "n_cases": int(len(result["labels"])),
                 "n_members": int(result["member_probs"].shape[0]),
+                "latency": result["latency"],
             },
             indent=2,
             ensure_ascii=False,
@@ -320,6 +348,13 @@ def main() -> None:
         skip_git_check=args.skip_git_check,
     )
     print(f"đã lưu {path}")
+    lat = json.loads((Path(path).parent / "test_run_meta.json").read_text("utf-8"))["latency"]
+    print(
+        f"\nlatency suy luận: {lat['per_case_1model_ms']} ms/ca cho 1 model · "
+        f"{lat['per_case_ensemble_ms']} ms/ca cho ensemble {len(lat['seconds_per_member'])} model"
+        f"  ({lat['device']}, batch {lat['batch_size']}, amp={lat['amp']})"
+    )
+    print("  ⚠ chỉ là phần model. Tiền xử lý một ca mới tốn thêm ~3,4s trên CPU.")
     print("\nĐọc số bằng:  python -m src.eval.test_report --run-dir " + str(Path(path).parent))
     print("Module này cố ý KHÔNG in metric nào — xem docstring.")
 

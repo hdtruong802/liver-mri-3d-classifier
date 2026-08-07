@@ -4605,3 +4605,61 @@ Config E12 khác baseline đúng 3 khoá khoa học (`data.crop_size`, `data.aug
 **Cảnh báo cho tool sau:**
 - **Một cột "macro-F1" không nhãn tập là cái bẫy.** Nếu các hàng trong bảng đến từ số fold khác nhau thì phải tách cột, không gộp. Ở đây gộp làm cấu hình yếu hơn trông như mạnh nhất.
 - Khi thêm một thí nghiệm vào bảng cũ, kiểm xem **con số nào của nó là con số báo cáo được**, đừng lấy con số cùng loại với hàng cũ chỉ vì cột đã có sẵn.
+
+---
+
+## S-116 · 2026-08-07 · claude-code
+
+**Mục tiêu phiên:** Trả lời câu hỏi latency một ca, và sửa chỗ đã làm mất con số đó.
+
+**Nhánh / commit:** `main` · `f2a299c` → *(commit đang chờ)*
+
+**Đã đụng file:**
+- `src/eval/test_once.py` — bấm giờ suy luận, ghi `latency` vào `test_run_meta.json`, in ra ở CLI.
+- `notebooks/11_tta_e4.ipynb` — thêm mục 3 đo latency trên val.
+- `tests/test_test104.py` — thêm test neo phần đo.
+
+---
+
+### Thiếu sót cần ghi nhận
+
+Lần chạm test-104 (S-110) chạy 5 model trên 104 ca, tức **có sẵn con số latency miễn phí**. `test_once.py` do tôi viết không bấm giờ, `test_run_meta.json` không có trường nào cho nó, cell notebook cũng không in. Con số đó mất hẳn, và **test chạm một lần nên không chạy lại để đo được**.
+
+Đây là lỗi thiết kế lúc viết module, không phải chuyện phát sinh: một lần chạy không lặp lại được thì phải ghi lại mọi thứ đo được, không chỉ thứ mình đang quan tâm lúc đó.
+
+**Quyết định & lý do:**
+
+- **Bấm giờ SAU khi nạp checkpoint**, để đo suy luận chứ không đo I/O đọc `.pt`.
+- **`torch.cuda.synchronize()` hai đầu vòng đo.** Lệnh CUDA bất đồng bộ; thiếu nó thì đồng hồ dừng lúc hàng đợi xếp xong chứ không phải lúc GPU tính xong, và con số báo ra sẽ nhanh gấp nhiều lần sự thật. Test neo lại điều này vì nó là lỗi im lặng.
+- **Ghi cả `per_case_1model_ms` lẫn `per_case_ensemble_ms`.** Cái đầu so được với văn liệu, cái sau là thứ hệ thống thật phải trả.
+- **Đo latency trên VAL, không phải test.** Cùng checkpoint, cùng khối `[8,112,112,32]`, cùng đường code — latency không phụ thuộc ca nào nằm trong tập. Chạm test lần nữa chỉ để bấm giờ là tiêu một lần chạm cho một thứ lấy được ở chỗ khác.
+- **Đặt cell đo vào notebook 11** vì nó đã mount sẵn cache E4 và 5 checkpoint. Không tốn lần mount nào.
+- **Bỏ lượt forward đầu (warm-up)** rồi lấy trung bình 3 lượt: lượt đầu gánh chi phí khởi tạo cuDNN và cấp phát bộ nhớ.
+
+**Kết quả / số liệu:**
+
+Số **đo thật** đang có, từ `cache_build_log.csv`, 498 ca, CPU Kaggle:
+
+| tiền xử lý 1 ca | |
+|---|---|
+| trung vị | **3,43s** |
+| p90 · p99 | 4,74s · 5,93s |
+| trung bình | 3,60s (dải 2,21–6,86) |
+
+Phần model **chưa đo được**, hiện chỉ suy ra từ "GPU ~20s/epoch" ghi ở S-044: epoch fold 1 có 312 mẫu train (forward+backward ≈ 3× forward) và 82 mẫu val ⇒ ~1018 đơn vị forward ⇒ **~20 ms/ca cho 1 model, ~98 ms cho ensemble 5**. Sai số có thể ±50%: hệ số 3× là quy ước, và 20s đo trên hình học E1 (96×96×48) chứ không phải E4.
+
+**End-to-end một ca mới: ~3,5s**, trong đó tiền xử lý chiếm ~97%.
+
+`399 passed, 48 skipped`, ruff sạch, gate PASS.
+
+**Dang dở:**
+- [ ] **Chạy mục 3 của notebook 11 để có latency model đo thật**, thay con số suy ra.
+- [ ] Phần còn lại như S-112.
+
+**Điểm vào phiên sau:** Không đổi — `notebooks/15_build_cache_e12.ipynb` (CPU, Accelerator = None). Nếu tiện mở notebook 11 thì chạy mục 3, mất vài phút.
+
+**Cảnh báo cho tool sau:**
+- **Một lần chạy không lặp lại được thì ghi lại mọi thứ đo được**, không chỉ thứ đang quan tâm. test-104 là ví dụ đắt nhất: latency mất vĩnh viễn vì không ai nghĩ tới nó lúc viết code.
+- **Đo thời gian GPU mà thiếu `torch.cuda.synchronize()` sẽ ra số nhanh giả.** Không có cảnh báo nào, chỉ là con số đẹp hơn sự thật.
+- **Latency đo trên val bằng đúng latency trên test.** Đừng tiêu một lần chạm test để bấm giờ.
+- Khi báo latency cho người dùng cuối, con số đáng nêu là **~3,5s end-to-end** chứ không phải ~98ms của model: tiền xử lý chiếm gần hết thời gian chờ.
