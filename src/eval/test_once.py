@@ -138,11 +138,18 @@ def predict_members(
     import torch
     from torch.utils.data import DataLoader
 
+    from src.data.transforms import build_val_transform
     from src.models import build_model
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     data_config = config.get("data") or {}
-    dataset = build_test_dataset(cache_dir, splits_dir=splits_dir)
+    # Cache có lề dư thì test cũng phải cắt giữa, y hệt val. Quên bước này thì model
+    # nhận khối to hơn nó được train và nổ ở conv đầu.
+    dataset = build_test_dataset(
+        cache_dir,
+        splits_dir=splits_dir,
+        transform=build_val_transform(data_config.get("crop_size")),
+    )
     if len(dataset) != N_TEST:
         raise RuntimeError(f"test dataset có {len(dataset)} ca, cần đúng {N_TEST}")
 

@@ -27,7 +27,7 @@ from typing import Any
 import numpy as np
 
 from src.data.dataset import build_fold_datasets, find_label_mismatches
-from src.data.transforms import build_train_transform
+from src.data.transforms import build_train_transform, build_val_transform
 from src.eval.metrics import classification_metrics, confusion_matrix, per_class_f1
 from src.models import build_model, count_parameters
 from src.train.loop import (
@@ -92,11 +92,15 @@ def build_loaders(config: dict[str, Any], fold: int) -> tuple[Any, Any, list[int
 
     data_config = config.get("data") or {}
     cache_dir = resolve_cache_dir(config)
+    # `crop_size` chỉ có khi cache được build với lề dư (`crop_margin_voxels`). Vắng
+    # mặt thì cả hai transform xuống thang về hành vi cũ, nên config cũ không đổi gì.
+    crop_size = data_config.get("crop_size")
     train_ds, val_ds = build_fold_datasets(
         cache_dir,
         fold,
         splits_dir=resolve_repo_path(config.get("splits_dir", "splits")),
-        train_transform=build_train_transform(data_config.get("augment")),
+        train_transform=build_train_transform(data_config.get("augment"), crop_size),
+        val_transform=build_val_transform(crop_size),
     )
 
     batch_size = int(data_config.get("batch_size", 2))

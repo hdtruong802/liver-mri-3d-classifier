@@ -4414,3 +4414,74 @@ Deck 7 bản khắc, 1533 dòng, in ra **đúng 7 trang**. Gate PASS, `impeccabl
 - **Khi thêm slide có số của dự án, đọc lại Two-Number Rule bản mới:** Loại B bắt buộc kèm CI *và* tên tập đo được. Thiếu một trong hai là không được lên bề mặt.
 - **Đừng ghim `--u` thành giá trị mm cố định để sửa lỗi in.** Chrome headless mặc định khổ **Letter 279×216mm**, không phải A4; một bản dựng trong phiên này đã hardcode 277mm rồi tràn ngang. Để `--u` tự co theo viewport, chỉ bỏ sàn `rem`.
 - **`.section-nav` khoá cứng 4 cột trong CSS của v2.** v3 có 5 phần nên phải ghi đè, nếu không nav xuống hai hàng và đè lên nội dung.
+
+---
+
+## S-111 · 2026-08-07 · claude-code
+
+**Mục tiêu phiên:** Người dùng muốn macro-F1 test-104 đạt 0.75–0.80. Tìm và sửa nút thắt lớn nhất, rồi dựng notebook E12.
+
+**Nhánh / commit:** `main` · `7e290bf` → *(commit đang chờ)*
+
+**Đã đụng file:**
+- `src/data/transforms.py` — `RandomCrop3D`, `CenterCrop3D`, `build_val_transform`; `RandomRotateSmall` thêm tham số `mode`; `build_train_transform` nhận `crop_size`.
+- `src/preprocess/build_cache.py` — `crop_margin_voxels`; lưới cache rộng hơn `target_size`.
+- `src/train/run.py`, `src/eval/test_once.py` — nối `val_transform` cắt giữa.
+- `configs/preprocess_e12.yaml`, `configs/e12_randomcrop.yaml` — mới.
+- `notebooks/14_e12_randomcrop.ipynb` — mới, 19 cell.
+- `tests/test_crop_transforms.py` — mới, 16 test (11 chạy được ở local).
+- `AGENTS.md` — §5 thêm mục lỗi augmentation; §6 thêm dòng E12.
+
+---
+
+### ⚠️ Tìm được một LỖI THẬT, tồn tại từ E0 tới E6b
+
+Không phải lựa chọn thiết kế, là lỗi:
+
+> **≈100% mẫu TRAIN mang một dải đệm 0 ở rìa. 0% mẫu VAL có nó.**
+
+Hai nguồn: `RandomTranslate3D` dịch rồi đệm 0 (shift ngẫu nhiên trên 3 trục nên gần như luôn khác 0), và `RandomRotateSmall` lấp góc bằng 0 với `rotate_prob` mặc định **1.0**. Val không augment nên sạch.
+
+Đây là lệch phân bố train/val ở **mọi bước huấn luyện**, suốt 12 thí nghiệm, và chưa ai thấy. Nó khớp với chẩn đoán overfit đã đo ở S-107 (ρ = +0.770 giữa epoch chạm đáy `val_loss` và macro-F1 cuối).
+
+Đối chiếu ngoài: baseline official và CGHNet đều cắt ngẫu nhiên từ cache rộng hơn, không đệm. Ablation CGHNet Bảng 4 cho **bỏ random-crop mất 8.8 điểm**. Biên độ của ta cũng yếu hơn họ (7.1% so với 12.5% trong mặt phẳng).
+
+**Chưa có số chứng minh nó đáng bao nhiêu điểm** — E12 chưa chạy. Nhưng nó đáng sửa kể cả khi kết quả null, vì nó là lỗi.
+
+**Quyết định & lý do:**
+
+- **Cache lưới 136×136×40, `spacing` vẫn suy từ `target_size` 112×112×32.** Nhờ vậy độ phân giải vật lý y hệt E4, và **cắt giữa cache E12 cho ra đúng khối cache E4 tạo ra**. Val hai bên so trực tiếp được ⇒ E12 so E4 chỉ khác một biến. Nếu để `spacing` suy từ lưới lớn thì cùng một tổn thương sẽ hiện ở tỉ lệ khác và phép so có hai biến.
+- **Lề 12 chứ không phải 8, và đây là số đo chứ không phải chọn bừa.** Xoay 10° trên khối 136 làm hỏng góc tới ~12 voxel; đo thật với lề 8 thì cắt giữa vẫn dính 20 voxel bị lấp, lề 12 thì 0.
+- **Bắt buộc `rotate_mode: nearest`, và đây là lỗi tôi suýt để lọt.** Với `constant`, cắt *giữa* sạch (0 voxel) nhưng cắt *ngẫu nhiên* ở offset biên để lọt **517** voxel bị lấp 0. Tôi đã kiểm cắt giữa trước, thấy sạch, rồi mới nghĩ tới offset biên. `nearest` cho 0 ở mọi offset. Đã thêm test neo lại đúng cái bẫy này.
+- **`rotate_mode` mặc định `constant`** để E0–E6b tái lập được. Chỉ E12 bật `nearest`.
+- **Raise khi bật cả `crop_size` lẫn `translate_voxels`.** Bật cả hai là nhân đôi phép dịch VÀ đưa đệm 0 trở lại đúng thứ phép cắt vừa xoá — một cấu hình sai sẽ âm thầm vô hiệu hoá cả thí nghiệm.
+- **Cổng B trong notebook đo trực tiếp tỉ lệ voxel 0 ở rìa, train so với val**, và chặn nếu lệch quá 0.02. Đây là cách duy nhất biết chắc lỗi đã hết trước khi đốt một session.
+
+**Kết quả / số liệu:**
+
+Chưa có số train. Đo được lúc thiết kế:
+
+| lề | mode | voxel bị lấp lọt vào khối cắt 112 |
+|---|---|---|
+| 8 | constant | 20 (cắt giữa) |
+| 12 | constant | 0 (cắt giữa) · **517** (cắt ngẫu nhiên, offset biên) |
+| 12 | **nearest** | **0 ở mọi offset** |
+
+Config E12 khác baseline đúng 3 khoá khoa học (`data.crop_size`, `data.augment.translate_voxels`, `data.augment.rotate_mode`) cộng 2 đường dẫn. Ruff sạch, **398 passed, 44 skipped**.
+
+**Dang dở:**
+- [ ] **Chạy `notebooks/14_e12_randomcrop.ipynb`** — chưa chạy lần nào; phần torch của `RandomCrop3D` chưa từng thực thi.
+- [ ] Cache E12 chưa build, chưa có Kaggle Dataset.
+- [ ] Sau E12: E2 Siamese (`configs/e2_siamese.yaml`, đã dựng từ lâu, chưa chạy) là bước duy nhất còn tiềm năng đưa lên 0.75+.
+- [ ] E7 EMA · focal 5 fold · pretrained · hình học nông.
+- [ ] Phân tích FP của ICC/di căn (`src/eval/enhancement.py`, `phase_ablation.py` chưa có).
+- [ ] Report · README · repro pack.
+
+**Điểm vào phiên sau:** Mở `notebooks/14_e12_randomcrop.ipynb` trên Kaggle, mount **dữ liệu gốc LLD-MMRI** (không phải cache E4 — nó không có lề dư). Chạy tuần tự; Cổng B là chỗ dừng nếu có gì sai. Nhớ upload cache E12 thành Kaggle Dataset trước khi đóng session, nếu không fold 4–5 phải build lại 45 phút.
+
+**Cảnh báo cho tool sau:**
+- **Cache E4 cũ KHÔNG chạy được với `configs/e12_randomcrop.yaml`.** Nó thiếu lề dư; `RandomCrop3D` sẽ raise kèm lý do. Đó là hành vi đúng, không phải bug.
+- **Đừng ghim `--u`... nhầm file.** Với E12: đừng đặt `crop_margin_voxels` mà quên `rotate_mode: nearest` — cắt giữa vẫn sạch nên cổng A qua, nhưng cắt ngẫu nhiên lúc train thì không, và triệu chứng chỉ hiện ra ở điểm số.
+- **`spacing` suy từ `target_size`, KHÔNG từ lưới cache.** Đổi chỗ này là làm hỏng tính so sánh được với E4.
+- **Ước tính thời gian trong notebook chỉ đo phần CPU nạp dữ liệu** nên thấp hơn thực tế. Số thật để lập kế hoạch: E4 3.76h/fold, E6b 3.17h/fold.
+- **2 fold không đủ để chốt** (E6b: 2 fold +0.038, 5 fold −0.002). Chạy đủ 5.

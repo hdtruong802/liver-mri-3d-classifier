@@ -1,0 +1,187 @@
+# E12 — CACHE CÓ LỀ DƯ, để cắt ngẫu nhiên lúc train mà KHÔNG phải đệm 0.
+# Chép từ preprocess_e4.yaml, khác ĐÚNG HAI KHOÁ: crop_margin_voxels và cache_dir.
+#
+#   python -m src.preprocess.build_cache --config configs/preprocess_e12.yaml
+#
+# VÌ SAO. RandomTranslate3D dịch ảnh rồi lấp phần trống bằng 0, và RandomRotateSmall
+# lấp góc bằng 0 (cval=0.0, prob mặc định 1.0). Kết quả đo được:
+#
+#     ~100% mẫu TRAIN mang một dải đen ở rìa.  0% mẫu VAL có nó.
+#
+# Đây là lệch phân bố train/val có hệ thống, ở MỌI bước huấn luyện, và nó khớp với
+# chẩn đoán overfit đã đo (val_loss chạm đáy sớm, tương quan rho=0.770 với F1 cuối).
+#
+# Baseline official và CGHNet đều không làm vậy: họ cache RỘNG hơn rồi cắt ngẫu
+# nhiên (official resize 128² cắt 112²; CGHNet 16x128x128 -> 14x112x112). Ablation
+# CGHNet Bảng 4: bỏ random-crop mất 8.8 điểm, nặng nhất trong bảng của họ.
+#
+# CHỌN LỀ 12 TRONG MẶT PHẲNG, KHÔNG PHẢI 8. Phép xoay 10 độ trên khối 136 làm hỏng
+# góc tới khoảng 12 voxel. Với lề 8, góc của khối cắt 112 vẫn chạm phần lấp 0 (tính
+# ra lệch ~0.9 voxel); lề 12 thì nằm gọn trong vùng dữ liệu thật. Lề z chỉ cần 4 vì
+# phép xoay là trong mặt phẳng.
+#
+#     lưới cache:  136 x 136 x 40        (112+24, 112+24, 32+8)
+#     model nhận:  112 x 112 x 32        (cắt ngẫu nhiên lúc train, cắt giữa lúc val)
+#     biên độ:     +-12/112 = 10.7% trong mặt phẳng, +-4/32 = 12.5% theo z
+#                  (CGHNet: 12.5% và 12.5%)
+#
+# TÍNH CHẤT QUAN TRỌNG: spacing vẫn suy từ target_size (112x112x32), KHÔNG từ lưới
+# 136x136x40. Nên độ phân giải vật lý y hệt E4, và CẮT GIỮA cache này cho ra đúng
+# khối mà cache E4 tạo ra. Val của E12 vì thế so trực tiếp được với val của E4, và
+# phép so E12-E4 chỉ khác đúng một biến: augmentation lúc train.
+#
+# Cache lớn hơn 1.84 lần: ~5.9GB thay vì 3.2GB. Build lâu hơn cùng tỉ lệ, ~48 phút.
+
+kaggle_dataset_slug: ""        # điền sau khi upload cache E3
+kaggle_dataset_version: 0
+
+# --- Thứ tự trục: bbox.x ứng với trục 0 ('xy') hay trục 1 ('yx') của mảng ---
+# Phán quyết trên toàn bộ 498 bệnh nhân (WORKLOG S-031), đo độ hội tụ của tâm tổn
+# thương giữa các pha trong toạ độ mm, chỉ tính trong mặt phẳng:
+#   180/498 ca có sức phân biệt · xy 166 phiếu (92%) · yx 14 phiếu (8%)
+#   độ tán trong mặt phẳng, trung vị: xy 12.4mm · yx 17.8mm
+# Phân rã theo trục cho thấy X là chỗ khác biệt (7.4mm với 'xy' so với 13.9mm với
+# 'yx'), còn Z giống hệt nhau (23.3mm — chuyển động hô hấp, không liên quan trục).
+# Vẫn nên xác nhận bằng overlay (notebook 02 mục 2) trước khi build cả mẻ.
+axis_order: xy
+
+# --- Căn giữa các pha ---
+# reference : một lưới duy nhất, tâm tại tổn thương của pha tham chiếu (E0..E3).
+# per_phase : mỗi pha một lưới, tâm tại tổn thương của CHÍNH pha đó (E4).
+#
+# VÌ SAO. WORKLOG S-031 đã ĐO độ tán tâm tổn thương giữa 8 pha, trong toạ độ mm:
+#
+#     trong mặt phẳng   trung vị 12.4mm   so với cửa sổ ~53.8mm  ->  23%
+#     theo trục Z       trung vị 23.3mm   so với cửa sổ ~43.6mm  ->  53%
+#
+# Z lệch 23.3mm là chuyển động hô hấp (gan trượt 10-25mm theo trục đầu-chân). Với
+# E3 ở Z=32 voxel trên ~43.6mm, đó là 17 trên 32 lát.
+#
+# Early-concat có tiền đề: voxel (x,y,z) của kênh c là CÙNG một điểm giải phẫu ở
+# mọi pha. Lệch 53% chiều sâu thì tiền đề đó vỡ, và conv đầu tiên đang trộn mô
+# không liên quan. Hạng 2 của challenge thắng chính bằng cách sửa registration.
+#
+# CÁCH LÀM RẺ. Annotation có bbox RIÊNG cho từng pha — đó chính là dữ liệu S-031
+# dùng để đo. Nên chỉ cần dựng lưới của mỗi pha quanh tâm của chính pha đó. Không
+# cần thuật toán registration, không cần Elastix, chỉ tốn một lần build lại cache.
+#
+# GIỚI HẠN, phải ghi vào limitations của báo cáo:
+#   - chỉ khử TỊNH TIẾN, không khử xoay và biến dạng. Hô hấp gần như thuần tịnh
+#     tiến đầu-chân nên đây là thành phần áp đảo, nhưng không phải toàn bộ.
+#   - mô XUNG QUANH sẽ không còn khớp giữa các pha, chỉ tổn thương khớp. Với bài
+#     phân loại tổn thương thì có thể là điều mong muốn, nhưng đó là thay đổi về
+#     ngữ nghĩa dữ liệu, không phải một phép sửa trung tính.
+#
+# Kiểm được: build_log.csv có cột `max_shift_mm`; ở chế độ reference nó phải toàn
+# 0, ở per_phase nó phải phản ánh đúng biên độ S-031 đã đo.
+align_phases: per_phase
+
+# --- Pha tham chiếu: định hướng + tâm của lưới đích ---
+# Portal-venous theo Spec Sheet §2 (pha có độ tương phản gan-tổn thương tốt nhất).
+reference_phase: "C+V"
+
+# --- Chế độ cắt ---
+# fixed_mm    : cửa sổ vật lý cố định cho mọi ca (bản v0, đã build).
+# lesion_tight: cửa sổ co giãn theo kích thước tổn thương (xem src/preprocess/crop.py).
+#
+# Vì sao có chế độ thứ hai: với fixed_mm, tổn thương 20mm chỉ chiếm ~14% bề rộng
+# khung 144mm, model phải tự học bỏ qua 86% còn lại với 316 ca. Baseline chính
+# thức của challenge cắt bám sát tổn thương rồi resize về 112×112×14, và cả ba đội
+# đầu bảng đều xoay quanh định vị/căn tổn thương chứ không phải backbone.
+#
+# ĐỔI GIÁ TRỊ NÀY = ĐỔI DỮ LIỆU. Phải build cache mới vào thư mục khác, không ghi
+# đè cache cũ — nếu không thì không còn so sánh có kiểm soát được nữa.
+crop_mode: lesion_tight       # fixed_mm | lesion_tight
+
+lesion_tight:
+  # Lấy kích thước tổn thương từ đâu. 'mask' chính xác hơn 'bbox'. Mask này là nhãn
+  # segmentation OFFICIAL của LLD-MMRI (bổ sung 3/2025), gán bằng MedSAM2 trong quy
+  # trình human-in-the-loop — xem configs/data.yaml và WORKLOG S-068. Thiếu mask thì
+  # tự rơi về bbox và ghi lại ở cột crop_source của build_log.csv.
+  source: mask                # bbox | mask
+  # Cửa sổ = kích thước tổn thương × hệ số này. 1.6 để lại viền mô quanh tổn
+  # thương — bối cảnh gan lành sát bên có giá trị chẩn đoán (vd vành sáng của FNH).
+  margin_factor: 1.6
+  # Sàn: tổn thương rất nhỏ mà cắt sát sẽ phóng đại thành ảnh mờ toàn nhiễu.
+  min_fov_mm: [40.0, 40.0, 40.0]
+  # Trần: tổn thương rất lớn không được kéo cửa sổ ra tới mức quay về fixed_mm.
+  max_fov_mm: [200.0, 200.0, 200.0]
+
+# --- Lưới đích ---
+# target_size là số voxel đầu ra, luôn cố định để model nhận đúng một kích thước.
+# target_spacing CHỈ dùng khi crop_mode = fixed_mm; ở lesion_tight, spacing được
+# suy ra từ fov_mm / target_size nên biến thiên theo từng bệnh nhân.
+#
+# Ghi chú cho fixed_mm: 96×96×48 @1.5×1.5×3.0mm = 144×144×144mm. EDA: lesion p95 =
+# 97.6×98.5×78.0mm -> đủ phủ p95 kèm margin. ~5% ca lớn nhất (max 179.7mm) bị cắt
+# cụt rìa; tâm vẫn đúng. Ghi vào limitations của báo cáo.
+target_spacing: [1.5, 1.5, 3.0]
+
+# ---------------------------------------------------------------------------
+# ĐÂY LÀ KHOÁ DUY NHẤT KHÁC configs/preprocess.yaml (ngoài cache_dir).
+#
+# Mọi phương pháp đã công bố trên LLD-MMRI đều dùng ÍT LÁT, NHIỀU PIXEL TRONG
+# MẶT PHẲNG. Ta đang làm ngược lại:
+#
+#     baseline official      14 lát × 112       176k voxel
+#     CGHNet 2026            14-16 lát × 112-128    229-262k voxel
+#     ta (E0/E1)             48 lát × 96        442k voxel   <- ngoại lệ
+#     E2 sau hạ mẫu          48 lát × 48        111k voxel   <- tệ nhất
+#
+# Lý do vật lý: MRI gan bất đẳng hướng nặng (in-plane ~0.78mm, lát dày 2-9mm).
+# Xử lý bằng conv 3D kernel đều là tiêu tham số cho trục vốn ít thông tin, vừa
+# chậm vừa dễ overfit.
+#
+# Bằng chứng định lượng, CGHNet Bảng 1 — tất cả đo trên ĐÚNG test-104 official,
+# cùng một protocol tiền xử lý 16x128x128 -> crop 14x112x112 (F1):
+#
+#     ResNet2D        0.684        ViT3D        0.645
+#     ResNet3D        0.709        Swin3D       0.709
+#     Uniformer       0.719        SDR-Former   0.791
+#     RadioFormer     0.806        CGHNet       0.818
+#     ---- baseline official của challenge: 0.6083 ----
+#
+# Điểm cốt lõi: một **ResNet3D trần** đạt 0.709, tức vượt xa baseline official,
+# chỉ nhờ hình học đầu vào này. Vấn đề của ta không phải 3D-hay-2D (ResNet3D
+# 0.709 còn THẮNG ResNet2D 0.684 trong cùng bảng) mà là TỈ LỆ TRỤC của khối đầu
+# vào.
+#
+# Vì sao 112 × 112 × 32 chứ không phải 128 × 128 × 16 như CGHNet:
+#   - 112 khớp đúng kích thước crop của cả baseline official lẫn CGHNet;
+#   - Z = 32 là mức THẤP NHẤT DenseNet121-3D chịu được. Z = 16 sẽ SẬP: sau conv0,
+#     pool0 và hai transition, 16 chỉ còn 1, và transition thứ ba dùng
+#     AvgPool3d(kernel=2) (WORKLOG S-063). CGHNet dùng ViT + CNN nên không vướng.
+#
+# 401k voxel ≈ 0.91× E1, tức rẻ hơn một chút. Đổi giá trị này = ĐỔI DỮ LIỆU:
+# phải build sang cache_dir khác, không ghi đè cache E1.
+# ---------------------------------------------------------------------------
+target_size: [112, 112, 32]
+
+# --- Lề dư quanh lưới đích (khoá làm nên E12) ---
+# Lưới cache = target_size + 2*crop_margin_voxels = 136 x 136 x 40.
+# Đọc kèm data.crop_size trong configs/e12_randomcrop.yaml — hai chỗ phải khớp.
+crop_margin_voxels: [12, 12, 4]
+interpolator: linear          # linear | nearest | bspline
+
+# --- Chuẩn hoá cường độ ---
+# MRI không có đơn vị chuẩn như HU của CT -> phải chuẩn hoá theo từng chuỗi.
+# scope=volume: tính thống kê trên TOÀN volume gốc (trước khi crop) để giữ tương
+# phản tổn thương-so-với-gan; scope=crop thì chỉ dùng vùng đã cắt.
+# LƯU Ý LEAKAGE: thống kê lấy từ chính volume của bệnh nhân đó (per-sample), KHÔNG
+# gộp qua nhiều bệnh nhân -> không vi phạm AGENTS.md §3.3.
+normalize:
+  clip_percentile: [0.5, 99.5]
+  scope: volume               # volume | crop
+
+# --- N4 bias field correction ---
+# Rất chậm (vài phút/volume × 3984 volume). Kill-switch đã chốt: off ở v0.
+n4: false
+
+# --- Đầu ra ---
+output_dtype: float16         # 498 ca × [8,112,112,32] ≈ 3.2GB
+# Thư mục RIÊNG. Trùng cache_dir với E1 là ghi đè dữ liệu của thí nghiệm trước,
+# và build_cache có resume nên nó sẽ lặng lẽ TRỘN hai hình học vào cùng một mẻ.
+cache_dir: artifacts/cache_e12_margin
+# ^ ghi đè bằng env LLDMMRI_CACHE_DIR (Kaggle: /kaggle/working/cache).
+# Thư mục KHÁC cache v0 là cố ý: hai cache phải cùng tồn tại để so sánh có kiểm
+# soát (cùng split, cùng seed, cùng recipe train — chỉ đổi dữ liệu đầu vào).

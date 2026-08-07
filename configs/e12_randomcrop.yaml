@@ -1,0 +1,128 @@
+# E12 — CẮT NGẪU NHIÊN TỪ CACHE CÓ LỀ DƯ, thay cho tịnh tiến-đệm-0.
+# Sinh từ baseline_3dpatch.yaml. Khác ĐÚNG BỐN KHOÁ: data.crop_size,
+# data.augment.translate_voxels, cache_dir, output_dir.
+#
+#   python -m src.train.run --config configs/e12_randomcrop.yaml --fold 1
+#
+# CẦN CACHE RIÊNG: configs/preprocess_e12.yaml (lưới 136x136x40). Chạy config này
+# trên cache E4 cũ sẽ nổ ngay ở RandomCrop3D với thông báo nói rõ lý do.
+#
+# --- Vấn đề nó sửa ---
+# RandomTranslate3D dịch rồi đệm 0; RandomRotateSmall lấp góc bằng 0 (prob 1.0).
+# Đo được: ~100% mẫu TRAIN có dải đen ở rìa, 0% mẫu VAL có. Lệch phân bố train/val
+# ở mọi bước huấn luyện, và khớp với chẩn đoán overfit (rho=0.770 giữa epoch chạm
+# đáy val_loss và macro-F1 cuối, S-107).
+#
+# --- Cách đọc kết quả, CHỐT TRƯỚC KHI CHẠY ---
+# Mốc đối chiếu E4, đủ 5 fold, cùng bệnh nhân:
+#   fold 1 0.7001 | 2 0.6771 | 3 0.7304 | 4 0.6680 | 5 0.6618 | gộp 394 ca 0.6851
+#   Quan trọng hơn: cột `last` (không thiên lệch) của E4 là 0.6038.
+#
+#   quan sát                                  | kết luận
+#   ------------------------------------------|--------------------------------
+#   CI95 của hiệu không chứa 0, dương         | E12 thành cấu hình gốc mới
+#   CI95 chứa 0                               | giữ E4 làm gốc, NHƯNG vẫn nên giữ
+#                                             | E12 vì dải đệm là lỗi thật
+#   khoảng cách best-last hẹp lại             | đã chữa đúng phần overfit nhắm tới
+#   độ hụt khi lật ảnh co lại (nay 0.02-0.06) | bằng chứng độc lập rằng nó ăn
+#
+# ⚠️ 2 fold KHÔNG đủ để chốt. E6b sàng 2 fold cho +0.038 rồi 5 fold cho -0.002.
+# Chạy đủ 5 fold trước khi kết luận bất cứ điều gì.
+
+seed: 1337
+fold: 1                       # 1..5; ghi đè bằng --fold
+splits_dir: splits
+
+# Đường dẫn ghi/đọc đi qua config, không hardcode /kaggle/... (AGENTS.md §7).
+cache_dir: artifacts/cache_e12_margin            # env LLDMMRI_CACHE_DIR thắng
+                                      #   Kaggle: /kaggle/input/lld-mmri-3/cache
+output_dir: artifacts/runs/e12_randomcrop   # env LLDMMRI_OUTPUT_DIR thắng
+                                              #   Kaggle: /kaggle/working/runs/...
+
+model:
+  name: densenet121_3d
+  in_channels: 8              # 8 pha ghép kênh = early-concat v0
+  num_classes: 7
+  dropout_prob: 0.2
+  # Bằng chứng đã có, KHÔNG phải phỏng đoán (WORKLOG S-036 → S-039):
+  #   batch            -> macro-F1 val 0.2725 @ epoch 11   (chạy thật, fold 1)
+  #   instance+affine  -> SẬP: đoán 1 lớp, macro-F1 0.0668 đứng yên, loss = ln 7
+  #   group            -> chưa có số trên tập thật
+  # Phép thử overfit 8 mẫu (notebook mục 1b, WORKLOG S-040) — loss cuối sau 160 bước:
+  #   batch 0.009 · group(8) 0.010 · instance+affine 0.581   (cả ba đều acc 1.00)
+  # => InstanceNorm KHÔNG hỏng cấu trúc như tôi đã kết luận vội, chỉ chậm hơn ~60 lần.
+  #    batch và group khoẻ ngang nhau, phép thử này không tách được hai cái đó.
+  # Giữ `batch` vì là lựa chọn duy nhất có số trên tập thật (0.2725). Đổi `norm` là
+  # thí nghiệm riêng, đừng gộp chung với thay đổi nào khác.
+  norm: batch
+
+data:
+  # VRAM ~16GB với khối [8,96,96,48]: batch nhỏ + tích luỹ gradient (AGENTS.md §7).
+  batch_size: 2
+  # Augmentation (xoay ±10° bằng scipy) chạy trên CPU trong worker và là nút cổ chai:
+  # đo thật cho 56,5s/epoch, trong khi phần GPU chỉ ~20s — GPU ngồi chờ CPU
+  # (WORKLOG S-044). Kaggle có 4 vCPU. Ba khoá dưới đây là tối ưu hoá THUẦN KỸ THUẬT,
+  # không đụng gì tới phép toán train.
+  num_workers: 4
+  persistent_workers: true    # mặc định DataLoader dựng lại worker MỖI epoch × 300 epoch
+  prefetch_factor: 4
+  pin_memory: true
+  # Augment theo recipe official: lật cả 3 trục p=0.5, xoay ±10°, random-crop tịnh
+  # tiến. rot90 và nhiễu cường độ là thứ TA tự thêm, official không dùng -> tắt, giữ
+  # code lại để ablate ở W4 (WORKLOG S-043).
+  # Kích thước model nhận. Cache là 136x136x40, nên train cắt ngẫu nhiên và val cắt
+  # giữa về đúng khối này. Phải khớp target_size trong configs/preprocess_e12.yaml.
+  crop_size: [112, 112, 32]
+  augment:
+    flip_prob: 0.5
+    flip_axes: [x, y, z]      # official: randomflip_x/_y/_z, mỗi trục p=0.5
+    rotate_degrees: 10        # official: ndimage.rotate(angle=random(-10, 10))
+    # Xoay lấp góc bằng gì. `constant` (mặc định, E0..E6b) lấp 0; đo trên khối 136
+    # xoay ±10° rồi cắt 112, offset biên để lọt 517 voxel bị lấp. `nearest` nhân bản
+    # voxel biên và để lọt 0 ở MỌI offset. Bắt buộc dùng nearest khi cắt ngẫu nhiên,
+    # nếu không thì phép cắt xoá dải đen của tịnh tiến rồi phép xoay lại thêm vào.
+    rotate_mode: nearest
+    # TẮT: RandomCrop3D đã làm đúng việc này mà không đệm 0. Bật cả hai sẽ raise —
+    # tịnh tiến sau khi cắt đưa dải đen trở lại đúng thứ phép cắt vừa xoá.
+    translate_voxels: [0, 0, 0]
+    rot90_prob: 0             # TẮT — xoay 90° không phải biến đổi giải phẫu hợp lệ
+    intensity_prob: 0         # TẮT — official không dùng
+
+# ---------------------------------------------------------------------------
+# Toàn bộ khối này bám theo baseline official LLD-MMRI2023 (macro-F1 0.6083 trên
+# test-104): LMMMEng/LLD-MMRI2023, `main/README.md` + `main/train.py`.
+# KHÔNG có con số nào ở đây do tự nghĩ ra. Sửa thì phải kèm lý do trong WORKLOG,
+# và `tests/test_protocol_conformance.py` sẽ chặn nếu trôi khỏi recipe.
+# ---------------------------------------------------------------------------
+train:
+  # official: --epochs 300, best checkpoint của họ ở epoch 216/300.
+  # Ta từng để 60 + early stop patience 15 -> dừng ở epoch 26, tức là cắt ngang lúc
+  # công thức tham chiếu còn chưa đi được 1/8 chặng đường (WORKLOG S-043).
+  epochs: 300
+  warmup_epochs: 5            # official: --warmup-epochs 5
+  warmup_lr: 0.000001         # official: --warmup-lr 1e-6
+  lr: 0.0001                  # official: --lr 1e-4  (ta đang để 3e-4)
+  min_lr: 0.00001             # official: --min-lr 1e-5, scheduler cosine
+  # official: --weight-decay 0.05. Ta đang để 1e-5 — chênh 5000 lần.
+  # Đi kèm bắt buộc: bias và tham số norm bị loại khỏi decay
+  # (src/train/run.py::build_param_groups), giống mặc định của timm mà official dùng.
+  weight_decay: 0.05
+  # official: batch 4 × 2 GPU = 8. Ta: batch_size 2 (giới hạn VRAM) × 4 = 8.
+  accum_steps: 4
+  # TẮT. official không early stop, chỉ train đủ 300 epoch rồi lấy checkpoint tốt nhất.
+  early_stop_patience: 0
+  amp: true                   # tự tắt khi chạy CPU
+  # Bật cudnn.deterministic, NHƯNG đừng hiểu là tái lập bit-exact: docstring của
+  # MONAI ghi rõ DenseNet với spatial_dims=3 là non-deterministic trên CUDA. Seed cố
+  # định cho phép lặp lại *thí nghiệm*, không phải lặp lại từng chữ số. Báo cáo phải
+  # nói đúng điều này, và đó là một lý do nữa để mọi số đều kèm CI (AGENTS.md §3.5).
+  deterministic: true
+  resume: true                # chạy lại cùng lệnh = tiếp tục từ last.pt
+
+loss:
+  name: cross_entropy
+  # official dùng nn.CrossEntropyLoss() TRẦN: --smoothing mặc định 0, không class
+  # weight, không balanced sampler. Class weighting là thứ TA tự thêm — tắt để tái
+  # lập đúng recipe, và nó nằm trong bảng ablation loss của W4.
+  class_weights: none         # none | balanced (tính CHỈ từ nhãn train)
+  label_smoothing: 0.0        # official: --smoothing 0

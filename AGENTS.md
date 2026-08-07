@@ -486,6 +486,30 @@ Nhưng nó phải trả bằng macro-F1, mà macro-F1 mới là thứ so đượ
 
 ⚠️ Một cái bẫy đo được ở đây: điểm xếp hạng "tỉ lệ đồng thuận giữa 8 lượt" cho F1@80% = 0.7115 trông đẹp nhưng AURC 0.2606, **tệ hơn hẳn** max-prob (P=0.011). Tám lượt chỉ sinh 9 giá trị rời rạc nên rất nhiều ca đồng hạng. **Đừng chọn điểm xếp hạng bằng một con số coverage đơn lẻ.**
 
+### ⚠️ Lỗi augmentation phát hiện 2026-08-07: ~100% mẫu train có dải đệm 0, val thì không (WORKLOG S-111)
+
+Chưa chạy thí nghiệm nào để đo tác động, nhưng đây là **lỗi đúng nghĩa**, không phải lựa chọn thiết kế, và nó tồn tại suốt E0 → E6b.
+
+Hai nguồn đệm 0, cả hai áp gần như mọi mẫu train:
+
+| | hành vi | xác suất áp |
+|---|---|---|
+| `RandomTranslate3D` | dịch rồi **đệm 0** vào phần trống | ~100% (shift ngẫu nhiên trên 3 trục) |
+| `RandomRotateSmall` | xoay rồi lấp góc bằng 0 (`cval=0.0`) | `rotate_prob` mặc định **1.0** |
+
+Val không augment nên **không** có dải nào. Đây là lệch phân bố train/val có hệ thống ở **mọi bước huấn luyện**, và nó khớp với chẩn đoán overfit đã đo (ρ = +0.770 giữa epoch chạm đáy `val_loss` và macro-F1 cuối, S-107).
+
+**Đối chiếu bên ngoài:** baseline official và CGHNet đều cache rộng hơn rồi **cắt ngẫu nhiên** (official resize 128² cắt 112²; CGHNet 16×128×128 → 14×112×112) nên không có đệm. Ablation CGHNet Bảng 4: **bỏ random-crop mất 8.8 điểm**, biến augmentation nặng nhất trong bảng của họ. Biên độ của ta cũng yếu hơn: ±8/112 = 7.1% trong mặt phẳng so với 12.5% của họ.
+
+**E12 sửa nó:** cache lưới **136×136×40** (`configs/preprocess_e12.yaml`), train cắt ngẫu nhiên 112×112×32, val cắt giữa (`configs/e12_randomcrop.yaml`, khác baseline đúng 3 khoá khoa học).
+
+Hai chi tiết đo được, cần cho ai định chỉnh lại tham số:
+
+1. **Lề phải là 12, không phải 8.** Xoay 10° trên khối 136 làm hỏng góc tới ~12 voxel; với lề 8 thì cắt giữa vẫn dính 20 voxel bị lấp.
+2. **Bắt buộc `rotate_mode: nearest`.** Với `constant`, cắt *giữa* thì sạch nhưng cắt *ngẫu nhiên* ở offset biên để lọt **517** voxel bị lấp 0; `nearest` cho **0** ở mọi offset. Lỗi này suýt lọt vì cắt giữa nhìn qua có vẻ ổn.
+
+**Tính chất quan trọng để so sánh:** `spacing` vẫn suy từ `target_size` 112×112×32 chứ không từ lưới 136×136×40, nên độ phân giải vật lý y hệt E4 và **cắt giữa cache E12 cho ra đúng khối mà cache E4 tạo ra**. Val hai bên so trực tiếp được ⇒ E12 so E4 chỉ khác một biến là augmentation lúc train.
+
 ### E5 focal loss — 2/5 fold, chưa kết luận được (2026-08-05, WORKLOG S-094)
 
 Cùng 162 ca (fold 1+2), cùng split, cùng seed. Config khác baseline **đúng 3 khoá**: `loss.name`, `loss.gamma`, `output_dir`.
@@ -614,7 +638,8 @@ Bootstrap **ghép cặp** trên hiệu (2000 lần, phân tầng, mức bệnh n
 | Validate split official (đã khoá, không sinh) | `python -c "from src.data.splits import Splits; Splits('splits').validate()"` | sẵn sàng (W2 ngày 1) |
 | Sinh manifest bệnh nhân | `python -m src.data.build_manifest --config configs/data.yaml` | sẵn sàng (W2 ngày 1), cần `LLDMMRI_DATA_ROOT` trỏ tới data thật |
 | Báo cáo geometry + **phán quyết thứ tự trục** | `python scripts/kaggle_geometry_report.py --limit 0` | sẵn sàng (W2 ngày 2) |
-| Tiền xử lý (chạy 1 lần, cache) | `python -m src.preprocess.build_cache --config configs/preprocess.yaml` | sẵn sàng; **cần điền `axis_order` trước**. `crop_mode` chọn `fixed_mm` (cache v0) hay `lesion_tight` (cắt bám tổn thương, dùng mask ở `lld/labels`) — đổi giá trị này là **đổi dữ liệu**, phải build sang thư mục cache khác |
+| Tiền xử lý (chạy 1 lần, cache) | `python -m src.preprocess.build_cache --config configs/preprocess.yaml` | sẵn sàng; **cần điền `axis_order` trước**. `crop_mode` chọn `fixed_mm` (cache v0) hay `lesion_tight` (cắt bám tổn thương, dùng mask ở `lld/labels`) — đổi giá trị này là **đổi dữ liệu**, phải build sang thư mục cache khác. `crop_margin_voxels` thêm lề dư quanh lưới (E12) |
+| **E12 — cắt ngẫu nhiên thay tịnh tiến-đệm-0** | `notebooks/14_e12_randomcrop.ipynb` trên Kaggle | sẵn sàng (2026-08-07, WORKLOG S-111), **chưa chạy**. Build cache 136×136×40 (~45 phút) rồi train. Cổng B đo trực tiếp tỉ lệ voxel 0 ở rìa giữa train và val — lệch quá 0.02 là dừng |
 | Train baseline 3D-patch (1 fold) | `python -m src.train.run --config configs/baseline_3dpatch.yaml --fold 1` | sẵn sàng (W2 ngày 5); resume tự động từ `last.pt`; cần `LLDMMRI_CACHE_DIR` trỏ tới cache |
 | **Train một fold, config bất kỳ** | `python -m src.train.run --config configs/e5_focal.yaml --fold 1` | sẵn sàng (W4); `configs/e5_focal.yaml` = baseline + focal loss, khác đúng khối `loss:` |
 | **Sàng thí nghiệm (rẻ)** | `notebooks/09_cv_runner.ipynb` với `FOLDS = [1, 2]` | 7.4h = 1 session. ⚠️ **2 fold chỉ để LOẠI, không để CHỌN** — E6b sàng 2 fold cho +0.038 nhưng 5 fold cho −0.002 (S-107). Dương trên 2 fold thì mới chỉ là "chưa loại được" |

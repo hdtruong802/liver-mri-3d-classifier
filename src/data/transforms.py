@@ -98,10 +98,27 @@ class RandomRotateSmall:
       thời gian mỗi epoch.
     """
 
-    def __init__(self, degrees: float = 10.0, prob: float = 1.0, order: int = 1) -> None:
+    def __init__(
+        self,
+        degrees: float = 10.0,
+        prob: float = 1.0,
+        order: int = 1,
+        mode: str = "constant",
+    ) -> None:
         self.degrees = degrees
         self.prob = prob
         self.order = order
+        # `mode` quyết định lấp gì vào góc sau khi xoay.
+        #
+        # `constant` (mặc định, giữ hành vi của E0..E6b): lấp 0. Đo được là ~100% mẫu
+        # train mang dải đen ở rìa còn mẫu val thì không — chính lệch phân bố mà E12
+        # sinh ra để sửa.
+        #
+        # `nearest`: nhân bản voxel biên. Với cache có lề dư, đo trên khối 136 xoay
+        # ±10° rồi cắt 112 ở mọi offset: `constant` để lọt tới **517** voxel bị lấp ở
+        # offset biên, `nearest` để lọt **0**. Cắt giữa thì cả hai đều sạch, nên chỉ
+        # `nearest` mới an toàn khi cắt NGẪU NHIÊN.
+        self.mode = mode
 
     def __call__(self, item: dict[str, Any]) -> dict[str, Any]:
         import numpy as np
@@ -119,7 +136,7 @@ class RandomRotateSmall:
             axes=(_AXIS_X, _AXIS_Y),
             reshape=False,
             order=self.order,
-            mode="constant",
+            mode=self.mode,
             cval=0.0,
         )
         item["image"] = torch.from_numpy(np.ascontiguousarray(rotated))
@@ -197,6 +214,75 @@ class RandomIntensity:
         return item
 
 
+class _Crop3D:
+    """Nền chung cho cắt khối: kiểm kích thước, cắt theo offset do lớp con quyết."""
+
+    def __init__(self, size: Sequence[int]) -> None:
+        self.size = tuple(int(s) for s in size)
+        if len(self.size) != 3 or any(s <= 0 for s in self.size):
+            raise ValueError(f"size phải là 3 số dương, nhận {size!r}")
+
+    def _offsets(self, room: tuple[int, int, int]) -> tuple[int, int, int]:
+        raise NotImplementedError
+
+    def __call__(self, item: dict[str, Any]) -> dict[str, Any]:
+        image = item["image"]
+        shape = tuple(int(s) for s in image.shape[1:])
+        room = tuple(d - o for d, o in zip(shape, self.size, strict=True))
+        if any(r < 0 for r in room):
+            raise ValueError(
+                f"{type(self).__name__}: khối vào {shape} nhỏ hơn kích thước cắt "
+                f"{self.size}. Cache này không có lề dư — dùng cache build với "
+                f"`crop_margin_voxels`, hoặc bỏ `data.crop_size` khỏi config."
+            )
+        start = self._offsets(room)  # type: ignore[arg-type]
+        item["image"] = image[
+            :,
+            start[0] : start[0] + self.size[0],
+            start[1] : start[1] + self.size[1],
+            start[2] : start[2] + self.size[2],
+        ]
+        return item
+
+
+class RandomCrop3D(_Crop3D):
+    """Cắt ngẫu nhiên một khối `size` từ khối lớn hơn. **Không bao giờ đệm.**
+
+    Đây là bản thay cho `RandomTranslate3D`, và khác biệt không nằm ở biên độ mà ở
+    chỗ **lấy mô thật thay vì đệm 0**.
+
+    `RandomTranslate3D` dịch ảnh rồi lấp phần trống bằng 0, nên gần như **100% mẫu
+    train mang một dải đen ở rìa trong khi 0% mẫu val có nó** — một lệch phân bố
+    train/val có hệ thống, xuất hiện ở mọi bước huấn luyện. Cắt từ cache có lề dư
+    xoá hẳn dải đó: mọi voxel trong khối ra đều là mô đã đo được.
+
+    Đây cũng là đúng cách của baseline official (resize 128² rồi cắt 112²) và của
+    CGHNet (16×128×128 → 14×112×112). Ablation của CGHNet (Bảng 4) cho thấy bỏ
+    random-crop mất **8,8 điểm**, là biến augmentation nặng nhất trong bảng của họ.
+
+    ⚠️ Phải đặt **sau** `RandomRotateSmall` trong chuỗi. Phép xoay lấp góc bằng 0
+    (`cval=0.0`); xoay trên khối lớn rồi mới cắt thì phần lấp đó nằm ngoài khối ra.
+    Cắt trước rồi xoay sau sẽ đưa dải đen trở lại đúng thứ transform này xoá đi.
+    """
+
+    def _offsets(self, room: tuple[int, int, int]) -> tuple[int, int, int]:
+        import torch
+
+        return tuple(int(torch.randint(0, r + 1, (1,)).item()) if r else 0 for r in room)  # type: ignore[return-value]
+
+
+class CenterCrop3D(_Crop3D):
+    """Cắt giữa, tất định. Dùng cho val/test để đầu vào không phụ thuộc may rủi.
+
+    Với lề dư chẵn, khối ra trùng đúng khối mà cache không-lề sẽ tạo ra (cùng tâm,
+    cùng spacing). Nhờ vậy val của cache có lề **so trực tiếp được** với val của
+    cache cũ, và phép so E12 với E4 chỉ khác đúng một biến: augmentation lúc train.
+    """
+
+    def _offsets(self, room: tuple[int, int, int]) -> tuple[int, int, int]:
+        return tuple(r // 2 for r in room)  # type: ignore[return-value]
+
+
 class Compose:
     """Chuỗi transform áp lần lượt lên item."""
 
@@ -209,7 +295,21 @@ class Compose:
         return item
 
 
-def build_train_transform(config: dict[str, Any] | None) -> Compose | None:
+def build_val_transform(crop_size: Sequence[int] | None) -> Compose | None:
+    """Transform cho val/test: chỉ cắt giữa, tất định. ``None`` khi cache không có lề.
+
+    Val **không** được augment. Thứ duy nhất cần ở đây là đưa khối cache có lề dư
+    về đúng kích thước đầu vào của model, và làm việc đó một cách tất định để hai
+    lần chạy cho cùng kết quả.
+    """
+    if not crop_size:
+        return None
+    return Compose([CenterCrop3D(crop_size)])
+
+
+def build_train_transform(
+    config: dict[str, Any] | None, crop_size: Sequence[int] | None = None
+) -> Compose | None:
     """Dựng transform train từ khối ``data.augment:`` của config; ``None`` = không augment.
 
     Khối config theo recipe official (xem `configs/baseline_3dpatch.yaml`)::
@@ -224,9 +324,18 @@ def build_train_transform(config: dict[str, Any] | None) -> Compose | None:
 
     `rot90` và nhiễu cường độ vẫn giữ trong module để ablate ở W4, chỉ cần bật lại
     khoá tương ứng trong config.
+
+    `crop_size` (từ ``data.crop_size``) bật chế độ **cắt ngẫu nhiên từ cache có lề
+    dư** thay cho tịnh tiến-đệm-0. Nó được chèn **sau** phép xoay, vì xoay lấp góc
+    bằng 0 và phép cắt sau đó vứt bỏ đúng phần lấp ấy. ``None`` = giữ hành vi cũ.
     """
-    if not config:
-        return None
+    config = config or {}
+    if crop_size and any(config.get("translate_voxels") or ()):
+        raise ValueError(
+            "bật cùng lúc `crop_size` và `translate_voxels` là nhân đôi phép dịch, "
+            "và `RandomTranslate3D` sẽ đệm 0 trở lại đúng thứ `RandomCrop3D` vừa xoá. "
+            "Dùng cache có lề dư thì đặt `translate_voxels: [0, 0, 0]`."
+        )
     transforms: list[Callable[[dict], dict]] = []
     if config.get("flip_prob", 0):
         transforms.append(
@@ -241,8 +350,12 @@ def build_train_transform(config: dict[str, Any] | None) -> Compose | None:
                 degrees=float(config["rotate_degrees"]),
                 prob=float(config.get("rotate_prob", 1.0)),
                 order=int(config.get("rotate_order", 1)),
+                mode=str(config.get("rotate_mode", "constant")),
             )
         )
+    # Sau xoay, trước mọi thứ còn lại: phần góc bị xoay lấp 0 nằm ngoài khối ra.
+    if crop_size:
+        transforms.append(RandomCrop3D(crop_size))
     if any(config.get("translate_voxels") or ()):
         transforms.append(
             RandomTranslate3D(

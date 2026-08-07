@@ -209,8 +209,21 @@ def process_patient_with_meta(
     if align not in ALIGN_MODES:
         raise ValueError(f"align_phases phải thuộc {ALIGN_MODES}, nhận {align!r}")
 
+    # Lề dư: lưới cache rộng hơn kích thước model nhận, để lúc train cắt ngẫu nhiên
+    # được mà KHÔNG phải đệm 0 (`src/data/transforms.py::RandomCrop3D`).
+    #
+    # `spacing` đã tính từ `size` (kích thước TRONG), không từ `grid_size`, nên độ
+    # phân giải vật lý giữ nguyên và phần thêm ra là mô thật ở rìa chứ không phải
+    # cùng một khối bị kéo giãn. Hệ quả quan trọng: **cắt giữa `size` từ cache có
+    # lề cho ra đúng khối mà cache không lề tạo ra** — nhờ vậy val của hai cache so
+    # trực tiếp được, và phép so chỉ khác đúng một biến là augmentation lúc train.
+    margin = tuple(int(m) for m in (config.get("crop_margin_voxels") or (0, 0, 0)))
+    if len(margin) != 3 or any(m < 0 for m in margin):
+        raise ValueError(f"crop_margin_voxels phải là 3 số không âm, nhận {margin!r}")
+    grid_size = tuple(s + 2 * m for s, m in zip(size, margin, strict=True))
+
     center_world = voxel_to_world(ref_affine, center_voxel)
-    reference = make_reference_image(center_world, affine_direction, spacing, size)
+    reference = make_reference_image(center_world, affine_direction, spacing, grid_size)
 
     channels: list[np.ndarray] = []
     shifts: list[np.ndarray] = []
@@ -236,7 +249,7 @@ def process_patient_with_meta(
                 axis_order,
                 center_world,
             )
-            grid = make_reference_image(phase_center, affine_direction, spacing, size)
+            grid = make_reference_image(phase_center, affine_direction, spacing, grid_size)
         else:
             phase_center, center_source, grid = center_world, crop_source, reference
 
@@ -251,6 +264,10 @@ def process_patient_with_meta(
         "lesion_extent_mm": extent_mm.astype(np.float32),
         "fov_mm": np.asarray(fov_mm, dtype=np.float32),
         "spacing": np.asarray(spacing, dtype=np.float32),
+        # Cache tự mô tả được lề dư của chính nó: cổng kiểm trong notebook đối chiếu
+        # `crop_margin_voxels` thay vì suy từ hình dạng mảng.
+        "crop_margin_voxels": np.asarray(margin, dtype=np.int32),
+        "inner_size": np.asarray(size, dtype=np.int32),
         "crop_source": crop_source,
         "crop_mode": crop_mode,
         "align_phases": align,
@@ -349,7 +366,11 @@ def build_cache(config_path: str | Path, limit: int = 0) -> Path:
                 "crop_mode": crop_mode,
                 "lesion_tight": lesion_cfg if crop_mode == "lesion_tight" else None,
                 "target_spacing": config["target_spacing"],
+                # `target_size` là kích thước TRONG (model nhận). Hình dạng mảng thật
+                # trong .npz là `target_size + 2*crop_margin_voxels` — hai khoá này
+                # phải đọc cùng nhau, đừng suy kích thước model từ shape của mảng.
                 "target_size": config["target_size"],
+                "crop_margin_voxels": list(config.get("crop_margin_voxels") or (0, 0, 0)),
                 "interpolator": config.get("interpolator", "linear"),
                 "normalize": config.get("normalize"),
                 "align_phases": config.get("align_phases", "reference"),
@@ -401,6 +422,8 @@ def build_cache(config_path: str | Path, limit: int = 0) -> Path:
                 lesion_extent_mm=meta["lesion_extent_mm"],
                 fov_mm=meta["fov_mm"],
                 spacing=meta["spacing"],
+                crop_margin_voxels=meta["crop_margin_voxels"],
+                inner_size=meta["inner_size"],
                 crop_source=np.str_(meta["crop_source"]),
                 align_phases=np.str_(meta["align_phases"]),
                 phase_shift_mm=meta["phase_shift_mm"],
