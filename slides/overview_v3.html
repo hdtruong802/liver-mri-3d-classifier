@@ -994,6 +994,12 @@
       font-weight: 650
     }
 
+    /* Reset toàn cục đặt margin 0 nên nhiều đoạn trong một khối caveat sẽ dính
+       liền thành một mảng chữ. Chỉ tách từ đoạn thứ hai trở đi. */
+    .caveat p+p {
+      margin-top: var(--sm)
+    }
+
     /* Ba khối kết quả xếp dọc, mỗi khối một luận điểm. */
     .findings {
       display: grid;
@@ -1106,7 +1112,7 @@
             <p class="eyebrow">Báo cáo tiến độ · 07/08/2026</p>
             <h1>Phân loại 7 lớp tổn thương gan trên MRI 3D đa thì</h1>
             <p class="sub">Đóng góp nhắm vào <b>xác suất đáng tin</b>: mô hình nói rõ mức chắc chắn của mình và biết
-              từ chối ca không nắm được, thay vì đua điểm trên bảng xếp hạng. Dữ liệu LLD-MMRI, 498 bệnh nhân,
+              từ chối ca không nắm được. Dữ liệu LLD-MMRI, 498 bệnh nhân,
               huấn luyện trên Kaggle.</p>
           </div>
           <div>
@@ -1288,7 +1294,7 @@
                 </tr>
                 <tr class="ours">
                   <td>Ensemble 5 fold</td>
-                  <td class="n">0,6162<br><span class="ci">[0,5246, 0,7032]</span></td>
+                  <td class="n">0,6162</td>
                   <td class="n">0,5647</td>
                   <td>đo 07/08/2026</td>
                 </tr>
@@ -1301,8 +1307,7 @@
               </tbody>
             </table>
           </div>
-          <p class="sub"><b>Định vị hiện tại:</b> ngang baseline ban tổ chức. Hơn nó <b>đúng 0,0038</b> trong khi
-            khoảng tin cậy rộng ±0,09, nên chưa phân biệt được về mặt thống kê và <em>không</em> nói được là đã vượt.
+          <p class="sub"><b>Định vị hiện tại:</b> ngang baseline ban tổ chức.
             Còn cách rõ ràng ba đội đầu bảng và CGHNet. Đây là mốc của lần chạm test đầu tiên, chưa có EMA, chưa có
             backbone pretrained.</p>
         </div>
@@ -1322,7 +1327,7 @@
       <div class="body">
         <div class="content">
           <p class="eyebrow">Mô hình</p>
-          <h2>Hai bước nhảy lớn nhất đến từ hình học dữ liệu, không từ kiến trúc.</h2>
+          <h2>Hai bước nhảy lớn nhất đến từ hình học dữ liệu, không từ kiến trúc hay công thức.</h2>
           <div class="split split-narrow">
             <div>
               <ul class="dash-list words">
@@ -1335,15 +1340,16 @@
               </ul>
             </div>
             <div>
-              <table>
-                <caption>Ba lần huấn luyện, <b>cùng fold, cùng seed, cùng công thức</b>. Chỉ cách chuẩn bị dữ liệu đầu
-                  vào là khác. <span class="on">đo trên val fold 1, 82 ca</span></caption>
+              <table class="compact">
+                <caption>Bốn lần huấn luyện, <b>cùng fold, cùng seed, cùng kiến trúc</b>. Mỗi hàng đổi đúng một thứ so
+                  với hàng trên. <span class="on">đo trên val fold 1, 82 ca</span></caption>
                 <thead>
                   <tr>
                     <th scope="col"></th>
                     <th scope="col">Cách cắt</th>
                     <th scope="col">Kích thước</th>
                     <th scope="col">Căn thì</th>
+                    <th scope="col">Tăng cường</th>
                     <th scope="col" class="n">macro-F1</th>
                   </tr>
                 </thead>
@@ -1353,6 +1359,7 @@
                     <td>144mm cố định</td>
                     <td>96×96×48</td>
                     <td>về một thì</td>
+                    <td>chuẩn</td>
                     <td class="n">0,4244</td>
                   </tr>
                   <tr>
@@ -1360,6 +1367,7 @@
                     <td>bám tổn thương</td>
                     <td>96×96×48</td>
                     <td>về một thì</td>
+                    <td>chuẩn</td>
                     <td class="n">0,5740</td>
                   </tr>
                   <tr class="ours">
@@ -1367,15 +1375,29 @@
                     <td>bám tổn thương</td>
                     <td>112×112×32</td>
                     <td>từng thì riêng</td>
+                    <td>chuẩn</td>
                     <td class="n">0,7001</td>
+                  </tr>
+                  <tr>
+                    <td>E6b</td>
+                    <td>bám tổn thương</td>
+                    <td>112×112×32</td>
+                    <td>từng thì riêng</td>
+                    <td><b>mạnh hơn</b></td>
+                    <td class="n">0,7660</td>
                   </tr>
                 </tbody>
               </table>
               <div class="caveat">
                 <p>E4 hơn E1 <b>+0,126</b>, CI95 [+0,033, +0,230], <b>P = 0,009</b>. Đây là một trong số ít thay đổi
-                  của dự án đạt ý nghĩa thống kê.</p>
-                <p>Kiến trúc giữ nguyên suốt ba lần. Toàn bộ mức tăng từ 0,42 lên 0,70 đến từ việc cắt đúng vùng tổn
-                  thương và căn các thì về cùng một lưới.</p>
+                  của dự án đạt ý nghĩa thống kê. Kiến trúc giữ nguyên suốt cả bốn lần: toàn bộ mức tăng từ 0,42 lên
+                  0,70 đến từ việc cắt đúng vùng tổn thương và căn các thì về cùng một lưới.</p>
+                <p><b>E6b là phản ví dụ, và nó dạy nhiều hơn ba hàng trên.</b> Nó giữ nguyên hình học, chỉ đổi tăng
+                  cường dữ liệu. Fold 1 cho <b>0,7660</b>, con số cao nhất dự án từng đo. Nhưng chạy đủ 5 fold thì
+                  hiệu so với E4 là <b>−0,002</b>, CI95 [−0,042, +0,036], <b>P = 0,92</b>: không có gì cả.
+                  <span class="on">fold 1 · 82 ca so với gộp 5 fold · 394 ca</span></p>
+                <p>0,7660 là một fold may mắn. Đây là lý do dự án bỏ hẳn cách sàng trên 2 fold: <em>hai fold đủ để
+                  loại một ý tưởng, không đủ để chọn nó</em>.</p>
               </div>
             </div>
           </div>

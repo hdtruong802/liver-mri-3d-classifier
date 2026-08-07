@@ -4548,3 +4548,31 @@ Config E12 khác baseline đúng 3 khoá khoa học (`data.crop_size`, `data.aug
 **Cảnh báo cho tool sau:**
 - **`slides/overview_v3.html` giờ đã lệch khỏi script sinh nó** (`scratchpad/make_v3.py`, chỉ là scaffolding một lần). Sửa tiếp thì sửa thẳng file HTML, đừng chạy lại script — nó sẽ ghi đè bản khắc 4.
 - Bỏ nội dung khỏi slide thì kiểm xem nội dung đó có đang mang một **ràng buộc** không (ở đây là CI của Loại B và luật không-nói-vượt-baseline). Bỏ cả ràng buộc là để slide tự do nói sai.
+
+---
+
+## S-114 · 2026-08-07 · claude-code
+
+**Mục tiêu phiên:** Thêm E6b vào bản khắc 5 của slide v3.
+
+**Nhánh / commit:** `main` · `d9eaa6a` → *(commit đang chờ)*
+
+**Đã đụng file:** `slides/overview_v3.html` (bản khắc 5 và một luật CSS).
+
+**Quyết định & lý do:**
+
+- **Thêm cột "Tăng cường" thay vì chỉ nhét thêm một hàng.** E6b không đổi hình học, nó đổi augmentation. Bảng cũ chỉ có ba cột hình học nên hàng E6b sẽ trùng E4 ở cả ba, và người xem thấy hai hàng giống hệt nhau mà số khác nhau. Thêm cột làm cấu trúc một-biến hiện ra ngay trong bảng: ba ô đầu giống E4, ô thứ tư in đậm **mạnh hơn**.
+- **Không để 0,7660 đứng một mình.** Đây là rủi ro chính của yêu cầu này: 0,7660 > 0,7001 nên nhìn qua E6b trông tốt hơn E4, trong khi đủ 5 fold cho **−0,002, P=0,92**. Khối caveat nói thẳng cả hai con số, kèm nhãn `fold 1 · 82 ca so với gộp 5 fold · 394 ca` theo luật Loại B của `DESIGN.md`.
+- **Đóng khung E6b là phản ví dụ, không phải một mục trong danh sách.** Nó củng cố đúng luận điểm của bản khắc: mức tăng đến từ hình học dữ liệu, còn chỉnh công thức thì không cho gì. Và nó mang bài học chuyển giao được nhất của dự án — hai fold đủ để loại một ý tưởng, không đủ để chọn nó.
+- **Sửa tiêu đề** từ "không từ kiến trúc" thành "không từ kiến trúc hay công thức". E6b là thay đổi công thức chứ không phải kiến trúc, nên tiêu đề cũ không phủ hết bằng chứng nằm ngay dưới nó.
+- **Thêm `.caveat p+p { margin-top }`.** Reset toàn cục đặt `margin: 0` nên ba đoạn dính thành một mảng chữ. Chỉ tách từ đoạn thứ hai, không đụng khối một đoạn.
+
+**Kết quả / số liệu:** Không có số mới; 0,7660 và −0,002 [−0,042, +0,036] P=0,92 đã có ở AGENTS.md §5, đối chiếu lại từ `runs/E6b/fold_1` trước khi đưa lên slide. HTML hợp lệ, 7 bản khắc, in ra **đúng 7 trang**, `impeccable detect slides` trả `[]`, gate PASS.
+
+**Dang dở:** không thêm gì so với S-112.
+
+**Điểm vào phiên sau:** Không có việc treo ở slide. Bước kế tiếp vẫn là `notebooks/15_build_cache_e12.ipynb` (CPU, Accelerator = None).
+
+**Cảnh báo cho tool sau:**
+- **Đưa một con số fold đơn lên slide thì phải kèm con số 5 fold của cùng thí nghiệm.** 0,7660 của E6b là ví dụ rõ nhất trong dự án về việc một fold nói ngược lại năm fold.
+- Hook `flat-type-hierarchy` báo ở phiên trước là **false positive**: thang chữ đạt ≥1,25 ở mọi bậc kề nhau tại cả hai đầu `clamp()` (hẹp nhất là data/body = 1,250), `impeccable detect` chạy trực tiếp trả `[]` cho cả v2 lẫn v3, và chính rule này đã bắt đúng một lần rồi được sửa — xem *The Data-Outranks-Prose Rule* trong `DESIGN.md`. Không thêm ignore.
