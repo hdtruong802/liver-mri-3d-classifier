@@ -4663,3 +4663,42 @@ Phần model **chưa đo được**, hiện chỉ suy ra từ "GPU ~20s/epoch" g
 - **Đo thời gian GPU mà thiếu `torch.cuda.synchronize()` sẽ ra số nhanh giả.** Không có cảnh báo nào, chỉ là con số đẹp hơn sự thật.
 - **Latency đo trên val bằng đúng latency trên test.** Đừng tiêu một lần chạm test để bấm giờ.
 - Khi báo latency cho người dùng cuối, con số đáng nêu là **~3,5s end-to-end** chứ không phải ~98ms của model: tiền xử lý chiếm gần hết thời gian chờ.
+
+---
+
+## S-117 · 2026-08-07 · claude-code
+
+**Mục tiêu phiên:** Viết `reports/W3_REPORT.md` theo khuôn W1/W2, tổng hợp từ slide v3 cộng phần latency.
+
+**Nhánh / commit:** `main` · `ee2a643` → *(commit đang chờ)*
+
+**Đã đụng file:**
+- `reports/W3_REPORT.md` — mới, 299 dòng, 10 mục.
+- `AGENTS.md` — bảng xếp hạng challenge thêm hạng 2, hạng 3 và cột κ.
+- `.gitignore` — bỏ qua `reports/*.pdf` và `reports/*.html`.
+
+**Quyết định & lý do:**
+
+- **Bảng DoD nói thẳng là không toàn "Đạt".** W3 đạt 2/5, cắt 1, chưa làm 1, và 1 không áp dụng (fusion v0 *chính là* baseline hiện tại). Kèm khối "ngoài kế hoạch nhưng đã làm" để bức tranh cân bằng. Viết bảng toàn "Đạt" bằng cách định nghĩa lại DoD là tự lừa.
+- **Phần đính chính về selective prediction được nối hai chiều.** Mục 3.2 báo kết luận cũ (epistemic hơn max-prob trên out-of-fold) rồi cảnh báo ngay tại chỗ rằng nó bị đính chính ở 4.3; mục 4.3 dẫn ngược lại 3.2 và giải thích vì sao hai kết luận khác nhau. Để người đọc tự phát hiện mâu thuẫn giữa hai mục là lỗi trình bày nặng.
+- **Không giấu việc model đơn tốt nhất (0,6308) cao hơn ensemble.** Ngược lại, dùng nó làm ví dụ cho thấy pre-registration có tác dụng thật chứ không phải thủ tục.
+- **Bổ sung hạng 2 và hạng 3 vào AGENTS.md.** Báo cáo trích 0,8078 và 0,7860 từ `slides/overview_v2.html`, nhưng AGENTS.md là nguồn sự thật và hai số đó chưa có ở đó. Thêm luôn cột κ vì báo cáo trích cả κ.
+- **Không commit PDF.** W1 và W2 chỉ có `.md`; PDF sinh lại được bằng `scripts/md2pdf.py`. Thêm ignore để lần sau không ai vô tình commit file 400 KiB.
+- **Latency ghi rõ hai thiết bị.** Tiền xử lý đo trên CPU (498 ca, `cache_build_log.csv`), model đo trên Tesla T4 (người dùng chạy). Gộp chung một dòng "3,46–4,9s" mà không tách thì báo cáo không nói được rằng tiền xử lý chiếm 96%.
+
+**Kết quả / số liệu:**
+
+Không có số khoa học mới. Đã đối chiếu **từng con số** trong báo cáo với `AGENTS.md` bằng script: sau khi bổ sung hai hàng leaderboard thì không còn số nào không truy được về nguồn sự thật. Bảng benchmark khớp từng chữ số với `slides/overview_v3.html` bản khắc 4.
+
+Kết xuất `scripts/md2pdf.py` chạy được, ra 8 trang. Gate PASS.
+
+Latency đưa vào báo cáo: tiền xử lý 3,43s (p50) – 4,74s (p90) trên CPU · 1 model 32,9 ms và ensemble 5 fold 164,7 ms trên Tesla T4 · tổng end-to-end **3,46 – 4,9 s**, tiền xử lý chiếm ~96%.
+
+**Dang dở:** không thêm gì so với S-116.
+
+**Điểm vào phiên sau:** Không có việc treo ở báo cáo. Bước kế tiếp vẫn là `notebooks/15_build_cache_e12.ipynb` (CPU, Accelerator = None).
+
+**Cảnh báo cho tool sau:**
+- **Khi một kết luận cũ bị dữ liệu mới lật, phải nối hai chiều trong cùng tài liệu.** Chỉ sửa ở chỗ mới mà để nguyên chỗ cũ sẽ tạo ra hai phát biểu đá nhau trong một báo cáo.
+- **Trước khi trích một con số vào report, kiểm nó có trong `AGENTS.md` không.** Hai số leaderboard trong báo cáo này chỉ tồn tại ở một file slide; nếu slide đó bị sửa thì báo cáo mất nguồn.
+- `reports/*.pdf` và `reports/*.html` nay bị gitignore. Muốn gửi bản PDF thì sinh lại, đừng commit.

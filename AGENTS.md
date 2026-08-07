@@ -167,11 +167,13 @@ Pin version trong `requirements.txt` (train) và `webapp/backend/requirements.tx
 
 **Bảng xếp hạng challenge**, macro-F1 trên test-104:
 
-| | macro-F1 | Ghi chú |
-|---|---|---|
-| Đội nhất challenge | 0.8322 | |
-| **Baseline official** | **0.6083** | UniFormer-S 3D, from scratch, 300 epoch |
-| Hạng 20–24 | 0.5047 – 0.6076 | đủ loại kiến trúc |
+| | macro-F1 | κ | Ghi chú |
+|---|---|---|---|
+| Hạng 1 · WorkingisAllyouneed | 0.8322 | 0.7801 | |
+| Hạng 2 · NPUBXY | 0.8078 | 0.7660 | |
+| Hạng 3 · LinGroup | 0.7860 | 0.7435 | |
+| **Baseline official** | **0.6083** | 0.5414 | UniFormer-S 3D, from scratch, 300 epoch |
+| Hạng 20–24 | 0.5047 – 0.6076 | — | đủ loại kiến trúc |
 
 Metric của họ là `sklearn.f1_score(average='macro')` và `cohen_kappa_score` — **khớp với `src/eval/metrics.py`**, đã có test đối chiếu trực tiếp. Recipe train của họ được ghi lại trong `configs/baseline_3dpatch.yaml` và khoá bằng `tests/test_protocol_conformance.py`. Nguồn: [`LMMMEng/LLD-MMRI2023`](https://github.com/LMMMEng/LLD-MMRI2023).
 

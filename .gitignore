@@ -191,3 +191,9 @@ tmp/
 scratch/
 *.log
 !scripts/*.log
+
+# -----------------------------------------------------------------------------
+# Bản kết xuất của report — sinh lại được bằng scripts/md2pdf.py, không commit
+# -----------------------------------------------------------------------------
+reports/*.pdf
+reports/*.html
