@@ -1,0 +1,1533 @@
+<!doctype html>
+<html lang="vi">
+
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Phân loại u gan trên MRI 3D đa thì — báo cáo tiến độ 07/08/2026</title>
+  <style>
+    :root {
+      --ink: #10161B;
+      --surface: #161E24;
+      --surface-2: #2E3A42;
+      --line: #2E3A42;
+      --line-strong: #44535D;
+      --paper: #E8E4DA;
+      --muted: #A9B2B8;
+      --dim: #8B949B;
+      --cyan: #6FC2DC;
+      --amber: #D4A72C;
+      --sans: "Segoe UI", system-ui, -apple-system, "Noto Sans", "Liberation Sans", Arial, sans-serif;
+      --serif: Cambria, "Times New Roman", "Liberation Serif", "Noto Serif", Georgia, serif;
+      --u: min(1vw, 1.778vh);
+      --xs: 4px;
+      --sm: 8px;
+      --md: 16px;
+      --lg: 28px;
+      --xl: 44px;
+      --display: max(2.65rem, calc(4.05 * var(--u)));
+      --headline: max(1.6rem, calc(2.25 * var(--u)));
+      --data: max(1.25rem, calc(1.72 * var(--u)));
+      --body: max(1rem, calc(1.32 * var(--u)));
+      --small: max(.75rem, calc(.91 * var(--u)));
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0
+    }
+
+    html,
+    body {
+      height: 100%
+    }
+
+    body {
+      background: var(--ink);
+      color: var(--paper);
+      font-family: var(--sans);
+      font-size: var(--body);
+      font-weight: 400;
+      line-height: 1.5;
+      overflow: hidden
+    }
+
+    .deck {
+      width: min(100vw, calc(100vh * 16 / 9));
+      height: min(100vh, calc(100vw * 9 / 16));
+      margin: auto;
+      position: relative
+    }
+
+    .slide {
+      position: absolute;
+      inset: 0;
+      display: none;
+      grid-template-rows: auto auto 1fr auto;
+      padding: calc(1.9 * var(--u));
+      overflow: hidden;
+      background: var(--ink)
+    }
+
+    .slide.is-active {
+      display: grid
+    }
+
+    /* Bề mặt không có mốc phần (phụ lục) chỉ còn ba hàng */
+    .slide.no-nav {
+      grid-template-rows: auto 1fr auto
+    }
+
+    .slide::before,
+    .slide::after {
+      content: "";
+      position: absolute;
+      pointer-events: none
+    }
+
+    .slide::before {
+      inset: calc(.7 * var(--u));
+      border: 1px solid var(--line-strong)
+    }
+
+    .slide::after {
+      inset: calc(1.15 * var(--u));
+      border: 1px solid var(--line)
+    }
+
+    .top,
+    .foot {
+      position: relative;
+      z-index: 1;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: var(--md);
+      font-size: var(--small)
+    }
+
+    .top {
+      color: var(--muted);
+      padding-bottom: var(--sm);
+      border-bottom: 1px solid var(--line)
+    }
+
+    .ruo {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px
+    }
+
+    .ruo::before {
+      content: "";
+      width: 8px;
+      height: 8px;
+      border: 1px solid var(--cyan)
+    }
+
+    .index {
+      color: var(--muted);
+      font-variant-numeric: tabular-nums
+    }
+
+    .foot {
+      padding-top: var(--sm);
+      border-top: 1px solid var(--line);
+      color: var(--muted)
+    }
+
+    .foot a,
+    .refs a {
+      color: var(--paper);
+      text-decoration-color: var(--line-strong);
+      text-underline-offset: 2px
+    }
+
+    .foot a:hover,
+    .refs a:hover {
+      color: var(--amber);
+      text-decoration-color: var(--amber)
+    }
+
+    .foot a:focus-visible,
+    .refs a:focus-visible {
+      outline: 2px solid var(--amber);
+      outline-offset: 2px
+    }
+
+    .foot .no {
+      color: var(--dim);
+      white-space: nowrap
+    }
+
+    .foot .keys {
+      display: flex;
+      gap: var(--md);
+      flex-wrap: wrap;
+      min-width: 0
+    }
+
+    /* Chú số: Hoàng Thổ, chỉ dùng cho việc dẫn nguồn (The Plate Key Rule) */
+    sup.ref {
+      font-family: var(--serif);
+      color: var(--amber);
+      font-size: .68em;
+      padding-left: 1px
+    }
+
+    .section-nav {
+      position: relative;
+      z-index: 1;
+      width: min(100%, calc(86 * var(--u)));
+      margin: calc(.65 * var(--u)) auto 0;
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: var(--md)
+    }
+
+    .section-item {
+      display: grid;
+      gap: var(--xs);
+      color: var(--dim);
+      font-family: var(--serif);
+      font-size: var(--small);
+      font-style: italic;
+      line-height: 1.2
+    }
+
+    .section-item i {
+      display: block;
+      height: 1px;
+      background: var(--line)
+    }
+
+    .section-item.active {
+      color: var(--paper);
+      font-style: normal;
+      font-weight: 700
+    }
+
+    .section-item.active i {
+      height: 2px;
+      background: var(--amber)
+    }
+
+    .body {
+      position: relative;
+      z-index: 1;
+      min-height: 0;
+      display: grid;
+      align-content: center;
+      padding: calc(1.05 * var(--u)) 0 calc(1.25 * var(--u))
+    }
+
+    .content {
+      width: min(100%, calc(86 * var(--u)));
+      margin: auto
+    }
+
+    h1,
+    h2,
+    h3 {
+      font-family: var(--serif);
+      letter-spacing: -.02em;
+      line-height: 1.1
+    }
+
+    h1 {
+      font-size: var(--display);
+      font-weight: 650;
+      max-width: 20ch
+    }
+
+    h2 {
+      font-size: var(--headline);
+      font-weight: 650;
+      max-width: 34ch;
+      padding-bottom: calc(.55 * var(--u));
+      border-bottom: 2px solid var(--amber);
+      display: inline-block
+    }
+
+    h3 {
+      font-size: var(--body);
+      font-weight: 650;
+      color: var(--paper)
+    }
+
+    .eyebrow {
+      color: var(--cyan);
+      font-size: var(--small);
+      font-weight: 700;
+      margin-bottom: var(--sm)
+    }
+
+    .sub {
+      color: var(--muted);
+      max-width: 62ch;
+      margin-top: var(--md)
+    }
+
+    .num {
+      font-variant-numeric: tabular-nums
+    }
+
+    /* Thuật ngữ giữ nguyên tiếng Anh. Không dùng font monospace mặc định
+       của trình duyệt: hệ thống chỉ có hai stack chữ. */
+    code {
+      font-family: var(--sans);
+      font-size: .96em;
+      color: var(--paper);
+      background: var(--surface-2);
+      padding: 0 4px
+    }
+
+    .split {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: calc(2.6 * var(--u));
+      align-items: start;
+      margin-top: var(--lg)
+    }
+
+    .split-wide {
+      grid-template-columns: 1.12fr .88fr
+    }
+
+    .split-narrow {
+      grid-template-columns: .82fr 1.18fr
+    }
+
+    .split>* {
+      min-width: 0
+    }
+
+    /* ── Chip nét đứt: ngôn ngữ dành riêng cho "chưa có dữ liệu / mục tiêu" ── */
+    .concept {
+      display: inline-block;
+      color: var(--muted);
+      font-family: var(--serif);
+      font-style: italic;
+      border: 1px dashed var(--dim);
+      padding: 3px 8px;
+      font-size: var(--small)
+    }
+
+    .plate-label {
+      font-family: var(--serif);
+      font-style: italic;
+      font-size: var(--small);
+      color: var(--muted)
+    }
+
+    /* ── Slide bìa ── */
+    .cover {
+      display: grid;
+      grid-template-columns: 1.2fr .8fr;
+      gap: calc(3 * var(--u));
+      align-items: center
+    }
+
+    .meta {
+      margin-top: var(--lg);
+      display: grid;
+      gap: var(--sm);
+      max-width: 46ch
+    }
+
+    .meta div {
+      display: grid;
+      grid-template-columns: 15ch 1fr;
+      gap: var(--md);
+      padding-top: var(--sm);
+      border-top: 1px solid var(--line)
+    }
+
+    .meta dt {
+      font-family: var(--serif);
+      font-style: italic;
+      color: var(--dim);
+      font-size: var(--small)
+    }
+
+    .meta dd {
+      color: var(--paper)
+    }
+
+    .cover-media {
+      border: 1px solid var(--line);
+      background: var(--surface);
+      padding: var(--sm)
+    }
+
+    .cover-media img {
+      display: block;
+      width: 100%;
+      aspect-ratio: 4/3;
+      object-fit: cover;
+      opacity: .74
+    }
+
+    .cover-media figcaption {
+      font-family: var(--serif);
+      font-style: italic;
+      font-size: var(--small);
+      color: var(--dim);
+      padding-top: var(--xs)
+    }
+
+    /* ── Danh sách gạch ngang (đường dóng thu nhỏ) ── */
+    .dash-list {
+      display: grid;
+      gap: var(--md)
+    }
+
+    .dash-list li {
+      list-style: none;
+      position: relative;
+      padding-left: 24px
+    }
+
+    .dash-list li::before {
+      content: "";
+      position: absolute;
+      left: 0;
+      top: .72em;
+      width: 16px;
+      height: 1px;
+      background: var(--cyan)
+    }
+
+    .dash-list b {
+      color: var(--paper);
+      font-variant-numeric: tabular-nums;
+      font-size: var(--data);
+      font-weight: 650;
+      display: block;
+      line-height: 1.15
+    }
+
+    .dash-list span {
+      display: block;
+      color: var(--muted);
+      font-size: var(--small);
+      margin-top: 2px
+    }
+
+    .tight {
+      gap: var(--sm)
+    }
+
+    .tight li {
+      color: var(--muted);
+      font-size: var(--small)
+    }
+
+    /* Khi <b> là nhãn chữ chứ không phải số, nó không được lấy bậc Data */
+    .dash-list.words b {
+      font-size: var(--body)
+    }
+
+    /* ── Khối scope ── */
+    .scope {
+      border: 1px solid var(--line);
+      background: var(--surface);
+      padding: var(--md)
+    }
+
+    .scope h3 {
+      margin-bottom: var(--sm)
+    }
+
+    .scope-cols {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: var(--md);
+      margin-top: var(--md);
+      padding-top: var(--md);
+      border-top: 1px solid var(--line)
+    }
+
+    .scope-cols p {
+      font-size: var(--small);
+      color: var(--muted)
+    }
+
+    .scope-cols em {
+      display: block;
+      font-family: var(--serif);
+      font-style: italic;
+      color: var(--paper);
+      margin-bottom: var(--xs)
+    }
+
+    /* ── Biểu đồ ── */
+    figure.chart {
+      border: 1px solid var(--line);
+      background: var(--surface);
+      padding: var(--md)
+    }
+
+    figure.chart svg {
+      display: block;
+      width: 100%;
+      height: auto
+    }
+
+    figure.chart figcaption {
+      font-family: var(--serif);
+      font-style: italic;
+      font-size: var(--small);
+      color: var(--muted);
+      padding-top: var(--sm)
+    }
+
+    /* ── Bảng số liệu ── */
+    .table-wrap {
+      margin-top: var(--lg);
+      display: grid;
+      grid-template-columns: 1.3fr .7fr;
+      gap: calc(2.4 * var(--u));
+      align-items: start
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-variant-numeric: tabular-nums
+    }
+
+    caption {
+      text-align: left;
+      font-family: var(--serif);
+      font-style: italic;
+      color: var(--muted);
+      font-size: var(--small);
+      padding-bottom: var(--sm)
+    }
+
+    th,
+    td {
+      padding: calc(.5 * var(--u)) calc(.7 * var(--u));
+      border-bottom: 1px solid var(--line);
+      text-align: left;
+      color: var(--muted);
+      font-size: var(--small);
+      vertical-align: top
+    }
+
+    th {
+      font-family: var(--serif);
+      font-style: italic;
+      color: var(--dim);
+      font-weight: 400;
+      border-bottom: 1px solid var(--line-strong)
+    }
+
+    td.n,
+    th.n {
+      text-align: right;
+      white-space: nowrap
+    }
+
+    /* Hàng dẫn đầu nhấn bằng độ sáng nét cộng nhãn chữ, không bằng màu */
+    tr.lead td {
+      color: var(--paper)
+    }
+
+    tr.lead td:first-child::after {
+      content: " · dẫn đầu";
+      font-family: var(--serif);
+      font-style: italic;
+      color: var(--dim)
+    }
+
+    tr.base td:first-child::after {
+      content: " · mốc so sánh";
+      font-family: var(--serif);
+      font-style: italic;
+      color: var(--dim)
+    }
+
+    .claim {
+      padding-left: var(--lg);
+      border-left: 2px solid var(--cyan)
+    }
+
+    .claim strong {
+      display: block;
+      font-family: var(--serif);
+      font-size: var(--headline);
+      line-height: 1.15
+    }
+
+    .claim p {
+      color: var(--muted);
+      font-size: var(--small);
+      margin-top: var(--sm)
+    }
+
+    .claim .num-row {
+      display: grid;
+      gap: var(--sm);
+      margin-top: var(--md)
+    }
+
+    .claim .num-row div {
+      display: grid;
+      grid-template-columns: 6ch 1fr;
+      gap: var(--sm);
+      align-items: baseline
+    }
+
+    .claim .num-row b {
+      font-variant-numeric: tabular-nums;
+      font-size: var(--data);
+      color: var(--paper);
+      line-height: 1.1
+    }
+
+    .claim .num-row span {
+      color: var(--muted);
+      font-size: var(--small)
+    }
+
+    blockquote {
+      font-family: var(--serif);
+      font-style: italic;
+      color: var(--paper);
+      border-left: 2px solid var(--cyan);
+      padding-left: var(--md);
+      font-size: var(--small);
+      line-height: 1.45
+    }
+
+    blockquote cite {
+      display: block;
+      font-style: normal;
+      color: var(--dim);
+      margin-top: var(--sm)
+    }
+
+    /* ── Luồng ngang / dọc ── */
+    .flow-v {
+      display: grid;
+      gap: var(--sm)
+    }
+
+    .flow-v div {
+      display: grid;
+      grid-template-columns: 3ch 1fr;
+      gap: var(--sm);
+      padding: var(--sm) var(--md);
+      background: var(--surface);
+      border-left: 2px solid var(--cyan)
+    }
+
+    .flow-v b {
+      font-family: var(--serif);
+      color: var(--cyan);
+      font-variant-numeric: tabular-nums
+    }
+
+    .flow-v strong {
+      display: block;
+      font-size: var(--small)
+    }
+
+    .flow-v span {
+      display: block;
+      color: var(--muted);
+      font-size: var(--small)
+    }
+
+    /* ── Bốn cột (metric, lộ trình) ── */
+    .quad {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: var(--md);
+      margin-top: var(--lg)
+    }
+
+    .trio {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: calc(1.8 * var(--u));
+      margin-top: var(--lg)
+    }
+
+    .trio.duo {
+      grid-template-columns: repeat(2, 1fr);
+      gap: calc(3 * var(--u))
+    }
+
+    .quad>div,
+    .trio>div {
+      min-width: 0;
+      padding-top: var(--sm);
+      border-top: 2px solid var(--cyan)
+    }
+
+    .quad h3,
+    .trio h3 {
+      margin-bottom: var(--sm)
+    }
+
+    .quad p,
+    .trio p {
+      color: var(--muted);
+      font-size: var(--small)
+    }
+
+    .quad ul,
+    .trio ul {
+      margin-top: var(--sm)
+    }
+
+    /* ── Khối mục tiêu: nét đứt vì chưa có kết quả ── */
+    .target {
+      margin-top: var(--lg);
+      border: 1px dashed var(--dim);
+      padding: var(--md) var(--lg);
+      display: grid;
+      gap: var(--sm)
+    }
+
+    .target-head {
+      display: flex;
+      gap: var(--md);
+      align-items: baseline;
+      flex-wrap: wrap
+    }
+
+    .target-head strong {
+      font-family: var(--serif)
+    }
+
+    .target-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: var(--sm) var(--lg)
+    }
+
+    .target-grid p {
+      color: var(--muted);
+      font-size: var(--small)
+    }
+
+    .target-grid b {
+      color: var(--paper);
+      font-variant-numeric: tabular-nums
+    }
+
+    /* ── Lớp tổn thương: đặc = ác, rỗng = lành, luôn kèm nhãn chữ ── */
+    .class-strip {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: var(--sm);
+      margin-top: var(--md)
+    }
+
+    .class-cell {
+      padding: var(--sm) var(--xs);
+      background: var(--surface);
+      border: 1px solid var(--line);
+      display: grid;
+      gap: 2px;
+      justify-items: center;
+      text-align: center
+    }
+
+    .class-cell b {
+      font-size: var(--small)
+    }
+
+    .class-cell .kind {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      color: var(--muted);
+      font-size: var(--small)
+    }
+
+    .class-cell .mark {
+      width: 8px;
+      height: 8px;
+      border: 1px solid var(--paper);
+      display: inline-block
+    }
+
+    .class-cell.malign .mark {
+      background: var(--paper)
+    }
+
+    .class-cell.legend {
+      background: none;
+      border-color: var(--line-strong)
+    }
+
+    .class-cell.legend b {
+      font-family: var(--serif);
+      font-style: italic;
+      font-weight: 400;
+      color: var(--muted)
+    }
+
+    /* ── Chú giải nguồn ở phụ lục ── */
+    .refs {
+      display: grid;
+      gap: var(--sm);
+      font-family: var(--serif);
+      font-size: clamp(.66rem, calc(.78 * var(--u)), .86rem);
+      color: var(--muted);
+      max-width: 100ch;
+      margin-top: var(--md)
+    }
+
+    .refs li {
+      list-style: none;
+      padding-left: 26px;
+      position: relative;
+      line-height: 1.4
+    }
+
+    .refs b {
+      position: absolute;
+      left: 0;
+      color: var(--amber);
+      font-variant-numeric: tabular-nums
+    }
+
+    @media (prefers-reduced-motion:no-preference) {
+      .slide.is-active .body>* {
+        animation: enter .45s cubic-bezier(.16, 1, .3, 1) both
+      }
+
+      @keyframes enter {
+        from {
+          opacity: .01;
+          transform: translateY(10px)
+        }
+
+        to {
+          opacity: 1;
+          transform: none
+        }
+      }
+    }
+
+    @media (max-width:900px) {
+      body {
+        overflow: auto
+      }
+
+      .deck {
+        width: 100%;
+        height: auto
+      }
+
+      .slide {
+        position: static;
+        display: grid;
+        min-height: auto;
+        padding: 28px 20px;
+        overflow: visible
+      }
+
+      .slide::before,
+      .slide::after {
+        display: none
+      }
+
+      .slide:not(.is-active) {
+        display: grid
+      }
+
+      .section-nav {
+        width: 100%;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        row-gap: var(--sm)
+      }
+
+      .body {
+        padding: 34px 0
+      }
+
+      .content {
+        width: 100%
+      }
+
+      .split,
+      .split-wide,
+      .split-narrow,
+      .table-wrap,
+      .cover,
+      .scope-cols,
+      .target-grid {
+        grid-template-columns: 1fr
+      }
+
+      .quad,
+      .trio,
+      .class-strip {
+        grid-template-columns: 1fr 1fr
+      }
+
+      .cover-media {
+        display: none
+      }
+    }
+
+    @media print {
+      @page {
+        size: landscape;
+        margin: 10mm
+      }
+
+      body {
+        overflow: visible
+      }
+
+      .deck {
+        width: 100%;
+        height: auto
+      }
+
+      .slide {
+        position: static;
+        display: grid;
+        min-height: 172mm;
+        break-after: page;
+        page-break-after: always
+      }
+
+      .slide:last-child {
+        break-after: auto;
+        page-break-after: auto
+      }
+
+      .slide:not(.is-active) {
+        display: grid
+      }
+
+      .foot a::after,
+      .refs a::after {
+        content: " (" attr(href) ")";
+        font-size: .8em
+      }
+    }
+
+
+    /* v2 có 4 phần nên khoá cứng 4 cột; v3 có 5. Không sửa trong khối chép từ v2,
+       ghi đè ở đây để phần chép sang vẫn khớp từng ký tự với v2. */
+    .section-nav {
+      grid-template-columns: repeat(5, minmax(0, 1fr))
+    }
+
+    /* ═══ Bổ sung riêng cho v3 ═══════════════════════════════════════════════
+       v3 là deck ĐẦU TIÊN mang số đo được của dự án (Loại B). DESIGN.md sau bản
+       sửa 2026-08-07 bắt buộc mỗi số Loại B kèm CI và TÊN TẬP đo được, nên ở đây
+       có thêm hai thiết bị mà v1/v2 không cần: `.on` (nhãn tập) và `.ci`.
+       ─────────────────────────────────────────────────────────────────────── */
+
+    /* Nhãn "đo trên tập nào". Bắt buộc đi kèm mọi số Loại B. */
+    .on {
+      font-family: var(--serif);
+      font-style: italic;
+      font-size: var(--small);
+      color: var(--dim);
+      white-space: nowrap
+    }
+
+    .ci {
+      font-variant-numeric: tabular-nums;
+      font-size: var(--small);
+      color: var(--muted);
+      white-space: nowrap
+    }
+
+    /* Con số headline của bề mặt kết quả. */
+    .figure {
+      display: flex;
+      align-items: baseline;
+      gap: var(--md);
+      flex-wrap: wrap
+    }
+
+    .figure b {
+      font-variant-numeric: tabular-nums;
+      font-size: var(--display);
+      font-weight: 650;
+      line-height: 1;
+      color: var(--paper)
+    }
+
+    /* Hàng của dự án trong bảng benchmark. Nhấn bằng ĐỘ SÁNG NÉT cộng nhãn chữ,
+       không bằng Hoàng Thổ (Plate Key Rule) và không bằng màu đứng một mình
+       (Never-Colour-Alone Rule). */
+    tr.ours td {
+      color: var(--paper);
+      border-bottom: 1px solid var(--line-strong)
+    }
+
+    tr.ours td:first-child::after {
+      content: " · dự án này";
+      font-family: var(--serif);
+      font-style: italic;
+      color: var(--dim)
+    }
+
+    /* Cảnh báo phương pháp luận. Người xem là mentor, nên nó nằm CẠNH con số chứ
+       không dồn xuống chân bản. Ký hiệu là thanh dọc, không phải màu. */
+    .caveat {
+      border-left: 2px solid var(--line-strong);
+      padding-left: var(--md);
+      margin-top: var(--md);
+      color: var(--muted);
+      font-size: var(--small);
+      max-width: 74ch
+    }
+
+    .caveat b {
+      color: var(--paper);
+      font-weight: 650
+    }
+
+    /* Ba khối kết quả xếp dọc, mỗi khối một luận điểm. */
+    .findings {
+      display: grid;
+      gap: var(--md);
+      margin-top: var(--lg)
+    }
+
+    .findings>div {
+      display: grid;
+      grid-template-columns: 15ch 1fr;
+      gap: var(--lg);
+      align-items: baseline;
+      padding-top: var(--sm);
+      border-top: 1px solid var(--line)
+    }
+
+    .findings h3 {
+      font-family: var(--serif);
+      font-weight: 400
+    }
+
+    .findings p {
+      color: var(--muted);
+      font-size: var(--small)
+    }
+
+    .findings b {
+      color: var(--paper);
+      font-variant-numeric: tabular-nums
+    }
+
+    /* Bảng gọn cho phân bố lớp: nhiều cột hẹp, số canh phải. */
+    table.compact th,
+    table.compact td {
+      padding: calc(.4 * var(--u)) calc(.45 * var(--u))
+    }
+
+    table.compact td.n,
+    table.compact th.n {
+      text-align: right
+    }
+
+    /* Danh sách thí nghiệm âm. Gạch ngang đầu dòng chuyển sang Nét Mờ vì đây là
+       kết quả âm, và kèm chữ "không hiệu quả" ở tiêu đề khối. */
+    .dash-list.null li::before {
+      background: var(--dim)
+    }
+
+    /* ── In: ghim mỗi bản khắc vào đúng một trang ────────────────────────────
+       Bản chép từ v2 in ra THỪA TRANG: v2 cho 15 trang trên 8 bản khắc, v3 trước
+       khi sửa là 9 trên 7.
+
+       Nguyên nhân là các mức sàn `rem` trong thang chữ, không phải chuyện lề hay
+       ngắt trang. `--body` khai là `max(1rem, 1.32 * --u)`. Trên màn hình 1600px
+       thì `--u` = 16px nên vế `--u` thắng, và chữ chiếm 1,32% bề rộng. Khi in,
+       `--u` tụt xuống khoảng 2,6mm nhưng `1rem` vẫn là 4,23mm, nên **sàn rem
+       thắng** và chữ chiếm 1,63% bề rộng. Chữ to lên tương đối chừng 23% thì bề
+       mặt đặc sẽ tràn sang trang sau.
+
+       Sàn rem tồn tại để chữ còn đọc được trên màn hình hẹp; khi in thì không cần
+       nó, vì trang giấy không bao giờ hẹp. Nên ở đây thang chữ suy thẳng từ `--u`,
+       giữ nguyên đúng tỉ lệ của bản trên màn hình.
+
+       `--u` KHÔNG bị ghim thành một giá trị mm cố định: nó phải tự co theo khổ
+       giấy. Chrome headless mặc định in khổ Letter (279×216mm) chứ không phải A4,
+       và một bản dựng trước đã hardcode 277mm rồi tràn ngang vì đúng lý do đó.
+
+       Khối này đặt SAU khối print chép từ v2 nên thắng ở cùng độ đặc hiệu. Không
+       sửa trong phần chép để nó còn so được từng ký tự với v2. */
+    @media print {
+
+      html,
+      body {
+        height: auto
+      }
+
+      :root {
+        --display: calc(4.05 * var(--u));
+        --headline: calc(2.25 * var(--u));
+        --data: calc(1.72 * var(--u));
+        --body: calc(1.32 * var(--u));
+        --small: calc(.91 * var(--u))
+      }
+
+      .slide {
+        min-height: 0;
+        aspect-ratio: 16 / 9
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <main class="deck" role="application" aria-roledescription="bộ slide"
+    aria-label="Báo cáo tiến độ 07/08/2026">
+
+    <!-- 1 · Bìa -->
+    <section class="slide no-nav" aria-label="Slide 1: Trang bìa">
+      <div class="top"><span class="ruo">Research Use Only, chưa kiểm định lâm sàng</span><span class="index">01 /
+          07</span></div>
+      <div class="body">
+        <div class="content cover">
+          <div>
+            <p class="eyebrow">Báo cáo tiến độ · 07/08/2026</p>
+            <h1>Phân loại 7 lớp tổn thương gan trên MRI 3D đa thì</h1>
+            <p class="sub">Đóng góp nhắm vào <b>xác suất đáng tin</b>: mô hình nói rõ mức chắc chắn của mình và biết
+              từ chối ca không nắm được, thay vì đua điểm trên bảng xếp hạng. Dữ liệu LLD-MMRI, 498 bệnh nhân,
+              huấn luyện trên Kaggle.</p>
+          </div>
+          <div>
+            <ul class="dash-list">
+              <li><b class="num">0,6162</b><span>macro-F1 trên <em>test-104 official</em>, CI95 [0,5246, 0,7032].
+                  Tập held-out đã khoá, chạm đúng một lần ngày 07/08.</span></li>
+              <li><b class="num">0,684 – 0,724</b><span>macro-F1 khi được phép từ chối 20% ca khó nhất, cùng tập.</span>
+              </li>
+              <li><b class="num">7 / 8 / 498</b><span>số lớp · số thì MRI mỗi bệnh nhân · số bệnh nhân.</span></li>
+            </ul>
+          </div>
+        </div>
+      </div>
+      <div class="foot"><span class="keys"><span>Mọi số của dự án đều kèm CI và tên tập đo được</span></span><span
+          class="no">Bìa</span></div>
+    </section>
+
+    <!-- 2 · Bài toán -->
+    <section class="slide" aria-label="Slide 2: Bài toán, đầu vào và đầu ra">
+      <div class="top"><span class="ruo">Research Use Only, chưa kiểm định lâm sàng</span><span class="index">02 /
+          07</span></div>
+      <nav class="section-nav" aria-label="Phần nội dung"><span class="section-item active" aria-current="step"><i></i>Bài toán</span><span class="section-item"><i></i>Dữ liệu</span><span class="section-item"><i></i>Mốc đối chiếu</span><span class="section-item"><i></i>Mô hình</span><span class="section-item"><i></i>Kết quả</span></nav>
+      <div class="body">
+        <div class="content">
+          <p class="eyebrow">Bài toán</p>
+          <h2>Gọi tên tổn thương gan, và nói rõ mức tin cậy của chính câu trả lời đó.</h2>
+          <div class="trio">
+            <div>
+              <h3>Bài toán</h3>
+              <p>Phân loại <b>7 lớp</b> tổn thương gan ở <b>mức ROI</b>: HCC, ICC, di căn (3 lớp ác) và nang, u máu,
+                FNH, áp-xe (4 lớp lành).</p>
+              <p>Đầu vào đã biết trước vị trí tổn thương, nên đây <em>không</em> phải bài toán phát hiện, và cũng
+                không phải segmentation.</p>
+            </div>
+            <div>
+              <h3>Đầu vào</h3>
+              <p>Một bệnh nhân là <b>8 thì MRI 3D</b>: pre-contrast, arterial, venous, delay, T2WI, DWI, T1 in-phase,
+                T1 out-phase.</p>
+              <p>Sau tiền xử lý, mỗi ca thành một khối <b>8 × 112 × 112 × 32</b>, tức 8 thì xếp thành 8 kênh của cùng
+                một khối ba chiều.</p>
+            </div>
+            <div>
+              <h3>Đầu ra</h3>
+              <p><b>7 xác suất đã hiệu chỉnh</b>, cộng một <b>mức bất định</b>, cộng một <b>cờ defer</b>.</p>
+              <p>Cờ defer là phần khác biệt: khi mô hình không đủ chắc, nó nói ra điều đó và chuyển ca cho bác sĩ thay
+                vì đoán bừa một nhãn.</p>
+            </div>
+          </div>
+          <p class="sub"><b>Vì sao chọn hướng này:</b> phần lớn công trình cùng bài toán chỉ báo độ chính xác, không
+            báo mô hình có tự biết mình sai hay không. Một mô hình đoán đúng 70% nhưng luôn nói chắc chắn thì không
+            dùng được trên lâm sàng; một mô hình đoán đúng 70% mà chỉ ra được 20% ca nó không nắm thì dùng được.</p>
+        </div>
+      </div>
+      <div class="foot"><span class="keys"><span>Research Use Only, không dùng cho chẩn đoán</span></span><span
+          class="no">Bài toán</span></div>
+    </section>
+
+    <!-- 3 · Dữ liệu -->
+    <section class="slide" aria-label="Slide 3: Dataset LLD-MMRI">
+      <div class="top"><span class="ruo">Research Use Only, chưa kiểm định lâm sàng</span><span class="index">03 /
+          07</span></div>
+      <nav class="section-nav" aria-label="Phần nội dung"><span class="section-item"><i></i>Bài toán</span><span class="section-item active" aria-current="step"><i></i>Dữ liệu</span><span class="section-item"><i></i>Mốc đối chiếu</span><span class="section-item"><i></i>Mô hình</span><span class="section-item"><i></i>Kết quả</span></nav>
+      <div class="body">
+        <div class="content">
+          <p class="eyebrow">Dữ liệu</p>
+          <h2>498 bệnh nhân là ít, và tám thì không nằm trên cùng một lưới voxel.</h2>
+          <div class="split split-wide">
+            <div>
+              <table class="compact">
+                <caption>Phân bố lớp, LLD-MMRI. Split official 394 / 104 đã tái lập và khoá trong
+                  <code>splits/</code>.<sup class="ref">1</sup></caption>
+                <thead>
+                  <tr>
+                    <th scope="col">Tập</th>
+                    <th scope="col" class="n">HCC</th>
+                    <th scope="col" class="n">u máu</th>
+                    <th scope="col" class="n">ICC</th>
+                    <th scope="col" class="n">áp-xe</th>
+                    <th scope="col" class="n">nang</th>
+                    <th scope="col" class="n">di căn</th>
+                    <th scope="col" class="n">FNH</th>
+                    <th scope="col" class="n">Tổng</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td>train + val</td>
+                    <td class="n">125</td>
+                    <td class="n">63</td>
+                    <td class="n">46</td>
+                    <td class="n">42</td>
+                    <td class="n">42</td>
+                    <td class="n">40</td>
+                    <td class="n">36</td>
+                    <td class="n">394</td>
+                  </tr>
+                  <tr>
+                    <td>test held-out</td>
+                    <td class="n">32</td>
+                    <td class="n">16</td>
+                    <td class="n">12</td>
+                    <td class="n">12</td>
+                    <td class="n">11</td>
+                    <td class="n">11</td>
+                    <td class="n">10</td>
+                    <td class="n">104</td>
+                  </tr>
+                </tbody>
+              </table>
+              <p class="sub">Mỗi bệnh nhân đúng một tổn thương, nên số ca cũng là số tổn thương. Nhãn lấy từ
+                <b>kết quả giải phẫu bệnh</b>, không phải từ đọc ảnh, nên đây là gold standard thật.</p>
+            </div>
+            <div>
+              <ul class="dash-list words">
+                <li><b>Chia dữ liệu khớp official 100%</b><span>Split 316 / 78 / 104 của challenge đã tái lập được và
+                    kiểm khớp phân bố lớp với tài liệu gốc ở cả 7 lớp. Nhờ vậy con số của dự án so trực tiếp được với
+                    bảng xếp hạng.</span></li>
+                <li><b>Mất cân bằng vừa phải</b><span>HCC nhiều nhất, FNH ít nhất, tỉ lệ khoảng 3,4 lần. Đây không
+                    phải long-tail, nên không cần kỹ thuật đặc biệt cho lớp siêu hiếm.</span></li>
+                <li><b>Tám thì khác nhau về hình học</b><span>Thì không thuốc chụp theo mặt phẳng khác, DWI có ma trận
+                    thô hơn, khoảng cách lát cắt không giống nhau. Cộng thêm dữ liệu đến từ nhiều máy 1.5T và 3T. Vì
+                    vậy <em>căn các thì về cùng một lưới là bắt buộc</em>, không phải tuỳ chọn.</span></li>
+              </ul>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="foot"><span class="keys"><span><sup class="ref">1</sup> <a
+              href="https://github.com/LMMMEng/LLD-MMRI2023" target="_blank" rel="noopener">LLD-MMRI2023</a>, MICCAI
+            2023 challenge</span></span><span class="no">Dữ liệu</span></div>
+    </section>
+
+    <!-- 4 · Mốc đối chiếu -->
+    <section class="slide" aria-label="Slide 4: Benchmark trên test-104">
+      <div class="top"><span class="ruo">Research Use Only, chưa kiểm định lâm sàng</span><span class="index">04 /
+          07</span></div>
+      <nav class="section-nav" aria-label="Phần nội dung"><span class="section-item"><i></i>Bài toán</span><span class="section-item"><i></i>Dữ liệu</span><span class="section-item active" aria-current="step"><i></i>Mốc đối chiếu</span><span class="section-item"><i></i>Mô hình</span><span class="section-item"><i></i>Kết quả</span></nav>
+      <div class="body">
+        <div class="content">
+          <p class="eyebrow">Mốc đối chiếu</p>
+          <h2>Trên cùng tập test 104 ca, dự án đang ngang mốc baseline của ban tổ chức.</h2>
+          <div class="table-wrap">
+            <table>
+              <caption>Tất cả các hàng đo trên <b>cùng một tập test-104 official</b>. Cột nguồn cho biết số đến từ
+                đâu, vì hai nguồn dùng hai protocol khác nhau.</caption>
+              <thead>
+                <tr>
+                  <th scope="col">Phương pháp</th>
+                  <th scope="col" class="n">macro-F1</th>
+                  <th scope="col" class="n">Cohen's κ</th>
+                  <th scope="col">Nguồn</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr class="lead">
+                  <td>Đội nhất challenge</td>
+                  <td class="n">0,8322</td>
+                  <td class="n">0,7801</td>
+                  <td>bảng xếp hạng<sup class="ref">2</sup></td>
+                </tr>
+                <tr>
+                  <td>CGHNet</td>
+                  <td class="n">0,8180</td>
+                  <td class="n">0,7820</td>
+                  <td>CGHNet Bảng 1<sup class="ref">3</sup></td>
+                </tr>
+                <tr>
+                  <td>ResNet3D</td>
+                  <td class="n">0,7090</td>
+                  <td class="n">0,6620</td>
+                  <td>CGHNet Bảng 1<sup class="ref">3</sup></td>
+                </tr>
+                <tr class="ours">
+                  <td>Ensemble 5 fold</td>
+                  <td class="n">0,6162</td>
+                  <td class="n">0,5647</td>
+                  <td>đo 07/08/2026</td>
+                </tr>
+                <tr class="base">
+                  <td>Baseline ban tổ chức</td>
+                  <td class="n">0,6083</td>
+                  <td class="n">0,5414</td>
+                  <td>bảng xếp hạng<sup class="ref">2</sup></td>
+                </tr>
+                <tr>
+                  <td>Hạng 20 đến 24</td>
+                  <td class="n">0,5047–0,6076</td>
+                  <td class="n">—</td>
+                  <td>bảng xếp hạng<sup class="ref">2</sup></td>
+                </tr>
+              </tbody>
+            </table>
+            <div class="claim">
+              <strong>Đọc bảng này cho đúng</strong>
+              <p>Con số của dự án là <span class="ci">0,6162 [0,5246, 0,7032]</span>, tức khoảng tin cậy rộng khoảng
+                ±0,09 vì tập test chỉ có 104 ca.</p>
+              <p>Nó cao hơn baseline ban tổ chức <b>đúng 0,0038</b>, mà khoảng tin cậy thì phủ trùm con số đó. Vì vậy
+                phát biểu đúng là <em>ngang baseline, chưa phân biệt được về mặt thống kê</em>. Nói &ldquo;vượt
+                baseline&rdquo; là đọc sai.</p>
+              <p>Cũng vì lý do đó, mọi khoảng cách trong bảng đều chưa có ý nghĩa thống kê, <em>trừ</em> so với CGHNet
+                và đội nhất: hai mốc đó nằm ngoài hẳn khoảng tin cậy.</p>
+            </div>
+          </div>
+          <p class="sub"><b>Định vị hiện tại:</b> trên phần lớn nhóm hạng 20 đến 24, ngang baseline, còn cách rõ ràng
+            so với các phương pháp công bố gần đây. Đây là mốc của lần chạm test đầu tiên, chưa có EMA, chưa có
+            backbone pretrained.</p>
+        </div>
+      </div>
+      <div class="foot"><span class="keys"><span><sup class="ref">2</sup> <a
+              href="https://github.com/LMMMEng/LLD-MMRI2023/blob/main/assets/test_leaderboard.md" target="_blank"
+              rel="noopener">LLD-MMRI2023 leaderboard</a></span><span><sup class="ref">3</sup> <a
+              href="https://doi.org/10.1016/j.compmedimag.2026.102780" target="_blank" rel="noopener">Comput Med
+              Imaging Graph 132, 2026</a></span></span><span class="no">Mốc đối chiếu</span></div>
+    </section>
+
+    <!-- 5 · Mô hình -->
+    <section class="slide" aria-label="Slide 5: Backbone hiện tại">
+      <div class="top"><span class="ruo">Research Use Only, chưa kiểm định lâm sàng</span><span class="index">05 /
+          07</span></div>
+      <nav class="section-nav" aria-label="Phần nội dung"><span class="section-item"><i></i>Bài toán</span><span class="section-item"><i></i>Dữ liệu</span><span class="section-item"><i></i>Mốc đối chiếu</span><span class="section-item active" aria-current="step"><i></i>Mô hình</span><span class="section-item"><i></i>Kết quả</span></nav>
+      <div class="body">
+        <div class="content">
+          <p class="eyebrow">Mô hình</p>
+          <h2>Hai bước nhảy lớn nhất đến từ hình học dữ liệu, không từ kiến trúc.</h2>
+          <div class="split split-narrow">
+            <div>
+              <ul class="dash-list words">
+                <li><b>DenseNet121-3D</b><span>Bản 3D trong MONAI. Tám thì ghép ngay từ đầu thành 8 kênh đầu vào, khối
+                    112 × 112 × 32.</span></li>
+                <li><b>Công thức huấn luyện</b><span>300 epoch · cross-entropy · AdamW lr 1e-4 · batch 2 với gradient
+                    accumulation 4 · mixed precision · seed cố định 1337.</span></li>
+                <li><b>Hạ tầng</b><span>Kaggle, mỗi phiên tối đa 12 giờ, nên có checkpoint và resume mỗi epoch. Một
+                    fold mất khoảng 3 đến 4 giờ.</span></li>
+              </ul>
+            </div>
+            <div>
+              <table>
+                <caption>Ba lần huấn luyện, <b>cùng fold, cùng seed, cùng công thức</b>. Chỉ cách chuẩn bị dữ liệu đầu
+                  vào là khác. <span class="on">đo trên val fold 1, 82 ca</span></caption>
+                <thead>
+                  <tr>
+                    <th scope="col"></th>
+                    <th scope="col">Cách cắt</th>
+                    <th scope="col">Kích thước</th>
+                    <th scope="col">Căn thì</th>
+                    <th scope="col" class="n">macro-F1</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td>E0</td>
+                    <td>144mm cố định</td>
+                    <td>96×96×48</td>
+                    <td>về một thì</td>
+                    <td class="n">0,4244</td>
+                  </tr>
+                  <tr>
+                    <td>E1</td>
+                    <td>bám tổn thương</td>
+                    <td>96×96×48</td>
+                    <td>về một thì</td>
+                    <td class="n">0,5740</td>
+                  </tr>
+                  <tr class="ours">
+                    <td>E4</td>
+                    <td>bám tổn thương</td>
+                    <td>112×112×32</td>
+                    <td>từng thì riêng</td>
+                    <td class="n">0,7001</td>
+                  </tr>
+                </tbody>
+              </table>
+              <div class="caveat">
+                <p>E4 hơn E1 <b>+0,126</b>, CI95 [+0,033, +0,230], <b>P = 0,009</b>. Đây là một trong số ít thay đổi
+                  của dự án đạt ý nghĩa thống kê.</p>
+                <p>Kiến trúc giữ nguyên suốt ba lần. Toàn bộ mức tăng từ 0,42 lên 0,70 đến từ việc cắt đúng vùng tổn
+                  thương và căn các thì về cùng một lưới.</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="foot"><span class="keys"><span class="on">Số ở bảng này đo trên val out-of-fold, không so trực tiếp
+            với test-104</span></span><span class="no">Mô hình</span></div>
+    </section>
+
+    <!-- 6 · Kết quả -->
+    <section class="slide" aria-label="Slide 6: Kết quả hiện tại trên test-104">
+      <div class="top"><span class="ruo">Research Use Only, chưa kiểm định lâm sàng</span><span class="index">06 /
+          07</span></div>
+      <nav class="section-nav" aria-label="Phần nội dung"><span class="section-item"><i></i>Bài toán</span><span class="section-item"><i></i>Dữ liệu</span><span class="section-item"><i></i>Mốc đối chiếu</span><span class="section-item"><i></i>Mô hình</span><span class="section-item active" aria-current="step"><i></i>Kết quả</span></nav>
+      <div class="body">
+        <div class="content">
+          <p class="eyebrow">Kết quả</p>
+          <h2>Phần chênh giữa val và test đúng bằng thiên lệch mà dự án đã tự cảnh báo.</h2>
+          <div class="figure">
+            <b class="num">0,6162</b>
+            <span class="ci">CI95 [0,5246, 0,7032]</span>
+            <span class="on">macro-F1 · test-104 official · n = 104 · ensemble 5 fold</span>
+          </div>
+          <div class="findings">
+            <div>
+              <h3>Val so với test</h3>
+              <p>Trên val out-of-fold 394 ca, con số là <b>0,6851</b>. Trên test-104 là <b>0,6162</b>, hụt
+                <b>0,069</b>. Trước khi chạm test, dự án đã đo được thiên lệch do cách chọn checkpoint là
+                <b>+0,079</b> và ghi rõ trong tài liệu. Hai con số gần trùng khít, nghĩa là phần lạc quan của val
+                đúng bằng phần đã được chỉ ra, không có nguồn thổi phồng nào khác.</p>
+            </div>
+            <div>
+              <h3>Từ chối ca khó</h3>
+              <p>Bỏ 20% ca mà mô hình ít chắc nhất, macro-F1 trên phần còn lại lên <b>0,684 đến 0,724</b>, tức tăng
+                <b>+0,070</b> CI95 [+0,015, +0,124], <b>P = 0,016</b>. Đây là cơ chế defer chạy thật, không phải mô
+                phỏng. <em>Đính chính so với báo cáo trước:</em> xếp hạng theo mức bất đồng giữa 5 mô hình không hơn
+                cách đơn giản là lấy xác suất cao nhất (P = 0,90). Kết luận cũ chỉ đúng khi ensemble là giả lập trên
+                một mô hình.</p>
+            </div>
+            <div>
+              <h3>Nút thắt</h3>
+              <p>Hai lớp kéo điểm xuống là <b>di căn 0,273</b> và <b>ICC 0,519</b>. Hướng nhầm chính là HCC bị đoán
+                thành di căn, <b>6 trong 32 ca</b> HCC. Phép tính trần, dùng đúng hai con số trên: kể cả 5 lớp còn
+                lại đều đạt 0,90 thì macro-F1 cũng chỉ tới <b>0,756</b>. Muốn qua mốc đó thì bắt buộc phải chữa hai
+                lớp này, không có đường vòng.</p>
+            </div>
+          </div>
+          <div class="caveat">
+            <p><b>Ba điều phải nói kèm:</b> tập test chỉ 104 ca nên khoảng tin cậy rộng ±0,09, và mọi so sánh với mốc
+              văn liệu đều chưa phân biệt được về thống kê trừ hai mốc cao nhất. Xác suất hiển thị là bản chưa hiệu
+              chỉnh, vì ensemble tự nó đã cho ECE 0,1303, tốt hơn cả khi áp thêm temperature scaling. Test-104 là tập
+              khoá kín và đã chạm đúng một lần theo protocol khoá trước khi chạy.</p>
+          </div>
+        </div>
+      </div>
+      <div class="foot"><span class="keys"><span class="on">Mọi số trên bề mặt này đo trên test-104 official, trừ chỗ
+            ghi rõ là val out-of-fold</span></span><span class="no">Kết quả</span></div>
+    </section>
+
+    <!-- 7 · Hướng đi tiếp -->
+    <section class="slide" aria-label="Slide 7: Hướng đi tiếp theo">
+      <div class="top"><span class="ruo">Research Use Only, chưa kiểm định lâm sàng</span><span class="index">07 /
+          07</span></div>
+      <nav class="section-nav" aria-label="Phần nội dung"><span class="section-item"><i></i>Bài toán</span><span class="section-item"><i></i>Dữ liệu</span><span class="section-item"><i></i>Mốc đối chiếu</span><span class="section-item"><i></i>Mô hình</span><span class="section-item active" aria-current="step"><i></i>Kết quả</span></nav>
+      <div class="body">
+        <div class="content">
+          <p class="eyebrow">Hướng đi tiếp</p>
+          <h2>Nút thắt là thời điểm mô hình bắt đầu học thuộc, và đã có số để chứng minh.</h2>
+          <div class="split">
+            <div>
+              <h3>Bốn hướng đã thử, không hướng nào hiệu quả</h3>
+              <table class="compact">
+                <caption><span class="on">hiệu so với cấu hình gốc · val out-of-fold · bootstrap ghép cặp</span>
+                </caption>
+                <thead>
+                  <tr>
+                    <th scope="col">Thí nghiệm</th>
+                    <th scope="col" class="n">Hiệu</th>
+                    <th scope="col" class="n">P</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td>Hàm mất mát focal</td>
+                    <td class="n">−0,029</td>
+                    <td class="n">0,47</td>
+                  </tr>
+                  <tr>
+                    <td>Tăng cường dữ liệu mạnh</td>
+                    <td class="n">−0,014</td>
+                    <td class="n">0,68</td>
+                  </tr>
+                  <tr>
+                    <td>Bỏ nhiễu cường độ theo thì</td>
+                    <td class="n">−0,002</td>
+                    <td class="n">0,92</td>
+                  </tr>
+                  <tr>
+                    <td>Test-time augmentation</td>
+                    <td class="n">−0,015</td>
+                    <td class="n">0,15</td>
+                  </tr>
+                </tbody>
+              </table>
+              <p class="sub">Không cái nào đạt ý nghĩa thống kê. Ghi lại vì kết quả âm cũng là kết quả: nó loại bớt
+                hướng cho phần còn lại của dự án.</p>
+            </div>
+            <div>
+              <h3>Hướng ưu tiên: làm trơn trọng số theo thời gian</h3>
+              <p>Không phải đoán mò. Qua cả <b>10 lần huấn luyện</b>, thời điểm mô hình bắt đầu học thuộc dự báo gần
+                trọn vẹn điểm cuối cùng của lần đó: tương quan hạng <b>ρ = +0,770</b>, <b>P = 0,0092</b>.</p>
+              <p>Có bằng chứng độc lập thứ hai cho cùng chẩn đoán: mô hình <b>không bất biến với phép lật ảnh</b>, mất
+                0,02 đến 0,06 điểm khi ảnh bị lật, dù nó được huấn luyện với phép lật trên cả ba trục. Nó học thuộc
+                hướng của ảnh thay vì học đặc trưng bất biến với hướng.</p>
+            </div>
+          </div>
+          <div class="trio">
+            <div>
+              <h3>Hai lớp yếu</h3>
+              <p>Đòn bẩy là <b>precision</b>, không phải recall: HCC rò rỉ sang di căn và ICC, chứ hai lớp này không
+                bị bỏ sót. Vì vậy hướng chỉnh trọng số lớp đã bị loại.</p>
+            </div>
+            <div>
+              <h3>Web app</h3>
+              <p>Backend FastAPI và frontend React đã chạy được với số thật out-of-fold, kèm bản đồ vùng chú ý. Còn
+                lại là hoàn thiện và nối vào kết quả mới.</p>
+            </div>
+            <div>
+              <h3>Báo cáo</h3>
+              <p>Hình cho báo cáo, kiểm định thống kê giữa các mô hình, gói tái lập gồm seed, config, split và
+                notebook.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="foot"><span class="keys"><span>Lần chạm test-104 tiếp theo cần khoá protocol mới và phải báo là lần
+            thứ hai</span></span><span class="no">Kết quả</span></div>
+    </section>
+
+  </main>
+
+  <script>
+    (function () {
+      var slides = Array.prototype.slice.call(document.querySelectorAll('.slide')), i = 0;
+      function show(n) { i = Math.max(0, Math.min(slides.length - 1, n)); slides.forEach(function (s, k) { s.classList.toggle('is-active', k === i) }); if (location.hash !== '#' + (i + 1)) history.replaceState(null, '', '#' + (i + 1)) }
+      document.addEventListener('keydown', function (e) { if (e.altKey || e.ctrlKey || e.metaKey) return; var key = e.key; if (key === 'ArrowRight' || key === 'PageDown' || key === ' ') { show(i + 1); e.preventDefault() } if (key === 'ArrowLeft' || key === 'PageUp') { show(i - 1); e.preventDefault() } if (key === 'Home') { show(0); e.preventDefault() } if (key === 'End') { show(slides.length - 1); e.preventDefault() } });
+      function slideFromHash() { var n = parseInt(location.hash.slice(1), 10); return isNaN(n) ? 0 : n - 1 }
+      window.addEventListener('hashchange', function () { var n = slideFromHash(); if (n !== i) show(n) }); show(slideFromHash());
+    })();
+  </script>
+</body>
+
+</html>

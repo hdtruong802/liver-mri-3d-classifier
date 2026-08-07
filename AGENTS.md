@@ -198,6 +198,81 @@ Ba điều rút ra, đều đã được dùng để định hướng thí nghi�
 
 **Bất kỳ ai định debug chất lượng model đều phải đối chiếu với bảng này trước.** Ba phiên (S-036, S-039, S-040) đã đốt ba run GPU để đoán nguyên nhân mà không hề biết điểm số nào là đạt được — cả ba chẩn đoán đều sai.
 
+### 🔒 TEST-104 OFFICIAL — đã chạm, lần thứ nhất và duy nhất (2026-08-07, WORKLOG S-110)
+
+> **Test-104 ĐÃ BỊ CHẠM.** Lần chạm thứ hai cần xin phép người dùng lại và một pre-registration mới, và phải được báo cáo rõ là lần thứ hai (AGENTS.md §3.4, §10). Protocol đã khoá trước khi chạy: [`docs/TEST104_PREREGISTRATION.md`](docs/TEST104_PREREGISTRATION.md), commit `56baa41`.
+
+Cấu hình: E4 (`baseline_3dpatch.yaml` + cache lesion-tight · 112×112×32 · per-phase) · **ensemble 5 fold**, trung bình softmax · không TTA · không EMA/pretrained.
+
+| | macro-F1 | κ | accuracy |
+|---|---|---|---|
+| **ensemble 5 fold (số chính)** | **0.6162 [0.5246, 0.7032]** | 0.5647 | 0.6346 |
+| trung bình 5 model đơn | 0.6001 ± 0.0204 | — | — |
+
+⚠️ **Cao hơn baseline official (0.6083) đúng 0.0038, trong khi CI rộng ±0.09.** CI chứa 0.6083 rất thoải mái, nên **KHÔNG được viết "ta vượt baseline official"**. Câu đúng: *ngang baseline official, không phân biệt được về thống kê*. Định vị: trên phần lớn nhóm hạng 20–24, còn cách rõ ràng so với SOTA công bố (ResNet3D 0.709 · CGHNet 0.818).
+
+⚠️ **Model đơn tốt nhất (fold 2, 0.6308) CAO HƠN ensemble.** Không được báo nó — chọn nó sau khi nhìn test là chọn trên test. Ensemble đã chốt trước là số chính. Ensemble − trung bình thành viên = +0.0162 [−0.0232, +0.0560] **P=0.43**, tức gộp 5 model gần như không giúp.
+
+#### Thiên lệch chọn epoch đã được xác nhận về mặt định lượng
+
+| | macro-F1 |
+|---|---|
+| out-of-fold (394 ca) | 0.6851 |
+| **test-104 (104 ca)** | **0.6162** |
+| hụt | **−0.069** |
+
+Thiên lệch chọn epoch đo trước trên out-of-fold là **+0.079** (`best` 0.6824 so với `last` 0.6038, cùng 312 ca). Mức hụt thực tế 0.069 **gần trùng khít**. Nghĩa là 0.6851 lạc quan đúng bằng phần dự án đã tự chỉ ra và cảnh báo, không có nguồn thổi phồng nào khác lộ ra. Đây là điểm mạnh của phần phương pháp luận, nên đưa vào báo cáo.
+
+#### Calibration: ensemble tự nó hiệu chỉnh tốt hơn temperature scaling
+
+| | ECE | MCE | NLL | tự tin (lệch so acc) |
+|---|---|---|---|---|
+| ensemble, **chưa** hiệu chỉnh | **0.1303** | 0.4459 | 1.2050 | 0.750 (+0.115) |
+| ensemble, T=2.10 fit từ OOF | 0.1902 | 0.3674 | 1.0441 | 0.581 (−0.054) |
+
+**Pre-registration §3 dự đoán trước điều này và nó đã xảy ra:** `T` học từ phân bố *model đơn* mà áp lên *ensemble* vốn đã bớt tự tin, nên hiệu chỉnh quá tay — ECE xấu đi và bắn sang thiếu tự tin. Không được fit lại `T` trên test.
+
+**Phát hiện đi kèm:** ensemble **chưa hiệu chỉnh** cho ECE 0.1303, tốt hơn cả model đơn *đã* temperature-scaling tốt nhất trên out-of-fold (0.1534). **Gộp 5 model là bộ hiệu chỉnh tốt hơn temperature scaling** ở bài toán này. Tự tin thái quá giảm từ +0.186 (OOF) xuống +0.115.
+
+#### ⚠️ Selective: có tác dụng, nhưng luận điểm cũ của S-087 KHÔNG lặp lại
+
+| xếp hạng | AURC | F1@100% | F1@90% | F1@80% | F1@70% |
+|---|---|---|---|---|---|
+| max-prob (đối chứng) | 0.1298 | 0.6162 | 0.6468 | 0.6844 | 0.7527 |
+| −epistemic (bất đồng 5 model) | 0.1305 | 0.6162 | 0.6530 | 0.7239 | 0.7526 |
+
+Hiệu giữa hai cách xếp hạng: AURC **+0.0009 P=0.90** · F1@80% +0.0286 **P=0.26**. **Không khác gì nhau.**
+
+Nhưng cả hai đều có tác dụng thật so với không từ chối ca nào (bootstrap ghép cặp, 2000 lần):
+
+| | hiệu so với F1@100% | CI95 | P |
+|---|---|---|---|
+| max-prob @80% | **+0.0696** | [+0.0154, +0.1245] | **0.016** |
+| −epistemic @80% | **+0.0970** | [+0.0466, +0.1451] | **<0.001** |
+| max-prob @70% | +0.1267 | [+0.0568, +0.1859] | 0.002 |
+
+**ĐÍNH CHÍNH kết luận của S-087.** Trên out-of-fold, dòng đối chứng max-prob cho +0.000 (P=0.88), và dự án đã kết luận *"selective chỉ chạy được khi tín hiệu đến từ bất đồng, không phải từ softmax"*. **Trên test-104 điều đó sai:** max-prob cho +0.070 có ý nghĩa thống kê. Giải thích nhất quán: trên OOF "ensemble" chỉ là MC-dropout trên **một** model tự tin thái quá nên softmax của nó vô dụng; với **5 model độc lập thật**, softmax của trung bình đã là tín hiệu bất định tốt.
+
+Phát biểu đúng để dùng trong báo cáo: **từ chối 20% ca khó nâng macro-F1 từ 0.616 lên 0.68–0.72, và không cần MC-dropout để làm việc đó.**
+
+#### Từng lớp — hai lớp yếu tụt sâu hơn
+
+| lớp | n | out-of-fold | test-104 | hiệu |
+|---|---|---|---|---|
+| u máu | 16 | 0.831 | **0.903** | +0.072 |
+| nang | 11 | 0.762 | 0.762 | 0.000 |
+| ICC | 12 | 0.519 | 0.519 | 0.000 |
+| HCC | 32 | 0.776 | 0.679 | −0.097 |
+| FNH | 10 | 0.761 | 0.640 | −0.121 |
+| áp-xe | 12 | 0.660 | 0.538 | −0.122 |
+| **di căn** | 11 | 0.488 | **0.273** | **−0.215** |
+
+Hướng nhầm chính y hệt out-of-fold: **HCC → di căn 6/32 ca**, HCC → FNH 5/32, di căn → ICC 4/11.
+
+Phép tính trần, **dùng đúng số của test-104** (di căn 0.273, ICC 0.519): kể cả 5 lớp còn lại đều đạt 0.90 thì macro-F1 cũng chỉ tới **0.756**. ⚠️ Đừng lẫn với con số **0.771** ở mục E6b bên dưới — cái đó tính từ F1 *out-of-fold* của E6b (0.455 và 0.444). Hai phép tính dùng hai tập khác nhau nên không thay thế nhau được.
+
+⚠️ n mỗi lớp chỉ 10–16 ca, đừng diễn giải sâu từng con số.
+
 ### Kết quả nội bộ đã đo (đọc trước khi đề xuất thí nghiệm mới)
 
 Bốn run, **cùng fold 1 · cùng 82 ca val · cùng seed · cùng recipe train**. Chỉ dữ liệu đầu vào đổi:

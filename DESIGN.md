@@ -134,7 +134,19 @@ Nền mực sâu với nét sáng ấm, hai sắc dữ liệu. Cặp hoàng th�
 
 ### Named Rules
 
-**The Two-Number Rule.** Hệ thống này chỉ có hai loại số. **Loại A** là số đã công bố của người khác: hiển thị bằng Nét Khắc, chữ số bảng, và **bắt buộc** mang một chú số dẫn về chú giải ở chân bề mặt, kèm cỡ mẫu `n=`. **Loại B** là số của dự án này: **chưa tồn tại, và không bao giờ được vẽ ra**. Nơi cần minh hoạ một khái niệm, dùng sơ đồ không có trục số kèm nhãn "Minh hoạ khái niệm: chưa có dữ liệu". Vi phạm quy tắc này là lỗi nghiêm trọng nhất hệ thống có thể mắc.
+**The Two-Number Rule.** Hệ thống này chỉ có hai loại số, và **luật cốt lõi là: một con số không bao giờ đứng một mình**. Mỗi loại có cách chứng minh nguồn gốc riêng.
+
+**Loại A** — số đã công bố của người khác: hiển thị bằng Nét Khắc, chữ số bảng, và **bắt buộc** mang một chú số dẫn về chú giải ở chân bề mặt, kèm cỡ mẫu `n=`.
+
+**Loại B** — số đo được của dự án này: **bắt buộc kèm đủ ba thứ**, thiếu một là không được lên bề mặt.
+
+1. **CI95 hoặc P.** Điểm ước lượng trần bị cấm (AGENTS.md §3.5).
+2. **Tên tập đo được**, viết ngay tại chỗ: `val out-of-fold 394 ca` hay `test-104`. Hai tập này **không so trực tiếp với nhau được**, và cũng chỉ `test-104` mới so được với Loại A.
+3. **Dải RUO** trên bề mặt.
+
+**Loại C** — thứ chưa đo: **không bao giờ được vẽ ra**. Nơi cần minh hoạ khái niệm, dùng sơ đồ không có trục số kèm chip nét đứt "Minh hoạ khái niệm: chưa có dữ liệu". Vẽ một con số chưa tồn tại là lỗi nghiêm trọng nhất hệ thống có thể mắc.
+
+> **Sửa ngày 2026-08-07 (WORKLOG S-110).** Bản gốc viết Loại B là *"chưa tồn tại, và không bao giờ được vẽ ra"* vì lúc đó (2026-07-24) dự án thật sự chưa có kết quả nào. Giờ đã có, nên luật cũ sẽ cấm đúng thứ mà slide kết quả phải làm. Cái được giữ nguyên là **tinh thần**: số trần không có ngữ cảnh vẫn bị cấm, chỉ là ngữ cảnh bắt buộc của Loại B nay là CI cộng tên tập, chứ không phải chú số nguồn.
 
 **The Plate Key Rule.** Hoàng Thổ có **đúng ba chỗ được dùng**, không có chỗ thứ tư: (1) chú số và chú giải nguồn, (2) đường nhấn dưới tiêu đề bề mặt, (3) mốc phần đang hoạt động. Sức mạnh của thiết bị này nằm ở chỗ khi thấy hoàng thổ trong vùng nội dung, người xem biết ngay đó là con trỏ tới nguồn. Bản dựng đầu còn tô hoàng thổ cho hàng dẫn đầu của bảng số, tức bốn nghĩa trên một màu — đã sửa: **hàng dẫn đầu nhấn bằng độ sáng nét** (Nét Khắc trên nền các hàng khác dùng Nét Phụ), đúng ngữ pháp bản khắc và không tiêu tốn màu chú số.
 
@@ -269,7 +281,8 @@ Kẻ là 1px, trừ mốc phần đang hoạt động (2px Hoàng Thổ) — đ�
 - **Do** giữ Hoàng Thổ cho riêng chú số (The Plate Key Rule).
 
 ### Don't:
-- **Don't** vẽ bất kỳ con số nào của dự án này — chưa có kết quả, và số giả trông giống số thật là rủi ro nghiêm trọng nhất ở đây.
+- **Don't** vẽ một con số **chưa đo được** (Loại C) — số giả trông giống số thật là rủi ro nghiêm trọng nhất ở đây.
+- **Don't** đưa số đo được của dự án (Loại B) lên bề mặt mà thiếu CI, hoặc thiếu tên tập đo được. Số trần vẫn bị cấm; chỉ có cách chứng minh nguồn gốc là khác Loại A.
 - **Don't** dùng `box-shadow` (The No-Shadow Rule).
 - **Don't** dùng bán kính bo góc khác 0.
 - **Don't** dùng `text-transform: uppercase` (The No-Uppercase Rule) — tiếng Việt có dấu không chịu được.

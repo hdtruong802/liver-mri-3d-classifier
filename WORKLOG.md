@@ -4350,3 +4350,67 @@ Không entry nào bị sửa. Nội dung khoa học của S-103 → S-108 **khô
 **Điểm vào phiên sau:** Như S-108 — chạy `notebooks/12_test104.ipynb` trên Kaggle. Đây là lần chạm test-104.
 
 **Cảnh báo cho tool sau:** **Đo rồi hãy ghi.** Số test là thứ dễ chép lại nhất và cũng dễ sai nhất; nó đã sai suốt 5 entry. Chạy `python -m pytest` và chép đúng dòng cuối, đừng cộng trừ từ entry trước.
+
+---
+
+## S-110 · 2026-08-07 · claude-code
+
+**Mục tiêu phiên:** Đọc kết quả test-104, ghi nó vào nguồn sự thật, rồi dựng slide báo cáo tiến độ.
+
+**Nhánh / commit:** `main` · `9f28231` → *(commit đang chờ)*
+
+**Đã đụng file:**
+- `AGENTS.md` — §5 thêm mục **test-104 đã chạm** (đặt ngay trước "Kết quả nội bộ đã đo").
+- `DESIGN.md` — sửa **The Two-Number Rule** và hai mục Don'ts.
+- `slides/overview_v3.html` — **mới**, 7 bản khắc.
+- `slides/README.md` — thêm dòng v3, kèm cảnh báo lỗi in của v1/v2.
+
+---
+
+### Kết quả test-104 (lần chạm đã ghi ở S-108, nay có số)
+
+**macro-F1 = 0.6162 [0.5246, 0.7032]** · κ 0.5647 · accuracy 0.6346 · ensemble 5 fold.
+
+Mọi cổng chặn qua sạch: `prereg_commit` = `56baa41` đúng commit đã khoá, 5 sha256 khớp danh sách ghim, 104 ca, 5 thành viên.
+
+Bốn điều rút ra, chi tiết đầy đủ ở AGENTS.md §5:
+
+1. **Không được nói "vượt baseline official".** Hơn 0.6083 đúng 0.0038 trong khi CI rộng ±0.09.
+2. **Thiên lệch chọn epoch được xác nhận định lượng.** OOF 0.6851 → test 0.6162, hụt 0.069; thiên lệch đo trước là +0.079. Gần trùng khít.
+3. **Ensemble gần như không giúp** (+0.0162, P=0.43), và model đơn tốt nhất (fold 2, 0.6308) *cao hơn* ensemble. Đây đúng là tình huống pre-registration sinh ra để xử lý.
+4. **Đính chính S-087.** Trên test, xếp hạng defer theo bất đồng giữa 5 model **không hơn** max-prob (P=0.90). Cả hai đều có tác dụng thật (max-prob @80% cho +0.070, P=0.016). Kết luận cũ "phải dùng bất đồng" chỉ đúng khi ensemble là MC-dropout trên một model tự tin thái quá.
+
+Ngoài ra: **ensemble chưa hiệu chỉnh cho ECE 0.1303, tốt hơn cả temperature scaling tốt nhất trên OOF (0.1534).** Và `T` fit từ OOF áp lên ensemble làm ECE *xấu đi* (0.1902) — đúng như pre-registration §3 đã dự đoán trước khi chạy.
+
+**Quyết định & lý do:**
+
+- **Sửa `DESIGN.md` trước khi dựng slide, không lặng lẽ vi phạm.** Luật Two-Number Rule viết 2026-07-24 nói số của dự án *"chưa tồn tại, và không bao giờ được vẽ ra"*. Giờ đã có số, nên luật đó cấm đúng thứ slide kết quả phải làm. Tách thành ba loại: A (số người khác, cần chú số nguồn), **B (số đo được của dự án, cần CI + tên tập + RUO)**, C (chưa đo, vẫn cấm tuyệt đối). Tinh thần gốc giữ nguyên: một con số không bao giờ đứng một mình.
+- **Ghi test-104 vào AGENTS.md TRƯỚC khi dựng slide.** AGENTS.md là nguồn sự thật (§12); dựng slide mang số chưa có ở đó là tạo đúng loại drift mà giao thức dự án sinh ra để chặn.
+- **Deck mới, không sửa v2.** v2 là báo cáo đã chốt của ngày 28/07. Ba deck song song.
+- **Sinh v3 bằng script** đọc v2 rồi ghép, không chép tay 914 dòng CSS. Khối phụ của v3 nối trước `</style>` nên phần chép sang còn so được từng ký tự với v2.
+- **Đặt số của dự án THẲNG trong bảng benchmark** (người dùng quyết). Hợp lệ vì cùng test-104 official; bảng có cột nguồn vì hai nguồn dùng hai protocol.
+
+**Kết quả / số liệu:**
+
+Deck 7 bản khắc, 1533 dòng, in ra **đúng 7 trang**. Gate PASS, `impeccable detect slides` sạch.
+
+**Hai lỗi tự bắt được khi soát:**
+
+1. **Trần macro-F1 ghi nhầm 0.771.** Con số đó tính từ F1 *out-of-fold của E6b* (0.455, 0.444) nhưng lại đặt cạnh F1 *test-104* (0.273, 0.519) trên cùng một slide. Đúng phải là **0.756**. Đây chính là lỗi mà mục Don't cuối của DESIGN.md cảnh báo: đặt hai bảng của hai tập cạnh nhau. Đã sửa ở cả slide lẫn AGENTS.md.
+2. **v1 và v2 in ra thừa trang** (v2: 15 trang cho 8 bản khắc). Nguyên nhân là **sàn `rem` trong thang chữ**: khi in, `1rem` = 4.23mm còn `--u` chỉ ~2.6mm nên sàn thắng, chữ to lên tương đối ~23% so với bản màn hình và bề mặt đặc tràn sang trang sau. v3 sửa bằng cách cho thang chữ suy thẳng từ `--u` trong `@media print`.
+
+**Dang dở:**
+- [ ] v1 và v2 vẫn còn lỗi in thừa trang. Cách sửa đã ghi ở `slides/README.md`, chưa áp.
+- [ ] E7 = E4 + EMA — hướng ưu tiên còn lại.
+- [ ] E8 pretrained · E10 kênh hiệu · E11 siamese.
+- [ ] Web app chưa nối số test-104 (đang chạy số out-of-fold).
+- [ ] `src/eval/stats.py` · hình cho report · report cuối · README · repro pack.
+
+**Điểm vào phiên sau:** Không có việc treo. Bước kế tiếp đề xuất: chạy E7 (`configs/e7_ema.yaml`) trên `notebooks/09_cv_runner.ipynb`, 2 fold để sàng. Kèm phép kiểm độc lập đã chốt ở S-108: đo lại độ hụt khi lật ảnh (hiện 0.02–0.06); nếu EMA chữa được overfit thì khoảng đó phải co lại.
+
+**Cảnh báo cho tool sau:**
+- **Test-104 ĐÃ BỊ CHẠM.** Lần thứ hai cần xin phép lại, pre-registration mới, và phải báo cáo rõ là lần thứ hai.
+- **Đừng lẫn hai phép tính trần:** 0.756 tính từ test-104, 0.771 tính từ out-of-fold của E6b. Hai tập khác nhau.
+- **Khi thêm slide có số của dự án, đọc lại Two-Number Rule bản mới:** Loại B bắt buộc kèm CI *và* tên tập đo được. Thiếu một trong hai là không được lên bề mặt.
+- **Đừng ghim `--u` thành giá trị mm cố định để sửa lỗi in.** Chrome headless mặc định khổ **Letter 279×216mm**, không phải A4; một bản dựng trong phiên này đã hardcode 277mm rồi tràn ngang. Để `--u` tự co theo viewport, chỉ bỏ sàn `rem`.
+- **`.section-nav` khoá cứng 4 cột trong CSS của v2.** v3 có 5 phần nên phải ghi đè, nếu không nav xuống hai hàng và đè lên nội dung.
