@@ -369,6 +369,48 @@ Precision hai lớp yếu: ICC 0.466 → 0.483 (đúng hướng, không đáng k
 
 Điểm sáng duy nhất, đo trên **cùng fold 2–5**: thiên lệch chọn epoch E4 +0.0787 so với E6b +0.0608. Không đủ để bù.
 
+### TTA lật — ÂM, và nó đo được một thứ quan trọng hơn (2026-08-07, WORKLOG S-108)
+
+`notebooks/11_tta_e4.ipynb` trên 5 checkpoint E4, 8 tổ hợp lật, 394 ca. Lượt 0 là ảnh gốc nên có đối chứng miễn phí — và nó dựng lại đúng macro-F1 lưu trong checkpoint tới 5 chữ số thập phân ở cả 5 fold, tức đường chạy đã được chứng minh đúng.
+
+| | hiệu (TTA − gốc) | CI95 | P |
+|---|---|---|---|
+| macro-F1 | −0.0150 | [−0.0347, +0.0038] | 0.148 |
+| accuracy | −0.0126 | [−0.0305, +0.0051] | 0.123 |
+| **NLL** | **−0.2067** | [−0.2964, −0.1208] | **<0.0001** |
+
+Gộp out-of-fold: gốc 0.6851 · TTA 0.6702. **4/5 fold âm.** Bản chỉ lật trong mặt phẳng (4 lượt, bỏ trục z) không cứu được: −0.0133 [−0.0280, −0.0003] **P=0.048**, tức âm *có ý nghĩa thống kê*.
+
+#### Vì sao TTA thất bại: model không bất biến với chính augmentation của nó
+
+| lượt | macro-F1 | so với gốc | đồng thuận với gốc |
+|---|---|---|---|
+| gốc | 0.6851 | — | 1.000 |
+| lật y | 0.6618 | −0.023 | 0.944 |
+| lật x | 0.6462 | −0.039 | 0.944 |
+| lật z | 0.6456 | −0.040 | 0.878 |
+| lật x+y+z | 0.6265 | −0.059 | 0.878 |
+
+`RandomFlip` lật **từng trục độc lập với p=0.5** (`src/data/transforms.py`), nên trong lúc train cả 8 tổ hợp đều xuất hiện, mỗi cái xác suất 1/8 — phân bố train **đối xứng hoàn toàn** với phép lật. Model vẫn mất 0.02–0.06 khi bị lật.
+
+> **Model học thuộc hướng của ảnh thay vì học đặc trưng bất biến với hướng, dù chính augmentation của nó dạy điều ngược lại.**
+
+Đây là bằng chứng thứ ba, độc lập, cho cùng một câu chuyện overfit — và là cái **sạch nhất** trong ba, vì nó đo ở một checkpoint cố định, không dính gì tới chuyện chọn epoch:
+
+1. epoch `val_loss` chạm đáy tương quan ρ=0.77 với macro-F1 cuối (S-107)
+2. chênh `best` so với `last` +0.079 (S-078)
+3. **không bất biến với phép lật** (mục này)
+
+⚠️ **Phép kiểm nên chạy sau E7 (EMA), chốt trước:** nếu EMA thật sự chữa được overfit thì độ hụt khi lật (hiện 0.023–0.059) **phải co lại**. Đây là phép kiểm EMA độc lập với macro-F1, nói được EMA có tác dụng hay không kể cả khi điểm số đứng yên.
+
+#### Chỗ TTA có ích, và vì sao vẫn không dùng
+
+Sau hiệu chỉnh nhiệt độ leave-one-fold-out: ECE **0.1534 → 0.1131**, tự tin 0.745 → 0.738. Lợi thế này **sống sót** qua temperature scaling, khác với trường hợp focal loss ở E5.
+
+Nhưng nó phải trả bằng macro-F1, mà macro-F1 mới là thứ so được với văn liệu; còn phần defer thì `−epistemic` của TTA (AURC 0.1901) vẫn thua MC-dropout (0.1689). Cộng thêm 8 lần chi phí suy luận. **Kết luận: không đưa TTA vào cấu hình khoá cho test-104.**
+
+⚠️ Một cái bẫy đo được ở đây: điểm xếp hạng "tỉ lệ đồng thuận giữa 8 lượt" cho F1@80% = 0.7115 trông đẹp nhưng AURC 0.2606, **tệ hơn hẳn** max-prob (P=0.011). Tám lượt chỉ sinh 9 giá trị rời rạc nên rất nhiều ca đồng hạng. **Đừng chọn điểm xếp hạng bằng một con số coverage đơn lẻ.**
+
 ### E5 focal loss — 2/5 fold, chưa kết luận được (2026-08-05, WORKLOG S-094)
 
 Cùng 162 ca (fold 1+2), cùng split, cùng seed. Config khác baseline **đúng 3 khoá**: `loss.name`, `loss.gamma`, `output_dir`.
@@ -509,7 +551,8 @@ Bootstrap **ghép cặp** trên hiệu (2000 lần, phân tầng, mức bệnh n
 | **Bảng trustworthiness** (CPU) | `python -m src.eval.trust --run-dir runs/E4_cv_results` | sẵn sàng (W3); calibration + selective từ cùng các `.npz`. Temperature fit **leave-one-fold-out**, không fit gộp — xem docstring module |
 | Bảng trên + bất định epistemic | `python -m src.eval.trust --run-dir runs/E4_cv_results --members` | sẵn sàng (W3); cần `fold*/mc_dropout.npz` sinh từ `notebooks/08_mc_dropout.ipynb` |
 | **MC-dropout** (GPU, ~8 phút) | chạy `notebooks/08_mc_dropout.ipynb` trên Kaggle | sẵn sàng (W3); inference thuần, **không train**. Cần mount **hai** dataset: cache E4, và checkpoint (`best-weights`: `best_fold_1..5.pt` phẳng, hoặc `fold_N/best.pt`) |
-| Test (chạm 1 lần!) | `python -m src.eval.run --ckpt <path> --split test --i-know-this-is-final` | chưa có |
+| **Test-104 — CHẠM 1 LẦN** (GPU, ~1 phút) | `notebooks/12_test104.ipynb` trên Kaggle, hoặc `python -m src.eval.test_once --ckpt-dir <dir> --out runs/test104 --i-know-this-is-final` | sẵn sàng (2026-08-07, WORKLOG S-108). **Từ chối chạy** nếu thiếu cờ, nếu `docs/TEST104_PREREGISTRATION.md` chưa commit, hoặc nếu sha256 checkpoint lệch danh sách ghim. Chỉ lưu xác suất, **không in metric** |
+| **Đọc số test-104** (CPU, chạy lại được) | `python -m src.eval.test_report --run-dir runs/test104` | sẵn sàng; đọc từ `test_probs.npz` nên **không** thành lần chạm thứ hai. `T` lấy từ out-of-fold, không fit trên test |
 | Cài backend web app (một lần / máy) | `pip install -r webapp/backend/requirements.txt` | sẵn sàng; **tách hẳn** khỏi `requirements.txt` train, không kéo torch/monai |
 | Cài frontend web app (một lần / máy) | `cd webapp/frontend && npm install` | sẵn sàng |
 | **Chạy web app** — backend | `python -m uvicorn webapp.backend.main:app --reload` | sẵn sàng; cổng 8000. Ảnh thật từ `LLDMMRI_SAMPLE_DIR`; **số thật** từ `LLDMMRI_PREDICTIONS_DIR` (mặc định `runs/E4_per_phase_results`) — 394 ca out-of-fold, `provenance.source = oof`. Ca ngoài 394 đó rơi về `simulated` |

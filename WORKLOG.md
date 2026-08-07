@@ -4249,3 +4249,76 @@ Ruff sạch, 486 test pass (16 skip vì máy không có torch). Notebook 11: 15 
 - **`SHORT_NAMES` trong `src/data/taxonomy.py` là `dict[int, str]`, không phải list.** `enumerate` hay `.index()` lên nó đều sai.
 - **Console Windows mặc định cp1252** nên `python -m src.eval.run` nổ `UnicodeEncodeError` ở dòng tiếng Việt đầu tiên. Chạy với `PYTHONIOENCODING=utf-8`.
 - **Cell TTA của notebook 09 và notebook 11 dò checkpoint theo hai cách khác nhau** và cố ý như vậy: 09 lấy từ output của chính session (`OUT.glob("fold*")`), 11 lấy từ dataset đã mount. Dùng nhầm cái nào cũng chỉ ra "không tìm thấy checkpoint".
+
+---
+
+## S-108 · 2026-08-07 · claude-code
+
+**Mục tiêu phiên:** Đánh giá TTA trên E4, rồi dựng đường chạy test-104 và khoá protocol để chạm lần thứ nhất.
+
+**Nhánh / commit:** `main` · `b59598a` → *(commit đang chờ)*
+
+**Đã đụng file:**
+- `docs/TEST104_PREREGISTRATION.md` — **mới**. Khoá toàn bộ lựa chọn trước khi chạm test-104.
+- `src/eval/test_once.py` — **mới**. Suy luận trên test-104, lưu `test_probs.npz`. Không in metric nào.
+- `src/eval/test_report.py` — **mới**. Đọc số từ `.npz` trên CPU.
+- `tests/test_test104.py` — **mới**, 13 test. Chủ yếu test các cổng chặn.
+- `notebooks/12_test104.ipynb` — **mới**, 13 cell. Runner Kaggle, cố ý không có tham số nào để sửa.
+- `AGENTS.md` — §5 thêm mục TTA; §6 thêm hai dòng lệnh test-104.
+
+---
+
+### ⚠️ BÁO TRƯỚC KHI CHẠM TEST-104 (AGENTS.md §3.4)
+
+**Chưa chạm.** Entry này ghi **trước**, đúng theo luật. Người dùng yêu cầu trực tiếp hôm nay ("trước tiên dùng E4 hiện tại để chạy test 104 để có 1 kết quả báo cáo tiến độ"), và đã nêu ý định này ở phiên trước nữa.
+
+**Lý do:** cần một con số so sánh được với văn liệu cho báo cáo tiến độ. Mọi số nội bộ tới giờ là val out-of-fold, không so trực tiếp được với bảng test-104 của challenge và của CGHNet.
+
+**Cấu hình khoá:** E4 (`baseline_3dpatch.yaml` + cache per-phase) · ensemble 5 fold · **không** TTA · **không** E6b/EMA/pretrained · `T` fit trên 394 ca OOF · defer xếp theo bất đồng giữa 5 model. Chi tiết và căn cứ từng khoản ở `docs/TEST104_PREREGISTRATION.md`.
+
+**Ước lượng ghi trước khi chạy: 0.62 – 0.72.** Ghi ra đây để sau không thể nói "đúng như dự đoán" với bất kỳ kết quả nào.
+
+---
+
+**Quyết định & lý do:**
+
+- **TTA bị loại khỏi cấu hình khoá.** Trên 394 ca: macro-F1 −0.0150 [−0.0347, +0.0038] P=0.148; bản 4 lượt trong mặt phẳng −0.0133 [−0.0280, −0.0003] **P=0.048**, âm có ý nghĩa. 4/5 fold âm. Lợi ích calibration là thật (ECE sau hiệu chỉnh 0.1534 → 0.1131, NLL P<0.0001) nhưng phải trả bằng macro-F1, mà macro-F1 mới là thứ so được với văn liệu; phần defer thì MC-dropout đã tốt hơn rồi.
+- **Ensemble 5 fold làm bộ dự đoán chính trên test.** Hợp lệ vì không thành viên nào thấy 104 ca đó (`Splits.validate()` khẳng định `val_fold_i ∩ test = ∅`), và bảng CGHNet cũng dùng "5 model từ 5 fold" nên đây mới là so đúng đối tượng. Đây cũng là chỗ duy nhất có deep ensemble thật, tức epistemic tốt hơn MC-dropout mà không phải trả −0.10 macro-F1.
+- **Tách `test_once` (GPU, lưu xác suất) khỏi `test_report` (CPU, đọc số).** Nếu gộp, mỗi lần muốn xem thêm một metric lại phải chạy lại inference trên test — đúng thứ §3.4 cấm. Tách ra thì phần đọc số chạy lại bao nhiêu lần cũng không thể vô tình thành lần chạm thứ hai.
+- **Cổng pre-registration kiểm bằng `git log`, không kiểm sự tồn tại của file.** Một file viết ra rồi chạy ngay trong cùng phiên thì không chứng minh được nó có trước khi nhìn số. Commit có timestamp và không sửa lại được mà không để dấu vết. `test_once` cũng từ chối chạy nếu file đó đang có thay đổi chưa commit.
+- **sha256 của 5 checkpoint ghim cứng trong code**, đối chiếu S-081. Lệch một mã là dừng. Kèm cổng chặn checkpoint trùng nhau — một "ensemble" đếm cùng một model hai lần cho ra con số vẫn trông hoàn toàn hợp lý.
+- **`T` fit trên OOF gộp, áp mù lên test, và báo CẢ hai cột** chưa/đã hiệu chỉnh cho hàng ensemble. `T` học từ phân bố model đơn mà áp lên ensemble vốn đã bớt tự tin, nên nhiều khả năng hiệu chỉnh quá tay. Giấu một trong hai cột là giấu đúng chỗ yếu. Không được fit lại trên test để chữa.
+- **Notebook 12 cố ý không có tham số nào để sửa.** Mọi lựa chọn nằm ở pre-registration; một ô `CONFIG_NAME` để trống sẵn là lời mời phá nó.
+
+**Kết quả / số liệu:**
+
+TTA trên E4, 394 ca, bootstrap ghép cặp 2000 lần:
+
+| | hiệu | CI95 | P |
+|---|---|---|---|
+| macro-F1 | −0.0150 | [−0.0347, +0.0038] | 0.148 |
+| accuracy | −0.0126 | [−0.0305, +0.0051] | 0.123 |
+| NLL | **−0.2067** | [−0.2964, −0.1208] | **<0.0001** |
+
+**Vì sao TTA thất bại — phát hiện đáng giá hơn cả con số.** Mọi lượt lật đều tệ hơn ảnh gốc: lật y −0.023, lật x −0.039, lật z −0.040, cả ba −0.059; đồng thuận với ảnh gốc chỉ 0.868–0.944. Mà `RandomFlip` lật **từng trục độc lập p=0.5** nên cả 8 tổ hợp đều đã xuất hiện lúc train, mỗi cái 1/8 — phân bố train đối xứng hoàn toàn với phép lật. Model vẫn mất 0.02–0.06 khi bị lật, tức **nó học thuộc hướng ảnh thay vì học đặc trưng bất biến với hướng**.
+
+Đây là bằng chứng thứ ba, độc lập, cho cùng câu chuyện overfit (sau ρ=0.77 giữa epoch chạm đáy và F1, và chênh best/last +0.079), và là cái **sạch nhất** trong ba vì đo ở một checkpoint cố định, không dính chuyện chọn epoch.
+
+Cổng nghiệm thu của notebook 11 qua sạch: lượt 0 dựng lại đúng macro-F1 lưu trong checkpoint tới 5 chữ số thập phân ở cả 5 fold.
+
+Ruff sạch, 499 test — 498 pass, 1 fail đúng như thiết kế (`test_prereg_da_commit` đỏ cho tới khi pre-registration được commit; nó chuyển xanh trong chính commit này).
+
+**Dang dở:**
+- [ ] **Chạy `notebooks/12_test104.ipynb`** — chưa chạy. Đây là lần chạm.
+- [ ] `src/eval/test_once.py` phần torch **chưa từng chạy**; máy này không có torch nên chỉ test được cổng chặn.
+- [ ] E7 = E4 + EMA — hướng ưu tiên còn lại.
+- [ ] E8 pretrained (cần MedicalNet weights) · E10 kênh hiệu · E11 siamese.
+- [ ] Hình cho report · `src/eval/stats.py` · report cuối · README · slide v3.
+
+**Điểm vào phiên sau:** Mở `notebooks/12_test104.ipynb` trên Kaggle, mount cache E4 + `best-weights`, chạy tuần tự. Tải `test104_results/` về, giải nén **một lớp** vào `runs/test104/`, rồi `python -m src.eval.test_report --run-dir runs/test104`.
+
+**Cảnh báo cho tool sau:**
+- **Sau khi chạm test-104, KHÔNG đổi config/checkpoint/`T`/ngưỡng vì con số nhận được.** Muốn số test cho cấu hình khác thì đó là chạm thứ hai: xin phép, viết pre-registration mới, và báo cáo rõ là lần thứ hai.
+- **Đừng gộp `test_report` vào `test_once`.** Tách ra là cơ chế chống chạm lại, không phải sở thích cấu trúc.
+- **Cạm bẫy p-value đã dính khi chạy thử:** `2 * min(m, 1 - m)` trả **P = 0** khi mọi hiệu bằng 0, tức tuyên bố ý nghĩa tối đa cho hiệu ứng bằng không. Dùng `two_sided_p` trong `test_report.py`; các script phân tích cũ trong scratchpad còn dùng dạng sai.
+- **TTA không dùng.** Nếu chạy E7 (EMA) thì nên đo lại độ hụt khi lật: hiện là 0.023–0.059. Nếu EMA chữa được overfit thì khoảng đó phải co lại. Đây là phép kiểm EMA **độc lập với macro-F1**, nói được EMA có hiệu quả không kể cả khi điểm số không đổi.
