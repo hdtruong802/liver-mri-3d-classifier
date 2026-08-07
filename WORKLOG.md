@@ -4485,3 +4485,36 @@ Config E12 khác baseline đúng 3 khoá khoa học (`data.crop_size`, `data.aug
 - **`spacing` suy từ `target_size`, KHÔNG từ lưới cache.** Đổi chỗ này là làm hỏng tính so sánh được với E4.
 - **Ước tính thời gian trong notebook chỉ đo phần CPU nạp dữ liệu** nên thấp hơn thực tế. Số thật để lập kế hoạch: E4 3.76h/fold, E6b 3.17h/fold.
 - **2 fold không đủ để chốt** (E6b: 2 fold +0.038, 5 fold −0.002). Chạy đủ 5.
+
+---
+
+## S-112 · 2026-08-07 · claude-code
+
+**Mục tiêu phiên:** Tách phần build cache E12 ra notebook riêng để lưu được thành Kaggle Dataset.
+
+**Nhánh / commit:** `main` · `02972fb` → *(commit đang chờ)*
+
+**Đã đụng file:**
+- `notebooks/15_build_cache_e12.ipynb` — mới, 11 cell. Chỉ build cache, không train.
+- `notebooks/14_e12_randomcrop.ipynb` — bỏ phần build, thay bằng dò cache đã mount.
+- `AGENTS.md` — §6 tách thành hai dòng lệnh.
+
+**Quyết định & lý do:**
+
+- **Tách vì ba lý do vận hành, không phải cho gọn:** build ~45 phút ăn vào ngân sách 12h nên mỗi session train mất gần một fold; session chết là mất cache và build lại từ đầu; fold 4–5 chạy ở session khác (có thể tài khoản khác) nên cache phải là Dataset mount được chứ không phải output của một session cụ thể.
+- **Notebook 15 không cài monai.** Nó không dựng model. Chỉ cần SimpleITK, và cell bootstrap thử `import` trước rồi mới cài — Kaggle có thể đã có sẵn.
+- **Cổng nghiệm thu đặt ở notebook 15, không ở 14.** Phát hiện cache hỏng sau khi đã upload 5,9 GB là quá muộn. Cổng bắt bốn thứ, trong đó quan trọng nhất là **hình dạng mảng thật phải là 136×136×40**: nếu `crop_margin_voxels` bị bỏ qua thì mọi khoá khác trong `cache_meta.json` vẫn đúng và chỉ mảng là sai.
+- **Notebook 14 dò cache bằng NỘI DUNG `cache_meta.json`, không bằng tên dataset.** Tên do người upload đặt và đã lệch một lần (S-080). `crop_margin_voxels` là khoá phân biệt: E3 và E4 cũng `per_phase` + `lesion_tight`, chỉ E12 mới có lề dư. Không tìm thấy thì raise kèm hướng dẫn chạy notebook 15.
+- **Notebook 15 nêu cả hai cách lưu:** Save Version (output mount được qua *Add Data → Your Work*) và tạo Dataset riêng bằng CLI. Cách thứ hai cần khi mount ở nhiều tài khoản.
+
+**Kết quả / số liệu:** Không có số. Notebook 15: 11 cell; notebook 14: 19 cell, cú pháp hợp lệ, 0 output. Gate PASS.
+
+**Dang dở:**
+- [ ] Chạy `notebooks/15_build_cache_e12.ipynb` rồi lưu Dataset. Sau đó mới chạy được 14.
+- [ ] Phần còn lại như S-111.
+
+**Điểm vào phiên sau:** Notebook 15 trước (mount dữ liệu gốc LLD-MMRI, ~45 phút, lưu output thành Dataset), rồi notebook 14 (mount cache vừa tạo, không cần dữ liệu gốc).
+
+**Cảnh báo cho tool sau:**
+- **Lại dẫm phải bẫy heredoc.** Viết `\n` trong heredoc `<<'PY'` để sinh file Python thì bash nuốt backslash và chuỗi trong notebook vỡ thành xuống dòng thật, sinh `SyntaxError: unterminated string literal`. Bẫy này đã ghi ở phiên trước và tôi vẫn dẫm lại. **Dùng Write/Edit cho file có escape, không dùng heredoc.**
+- Notebook 14 **không còn build cache**. Chạy nó mà chưa có cache E12 thì nó dừng ở cell "Tìm cache", đó là hành vi đúng.
