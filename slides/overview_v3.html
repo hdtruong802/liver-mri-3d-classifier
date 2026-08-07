@@ -1025,6 +1025,12 @@
       font-variant-numeric: tabular-nums
     }
 
+    /* `.table-wrap` của v2 luôn chia đôi table và một khối chú giải bên phải. Bản
+       khắc 4 của v3 không có khối đó nữa, nên bảng chiếm trọn bề rộng. */
+    .table-wrap.solo {
+      grid-template-columns: 1fr
+    }
+
     /* Bảng gọn cho phân bố lớp: nhiều cột hẹp, số canh phải. */
     table.compact th,
     table.compact td {
@@ -1242,10 +1248,11 @@
         <div class="content">
           <p class="eyebrow">Mốc đối chiếu</p>
           <h2>Trên cùng tập test 104 ca, dự án đang ngang mốc baseline của ban tổ chức.</h2>
-          <div class="table-wrap">
+          <div class="table-wrap solo">
             <table>
               <caption>Tất cả các hàng đo trên <b>cùng một tập test-104 official</b>. Cột nguồn cho biết số đến từ
-                đâu, vì hai nguồn dùng hai protocol khác nhau.</caption>
+                đâu, vì hai nguồn dùng hai protocol khác nhau. Chỉ hàng của dự án có khoảng tin cậy, vì hai nguồn kia
+                không công bố.</caption>
               <thead>
                 <tr>
                   <th scope="col">Phương pháp</th>
@@ -1255,8 +1262,8 @@
                 </tr>
               </thead>
               <tbody>
-                <tr class="lead">
-                  <td>Đội nhất challenge</td>
+                <tr>
+                  <td>Hạng 1 · WorkingisAllyouneed</td>
                   <td class="n">0,8322</td>
                   <td class="n">0,7801</td>
                   <td>bảng xếp hạng<sup class="ref">2</sup></td>
@@ -1268,14 +1275,20 @@
                   <td>CGHNet Bảng 1<sup class="ref">3</sup></td>
                 </tr>
                 <tr>
-                  <td>ResNet3D</td>
-                  <td class="n">0,7090</td>
-                  <td class="n">0,6620</td>
-                  <td>CGHNet Bảng 1<sup class="ref">3</sup></td>
+                  <td>Hạng 2 · NPUBXY</td>
+                  <td class="n">0,8078</td>
+                  <td class="n">0,7660</td>
+                  <td>bảng xếp hạng<sup class="ref">2</sup></td>
+                </tr>
+                <tr>
+                  <td>Hạng 3 · LinGroup</td>
+                  <td class="n">0,7860</td>
+                  <td class="n">0,7435</td>
+                  <td>bảng xếp hạng<sup class="ref">2</sup></td>
                 </tr>
                 <tr class="ours">
                   <td>Ensemble 5 fold</td>
-                  <td class="n">0,6162</td>
+                  <td class="n">0,6162<br><span class="ci">[0,5246, 0,7032]</span></td>
                   <td class="n">0,5647</td>
                   <td>đo 07/08/2026</td>
                 </tr>
@@ -1285,27 +1298,12 @@
                   <td class="n">0,5414</td>
                   <td>bảng xếp hạng<sup class="ref">2</sup></td>
                 </tr>
-                <tr>
-                  <td>Hạng 20 đến 24</td>
-                  <td class="n">0,5047–0,6076</td>
-                  <td class="n">—</td>
-                  <td>bảng xếp hạng<sup class="ref">2</sup></td>
-                </tr>
               </tbody>
             </table>
-            <div class="claim">
-              <strong>Đọc bảng này cho đúng</strong>
-              <p>Con số của dự án là <span class="ci">0,6162 [0,5246, 0,7032]</span>, tức khoảng tin cậy rộng khoảng
-                ±0,09 vì tập test chỉ có 104 ca.</p>
-              <p>Nó cao hơn baseline ban tổ chức <b>đúng 0,0038</b>, mà khoảng tin cậy thì phủ trùm con số đó. Vì vậy
-                phát biểu đúng là <em>ngang baseline, chưa phân biệt được về mặt thống kê</em>. Nói &ldquo;vượt
-                baseline&rdquo; là đọc sai.</p>
-              <p>Cũng vì lý do đó, mọi khoảng cách trong bảng đều chưa có ý nghĩa thống kê, <em>trừ</em> so với CGHNet
-                và đội nhất: hai mốc đó nằm ngoài hẳn khoảng tin cậy.</p>
-            </div>
           </div>
-          <p class="sub"><b>Định vị hiện tại:</b> trên phần lớn nhóm hạng 20 đến 24, ngang baseline, còn cách rõ ràng
-            so với các phương pháp công bố gần đây. Đây là mốc của lần chạm test đầu tiên, chưa có EMA, chưa có
+          <p class="sub"><b>Định vị hiện tại:</b> ngang baseline ban tổ chức. Hơn nó <b>đúng 0,0038</b> trong khi
+            khoảng tin cậy rộng ±0,09, nên chưa phân biệt được về mặt thống kê và <em>không</em> nói được là đã vượt.
+            Còn cách rõ ràng ba đội đầu bảng và CGHNet. Đây là mốc của lần chạm test đầu tiên, chưa có EMA, chưa có
             backbone pretrained.</p>
         </div>
       </div>

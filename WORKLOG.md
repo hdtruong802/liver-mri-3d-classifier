@@ -4518,3 +4518,33 @@ Config E12 khác baseline đúng 3 khoá khoa học (`data.crop_size`, `data.aug
 **Cảnh báo cho tool sau:**
 - **Lại dẫm phải bẫy heredoc.** Viết `\n` trong heredoc `<<'PY'` để sinh file Python thì bash nuốt backslash và chuỗi trong notebook vỡ thành xuống dòng thật, sinh `SyntaxError: unterminated string literal`. Bẫy này đã ghi ở phiên trước và tôi vẫn dẫm lại. **Dùng Write/Edit cho file có escape, không dùng heredoc.**
 - Notebook 14 **không còn build cache**. Chạy nó mà chưa có cache E12 thì nó dừng ở cell "Tìm cache", đó là hành vi đúng.
+
+---
+
+## S-113 · 2026-08-07 · claude-code
+
+**Mục tiêu phiên:** Sửa bản khắc 4 của slide v3 theo yêu cầu người dùng.
+
+**Nhánh / commit:** `main` · `8826886` → *(commit đang chờ)*
+
+**Đã đụng file:** `slides/overview_v3.html` (chỉ bản khắc 4 và một khối CSS).
+
+**Quyết định & lý do:**
+
+- **Bỏ khối `.claim` "Đọc bảng này cho đúng"** theo yêu cầu. Nhưng ràng buộc nó mang thì **không bỏ được**: AGENTS.md §5 ghi rõ *KHÔNG được viết "ta vượt baseline official"*. Nén nội dung đó thành một câu trong `.sub` sẵn có thay vì để slide tự do khẳng định sai.
+- **Bỏ ResNet3D và "Hạng 20 đến 24", thêm hạng 2 (NPUBXY 0,8078) và hạng 3 (LinGroup 0,7860).** Số lấy từ bảng đã có trong `slides/overview_v2.html`, cùng nguồn leaderboard, không phải số mới.
+- **Chuyển CI của dự án vào trong bảng.** Trước đây CI nằm ở khối `.claim`; bỏ khối đó mà không chuyển CI đi là vi phạm luật Loại B trong `DESIGN.md` (mọi số của dự án phải kèm CI và tên tập). Giờ nó nằm ngay dưới `0,6162` trong ô.
+- **Thêm một dòng vào caption** giải thích vì sao chỉ hàng của dự án có CI: hai nguồn kia không công bố. Không nói thì bảng trông như thiếu sót.
+- **Bỏ class `.lead` khỏi hàng hạng 1.** Nó phụ thêm chữ " · dẫn đầu", thành "Hạng 1 · WorkingisAllyouneed · dẫn đầu" — thừa. Bỏ đi cũng khiến hàng `.ours` là hàng sáng **duy nhất**, đúng trọng tâm của một bản khắc nói về vị trí của dự án.
+- **Bảng chiếm trọn bề rộng** qua `.table-wrap.solo` (ghi đè lưới 1.3fr/.7fr của v2), vì cột phải giờ trống.
+- **Giữ thứ tự theo điểm, không nhóm theo nguồn.** CGHNet (0,8180) nằm chen giữa hạng 1 và hạng 2 vì đó đúng là vị trí của nó theo macro-F1. Nhóm lại theo nguồn sẽ đẹp hơn nhưng là sắp xếp có lợi cho mình.
+
+**Kết quả / số liệu:** Không có số khoa học mới. HTML hợp lệ, 7 bản khắc, in ra vẫn **đúng 7 trang**, gate PASS.
+
+**Dang dở:** không thêm gì so với S-112.
+
+**Điểm vào phiên sau:** Không có việc treo ở slide. Bước kế tiếp vẫn là chạy `notebooks/15_build_cache_e12.ipynb` (CPU, Accelerator = None).
+
+**Cảnh báo cho tool sau:**
+- **`slides/overview_v3.html` giờ đã lệch khỏi script sinh nó** (`scratchpad/make_v3.py`, chỉ là scaffolding một lần). Sửa tiếp thì sửa thẳng file HTML, đừng chạy lại script — nó sẽ ghi đè bản khắc 4.
+- Bỏ nội dung khỏi slide thì kiểm xem nội dung đó có đang mang một **ràng buộc** không (ở đây là CI của Loại B và luật không-nói-vượt-baseline). Bỏ cả ràng buộc là để slide tự do nói sai.
