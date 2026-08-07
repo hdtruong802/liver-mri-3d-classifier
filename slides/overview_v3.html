@@ -1341,8 +1341,8 @@
             </div>
             <div>
               <table class="compact">
-                <caption>Bốn lần huấn luyện, <b>cùng fold, cùng seed, cùng kiến trúc</b>. Mỗi hàng đổi đúng một thứ so
-                  với hàng trên. <span class="on">đo trên val fold 1, 82 ca</span></caption>
+                <caption>Bốn lần huấn luyện, <b>cùng seed, cùng kiến trúc</b>. Mỗi hàng đổi đúng một thứ so với hàng
+                  trên. Hai cột số cuối là <b>hai tập khác nhau</b>, đọc riêng từng cột.</caption>
                 <thead>
                   <tr>
                     <th scope="col"></th>
@@ -1350,7 +1350,8 @@
                     <th scope="col">Kích thước</th>
                     <th scope="col">Căn thì</th>
                     <th scope="col">Tăng cường</th>
-                    <th scope="col" class="n">macro-F1</th>
+                    <th scope="col" class="n">fold 1<br>82 ca</th>
+                    <th scope="col" class="n">gộp 5 fold<br>394 ca</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -1361,6 +1362,7 @@
                     <td>về một thì</td>
                     <td>chuẩn</td>
                     <td class="n">0,4244</td>
+                    <td class="n">—</td>
                   </tr>
                   <tr>
                     <td>E1</td>
@@ -1369,6 +1371,7 @@
                     <td>về một thì</td>
                     <td>chuẩn</td>
                     <td class="n">0,5740</td>
+                    <td class="n">—</td>
                   </tr>
                   <tr class="ours">
                     <td>E4</td>
@@ -1377,6 +1380,7 @@
                     <td>từng thì riêng</td>
                     <td>chuẩn</td>
                     <td class="n">0,7001</td>
+                    <td class="n">0,6851</td>
                   </tr>
                   <tr>
                     <td>E6b</td>
@@ -1385,6 +1389,7 @@
                     <td>từng thì riêng</td>
                     <td><b>mạnh hơn</b></td>
                     <td class="n">0,7660</td>
+                    <td class="n">0,6828</td>
                   </tr>
                 </tbody>
               </table>
@@ -1392,12 +1397,12 @@
                 <p>E4 hơn E1 <b>+0,126</b>, CI95 [+0,033, +0,230], <b>P = 0,009</b>. Đây là một trong số ít thay đổi
                   của dự án đạt ý nghĩa thống kê. Kiến trúc giữ nguyên suốt cả bốn lần: toàn bộ mức tăng từ 0,42 lên
                   0,70 đến từ việc cắt đúng vùng tổn thương và căn các thì về cùng một lưới.</p>
-                <p><b>E6b là phản ví dụ, và nó dạy nhiều hơn ba hàng trên.</b> Nó giữ nguyên hình học, chỉ đổi tăng
-                  cường dữ liệu. Fold 1 cho <b>0,7660</b>, con số cao nhất dự án từng đo. Nhưng chạy đủ 5 fold thì
-                  hiệu so với E4 là <b>−0,002</b>, CI95 [−0,042, +0,036], <b>P = 0,92</b>: không có gì cả.
-                  <span class="on">fold 1 · 82 ca so với gộp 5 fold · 394 ca</span></p>
-                <p>0,7660 là một fold may mắn. Đây là lý do dự án bỏ hẳn cách sàng trên 2 fold: <em>hai fold đủ để
-                  loại một ý tưởng, không đủ để chọn nó</em>.</p>
+                <p><b>Hai cột số cuối đảo chiều nhau, và đó là phần đáng học nhất bảng này.</b> Trên fold 1, E6b hơn
+                  E4 tới +0,066. Gộp đủ 5 fold thì hiệu là <b>−0,002</b>, CI95 [−0,042, +0,036], <b>P = 0,92</b>:
+                  không có gì cả. E6b chỉ đổi tăng cường dữ liệu, giữ nguyên hình học.</p>
+                <p>0,7660 là một fold may mắn, không phải một mức đạt được. Đây là lý do dự án bỏ hẳn cách sàng trên
+                  2 fold: <em>hai fold đủ để loại một ý tưởng, không đủ để chọn nó</em>. Con số báo cáo được của cả
+                  E4 lẫn E6b nằm ở cột phải.</p>
               </div>
             </div>
           </div>

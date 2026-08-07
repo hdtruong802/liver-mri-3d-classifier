@@ -4576,3 +4576,32 @@ Config E12 khác baseline đúng 3 khoá khoa học (`data.crop_size`, `data.aug
 **Cảnh báo cho tool sau:**
 - **Đưa một con số fold đơn lên slide thì phải kèm con số 5 fold của cùng thí nghiệm.** 0,7660 của E6b là ví dụ rõ nhất trong dự án về việc một fold nói ngược lại năm fold.
 - Hook `flat-type-hierarchy` báo ở phiên trước là **false positive**: thang chữ đạt ≥1,25 ở mọi bậc kề nhau tại cả hai đầu `clamp()` (hẹp nhất là data/body = 1,250), `impeccable detect` chạy trực tiếp trả `[]` cho cả v2 lẫn v3, và chính rule này đã bắt đúng một lần rồi được sửa — xem *The Data-Outranks-Prose Rule* trong `DESIGN.md`. Không thêm ignore.
+
+---
+
+## S-115 · 2026-08-07 · claude-code
+
+**Mục tiêu phiên:** Sửa bản khắc 5: cột số phải là macro-F1 báo cáo được, không phải fold cao nhất của E6b.
+
+**Nhánh / commit:** `main` · `95ffd58` → *(commit đang chờ)*
+
+**Đã đụng file:** `slides/overview_v3.html` (bảng bản khắc 5 và khối caveat).
+
+**Quyết định & lý do:**
+
+- **Người dùng bắt đúng một lỗi trình bày.** Bản S-114 để E6b ở **0,7660** — vừa là fold 1 vừa tình cờ là fold cao nhất của E6b — nên nó đứng đầu bảng và trông như cấu hình tốt nhất, trong khi con số báo cáo được của nó (**0,6828**) lại **thấp hơn E4** (0,6851).
+- **Không thay thẳng 0,7660 bằng 0,6828.** Làm vậy sẽ để E6b (5 fold) đứng cạnh E4, E1, E0 (fold 1) trong cùng một cột — so lệch loại, và vi phạm luật "ghi rõ đo trên tập nào" của `DESIGN.md`.
+- **Tách thành HAI cột số:** `fold 1 · 82 ca` và `gộp 5 fold · 394 ca`. E0 và E1 chưa từng chạy 5 fold nên để gạch ngang, không bịa số.
+- **Nhờ vậy sự đảo chiều hiện ra ngay trong bảng** thay vì chỉ nằm trong chữ: cột trái E6b 0,7660 > E4 0,7001; cột phải E6b 0,6828 < E4 0,6851. Đây là cách trình bày mạnh hơn hẳn bản cũ, và nó đến từ phản hồi của người dùng chứ không phải tôi nghĩ ra.
+- **Caption đổi từ "cùng fold, cùng seed" thành "cùng seed"** vì bảng giờ có hai tập, và thêm câu "hai cột số cuối là hai tập khác nhau, đọc riêng từng cột".
+- **Caveat viết lại quanh sự đảo chiều**, và chốt bằng câu "con số báo cáo được của cả E4 lẫn E6b nằm ở cột phải".
+
+**Kết quả / số liệu:** Đối chiếu lại cả bốn số thẳng từ `runs/`: E4 fold 1 = 0,7001 · gộp 394 ca = 0,6851; E6b fold 1 = 0,7660 · gộp 394 ca = 0,6828. Khớp. In ra **đúng 7 trang**, `impeccable detect slides` trả `[]`, gate PASS.
+
+**Dang dở:** không thêm gì so với S-112.
+
+**Điểm vào phiên sau:** Không có việc treo ở slide. Bước kế tiếp vẫn là `notebooks/15_build_cache_e12.ipynb` (CPU, Accelerator = None).
+
+**Cảnh báo cho tool sau:**
+- **Một cột "macro-F1" không nhãn tập là cái bẫy.** Nếu các hàng trong bảng đến từ số fold khác nhau thì phải tách cột, không gộp. Ở đây gộp làm cấu hình yếu hơn trông như mạnh nhất.
+- Khi thêm một thí nghiệm vào bảng cũ, kiểm xem **con số nào của nó là con số báo cáo được**, đừng lấy con số cùng loại với hàng cũ chỉ vì cột đã có sẵn.
