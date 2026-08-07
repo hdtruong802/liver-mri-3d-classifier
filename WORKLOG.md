@@ -4702,3 +4702,31 @@ Latency đưa vào báo cáo: tiền xử lý 3,43s (p50) – 4,74s (p90) trên 
 - **Khi một kết luận cũ bị dữ liệu mới lật, phải nối hai chiều trong cùng tài liệu.** Chỉ sửa ở chỗ mới mà để nguyên chỗ cũ sẽ tạo ra hai phát biểu đá nhau trong một báo cáo.
 - **Trước khi trích một con số vào report, kiểm nó có trong `AGENTS.md` không.** Hai số leaderboard trong báo cáo này chỉ tồn tại ở một file slide; nếu slide đó bị sửa thì báo cáo mất nguồn.
 - `reports/*.pdf` và `reports/*.html` nay bị gitignore. Muốn gửi bản PDF thì sinh lại, đừng commit.
+
+---
+
+## S-118 · 2026-08-07 · claude-code
+
+**Mục tiêu phiên:** Viết lại `reports/W3_REPORT.md` thành bản nộp được.
+
+**Nhánh / commit:** `main` · `0fd5f0b` → *(commit đang chờ)*
+
+**Đã đụng file:** `reports/W3_REPORT.md`.
+
+**Quyết định & lý do:**
+
+- **Bản S-117 viết như một bản bàn giao nội bộ, không phải bản nộp.** Nó dẫn 21 chỗ có tên file / đường dẫn / tên class, nhắc tới quy trình làm việc ("quyết định của người dùng", "ghi ở WORKLOG"), và tự bình luận về chính nó ("đây là bảng đầu tiên không toàn Đạt"). Những thứ đó đúng chỗ ở WORKLOG, sai chỗ ở báo cáo nộp.
+- **Bỏ toàn bộ định danh code, giữ nguyên thuật ngữ chuyên môn.** macro-F1, κ, ECE, AURC, temperature scaling, Grad-CAM, MC-dropout, out-of-fold là ngôn ngữ của lĩnh vực và người chấm cần chúng; `RandomTranslate3D` hay `configs/e2_siamese.yaml` thì không. Ký hiệu nhiệt độ chuyển từ backtick sang chữ nghiêng.
+- **Bỏ giàn giáo tham chiếu chéo.** Bản cũ có khối "kết luận này bị đính chính ở mục 4.3" ở mục 3.2 và một khối dẫn ngược lại ở 4.3. Thay bằng: mục 3 nêu kết quả out-of-fold, mục 4 nêu kết quả test kèm một câu giải thích vì sao khác. Nội dung khoa học giữ nguyên, chỉ bỏ phần chỉ đường.
+- **Đổi "Definition of Done" thành "Mục tiêu tuần và mức hoàn thành"**, và cột trạng thái ghi lý do khách quan thay vì ghi ai quyết định.
+- **Không đổi một con số nào.** Kiểm bằng script so tập số của hai bản: không số mới nào xuất hiện. Bảy số bị bỏ đều là bản làm tròn trùng lặp (0,206 so với 0,2059 trong bảng; 0,703 so với 0,7030) hoặc chi tiết phụ của phần độ nhạy theo thì.
+
+**Kết quả / số liệu:** 299 → **213 dòng**. PDF 8 → 6 trang. Không còn đường dẫn, tên file, hay ngôn ngữ quy trình nội bộ; kiểm bằng grep. Bốn ràng buộc cứng còn nguyên: không nói "vượt baseline", model đơn tốt nhất 0,6308 có nêu kèm lý do không dùng làm kết quả, mọi số chính kèm CI hoặc P, RUO ở cả đầu và cuối. Gate PASS.
+
+**Dang dở:** không thêm gì so với S-116.
+
+**Điểm vào phiên sau:** Không có việc treo. Bước kế tiếp vẫn là build cache E12 (CPU, Accelerator = None) rồi chạy 5 fold.
+
+**Cảnh báo cho tool sau:**
+- **Báo cáo trong `reports/` là tài liệu nộp, không phải nhật ký.** Không dẫn tên file, tên class, tên config, số commit, hay quy trình làm việc nội bộ vào đó. Những thứ đó thuộc về WORKLOG.
+- Khi rút gọn một báo cáo, kiểm bằng script rằng **tập số không đổi** — rất dễ vô tình sửa một chữ số khi viết lại cả đoạn.
