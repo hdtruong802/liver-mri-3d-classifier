@@ -107,3 +107,73 @@ def test_run_epoch_train_updates_weights_with_partial_accumulation():
     )
 
     assert not torch.allclose(before, model.weight), "gradient của batch đuôi bị bỏ qua"
+
+
+# --- Thanh tiến độ ------------------------------------------------------------
+
+
+def test_progress_bar_khong_desc_thi_tra_nguyen_loader():
+    """Không có nhãn = không bọc gì. Đây là đường mặc định của mọi lời gọi cũ."""
+    from src.train.loop import _progress_bar
+
+    loader = [1, 2, 3]
+    assert _progress_bar(loader, None) is loader
+    assert _progress_bar(loader, "") is loader
+
+
+def test_progress_bar_boc_bang_tqdm_va_van_duyet_du():
+    """Bọc rồi thì vòng lặp phải cho ra ĐÚNG các phần tử cũ, không thiếu không thừa.
+
+    Bar sai thì `run_epoch` bỏ sót batch mà loss trung bình vẫn trông hợp lý.
+    """
+    pytest.importorskip("tqdm", reason="thanh tiến độ cần tqdm")
+    from src.train.loop import _progress_bar
+
+    loader = [{"i": i} for i in range(5)]
+    bar = _progress_bar(loader, "test")
+    assert bar is not loader
+    assert list(bar) == loader
+    assert hasattr(bar, "set_postfix_str"), "run_epoch dùng set_postfix_str để in loss"
+    assert hasattr(bar, "close")
+
+
+def test_progress_bar_thieu_tqdm_thi_bo_qua_im_lang(monkeypatch):
+    """Một job train 4 giờ không được chết vì thanh tiến độ."""
+    import builtins
+
+    from src.train.loop import _progress_bar
+
+    real_import = builtins.__import__
+
+    def no_tqdm(name, *args, **kwargs):
+        if name.startswith("tqdm"):
+            raise ImportError("giả lập máy không có tqdm")
+        return real_import(name, *args, **kwargs)
+
+    monkeypatch.setattr(builtins, "__import__", no_tqdm)
+    loader = [1, 2, 3]
+    assert _progress_bar(loader, "test") is loader
+
+
+# --- F1 từng lớp theo epoch ---------------------------------------------------
+
+
+def test_csv_fields_co_cot_f1_tung_lop():
+    """Hai lớp yếu (ICC, di căn) chặn mục tiêu về số học, nên phải theo dõi được quỹ đạo
+    của chúng theo epoch, không chỉ macro-F1 gộp."""
+    from src.data.taxonomy import SHORT_NAMES
+    from src.train.run import CSV_FIELDS
+
+    for index, name in SHORT_NAMES.items():
+        assert f"f1_{name}" in CSV_FIELDS, (index, name)
+    assert CSV_FIELDS[:9] == [
+        "epoch",
+        "train_loss",
+        "val_loss",
+        "val_macro_f1",
+        "val_balanced_accuracy",
+        "val_accuracy",
+        "val_cohen_kappa",
+        "lr",
+        "seconds",
+    ], "chín cột đầu phải giữ nguyên thứ tự — có log cũ đọc theo vị trí"

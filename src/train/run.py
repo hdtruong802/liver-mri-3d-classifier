@@ -27,6 +27,7 @@ from typing import Any
 import numpy as np
 
 from src.data.dataset import build_fold_datasets, find_label_mismatches
+from src.data.taxonomy import SHORT_NAMES
 from src.data.transforms import build_train_transform, build_val_transform
 from src.eval.metrics import classification_metrics, confusion_matrix, per_class_f1
 from src.models import build_model, count_parameters
@@ -52,6 +53,17 @@ CSV_FIELDS = [
     "val_cohen_kappa",
     "lr",
     "seconds",
+    # F1 từng lớp theo epoch, một cột mỗi lớp: `f1_u máu`, `f1_ICC`, ...
+    #
+    # Vì sao đáng một cột riêng chứ không chỉ in ra log: hai lớp yếu (ICC và di căn) là
+    # thứ CHẶN mục tiêu về mặt số học — giữ nguyên ICC 0.519 và di căn 0.273 thì kể cả 5
+    # lớp kia đều đạt 0.90, macro-F1 cũng chỉ tới 0.756. Có cột riêng thì vẽ được quỹ đạo
+    # của đúng hai lớp đó theo epoch, thay vì chỉ thấy macro-F1 gộp che mất chúng.
+    #
+    # ⚠️ `CsvLogger` tôn trọng header đã có, nên một run bắt đầu TRƯỚC thay đổi này mà
+    # resume sau đó sẽ giữ schema cũ và bỏ im lặng các cột mới. Đó là chủ ý: mất một cột
+    # ở run cũ thì chấp nhận được, làm hỏng cả file log thì không.
+    *(f"f1_{SHORT_NAMES[i]}" for i in sorted(SHORT_NAMES)),
 ]
 
 
@@ -312,6 +324,11 @@ def train(config_path: str | Path, fold_override: int | None = None) -> dict[str
 
     accum_steps = max(1, int(train_config.get("accum_steps", 1)))
     patience = int(train_config.get("early_stop_patience", 15))
+    # Thanh tiến độ mỗi epoch. Mặc định BẬT và không cần khai trong YAML, nên mọi notebook
+    # được lợi mà `tests/test_protocol_conformance.py` (khoá `baseline_3dpatch.yaml`) không
+    # đổi ý nghĩa. Đặt `train.progress: false` để tắt — nên tắt ở batch run "Save & Run
+    # All", vì ở đó tqdm rơi về bản text và 300 epoch sẽ để lại rất nhiều dòng log.
+    show_progress = bool(train_config.get("progress", True))
 
     # EMA: mặc định TẮT (`ema_decay: 0`) để `baseline_3dpatch.yaml` không đổi hành vi và
     # `tests/test_protocol_conformance.py` giữ nguyên ý nghĩa.
@@ -352,13 +369,22 @@ def train(config_path: str | Path, fold_override: int | None = None) -> dict[str
                 accum_steps=accum_steps,
                 amp=amp,
                 on_step=None if ema is None else (lambda: ema.update(model)),
+                progress=f"epoch {epoch}/{epochs} train" if show_progress else None,
             )
             evaluated = model if ema is None else ema.torch_module
-            val_out = run_epoch(evaluated, val_loader, device, criterion, amp=amp)
+            val_out = run_epoch(
+                evaluated,
+                val_loader,
+                device,
+                criterion,
+                amp=amp,
+                progress=f"epoch {epoch}/{epochs} val" if show_progress else None,
+            )
             scheduler.step()
 
             val_pred = val_out["probs"].argmax(axis=1)
             metrics = classification_metrics(val_out["labels"], val_pred)
+            class_f1 = per_class_f1(val_out["labels"], val_pred)
             csv_logger.log(
                 {
                     "epoch": epoch,
@@ -370,6 +396,10 @@ def train(config_path: str | Path, fold_override: int | None = None) -> dict[str
                     "val_cohen_kappa": round(metrics["cohen_kappa"], 5),
                     "lr": optimizer.param_groups[0]["lr"],
                     "seconds": round(time.time() - started, 1),
+                    **{
+                        f"f1_{SHORT_NAMES[i]}": round(float(class_f1[i]), 5)
+                        for i in sorted(SHORT_NAMES)
+                    },
                 }
             )
             logger.info(
@@ -380,6 +410,13 @@ def train(config_path: str | Path, fold_override: int | None = None) -> dict[str
                 val_out["loss"],
                 metrics["macro_f1"],
                 time.time() - started,
+            )
+            # F1 từng lớp trên một dòng riêng. Hai lớp yếu (ICC, di căn) là thứ chặn mục
+            # tiêu về số học, nên xem quỹ đạo của chúng theo epoch quan trọng ngang
+            # macro-F1 — mà macro-F1 gộp thì che mất chúng.
+            logger.info(
+                "        F1: %s",
+                " · ".join(f"{SHORT_NAMES[i]} {class_f1[i]:.3f}" for i in sorted(SHORT_NAMES)),
             )
 
             # Xác suất val của epoch CUỐI, ghi đè mỗi epoch. Không phải bản sao thừa

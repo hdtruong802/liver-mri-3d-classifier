@@ -4925,3 +4925,57 @@ Chạy `notebooks/18_build_cache_cghnet.ipynb` (**Accelerator = None**), lưu ou
 - **`conv1_t_stride` của MONAI trải ra ba chiều theo thứ tự `[X, Y, Z]`.** `[2,2,1]` là "trong mặt phẳng"; `[1,2,2]` lệch trục và làm z còn một lát.
 - Model có deep supervision trả **dict ở train mode, tensor ở eval mode**. Ai thêm kiến trúc kiểu này phải thêm tên vào `src.models.DEEP_SUPERVISION_MODELS` và giữ đúng hợp đồng, nếu không `src/eval/*` sẽ nhận dict và nổ ở chỗ khó đọc.
 - **Một test viết luật của MỘT backbone thành luật toàn cục sẽ chặn đúng hướng đi mới.** Bài học từ `test_every_preprocess_config_fits_densenet_minimum`: nếu docstring của test phải nói "với backbone hiện tại" thì luật đó chưa được viết đúng phạm vi.
+
+---
+
+## S-121 · 2026-08-10 · claude-code
+
+**Mục tiêu phiên:** Thêm thanh tiến độ mỗi epoch và F1 từng lớp vào vòng train.
+
+**Nhánh / commit:** `main` · `d6dfebc` → *(commit của phiên này)*
+
+**Đã đụng file:** `src/train/loop.py`, `src/train/run.py`, `src/utils/logging.py`, `requirements.txt`, `tests/test_train_loop.py`, `tests/test_csv_logger.py` (mới), `notebooks/19_cghnet.ipynb`.
+
+### Quyết định & lý do
+
+**Sửa ở `src/`, không sửa trong notebook.** Người dùng yêu cầu cho notebook 19, nhưng vòng train nằm ở `src/train/`, và AGENTS.md §4 nói notebook chỉ là lớp mỏng gọi vào `src/`. Dựng lại vòng lặp trong notebook là chép logic ra hai chỗ. Làm ở `src/` thì **mọi notebook** (09, 14, 16, 17, 19) đều được lợi mà không sửa gì thêm.
+
+**`run_epoch` nhận `progress: str | None`** — nhãn của thanh tiến độ, `None` = không hiện. Dùng `tqdm.auto` có chủ ý: trong notebook nó chọn bản widget một dòng, ở batch run rơi về bản text. Thiếu tqdm thì **bỏ qua im lặng** — một job train 4 giờ không được chết vì thanh tiến độ.
+
+**`train.progress` mặc định `true` và không cần khai trong YAML.** Nhờ vậy `tests/test_protocol_conformance.py` (khoá `baseline_3dpatch.yaml`) không đổi ý nghĩa, mà mọi notebook vẫn có thanh tiến độ ngay.
+
+**Loss trên thanh là trung bình luỹ tích, không phải loss của batch cuối.** Batch 4 mẫu dao động quá mạnh để đọc được gì.
+
+⚠️ **`set_postfix_str(..., refresh=False)` là bắt buộc, không phải tối ưu hoá nhỏ.** Mặc định nó **ép vẽ lại ngay**, và ở batch run (log không phải TTY) mỗi lần vẽ lại là một dòng mới: 78 batch × 300 epoch × 2 lượt là hơn **46.000 dòng rác**. Đo thật với `refresh=False` và `mininterval=1.0`: 78 batch chỉ vẽ lại **3 lần**.
+
+### F1 từng lớp mỗi epoch
+
+Thêm một dòng log sau dòng metric, và **một cột riêng cho mỗi lớp** trong `train_log.csv` (`f1_u máu`, `f1_ICC`, …).
+
+Vì sao đáng một cột chứ không chỉ in ra: hai lớp yếu là thứ **chặn mục tiêu về mặt số học** — giữ nguyên ICC 0.519 và di căn 0.273 thì kể cả 5 lớp kia đều đạt 0.90, macro-F1 cũng chỉ tới 0.756. Có cột riêng thì vẽ được quỹ đạo của đúng hai lớp đó theo epoch, còn macro-F1 gộp thì che mất chúng.
+
+### 🐛 Cạm bẫy đi kèm: đổi schema CSV làm hỏng file log khi resume
+
+`CsvLogger` chỉ ghi header khi file rỗng, rồi ghi tiếp bằng `DictWriter(fieldnames=...)`. Một run **bắt đầu trước** thay đổi này mà **resume sau đó** sẽ có những dòng nhiều cột hơn header, và file đó **không đọc lại được bằng `csv.DictReader`** — mất toàn bộ lịch sử `val_loss` của run, tức mất luôn chẩn đoán "epoch chạm đáy" (ρ=0.770, S-107). Chuyện này áp cho **E8, E13 và E12** đang có checkpoint dở.
+
+Sửa: `CsvLogger` **đọc header đã có và dùng đúng nó**, kèm `extrasaction="ignore"` và `restval=""`. Cột mới bị bỏ im lặng ở run cũ; run mới lấy đủ schema. Mất một cột ở run cũ thì chấp nhận được, làm hỏng cả file log thì không. 7 test mới cho riêng chuyện này.
+
+### Kết quả / số liệu
+
+Không có số khoa học mới. Test: 458 → **469 passed**, 56 skipped. Gate PASS.
+
+Đo thật số lần vẽ lại thanh tiến độ: 78 batch → 3 lần (không phải 78).
+
+### Dang dở
+
+Không thêm gì so với S-120. CGHNet vẫn chưa chạy fold nào; E13 vẫn chưa chạy lại sau khi sửa `conv1_stride`.
+
+### Điểm vào phiên sau
+
+Như S-120: `notebooks/18_build_cache_cghnet.ipynb` (**Accelerator = None**) rồi `notebooks/19_cghnet.ipynb` với `FOLDS = [1, 2]`.
+
+### Cảnh báo cho tool sau
+
+- **Thêm cột vào `CSV_FIELDS` giờ an toàn khi resume**, nhưng run cũ sẽ **không có** cột mới. Đừng giả định `train_log.csv` của E4/E8/E12/E13 có cột `f1_*`; kiểm bằng `DictReader.fieldnames` trước khi đọc.
+- **Nếu chạy "Save Version → Save & Run All"** thì đặt `train.progress: false`, nếu không log sẽ có thêm vài nghìn dòng thanh tiến độ. Chạy tương tác thì tqdm dùng widget, không có vấn đề.
+- `tqdm` vào `requirements.txt` nhưng là **phụ thuộc tuỳ chọn**: `_progress_bar` bỏ qua im lặng nếu thiếu. Đừng biến nó thành phụ thuộc cứng.
