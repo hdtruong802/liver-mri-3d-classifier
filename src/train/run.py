@@ -66,6 +66,17 @@ CSV_FIELDS = [
     *(f"f1_{SHORT_NAMES[i]}" for i in sorted(SHORT_NAMES)),
 ]
 
+# Khoá mà `train()` trả về. Là **hợp đồng công khai** với notebook, nên khai tường minh
+# ở đây thay vì để notebook đoán.
+#
+# ⚠️ Lý do tồn tại: `train()` trả `best_macro_f1`, còn `metrics_best.json` ghi `macro_f1`
+# — hai tên khác nhau cho cùng một đại lượng. Ba notebook đã viết
+# `results[fold]["macro_f1"]` và nổ `KeyError` **sau khi train xong cả fold**; hai
+# notebook khác viết `.get("macro_f1", nan)` nên in `nan` im lặng suốt từ đầu mà không
+# ai để ý (WORKLOG S-123). `tests/test_notebook_contract.py` nay đối chiếu mọi notebook
+# với hằng số này.
+TRAIN_RESULT_KEYS = ("fold", "best_macro_f1", "best_epoch", "seed", "run_dir")
+
 
 def model_fingerprint(model_config: dict[str, Any]) -> str:
     """Chuỗi định danh kiến trúc — đổi kiến trúc là đổi chuỗi này."""
@@ -324,6 +335,17 @@ def train(config_path: str | Path, fold_override: int | None = None) -> dict[str
 
     accum_steps = max(1, int(train_config.get("accum_steps", 1)))
     patience = int(train_config.get("early_stop_patience", 15))
+    # Mixup nằm ở khối `data:` vì nó là phép biến đổi dữ liệu, không phải tham số tối ưu hoá.
+    # Mặc định 0 = tắt, nên không config cũ nào đổi hành vi.
+    mixup_alpha = float((config.get("data") or {}).get("mixup_alpha", 0.0))
+    if mixup_alpha < 0:
+        raise ValueError(f"data.mixup_alpha phải >= 0, nhận {mixup_alpha}")
+    if mixup_alpha > 0:
+        logger.info(
+            "MIXUP BẬT (alpha=%.2f) — train_loss dưới đây là loss trên NHÃN ĐÃ TRỘN, "
+            "không so trực tiếp được với run không mixup",
+            mixup_alpha,
+        )
 
     # EMA: mặc định TẮT (`ema_decay: 0`) để `baseline_3dpatch.yaml` không đổi hành vi và
     # `tests/test_protocol_conformance.py` giữ nguyên ý nghĩa.
@@ -364,6 +386,7 @@ def train(config_path: str | Path, fold_override: int | None = None) -> dict[str
                 accum_steps=accum_steps,
                 amp=amp,
                 on_step=None if ema is None else (lambda: ema.update(model)),
+                mixup_alpha=mixup_alpha,
             )
             evaluated = model if ema is None else ema.torch_module
             val_out = run_epoch(evaluated, val_loader, device, criterion, amp=amp)

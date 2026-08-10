@@ -1,0 +1,183 @@
+# CGHNET + MIXUP + LABEL SMOOTHING — nhắm đúng bệnh lý đã chẩn đoán.
+# Sinh từ cghnet.yaml. Khác ĐÚNG BA KHOÁ: data.mixup_alpha, loss.label_smoothing, output_dir.
+#
+# ⚠️ KHÔNG còn là bản tái lập bài báo. Bài dùng focal trần không label smoothing và không
+# mixup, nên MỌI so sánh với mốc 0.724 / 0.742 / 0.818 của họ mất hiệu lực ở config này.
+# Mốc để so là chính `configs/cghnet.yaml` trên cùng fold.
+#
+# Vì sao hai khoá này: xem `configs/e14_mixup.yaml` — cùng chẩn đoán, cùng lý lẽ. Tóm lại,
+# `python -m src.eval.weak_classes` LOẠI bảy hướng chữa hiển nhiên (trọng số lớp, logit
+# adjustment, ngưỡng theo lớp, focal mạnh hơn, thêm augmentation, gộp với biến thể gần,
+# cắt sát hơn) và để lại đúng một bộ bệnh lý: TỰ TIN SAI + CÓ CẤU TRÚC + BIỂU DIỄN THIẾU.
+#
+# Chi phí đo thật ở fold 1: 1,6 h/fold, tức đủ 5 fold chỉ 8h.
+#
+# ---------------------------------------------------------------------------
+# (Phần dưới giữ nguyên chú thích của bản tái lập, để tra được nguồn từng khoá.)
+# ---------------------------------------------------------------------------
+# CGHNET — TÁI LẬP TỪ BÀI BÁO. Mục tiêu đối chiếu: macro-F1 0.818 trên test-104.
+#
+#   notebooks/19_cghnet.ipynb   (cần cache của configs/preprocess_cghnet.yaml)
+#
+# Nguồn: Li và cs., "CGHNet: Cross-Guided 2D-3D Hybrid Network with attention mechanism
+# for focal liver lesion classification", Comput Med Imaging Graph 132 (2026) 102780,
+# doi:10.1016/j.compmedimag.2026.102780.
+#
+# ---------------------------------------------------------------------------
+# ⚠️ ĐÂY LÀ TÁI LẬP TỪ VĂN BẢN, KHÔNG PHẢI CHẠY LẠI CODE CỦA TÁC GIẢ
+#
+# Bài KHÔNG công khai code (Data availability chỉ ghi "Data will be made available on
+# request"). Mọi khoá dưới đây được đánh dấu một trong hai nhãn:
+#
+#   [BÀI]  trích trực tiếp từ bài, có mục dẫn nguồn
+#   [SUY]  bài không nói, ta suy lại — ghi rõ căn cứ
+#
+# Không được lẫn hai nhãn đó khi viết báo cáo.
+#
+# ---------------------------------------------------------------------------
+# THANG BẬC CHẨN ĐOÁN — vì sao phép tái lập này well-posed
+#
+# Bài train bằng multi-head deep supervision: L = FL(y) + FL(y_2D) + FL(y_3D) (Eq. 12).
+# Nên MỘT lần chạy cho BA con số, và cả ba đều có mốc công bố (Bảng 2, test-104):
+#
+#   nhánh 3D một mình   0.724   lệch xuống ~0.62 => sai PROTOCOL/DỮ LIỆU, không phải fusion
+#   nhánh 2D một mình   0.742   lệch nhiều       => sai nhánh ViT
+#   hợp nhất (CGHNet)   0.818   hai nhánh đúng mà cái này thấp => sai CGFM/ADF
+#
+# ⚠️ Mốc của họ đo trên TEST-104, còn số ta có ngay là OUT-OF-FOLD. Thiên lệch chọn epoch
+# của dự án đã đo là -0.069, nên out-of-fold ~0.79 mới tương ứng test-104 ~0.72. KHÔNG so
+# trực tiếp out-of-fold với bảng của họ.
+#
+# ⚠️ Họ báo mean ± std của 5 MODEL ĐƠN, không phải ensemble. Số so được của ta trên
+# test-104 là 0.6001, không phải 0.6162.
+#
+# ---------------------------------------------------------------------------
+# BIẾN LỚN NHẤT: HÌNH HỌC z = 14, KHÔNG PHẢI KIẾN TRÚC
+#
+# Bảng 1 của họ có ResNet3D TRẦN = 0.709, so với 0.6001 của ta. Chênh 0.109 trên cùng một
+# họ kiến trúc. Khác biệt nằm ở protocol, và lớn nhất là số lát: mọi thí nghiệm của dự án
+# đều z = 32 hoặc 48, còn cả baseline official lẫn CGHNet đều z = 16.
+#
+# Vì vậy cache RIÊNG: configs/preprocess_cghnet.yaml, lưới 128x128x16.
+# ⚠️ Cache E4 (mảng 8,112,112,32) và cache E12 (8,136,136,40) KHÔNG dùng được.
+# ---------------------------------------------------------------------------
+
+seed: 1337
+fold: 1                       # 1..5; ghi đè bằng --fold
+splits_dir: splits
+
+cache_dir: artifacts/cache_cghnet     # env LLDMMRI_CACHE_DIR thắng
+output_dir: artifacts/runs/cghnet_mixup   # env LLDMMRI_OUTPUT_DIR thắng
+
+model:
+  name: cghnet
+  num_phases: 8
+  num_classes: 7
+
+  # --- nhánh 2D (ViT trên từng lát) ---
+  # [SUY] Bài §3.2 chỉ nói "a 2D Vision Transformer (ViT), composed of multiple
+  # Intra-slice Transformer Blocks", KHÔNG nói depth/dim/patch/head. Bốn khoá dưới đây
+  # chọn để tổng tham số khớp 59.37M mà Bảng 5 của họ công bố. Cổng tham số của notebook
+  # in số thật cạnh 59.37M — lệch nhiều nghĩa là ta dựng một kiến trúc khác.
+  embed_dim: 384              # phải chia hết cho num_phases (patch-embed dùng chung)
+  depth: 6
+  num_heads: 6
+  patch_size: 16              # 112/16 = 7 -> 49 patch + 1 cls token mỗi lát
+  mlp_ratio: 4.0
+
+  # --- nhánh 3D ---
+  # [SUY] Bài §3.3 chỉ nói "a 3D ResNet, constructed with stacked Inter-slice Residual
+  # Blocks". Hàng `ResNet3D` ở Bảng 5 của họ là 46.22M, khớp ĐÚNG ResNet-50-3D (Hara);
+  # ResNet-18-3D là 33M (ta đã đo 33.14M), ResNet-34-3D ~63M.
+  resnet_depth: 50
+  # [SUY] Bài không nói có chiếu chiều token của nhánh 3D hay không. Không chiếu thì
+  # riêng W_fuse,3D (4096->2048) đã 8.4M và tổng vượt 59.37M, nên có chiếu.
+  token_dim: 384
+  # [SUY] Stride conv1. ⚠️ Thứ tự trục là [X, Y, Z]. Với đầu vào 112x112x14 và stride 1:
+  #   conv1 112x112x14 -> maxpool 56x56x7 -> 28x28x4 -> 14x14x2 -> layer4 7x7x1
+  # => N_v = 49 token. Trục z co về 1 ở layer4 là TẤT YẾU của z=14 với 16 lần hạ mẫu,
+  # không phải lỗi. Đặt [2,2,1] nếu cổng ngân sách báo GPU thành nút thắt.
+  conv1_stride: 1
+
+  # [BÀI] Bảng 6: quét 0.1-0.9, chốt 0.50; cả hai đầu đều tệ hơn.
+  lambda_res: 0.50
+  # [SUY] Bài không nói dropout. Giữ > 0 vì src/eval/mc_dropout.py cần ít nhất một lớp
+  # Dropout — bất định epistemic là đóng góp headline của dự án, mất nó thì thắng
+  # accuracy cũng không bù lại.
+  dropout_prob: 0.2
+  # [SUY] K của attention pooling. Bài §3.2-3.3: "projects each fused patch to a class
+  # logit vector" => K = num_classes. Để trống là dùng num_classes.
+  attn_pool_dim: null
+
+data:
+  # ---- KHOÁ THỨ NHẤT của thí nghiệm ----
+  # λ ~ Beta(0.2, 0.2); α nhỏ dồn phân bố về hai đầu nên phần lớn batch gần như
+  # không trộn. Batch 4 ở đây nên phép hoán vị ghép được nhiều cặp hơn E14 (batch 2).
+  mixup_alpha: 0.2
+  # [BÀI] §4.3: "trained ... with a batch size of 4".
+  # ⚠️ Khác baseline của dự án (batch 2 x accum 4 = hiệu dụng 8). Ở đây batch 4 x accum 1
+  # = hiệu dụng 4, đúng của bài. BatchNorm của nhánh 3D vì thế thấy 4 mẫu, không phải 2.
+  batch_size: 4
+  num_workers: 4
+  persistent_workers: true
+  prefetch_factor: 4
+  pin_memory: true
+
+  # [BÀI] §4.3: "Random crops of size 14 x 112 x 112 were extracted from the augmented
+  # volumes to serve as the model input during training, while deterministic center
+  # cropping was used during inference." Thứ tự của họ là D x H x W.
+  crop_size: [112, 112, 14]
+
+  augment:
+    # [BÀI] §4.3: "random in-plane rotations and random flips along the x, y, and z axes,
+    # each with a probability of 0.5".
+    flip_prob: 0.5
+    flip_axes: [x, y, z]
+    rotate_degrees: 10        # [SUY] bài không nói biên độ; 10 độ theo baseline official
+    rotate_prob: 0.5          # [BÀI] "each with a probability of 0.5" — KHÔNG phải 1.0
+    # ⚠️ BẮT BUỘC `nearest`. Lề cache chỉ 8 voxel trong mặt phẳng, mà xoay 10 độ làm hỏng
+    # góc tới ~12 voxel (đo ở E12). Với `constant` thì phép cắt ngẫu nhiên ở offset biên
+    # để lọt voxel bị lấp 0; với `nearest` thì 0 voxel ở MỌI offset.
+    rotate_mode: nearest
+    # TẮT: RandomCrop3D đã làm việc này mà không đệm 0. Bật cả hai sẽ raise.
+    translate_voxels: [0, 0, 0]
+    rot90_prob: 0             # xoay 90 độ không phải biến đổi giải phẫu hợp lệ
+    intensity_prob: 0         # bài không dùng
+
+train:
+  # [BÀI] §4.3: "The training process spanned 300 epochs".
+  epochs: 300
+  # [BÀI] "cosine-annealing schedule with a linear warm-up for the first 5 epochs".
+  warmup_epochs: 5
+  warmup_lr: 0.000001
+  # [BÀI] "AdamW optimizer with an initial learning rate of 1e-4". Bảng 4 quét 1e-3 /
+  # 1e-4 / 1e-5 và 1e-4 thắng.
+  lr: 0.0001
+  min_lr: 0.00001
+  # [BÀI] "a weight decay of 1e-5".
+  # ⚠️ Khác baseline official (0.05) tới 5000 lần. Đây là khoá `train.` duy nhất lệch
+  # khỏi recipe baseline, và nó lệch vì BÀI NÓI VẬY, không phải do sơ suất.
+  weight_decay: 0.00001
+  # Hiệu dụng = batch_size 4 x 1 = 4, đúng của bài.
+  accum_steps: 1
+  early_stop_patience: 0      # bài train đủ 300 epoch, không early stop
+  amp: true
+  deterministic: true
+  resume: true
+
+loss:
+  # [BÀI] §4.3 + Eq. 12-13: Focal Loss, cộng qua ba đầu (chính + 2D + 3D).
+  # Bảng 4: Focal 81.8 so với CE 79.9.
+  name: focal
+  # [SUY] Bài không nói gamma/alpha. gamma=2 là mặc định của Lin và cs.
+  gamma: 2.0
+  # [BÀI] Eq. 12 cộng ba số hạng KHÔNG có trọng số => aux_weight 1.0.
+  deep_supervision: true
+  aux_weight: 1.0
+  # [SUY] Bài dùng Focal để xử lý mất cân bằng lớp và không nói thêm trọng số lớp nào.
+  class_weights: none
+  # ---- KHOÁ THỨ HAI của thí nghiệm ----
+  # ⚠️ Bài dùng 0. Đặt > 0 là CỐ Ý LỆCH khỏi đặc tả, nhắm §3 của chẩn đoán (1/117
+  # lỗi có biên < 0.10). 0.05 chứ không phải 0.1: bớt tự tin tuyệt đối, không làm
+  # nhoè cả bài toán 7 lớp.
+  label_smoothing: 0.05

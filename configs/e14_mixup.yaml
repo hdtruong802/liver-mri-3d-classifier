@@ -1,0 +1,123 @@
+# E14 — MIXUP + LABEL SMOOTHING trên base E4. Nhắm đúng bệnh lý đã chẩn đoán.
+# Sinh từ baseline_3dpatch.yaml. Khác ĐÚNG BA KHOÁ: data.mixup_alpha,
+# loss.label_smoothing, output_dir.
+#
+#   notebooks/09_cv_runner.ipynb  với  CONFIG_NAME = "e14_mixup.yaml", SCOPE = ""
+#   (config này đổi cả `data.` và `loss.` nên không dùng SCOPE một khối được)
+#
+# ---------------------------------------------------------------------------
+# VÌ SAO HAI KHOÁ NÀY, VÀ VÌ SAO KHÔNG PHẢI NHỮNG KHOÁ KHÁC
+#
+# `python -m src.eval.weak_classes --run-dir runs/E4_cv_results --compare runs/E6b`
+# đo trên 394 ca out-of-fold và LOẠI bảy hướng chữa hiển nhiên:
+#
+#   §1 model DU DOAN THUA hai lop yeu: ICC 58 lan / 46 ca that (1.26x), ap-xe 55/42
+#      (1.31x), con HCC 107/125 (0.86x). => trong so lop, logit adjustment, focal manh
+#      hon deu SAI CHIEU, chung se lam ICC va ap-xe te di.
+#   §2 kich thuoc ton thuong KHONG tuong quan voi F1: di can, u mau, nang deu co
+#      extent trung vi 25mm ma F1 la 0.488 / 0.831 / 0.762; ap-xe co ton thuong LON
+#      nhat (60mm) va F1 0.660. => cat sat hon khong giup.
+#   §3 loi CUC KY TU TIN: p(doan) trung vi 0.75-0.99 so voi p(that) 0.000-0.019, va
+#      chi 1/117 loi co bien < 0.10. => nguong rieng tung lop, prior, temperature
+#      KHONG lat duoc gi. Ca ho sua-o-tang-quyet-dinh bi loai.
+#   §4 di can top-2 (0.500) BANG top-1: khong mot ca sai nao co di can o hang hai.
+#      Bieu dien khong ma hoa duoc lop nay. ICC thi khac: top-1 0.587 -> top-2 0.848.
+#   §5 74% loi TRUNG giua E4 va E6b (86/117, ky vong 35 neu doc lap); rieng di can
+#      18/20. => loi CO CAU TRUC, doi augmentation khong cham duoc vao chung. Va gop
+#      xac suat E4+E6b lam macro-F1 TE DI (0.6688 so voi 0.6851).
+#
+# Con lai dung mot bo benh ly: TU TIN SAI + CO CAU TRUC + BIEU DIEN THIEU, tren 312
+# ca train. Hai khoa duoi day la thuoc dung cho benh do:
+#
+#   mixup           tao mau NOI SUY giua cac lop de lan (dung bien HCC/ICC/di can o
+#                   §6: HCC->di can 15 ca, ICC->ap-xe 10, HCC->ICC 9) va trung phat
+#                   viec tu tin tuyet doi. Thuoc tieu chuan cho hoc thuoc tren tap nho.
+#   label_smoothing nham thang §3. DA CO trong config tu dau va CHUA BAO GIO dat > 0.
+#
+# ⚠️ Gop hai khoa la HAI BIEN. Chap nhan vi ca hai nham cung mot benh ly va ngan sach
+# khong cho phep tach; phai ghi ro trong bao cao.
+#
+# ---------------------------------------------------------------------------
+# CACH DOC KET QUA — CHOT TRUOC KHI CHAY
+#
+# Doc F1 cua ICC, ap-xe, di can TRUOC macro-F1.
+#
+#   quan sat                                      | ket luan
+#   ----------------------------------------------|---------------------------------
+#   macro >= +0.03 VA >= 2/3 lop yeu tang          | di tiep, chay du 5 fold
+#   macro tang ma ba lop yeu dung yen              | tang den tu lop de => TRAN 0.756
+#                                                  | van ap, noi ro trong bao cao
+#   macro dung yen / giam o CA HAI base            | khong phai don bay. Dung.
+#
+# Dau hieu phu, noi co che co hoat dong khong (`src.eval.weak_classes` in ca hai):
+#   - ti le loi co bien < 0.10 (hien 1/117) phai TANG
+#   - top-2 cua di can (hien BANG top-1) phai nhuc nhich
+# Mixup ma an thi hai con so nay doi ke ca khi macro-F1 chua doi.
+#
+# Moc E4, cung benh nhan, cung fold:
+#   fold 1 0.7001 | 2 0.6771 | 3 0.7304 | 4 0.6680 | 5 0.6618 | gop 394 ca 0.6851
+#   F1 lop yeu: ICC 0.519 · ap-xe 0.660 · di can 0.488
+# ---------------------------------------------------------------------------
+
+seed: 1337
+fold: 1                       # 1..5; ghi đè bằng --fold
+splits_dir: splits
+
+cache_dir: artifacts/cache            # env LLDMMRI_CACHE_DIR thắng — cache E4
+output_dir: artifacts/runs/e14_mixup   # env LLDMMRI_OUTPUT_DIR thắng
+
+model:
+  name: densenet121_3d
+  in_channels: 8              # 8 pha ghép kênh = early-concat v0
+  num_classes: 7
+  dropout_prob: 0.2
+  norm: batch                 # lựa chọn duy nhất có số thật (0.2725, WORKLOG S-036)
+
+data:
+  batch_size: 2
+  num_workers: 4
+  persistent_workers: true
+  prefetch_factor: 4
+  pin_memory: true
+
+  # ---- KHOÁ THỨ NHẤT của thí nghiệm ----
+  # λ ~ Beta(0.2, 0.2). α nhỏ cho phân bố dồn về hai đầu, tức phần lớn batch gần như
+  # không trộn và một số ít trộn mạnh — chuẩn cho tập nhỏ, giữ được phần lớn mẫu "sạch".
+  # α = 1.0 cho λ đều và trộn mạnh hơn nhiều; đó là thí nghiệm riêng, đừng đổi chung.
+  #
+  # ⚠️ batch_size 2 nên mỗi lần trộn chỉ ghép hai mẫu. Yếu hơn mixup trên batch lớn,
+  # nhưng vẫn đúng phép: hoán vị của một batch 2 mẫu là phép đổi chỗ, nên hai mẫu trộn
+  # vào nhau. VRAM không cho batch lớn hơn ở khối 3D này (AGENTS.md §7).
+  mixup_alpha: 0.2
+
+  augment:
+    flip_prob: 0.5
+    flip_axes: [x, y, z]
+    rotate_degrees: 10
+    translate_voxels: [8, 8, 4]
+    rot90_prob: 0
+    intensity_prob: 0
+
+train:
+  # Giữ NGUYÊN từng chữ số recipe của baseline official — E14 là phép đổi dữ liệu +
+  # loss, không phải phép đổi recipe.
+  epochs: 300
+  warmup_epochs: 5
+  warmup_lr: 0.000001
+  lr: 0.0001
+  min_lr: 0.00001
+  weight_decay: 0.05
+  accum_steps: 4
+  early_stop_patience: 0
+  amp: true
+  deterministic: true
+  resume: true
+
+loss:
+  name: cross_entropy
+  class_weights: none         # §1 LOẠI trọng số lớp — hai lớp yếu đã bị dự đoán thừa
+  # ---- KHOÁ THỨ HAI của thí nghiệm ----
+  # 0.05 chứ không phải 0.1: mục tiêu là bớt tự tin tuyệt đối, không phải làm nhoè cả
+  # bài toán 7 lớp. Với 7 lớp, 0.05 chia 0.0083 cho mỗi lớp sai — đủ để chặn logit chạy
+  # ra vô cực mà không xoá thông tin thứ hạng.
+  label_smoothing: 0.05

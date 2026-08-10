@@ -298,6 +298,68 @@ Ba điều rút ra từ bộ số này:
 
 ⚠️ **Con số của ta đo trên val fold 1 (82 ca), bảng văn liệu đo trên test-104.** Hai tập khác nhau — **không được** viết "ta ngang ResNet3D 0.709". So sánh nội bộ E0/E1/E4 với nhau thì hợp lệ vì cùng tập và cùng số epoch; **E3 thì không**, xem cảnh báo ở trên.
 
+### ⭐ CHẨN ĐOÁN BA LỚP YẾU — bảy hướng chữa đã bị LOẠI (2026-08-10, WORKLOG S-123)
+
+**Đọc mục này trước khi đề xuất bất cứ cách nào để nâng macro-F1.** Chạy lại bằng
+`python -m src.eval.weak_classes --run-dir runs/E4_cv_results --compare runs/E6b`, không cần GPU.
+
+Sáu phân tích trên 394 ca out-of-fold của E4:
+
+**§1 — KHÔNG phải mất cân bằng lớp. Model đang *thừa* dự đoán hai lớp yếu.**
+
+| lớp | thật | model đoán | tỉ lệ | P | R |
+|---|---|---|---|---|---|
+| **ICC** | 46 | **58** | **1.26** | 0.466 | 0.587 |
+| **áp-xe** | 42 | **55** | **1.31** | 0.582 | 0.762 |
+| di căn | 40 | 42 | 1.05 | 0.476 | 0.500 |
+| HCC | 125 | **107** | **0.86** | 0.841 | 0.720 |
+
+Vấn đề là **precision**, không phải recall.
+
+**§2 — KHÔNG phải kích thước tổn thương.** di căn, u máu, nang đều có extent trung vị
+**25mm** mà F1 là 0.488 / 0.831 / 0.762; áp-xe có tổn thương **lớn nhất** (60mm) và F1 0.660.
+
+**§3 — KHÔNG phải tầng quyết định. Lỗi cực kỳ tự tin.** p(đoán) trung vị 0.75–0.99 so với
+p(thật) 0.000–0.019, và **chỉ 1/117 lỗi có biên < 0.10**.
+
+**§4 — ICC và di căn là HAI vấn đề khác nhau.**
+
+| lớp | top-1 | top-2 | hạng trung vị |
+|---|---|---|---|
+| **ICC** | 0.587 | **0.848** | 1 |
+| **di căn** | 0.500 | **0.500** | **2** |
+
+ICC: thông tin *có*, xếp sai hạng. di căn: trong 20 ca sai **không một ca nào** có di căn ở
+hạng hai — biểu diễn không mã hoá được lớp này.
+
+**§5 — Lỗi CÓ CẤU TRÚC.** Trùng lặp lỗi E4 so với E6b: **86/117 = 74%**, kỳ vọng 35 nếu độc
+lập; riêng di căn **18/20**. Và **gộp xác suất E4+E6b làm macro-F1 TỆ ĐI** (0.6688 so với
+0.6851); oracle 0.782 so với 0.703, tức có 8 điểm dư địa mà ensemble kiểu này không lấy được.
+
+**§6 — Nút thắt precision của hai lớp yếu phần lớn là lỗi của HCC.** Ba hướng nhầm lớn nhất:
+HCC → di căn **15** · ICC → áp-xe **10** · HCC → ICC **9**. Chữa hết 35 lỗi của HCC thì
+macro-F1 0.6851 → **0.7449 (+0.0598)**. Muốn nâng lớp yếu thì phải chữa lớp **mạnh**.
+
+#### Bảy hướng bị loại, và bằng chứng nào loại
+
+| hướng | bị loại bởi |
+|---|---|
+| `class_weights: balanced` / `effective_number` | §1 — hai lớp yếu đã bị **thừa** dự đoán |
+| logit adjustment, prior correction | §1 + §3 — sai chiều, và gần như không lỗi nào sát sao |
+| ngưỡng riêng từng lớp, vector scaling | §3 |
+| focal loss mạnh hơn | §1 (và E5 đã đo: di căn −0.171 trên 2 fold, n=16 nên là nhiễu nhưng cùng chiều) |
+| thêm augmentation | §5 — 74% lỗi trùng giữa hai cấu hình khác augmentation |
+| gộp với một biến thể gần nó | §5 — đã đo, macro-F1 tệ đi |
+| cắt sát tổn thương hơn / bỏ sàn 40mm | §2 |
+
+Còn lại đúng một bộ bệnh lý: **tự tin sai + có cấu trúc + biểu diễn thiếu**, trên 312 ca
+train. `configs/e14_mixup.yaml` và `configs/cghnet_mixup.yaml` là hai can thiệp khớp với nó.
+
+⚠️ **Lớp yếu nhất của chính CGHNet ở 0.818 cũng là di căn** — bài viết *"the relatively lower
+recall for HM indicates that metastatic lesions remain challenging, possibly due to the
+limited HM samples and heterogeneous imaging appearances"*. Đây là giới hạn của bài toán,
+không riêng của ta, và nó thuộc mục Giới hạn của báo cáo.
+
 ### CV 5-fold của E4 — con số báo cáo được (2026-08-04, WORKLOG S-078)
 
 Đủ 5 fold, mỗi fold 300 epoch, **cùng seed 1337 · config giống hệt nhau trừ đúng khoá `fold`**. Năm tập val phân hoạch sạch 394 ca trainval (kiểm chứng: giao mọi cặp = rỗng, hợp = đúng 394).
@@ -655,6 +717,8 @@ Bootstrap **ghép cặp** trên hiệu (2000 lần, phân tầng, mức bệnh n
 | **Chạy CV trên Kaggle** | mở `notebooks/09_cv_runner.ipynb`, đặt `CONFIG_NAME` + `FOLDS` | sẵn sàng (W4); **thay cho notebook 07** (07 khoá cứng vào baseline và còn logic dò đường dẫn cũ đã sai) |
 | Đánh giá (CPU, không cần GPU) | `python -m src.eval.run --run-dir artifacts/runs/baseline_3dpatch` | sẵn sàng (W3); đọc `val_probs_*.npz` đã lưu → bảng metric ± CI bootstrap + gộp out-of-fold |
 | **So hai cấu hình, có ghép cặp** (CPU) | `python -m src.eval.compare --baseline runs/E4_cv_results --candidate runs/E8` | sẵn sàng (2026-08-10). Bootstrap **trên hiệu**, cùng bệnh nhân, phân tầng theo lớp. Chỉ dùng fold có ở **cả hai** bên; nổ nếu tập bệnh nhân hoặc nhãn lệch. Thay cho việc so hai CI riêng lẻ — cách đó bỏ mất phần phương sai triệt tiêu và cho phép kiểm yếu hơn thực tế |
+| **⭐ Chẩn đoán lớp yếu** (CPU, vài giây) | `python -m src.eval.weak_classes --run-dir runs/E4_cv_results --compare runs/E6b --build-log runs/E4_per_phase_results/fold_1/cache_build_log.csv` | sẵn sàng (2026-08-10). Sáu phân tích trên xác suất đã lưu, **không cần GPU**. Nó **LOẠI bảy hướng chữa** hiển nhiên (trọng số lớp, logit adjustment, ngưỡng theo lớp, focal mạnh hơn, thêm augmentation, gộp với biến thể gần, cắt sát hơn) — đọc trước khi đề xuất bất cứ cách nâng macro-F1 nào. Chi tiết ở §5 |
+| **E14 / CGHNet + mixup** | `configs/e14_mixup.yaml` · `configs/cghnet_mixup.yaml` | sẵn sàng (2026-08-10), **chưa chạy**. Mỗi cái khác base **đúng ba khoá**: `data.mixup_alpha 0.2`, `loss.label_smoothing 0.05`, `output_dir`. Hai can thiệp duy nhất còn khớp chẩn đoán. ⚠️ `train_loss` khi bật mixup là loss **trên nhãn đã trộn**, không so trực tiếp với run cũ; `val_loss` thì so được |
 | **Bảng trustworthiness** (CPU) | `python -m src.eval.trust --run-dir runs/E4_cv_results` | sẵn sàng (W3); calibration + selective từ cùng các `.npz`. Temperature fit **leave-one-fold-out**, không fit gộp — xem docstring module |
 | Bảng trên + bất định epistemic | `python -m src.eval.trust --run-dir runs/E4_cv_results --members` | sẵn sàng (W3); cần `fold*/mc_dropout.npz` sinh từ `notebooks/08_mc_dropout.ipynb` |
 | **MC-dropout** (GPU, ~8 phút) | chạy `notebooks/08_mc_dropout.ipynb` trên Kaggle | sẵn sàng (W3); inference thuần, **không train**. Cần mount **hai** dataset: cache E4, và checkpoint (`best-weights`: `best_fold_1..5.pt` phẳng, hoặc `fold_N/best.pt`) |
