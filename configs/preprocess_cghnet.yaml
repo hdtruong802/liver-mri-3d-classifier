@@ -1,0 +1,147 @@
+# CGHNET — CACHE THEO ĐÚNG HÌNH HỌC CỦA BÀI BÁO: 128 x 128 x 16.
+# Chép từ preprocess_e12.yaml, khác ĐÚNG BA KHOÁ: target_size, crop_margin_voxels, cache_dir.
+#
+#   python -m src.preprocess.build_cache --config configs/preprocess_cghnet.yaml
+#
+# ---------------------------------------------------------------------------
+# NGUỒN: Li và cs., "CGHNet: Cross-Guided 2D-3D Hybrid Network with attention mechanism
+# for focal liver lesion classification", Comput Med Imaging Graph 132 (2026) 102780,
+# doi:10.1016/j.compmedimag.2026.102780. §4.3 Implementation details, nguyên văn:
+#
+#   "all lesion volumes were spatially normalized to a fixed size of 16 x 128 x 128 via
+#    trilinear interpolation ... Random crops of size 14 x 112 x 112 were extracted from
+#    the augmented volumes to serve as the model input during training, while
+#    deterministic center cropping was used during inference."
+#
+# Thứ tự của họ là D x H x W, nên đổi sang quy ước [X, Y, Z] của dự án:
+#     lưới cache:  128 x 128 x 16
+#     model nhận:  112 x 112 x 14
+#     lề mỗi phía: (128-112)/2 = 8 trong mặt phẳng,  (16-14)/2 = 1 theo z
+#
+# ---------------------------------------------------------------------------
+# VÌ SAO CACHE NÀY TỒN TẠI: z = 14-16 LÀ BIẾN LỚN NHẤT DỰ ÁN CHƯA THỬ
+#
+# Mọi thí nghiệm của dự án đều z = 32 hoặc 48. Cả baseline official của challenge lẫn
+# CGHNet đều z = 16. Ta đang nội suy gấp đôi số lát so với toàn bộ văn liệu, trong khi
+# WORKLOG S-029 đã ghi nhận khoảng một nửa dataset BỊ NỘI SUY VƯỢT độ phân giải mà máy
+# chụp thật sự ghi được (in-plane gốc ~0.78mm, lát dày 2-9mm).
+#
+# Bằng chứng định lượng, CGHNet Bảng 1, tất cả trên ĐÚNG test-104 official, cùng một
+# protocol 16x128x128 -> crop 14x112x112, báo mean +- std của 5 model đơn (F1):
+#
+#     ResNet2D    0.684      ViT3D       0.645      Uniformer    0.719
+#     ResNet3D    0.709      Swin3D      0.709      SDR-Former   0.791
+#     ConvNeXt2D  0.696      3D UX-Net   0.709      CGHNet       0.818
+#     ---- baseline official của challenge: 0.6083 ----
+#
+# Số so được của ta trên test-104 là 0.6001 (TRUNG BÌNH 5 MODEL ĐƠN, đúng cách họ báo;
+# không phải 0.6162 của ensemble). Một ResNet3D TRẦN của họ đạt 0.709.
+#
+#     Chênh 0.109 trên cùng một họ kiến trúc. Đó không phải kiến trúc, đó là protocol.
+#
+# ---------------------------------------------------------------------------
+# VÌ SAO PREPROCESS_E12 ĐÃ TỪ CHỐI z=16, VÀ VÌ SAO Ở ĐÂY THÌ ĐƯỢC
+#
+# preprocess_e12.yaml ghi rõ: "Z = 32 là mức THẤP NHẤT DenseNet121-3D chịu được. Z = 16
+# sẽ SẬP: sau conv0, pool0 và hai transition, 16 chỉ còn 1, và transition thứ ba dùng
+# AvgPool3d(kernel=2) (WORKLOG S-063). CGHNet dùng ViT + CNN nên không vướng."
+#
+# Cache này CHỈ dùng cho configs/cghnet.yaml. Nạp nó vào một config DenseNet121 sẽ nổ
+# ở giữa mạng với thông báo không nói gì về nguyên nhân. Cổng cache của notebook 19
+# phân biệt ba cache bằng target_size + crop_margin_voxels:
+#
+#     cache E4       target_size [112,112,32]  lề none        mảng (8,112,112,32)
+#     cache E12      target_size [112,112,32]  lề [12,12,4]   mảng (8,136,136,40)
+#     cache CGHNet   target_size [112,112,14]  lề [8,8,1]     mảng (8,128,128,16)
+#
+# ---------------------------------------------------------------------------
+# Dung lượng: 498 ca x 8 pha x 128x128x16 x 2 byte (float16) ~ 2.1GB, tức NHỎ HƠN cache
+# E4 (3.2GB) và E12 (5.9GB) vì 262k voxel so với 401k và 740k. Build tương ứng nhanh
+# hơn, ước ~20 phút. CHẠY TRÊN CPU, Accelerator = None: SimpleITK + numpy, GPU không
+# nhanh hơn mà đốt quota 30h/tuần.
+# ---------------------------------------------------------------------------
+
+kaggle_dataset_slug: ""
+kaggle_dataset_version: 0
+
+# --- Thứ tự trục: bbox.x ứng với trục 0 ('xy') hay trục 1 ('yx') của mảng ---
+# Phán quyết trên toàn bộ 498 bệnh nhân (WORKLOG S-031): xy 166 phiếu (92%) so với
+# yx 14 phiếu (8%); độ tán trong mặt phẳng trung vị xy 12.4mm so với yx 17.8mm.
+axis_order: xy
+
+# --- Căn giữa các pha ---
+# GIỮ per_phase, và đây là chỗ CỐ Ý LỆCH so với bài báo.
+#
+# Bài giả định 8 chuỗi "spatially co-registered" và không nói gì về việc căn thêm. Dự
+# án thì ĐÃ ĐO: per_phase nằm trong cụm cho +0.126 macro-F1 [+0.033, +0.230] P=0.009
+# (E4 so E1, WORKLOG S-074). Lý do vật lý: S-031 đo độ tán tâm tổn thương giữa 8 pha
+# là 23.3mm theo trục Z — chuyển động hô hấp — trên một cửa sổ chỉ ~43.6mm.
+#
+# ⚠️ Với z = 14 thì lệch đó càng nặng về tỉ lệ: 23.3mm trên ~43.6mm là hơn nửa chiều
+# sâu, mà giờ chỉ có 14 lát để chứa. Tắt per_phase ở hình học này gần như chắc chắn tệ
+# hơn. Ghi vào phần "lệch so với bài" của báo cáo, đừng im lặng.
+align_phases: per_phase
+
+reference_phase: "C+V"
+
+# --- Chế độ cắt ---
+# lesion_tight khớp đúng "all lesion volumes were spatially normalized to a fixed size":
+# lấy khối tổn thương rồi resize về lưới đích.
+crop_mode: lesion_tight       # fixed_mm | lesion_tight
+
+lesion_tight:
+  # Mask segmentation OFFICIAL của LLD-MMRI (bổ sung 3/2025). Thiếu mask thì tự rơi về
+  # bbox và ghi lại ở cột crop_source của build_log.csv.
+  source: mask                # bbox | mask
+  # GIỮ 1.6 như E4/E12. Bài không nói hệ số viền của họ, nên đây là giá trị của dự án
+  # chứ không phải của bài — một chỗ lệch nữa phải ghi lại.
+  margin_factor: 1.6
+  min_fov_mm: [40.0, 40.0, 40.0]
+  max_fov_mm: [200.0, 200.0, 200.0]
+
+# CHỈ dùng khi crop_mode = fixed_mm; ở lesion_tight spacing suy từ fov_mm / target_size.
+target_spacing: [1.5, 1.5, 3.0]
+
+# ---------------------------------------------------------------------------
+# HAI KHOÁ LÀM NÊN CACHE NÀY
+#
+# target_size là kích thước TRONG (model nhận), khớp "14 x 112 x 112" của bài.
+# crop_margin_voxels là lề dư mỗi phía; lưới thật = target_size + 2*margin.
+#
+#     112 + 2*8 = 128     112 + 2*8 = 128     14 + 2*1 = 16
+#
+# Biên độ cắt ngẫu nhiên: +-8/112 = 7.1% trong mặt phẳng, +-1/14 = 7.1% theo z. Khớp
+# đúng biên độ của bài (128->112 và 16->14, cùng 12.5% tính trên lưới cache).
+#
+# TÍNH CHẤT QUAN TRỌNG: spacing suy từ target_size (kích thước TRONG), không từ lưới
+# 128x128x16. Nên độ phân giải vật lý là đúng của bài, và CẮT GIỮA cache này cho ra
+# đúng khối 112x112x14 mà bài dùng lúc inference.
+#
+# ⚠️ Lề z chỉ 1 voxel, và phép xoay ±10° là xoay TRONG MẶT PHẲNG nên không ăn vào z —
+# nhưng lề 8 trong mặt phẳng thì KHÔNG đủ cho phép xoay (E12 đã đo: xoay 10° trên khối
+# 136 làm hỏng góc tới ~12 voxel). Vì vậy configs/cghnet.yaml BẮT BUỘC đặt
+# data.augment.rotate_mode: nearest — nhân bản voxel biên thay vì lấp 0. Đã đo ở E12:
+# với `nearest` thì 0 voxel bị lấp ở MỌI offset cắt, với `constant` thì lọt tới 517.
+# ---------------------------------------------------------------------------
+target_size: [112, 112, 14]
+crop_margin_voxels: [8, 8, 1]
+
+# Bài nói "trilinear interpolation" -> linear.
+interpolator: linear          # linear | nearest | bspline
+
+# --- Chuẩn hoá cường độ ---
+# scope=volume: thống kê trên TOÀN volume gốc (trước khi crop). Thống kê lấy từ chính
+# volume của bệnh nhân đó (per-sample), KHÔNG gộp qua nhiều bệnh nhân -> không vi phạm
+# AGENTS.md §3.3. Bài không mô tả cách chuẩn hoá, nên giữ của dự án.
+normalize:
+  clip_percentile: [0.5, 99.5]
+  scope: volume               # volume | crop
+
+n4: false
+
+# --- Đầu ra ---
+output_dtype: float16         # 498 ca × [8,128,128,16] ≈ 2.1GB
+# Thư mục RIÊNG. Trùng cache_dir với cache khác là ghi đè dữ liệu của thí nghiệm trước,
+# và build_cache có resume nên nó sẽ lặng lẽ TRỘN hai hình học vào cùng một mẻ.
+cache_dir: artifacts/cache_cghnet
+# ^ ghi đè bằng env LLDMMRI_CACHE_DIR (Kaggle: /kaggle/working/cache_cghnet).

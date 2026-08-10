@@ -115,6 +115,38 @@ def focal_loss(
     )
 
 
+def deep_supervision(base: Any, aux_weight: float = 1.0) -> Any:
+    """Bọc một criterion để nó nhận **dict nhiều đầu ra** thay vì một tensor logits.
+
+    Dùng cho CGHNet, nơi bài báo định nghĩa (Eq. 12)::
+
+        L = FL(ŷ, y) + Σ_{m ∈ {2D, 3D}} FL(ŷ_m, y)
+
+    Hàm trả về vẫn nhận được **cả** tensor thường (khi đó nó chỉ gọi `base`), nên cùng
+    một criterion dùng được cho cả model một đầu ra và model nhiều đầu ra. Nhờ vậy
+    `run_epoch` không phải biết mình đang train kiến trúc nào.
+
+    `aux_weight` mặc định 1.0 vì bài cộng **không có trọng số**. Để lại tham số để ablate
+    được, nhưng đổi nó là lệch khỏi công thức của bài.
+
+    ⚠️ Vì sao deep supervision là bắt buộc chứ không phải tuỳ chọn ở CGHNet: hai đầu phụ
+    chính là hai nhánh đơn lẻ, và mốc công bố cho chúng (0.724 cho 3D, 0.742 cho 2D) là
+    **thang bậc chẩn đoán** của cả phép tái lập. Bỏ chúng đi thì một kết quả thấp không
+    còn phân biệt được "sai protocol" với "sai fusion". Bài cũng nói thêm rằng multi-head
+    supervision *"prevents modality co-adaptation"*.
+    """
+
+    def criterion(output: Any, targets: Any) -> Any:
+        if not isinstance(output, dict):
+            return base(output, targets)
+        total = base(output["main"], targets)
+        for logits in (output.get("aux") or {}).values():
+            total = total + aux_weight * base(logits, targets)
+        return total
+
+    return criterion
+
+
 def build_criterion(config: dict[str, Any], train_labels: Sequence[int], device: Any) -> Any:
     """Dựng hàm mất mát từ khối ``loss:`` của config.
 
@@ -124,8 +156,10 @@ def build_criterion(config: dict[str, Any], train_labels: Sequence[int], device:
           name: cross_entropy | focal
           class_weights: none | balanced | effective_number
           label_smoothing: 0.0
-          gamma: 2.0          # chỉ dùng khi name = focal
-          beta: 0.9999        # chỉ dùng khi class_weights = effective_number
+          gamma: 2.0             # chỉ dùng khi name = focal
+          beta: 0.9999           # chỉ dùng khi class_weights = effective_number
+          deep_supervision: false # bọc bằng `deep_supervision()` cho model nhiều đầu ra
+          aux_weight: 1.0        # trọng số các đầu phụ; bài CGHNet dùng 1.0
 
     ⚠️ Trọng số lớp **luôn** tính từ `train_labels` và chỉ từ đó. Người gọi phải
     truyền đúng nhãn train của fold đang chạy, không phải toàn bộ trainval.
@@ -153,12 +187,15 @@ def build_criterion(config: dict[str, Any], train_labels: Sequence[int], device:
         weight = torch.tensor(weight, dtype=torch.float32, device=device)
 
     if name == "cross_entropy":
-        return torch.nn.CrossEntropyLoss(weight=weight, label_smoothing=label_smoothing)
-    if name == "focal":
+        base = torch.nn.CrossEntropyLoss(weight=weight, label_smoothing=label_smoothing)
+    elif name == "focal":
         gamma = float(loss_config.get("gamma", 2.0))
 
-        def criterion(logits: Any, targets: Any) -> Any:
+        def base(logits: Any, targets: Any) -> Any:  # type: ignore[misc]
             return focal_loss(logits, targets, gamma, weight, label_smoothing)
+    else:
+        raise ValueError(f"loss.name phải thuộc {{cross_entropy, focal}}, nhận {name!r}")
 
-        return criterion
-    raise ValueError(f"loss.name phải thuộc {{cross_entropy, focal}}, nhận {name!r}")
+    if bool(loss_config.get("deep_supervision", False)):
+        return deep_supervision(base, float(loss_config.get("aux_weight", 1.0)))
+    return base

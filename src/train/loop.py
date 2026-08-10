@@ -112,8 +112,14 @@ def run_epoch(
             labels = batch["label"].to(device, non_blocking=True)
 
             with torch.autocast(device_type=device.type, dtype=torch.float16, enabled=amp):
-                logits = model(images)
-                loss = criterion(logits, labels)
+                output = model(images)
+                # Model có deep supervision (CGHNet) trả về dict `{"main", "aux"}` ở chế
+                # độ train và tensor ở chế độ eval. Criterion nhận cả hai dạng (xem
+                # `src.train.losses.deep_supervision`), nhưng metric và xác suất lưu ra
+                # thì LUÔN chỉ tính trên đầu ra chính — nếu không thì `val_probs_*.npz`
+                # trộn ba nguồn số vào cùng một file và về sau không ai phát hiện được.
+                loss = criterion(output, labels)
+            logits = output["main"] if isinstance(output, dict) else output
 
             if training:
                 # Chia cho accum_steps để loss tích luỹ tương đương batch lớn.

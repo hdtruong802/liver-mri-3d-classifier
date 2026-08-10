@@ -8,6 +8,7 @@ from __future__ import annotations
 
 from typing import Any
 
+from src.models.cghnet import build_cghnet
 from src.models.densenet3d import build_densenet3d, count_parameters
 from src.models.resnet3d import build_resnet3d
 from src.models.siamese_fusion import build_siamese_fusion
@@ -16,7 +17,12 @@ _BUILDERS = {
     "densenet121_3d": build_densenet3d,
     "siamese_fusion": build_siamese_fusion,
     "resnet3d": build_resnet3d,
+    "cghnet": build_cghnet,
 }
+
+# Model trả về **dict** ở chế độ train (deep supervision). Vòng train phải biết để lấy
+# `main` cho metric và truyền cả dict cho criterion; xem `src/train/loop.py::run_epoch`.
+DEEP_SUPERVISION_MODELS = frozenset({"cghnet"})
 
 
 def build_model(config: dict[str, Any]) -> Any:
@@ -38,6 +44,8 @@ def build_model(config: dict[str, Any]) -> Any:
 
 
 __all__ = [
+    "DEEP_SUPERVISION_MODELS",
+    "build_cghnet",
     "build_densenet3d",
     "build_model",
     "build_resnet3d",

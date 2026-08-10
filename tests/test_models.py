@@ -258,23 +258,65 @@ def test_e2_config_differs_from_e1_only_in_model_block():
 
 
 def test_every_preprocess_config_fits_densenet_minimum():
-    """`target_size` của MỌI cache phải >= 32 ở mọi chiều.
+    """Cache nào **được một config DenseNet dùng** thì `target_size` phải >= 32 mọi chiều.
 
     DenseNet121-3D hạ mẫu 5 lần; dưới ngưỡng này nó chết bằng `RuntimeError` sâu
-    trong transition layer, không nói gì về nguyên nhân (WORKLOG S-063). Test này
-    tồn tại vì hình học 16 lát của CGHNet nghe rất hấp dẫn nhưng **không dùng
-    được với backbone hiện tại** — họ dùng ViT + CNN, ta dùng DenseNet.
+    trong transition layer, không nói gì về nguyên nhân (WORKLOG S-063).
+
+    ⚠️ Luật này **không phải luật toàn cục**, và bản đầu tiên của test đã viết nó thành
+    toàn cục. Hình học 16 lát của văn liệu (baseline official và CGHNet đều dùng) hợp lệ
+    với backbone không phải DenseNet: `configs/preprocess_cghnet.yaml` cố ý để z=14 cho
+    `configs/cghnet.yaml` (ViT + ResNet-3D). Nên test **suy** backbone từ chính các config
+    train trỏ vào cùng `cache_dir`, thay vì có một danh sách miễn trừ phải bảo trì tay.
     """
 
     from src.models.siamese_fusion import MIN_SPATIAL
     from src.utils.io import load_yaml, repo_root
 
-    configs = sorted((repo_root() / "configs").glob("preprocess*.yaml"))
-    assert configs, "không tìm thấy config tiền xử lý nào"
-    for path in configs:
-        size = load_yaml(path)["target_size"]
+    config_dir = repo_root() / "configs"
+    preprocess = sorted(config_dir.glob("preprocess*.yaml"))
+    assert preprocess, "không tìm thấy config tiền xử lý nào"
+
+    # cache_dir -> tập tên model của các config train dùng cache đó
+    users: dict[str, set[str]] = {}
+    for path in sorted(config_dir.glob("*.yaml")):
+        if path.name.startswith("preprocess") or path.name == "data.yaml":
+            continue
+        config = load_yaml(path)
+        model_name = (config.get("model") or {}).get("name")
+        if config.get("cache_dir") and model_name:
+            users.setdefault(str(config["cache_dir"]), set()).add(str(model_name))
+
+    for path in preprocess:
+        config = load_yaml(path)
+        size = config["target_size"]
+        models = users.get(str(config["cache_dir"]), set())
+        if "densenet121_3d" not in models:
+            continue
         assert all(d >= MIN_SPATIAL for d in size), (
-            f"{path.name}: target_size {size} có chiều < {MIN_SPATIAL}, DenseNet121-3D sẽ sập"
+            f"{path.name}: target_size {size} có chiều < {MIN_SPATIAL}, nhưng cache "
+            f"{config['cache_dir']!r} được config DenseNet dùng ({sorted(models)}) — sẽ sập"
+        )
+
+
+def test_cghnet_cache_khong_bi_config_densenet_dung():
+    """Mặt còn lại của luật trên: cache z=14 **không được** lọt vào một config DenseNet.
+
+    Nếu ai đó trỏ `cache_dir` của một config DenseNet sang cache CGHNet thì mạng sẽ sập
+    giữa transition layer với thông báo không nói gì về nguyên nhân.
+    """
+    from src.utils.io import load_yaml, repo_root
+
+    config_dir = repo_root() / "configs"
+    cghnet_cache = str(load_yaml(config_dir / "preprocess_cghnet.yaml")["cache_dir"])
+    for path in sorted(config_dir.glob("*.yaml")):
+        if path.name.startswith("preprocess") or path.name == "data.yaml":
+            continue
+        config = load_yaml(path)
+        if str(config.get("cache_dir")) != cghnet_cache:
+            continue
+        assert (config.get("model") or {}).get("name") != "densenet121_3d", (
+            f"{path.name} là config DenseNet mà trỏ vào cache z=14 của CGHNet"
         )
 
 
