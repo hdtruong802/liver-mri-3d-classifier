@@ -31,7 +31,7 @@ Vì vậy `load_medicalnet_weights` **đo tỉ lệ khoá khớp và từ chối
 from __future__ import annotations
 
 import os
-from collections.abc import Iterable
+from collections.abc import Iterable, Sequence
 from pathlib import Path
 from typing import Any
 
@@ -215,6 +215,7 @@ def build_resnet3d(
     shortcut_type: str = "B",
     bias_downsample: bool = False,
     dropout_prob: float = 0.0,
+    conv1_stride: int | Sequence[int] = 1,
 ) -> Any:
     """ResNet-3D của MONAI, tuỳ chọn nạp MedicalNet.
 
@@ -226,6 +227,37 @@ def build_resnet3d(
     `dropout_prob` mặc định 0: ResNet của MONAI không có dropout, và MC-dropout của dự
     án (`src/eval/mc_dropout.py`) cần ít nhất một lớp Dropout để hoạt động. Đặt > 0 sẽ
     chèn dropout trước lớp phân loại.
+
+    ## `conv1_stride` — và ba chỗ MONAI khác Med3D mà trọng số vẫn nạp được
+
+    Mạng sinh ra file trọng số (Tencent/MedicalNet, `models/resnet.py`) là mạng
+    **segmentation**, và nó khác ResNet phân loại của MONAI ở ba chỗ::
+
+                     Med3D (nơi trọng số được học)   MONAI mặc định
+        conv1        stride (2, 2, 2)                stride (1, 1, 1)
+        layer3       stride 1, dilation 2            stride 2, dilation 1
+        layer4       stride 1, dilation 4            stride 2, dilation 1
+
+    **Không chỗ nào trong ba chỗ đó đổi hình dạng trọng số**, nên chúng nạp trót lọt và
+    tỉ lệ khớp vẫn ~97%. Nhưng mọi bộ lọc ở layer3/layer4 được học để nhìn một trường
+    tiếp nhận *giãn* ở độ phân giải cao, còn ở đây chúng nhìn trường đặc ở 1/4 độ phân
+    giải. Đây là giới hạn cố hữu của việc dùng trọng số segmentation cho backbone phân
+    loại; MONAI cũng chấp nhận đúng như vậy ở đường `pretrained=True` của họ, và
+    `_make_layer` của MONAI không nhận `dilation` nên **không khớp lại được**.
+
+    Hệ quả cho việc đọc kết quả: E8 null thì "pretrained không giúp" *không phải* lời
+    giải thích duy nhất. Phải ghi điều này vào báo cáo.
+
+    Chỗ duy nhất chỉnh được là `conv1_stride`, và nó cũng là chỗ đắt nhất:
+
+    - ``1`` (mặc định MONAI) — nhân 7×7×7 chạy ở nguyên độ phân giải đầu vào. Riêng
+      tầng này nặng hơn cả phần thân mạng. Với khối 112×112×32 thì bản đồ cuối là
+      7×7×2, hợp với dữ liệu mỏng theo z của dự án.
+    - ``[1, 2, 2]`` — hạ mẫu trong mặt phẳng như Med3D, **giữ nguyên trục z**. Rẻ hơn
+      4 lần, bản đồ cuối 4×4×2. Đây là phương án đáng thử nếu cổng ngân sách báo GPU
+      thành nút thắt.
+    - ``2`` — khớp Med3D hoàn toàn, nhưng z 32 voxel bị hạ mẫu 32 lần còn **đúng 1
+      lát**, mất sạch cấu trúc theo z ở block cuối. Không nên dùng với hình học này.
     """
     import torch.nn as nn
     from monai.networks.nets import resnet as monai_resnet
@@ -247,12 +279,16 @@ def build_resnet3d(
                 "nhiên trong khi tỉ lệ khớp vẫn trông cao."
             )
 
+    stride = (
+        int(conv1_stride) if isinstance(conv1_stride, int) else tuple(int(s) for s in conv1_stride)
+    )
     model = factory(
         spatial_dims=SPATIAL_DIMS,
         n_input_channels=in_channels,
         num_classes=num_classes,
         shortcut_type=shortcut_type,
         bias_downsample=bias_downsample,
+        conv1_t_stride=stride,
     )
 
     if weights is not None:
