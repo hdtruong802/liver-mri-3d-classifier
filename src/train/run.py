@@ -324,11 +324,6 @@ def train(config_path: str | Path, fold_override: int | None = None) -> dict[str
 
     accum_steps = max(1, int(train_config.get("accum_steps", 1)))
     patience = int(train_config.get("early_stop_patience", 15))
-    # Thanh tiến độ mỗi epoch. Mặc định BẬT và không cần khai trong YAML, nên mọi notebook
-    # được lợi mà `tests/test_protocol_conformance.py` (khoá `baseline_3dpatch.yaml`) không
-    # đổi ý nghĩa. Đặt `train.progress: false` để tắt — nên tắt ở batch run "Save & Run
-    # All", vì ở đó tqdm rơi về bản text và 300 epoch sẽ để lại rất nhiều dòng log.
-    show_progress = bool(train_config.get("progress", True))
 
     # EMA: mặc định TẮT (`ema_decay: 0`) để `baseline_3dpatch.yaml` không đổi hành vi và
     # `tests/test_protocol_conformance.py` giữ nguyên ý nghĩa.
@@ -369,17 +364,9 @@ def train(config_path: str | Path, fold_override: int | None = None) -> dict[str
                 accum_steps=accum_steps,
                 amp=amp,
                 on_step=None if ema is None else (lambda: ema.update(model)),
-                progress=f"epoch {epoch}/{epochs} train" if show_progress else None,
             )
             evaluated = model if ema is None else ema.torch_module
-            val_out = run_epoch(
-                evaluated,
-                val_loader,
-                device,
-                criterion,
-                amp=amp,
-                progress=f"epoch {epoch}/{epochs} val" if show_progress else None,
-            )
+            val_out = run_epoch(evaluated, val_loader, device, criterion, amp=amp)
             scheduler.step()
 
             val_pred = val_out["probs"].argmax(axis=1)

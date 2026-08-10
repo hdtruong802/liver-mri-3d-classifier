@@ -69,24 +69,6 @@ def load_checkpoint(path: str | Path) -> dict[str, Any] | None:
     return torch.load(path, map_location="cpu", weights_only=False)
 
 
-def _progress_bar(loader: Any, desc: str | None) -> Any:
-    """Bọc loader bằng tqdm nếu có `desc` và tqdm cài được; ngược lại trả nguyên loader.
-
-    Dùng `tqdm.auto` có chủ ý: trong notebook nó chọn bản widget (một dòng, tự cập nhật),
-    còn ở batch run nó rơi về bản text. `leave=False` để 300 epoch không để lại 300 thanh.
-
-    Thiếu tqdm thì bỏ qua **im lặng**. Một job train 4 giờ không được chết vì thanh tiến
-    độ, và trên Kaggle thì tqdm có sẵn nên nhánh này gần như không bao giờ chạy.
-    """
-    if not desc:
-        return loader
-    try:
-        from tqdm.auto import tqdm
-    except ImportError:
-        return loader
-    return tqdm(loader, desc=desc, leave=False, mininterval=1.0, unit="batch")
-
-
 def run_epoch(
     model: Any,
     loader: Any,
@@ -97,7 +79,6 @@ def run_epoch(
     accum_steps: int = 1,
     amp: bool = True,
     on_step: Callable[[], None] | None = None,
-    progress: str | None = None,
 ) -> dict[str, Any]:
     """Chạy một lượt qua loader. Có `optimizer` = train, không có = eval.
 
@@ -106,10 +87,11 @@ def run_epoch(
     của EMA tính theo số lần cập nhật trọng số, nên gọi nhầm nhịp sẽ làm nó trơn sai
     mức mà không có gì báo.
 
-    `progress` là nhãn của thanh tiến độ tqdm (vd ``"epoch 12/300"``); ``None`` = không
-    hiện. Dùng `tqdm.auto` nên trong notebook nó là widget một dòng, còn ở batch run nó
-    là bản text. Thiếu tqdm thì bỏ qua im lặng — thanh tiến độ không được phép làm
-    một job train 4 giờ chết.
+    ⚠️ **Không có thanh tiến độ ở đây, và đó là chủ ý** (WORKLOG S-122). Bản tqdm đã dựng
+    rồi bỏ: ở Kaggle batch run (`Save & Run All`) nó vô dụng theo cả hai nhánh — bản
+    widget không có frontend nào nhận cập nhật, còn bản text thì log lưu lại không gộp
+    `\\r` nên thành hàng nghìn dòng lặp. Tiến độ theo epoch đã có ở `src/train/run.py`
+    qua `logger.info`, và đó là thứ đọc được ở cả hai chế độ.
 
     Trả về ``{"loss", "labels", "probs", "patient_ids"}``. Xác suất được trả ra
     (không chỉ nhãn đoán) để W5 dùng lại đúng file này cho calibration và selective
@@ -119,7 +101,6 @@ def run_epoch(
 
     training = optimizer is not None
     model.train(training)
-    bar = _progress_bar(loader, progress)
 
     total_loss = 0.0
     total_count = 0
@@ -132,7 +113,7 @@ def run_epoch(
 
     step = -1
     with torch.set_grad_enabled(training):
-        for step, batch in enumerate(bar):
+        for step, batch in enumerate(loader):
             images = batch["image"].to(device, non_blocking=True)
             labels = batch["label"].to(device, non_blocking=True)
 
@@ -170,18 +151,6 @@ def run_epoch(
             all_labels.append(labels.detach().cpu().numpy())
             all_probs.append(torch.softmax(logits.detach().float(), dim=1).cpu().numpy())
             all_ids.extend(batch["patient_id"])
-
-            if hasattr(bar, "set_postfix_str"):
-                # Loss TRUNG BÌNH LUỸ TÍCH, không phải loss của batch cuối: loss một
-                # batch 4 mẫu dao động rất mạnh và đọc nó thì không biết gì.
-                #
-                # `refresh=False` là bắt buộc, không phải tối ưu hoá nhỏ: mặc định
-                # `set_postfix_str` **ép vẽ lại ngay**, và ở batch run (log không phải
-                # TTY) mỗi lần vẽ lại là một dòng mới — 78 batch × 300 epoch × 2 lượt là
-                # hơn 46.000 dòng rác. Để `False` thì nhịp vẽ do `mininterval` quyết.
-                bar.set_postfix_str(f"loss {total_loss / max(total_count, 1):.4f}", refresh=False)
-    if hasattr(bar, "close"):
-        bar.close()
 
     # Batch cuối có thể chưa đủ accum_steps — vẫn phải cập nhật, không thì gradient
     # của phần đuôi bị vứt đi âm thầm.

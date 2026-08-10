@@ -4979,3 +4979,49 @@ Như S-120: `notebooks/18_build_cache_cghnet.ipynb` (**Accelerator = None**) r�
 - **Thêm cột vào `CSV_FIELDS` giờ an toàn khi resume**, nhưng run cũ sẽ **không có** cột mới. Đừng giả định `train_log.csv` của E4/E8/E12/E13 có cột `f1_*`; kiểm bằng `DictReader.fieldnames` trước khi đọc.
 - **Nếu chạy "Save Version → Save & Run All"** thì đặt `train.progress: false`, nếu không log sẽ có thêm vài nghìn dòng thanh tiến độ. Chạy tương tác thì tqdm dùng widget, không có vấn đề.
 - `tqdm` vào `requirements.txt` nhưng là **phụ thuộc tuỳ chọn**: `_progress_bar` bỏ qua im lặng nếu thiếu. Đừng biến nó thành phụ thuộc cứng.
+
+---
+
+## S-122 · 2026-08-10 · claude-code
+
+**Mục tiêu phiên:** Bỏ thanh tiến độ tqdm vừa thêm ở S-121; giữ F1 từng lớp.
+
+**Nhánh / commit:** `main` · `e4d2d19` → *(commit của phiên này)*
+
+**Đã đụng file:** `src/train/loop.py`, `src/train/run.py`, `requirements.txt`, `tests/test_train_loop.py`, `notebooks/19_cghnet.ipynb`.
+
+### Quyết định & lý do
+
+**Người dùng yêu cầu bỏ tqdm.** Lý do đứng vững: ở Kaggle `Save & Run All` thanh tiến độ vô dụng theo **cả hai** nhánh mà `tqdm.auto` có thể chọn.
+
+- bản widget (`tqdm.notebook`): batch run không có frontend nào nhận cập nhật widget ⇒ output lưu lại không có gì dùng được.
+- bản text: log lưu lại **không gộp ký tự `\r`** ⇒ mỗi lần vẽ lại là một dòng mới, thành hàng nghìn dòng lặp.
+
+Và thanh tiến độ tồn tại để **xem live**, mà batch run thì không ai ngồi xem. Với ~96 s/epoch thì một dòng log mỗi epoch đã là nhịp phản hồi đủ dày.
+
+Đã gỡ sạch: `_progress_bar`, tham số `progress` của `run_epoch`, khoá `train.progress`, `tqdm` trong `requirements.txt`, và 3 test tương ứng. Chữ "tqdm" chỉ còn ở docstring `run_epoch` và một đoạn markdown của notebook 19 — **cố ý giữ, để lần sau không ai thêm lại rồi phát hiện lại cùng một chuyện**.
+
+### Giữ nguyên, không gỡ
+
+Ba thứ của S-121 vẫn ở đó và vẫn là cải tiến thật:
+
+1. **F1 từng lớp mỗi epoch** — một dòng `logger.info` sau dòng metric.
+2. **Một cột riêng cho mỗi lớp** trong `train_log.csv` (`f1_ICC`, `f1_di căn`, …), để vẽ được quỹ đạo của hai lớp yếu theo epoch. Hai lớp đó chặn mục tiêu về số học (giữ nguyên ICC 0.519 và di căn 0.273 thì kể cả 5 lớp kia đạt 0.90, macro-F1 cũng chỉ tới 0.756), mà macro-F1 gộp lại che mất chúng.
+3. **`CsvLogger` tôn trọng header đã có** — cần cho (2) để không làm hỏng file log của run cũ khi resume. 7 test riêng.
+
+### Kết quả / số liệu
+
+Không có số khoa học mới. Test: 469 → **466 passed** (bỏ 3 test thanh tiến độ), 56 skipped. Gate PASS.
+
+### Dang dở
+
+Không thêm gì so với S-120. CGHNet chưa chạy fold nào; E13 chưa chạy lại sau khi sửa `conv1_stride`.
+
+### Điểm vào phiên sau
+
+Như S-120: `notebooks/18_build_cache_cghnet.ipynb` (**Accelerator = None**) rồi `notebooks/19_cghnet.ipynb` với `FOLDS = [1, 2]`.
+
+### Cảnh báo cho tool sau
+
+- **Đừng thêm lại tqdm vào `run_epoch`.** Đã dựng và đã bỏ, lý do ở trên và ở docstring của `run_epoch`. Nếu thật sự cần tiến độ mịn hơn thì hướng đúng là **một thanh theo epoch** (300 đơn vị, một dòng cập nhật mỗi epoch) chứ không phải theo batch — nó hoạt động ở cả hai chế độ. Chưa làm.
+- `train_log.csv` của run cũ (E4/E8/E12/E13) **không có** cột `f1_*`. Kiểm `DictReader.fieldnames` trước khi đọc.
