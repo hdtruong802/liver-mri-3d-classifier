@@ -4730,3 +4730,78 @@ Latency đưa vào báo cáo: tiền xử lý 3,43s (p50) – 4,74s (p90) trên 
 **Cảnh báo cho tool sau:**
 - **Báo cáo trong `reports/` là tài liệu nộp, không phải nhật ký.** Không dẫn tên file, tên class, tên config, số commit, hay quy trình làm việc nội bộ vào đó. Những thứ đó thuộc về WORKLOG.
 - Khi rút gọn một báo cáo, kiểm bằng script rằng **tập số không đổi** — rất dễ vô tình sửa một chữ số khi viết lại cả đoạn.
+
+---
+
+## S-119 · 2026-08-10 · claude-code
+
+**Mục tiêu phiên:** Chuyển hướng sang backbone pretrained (E8) sau khi E12 cho kết quả null trên 3 fold.
+
+**Nhánh / commit:** `main` · `f888511` → `84453a2`, `5048fa2`
+
+**Đã đụng file:** `src/models/resnet3d.py`, `configs/e8_pretrained.yaml`, `tests/test_pretrained.py` (mới), `notebooks/16_e8_pretrained.ipynb` (mới), `AGENTS.md` (§6 một dòng).
+
+### Quyết định & lý do
+
+**E12 dừng ở 3 fold, giữ E4 làm cấu hình gốc.** Người dùng chạy được fold 1, 2, 3 rồi hỏi có nên chạy nốt không.
+
+| fold | n | E4 | E12 | hiệu |
+|---|---|---|---|---|
+| 1 | 82 | 0.7001 | 0.7097 | +0.010 |
+| 2 | 80 | 0.6771 | 0.6590 | −0.018 |
+| 3 | 78 | 0.7304 | 0.7104 | −0.020 |
+| TB có trọng số | 240 | 0.7023 | **0.6930** | **−0.009** |
+
+Tính ngược từ trọng số n: để E12 gộp 394 ca chỉ **hoà** với E4 thì fold 4+5 phải đạt trung bình 0.679 (E4 ở đó là 0.6680 và 0.6618); để hơn 0.03 thì phải đạt **0.756**, cao hơn mọi fold dự án từng đo trừ fold 1 may mắn của E6b. Hai fold còn lại không đảo được kết luận.
+
+⚠️ **Chỗ này khác E6b về mặt phương pháp, và khác theo hướng cho phép dừng sớm.** Luật "2 fold chỉ đủ để LOẠI, không đủ để CHỌN" tồn tại vì kết quả *dương* trên tập nhỏ có thể do bốc may. Kết quả *null* không chịu áp lực chọn lọc nào, nên dừng ở phía "loại" là hợp lệ. Đừng đọc entry này thành "được phép dừng ở 3 fold" nói chung.
+
+**Việc E12 null KHÔNG có nghĩa là bỏ E12.** Dải đệm 0 (~100% mẫu train, 0% mẫu val) là lỗi thật, và luật đã chốt trước khi chạy nói rõ: CI chứa 0 thì giữ E4 làm gốc nhưng vẫn giữ E12. Đây là nội dung tốt cho báo cáo: tìm ra lỗi tồn tại suốt 12 thí nghiệm, sửa, đo, và nó không đổi điểm số.
+
+**Chưa đọc bảng chẩn đoán overfit của E12.** Đã đưa người dùng script đọc epoch chạm đáy `val_loss` và chênh `best − last` trên 3 fold đã có. Nếu đáy muộn hơn hẳn E4 mà F1 đứng yên thì ρ=0.770 (S-107) là đồng biến chứ không nhân quả, và **E7 (EMA) cũng sẽ null** vì nhắm đúng cùng cơ chế — tiết kiệm được một tuần quota. Số này chưa có.
+
+### 🐛 Lỗi tìm được: `shortcut_type: B` cho resnet18 trong `configs/e8_pretrained.yaml`
+
+Cặp `(shortcut_type, bias_downsample)` sinh ra từng file trọng số MedicalNet là cố định: **resnet18/34 → `("A", True)`**, các độ sâu khác → `("B", False)`. Nguồn: `monai.networks.nets.resnet.get_medicalnet_pretrained_resnet_args`, khớp README của Tencent/MedicalNet ("resnet_18_23dataset.pth ... resnet_shortcut A").
+
+**Cổng 50% cũ không bắt được lỗi này.** Shortcut "A" là avg-pool cộng đệm 0 và **không có tham số nào**; "B" dựng thêm conv 1×1 + norm ở ba chỗ nối tầng. Đặt sai thì ~18 khoá nằm trên đường tắt của 3/4 stage khởi tạo ngẫu nhiên, trong khi tỉ lệ khớp vẫn báo **~85%**. Model train bình thường, ra số bình thường.
+
+Sửa: `MEDICALNET_ARGS` + `build_resnet3d` từ chối chạy nếu lệch; cổng thật chuyển sang **khoá nào thiếu** (`unexpected_missing_keys`, chỉ `fc.*` được phép) thay vì **bao nhiêu khoá thiếu**; `resolve_pretrained_path` đọc env `LLDMMRI_PRETRAINED_PATH` nên config không ghi cứng đường dẫn mount; from-scratch in cảnh báo to thay vì im lặng.
+
+### ⚠️ Mạng của MONAI không giống mạng sinh ra trọng số — ba chỗ, cả ba im lặng
+
+| | Med3D (nơi trọng số được học) | MONAI mặc định |
+|---|---|---|
+| `conv1` | stride (2,2,2) | stride (1,1,1) |
+| `layer3` | stride 1, **dilation 2** | stride 2, dilation 1 |
+| `layer4` | stride 1, **dilation 4** | stride 2, dilation 1 |
+
+Nguồn: `Tencent/MedicalNet/models/resnet.py` đọc trực tiếp. **Không chỗ nào đổi hình dạng trọng số**, nên cả ba nạp trót lọt ở ~97% khớp. `_make_layer` của MONAI không nhận `dilation` nên hai chỗ sau **không khớp lại được**.
+
+**Hệ quả bắt buộc ghi vào báo cáo: E8 null thì "pretrained không giúp" không phải lời giải thích duy nhất.**
+
+Chỗ duy nhất chỉnh được là `model.conv1_stride` (mới, mặc định 1 để giữ nguyên hành vi): `1` → bản đồ cuối 7×7×2 nhưng conv1 chạy nhân 7×7×7 ở nguyên độ phân giải và nặng hơn cả thân mạng; `[1,2,2]` → 4×4×2, hạ mẫu trong mặt phẳng như Med3D và giữ z, rẻ hơn 4 lần; `2` → 4×4×1, **đừng dùng**, z 32 voxel còn đúng một lát.
+
+### Kết quả / số liệu
+
+`notebooks/16_e8_pretrained.ipynb`, 21 cell, tự tải trọng số từ HuggingFace nên không cần chuẩn bị Dataset trước. Bốn cổng: config chỉ khác trong khối `model:`; trọng số trùng khớp **bit-exact** với file và `conv1` đã chia cho số kênh; cache đúng E4 **và không phải E12**; ngân sách GPU đo trước khi chi 4 giờ.
+
+Test: 400 → **413 passed**, 48 skipped. 13 test mới đều là test cổng, không cần torch.
+
+### Dang dở
+
+- E12 fold 4, 5 — **cố ý không chạy**. Bảng chẩn đoán overfit của 3 fold đã có thì chưa đọc.
+- E8 chưa chạy fold nào.
+- Cell đo tách CPU/GPU cho E12 chưa chạy; hai tối ưu không tốn quota (cắt trục z trước khi xoay, bỏ nén cache) chưa làm.
+
+### Điểm vào phiên sau
+
+Chạy `notebooks/16_e8_pretrained.ipynb` với `FOLDS = [1, 2]`, **bật Internet** trong Notebook options. Xem con số của cổng ngân sách trước khi để nó train hết: `conv1` stride 1 có thể biến GPU thành nút thắt mới, và khi đó đặt `conv1_stride: [1, 2, 2]` rồi chạy lại từ bootstrap.
+
+### Cảnh báo cho tool sau
+
+- **E8 đổi HAI biến cùng lúc**: DenseNet121 → ResNet18, và from-scratch → pretrained. E8 thắng thì **không quy được cho pretrained**; cần nhánh đối chứng ResNet18 from-scratch, tức gấp đôi số run. Chỉ chi cho đối chứng sau khi đủ 5 fold vẫn dương.
+- **Cache E12 và cache E4 không phân biệt được bằng ba khoá thường dùng** (`align_phases`, `crop_mode`, `target_size` giống hệt nhau). Khác biệt là `crop_margin_voxels`. Cho nhầm cache E12 vào config E4/E8 thì model nhận khối 136×136×40 và **không có gì báo lỗi**.
+- **Ngân sách E12: 74 s/epoch**, gấp 1,64 lần E4, vì khối đọc từ cache lớn hơn 1,84 lần và train vốn đã bị CPU chặn. 5 fold = 30,8h, tức vượt trọn quota 30h/tuần.
+- **`train()` đọc YAML từ đĩa, không dùng biến `CFG` trong notebook.** Sửa `CFG` bằng tay không có tác dụng lúc train, mà cổng 0 lại đọc từ chính file nên vẫn báo xanh.
+- `notebooks/14_e12_randomcrop.ipynb` cell train gọi sai API (`train(CFG, fold=...)`). Đúng là `train(CFG_PATH, fold_override=...)`. **Chưa sửa trong file.**
