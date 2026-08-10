@@ -127,6 +127,36 @@ def test_config_e8_khong_ghi_cung_duong_dan_kaggle():
     )
 
 
+def test_moi_config_co_khoi_model_ma_builder_nhan_duoc():
+    """Mọi khoá trong `model:` phải là tham số của builder tương ứng.
+
+    Lỗi đã dính thật trên Kaggle: `e8_pretrained.yaml` kế thừa `norm: batch` từ
+    baseline, nhưng `build_resnet3d` chưa khai `norm` → `TypeError` ngay ở cell dựng
+    model, sau khi đã tốn công mount cache và tải 132 MB trọng số.
+
+    Đây là lớp lỗi *bắt được ở local trong một giây* mà nếu không có test thì chỉ lộ
+    ra giữa một session Kaggle. Quét mọi config nên config mới cũng được che.
+    """
+    import inspect
+
+    from src.models import _BUILDERS
+
+    loi = []
+    for path in sorted((repo_root() / "configs").glob("*.yaml")):
+        cfg = yaml.safe_load(path.read_text("utf-8")) or {}
+        block = cfg.get("model")
+        if not isinstance(block, dict) or "name" not in block:
+            continue  # configs/preprocess_*.yaml, data.yaml
+        builder = _BUILDERS.get(block["name"])
+        assert builder is not None, f"{path.name}: model.name {block['name']!r} không có builder"
+        nhan = set(inspect.signature(builder).parameters)
+        thua = sorted(set(block) - {"name"} - nhan)
+        if thua:
+            loi.append(f"{path.name} -> {builder.__name__} không nhận {thua}")
+
+    assert not loi, "config mang khoá builder không nhận:\n  " + "\n  ".join(loi)
+
+
 def test_config_e8_giu_dropout_cho_mc_dropout():
     """ResNet của MONAI không có dropout sẵn. Mất nó là mất bất định epistemic, tức
     mất đóng góp headline của dự án."""

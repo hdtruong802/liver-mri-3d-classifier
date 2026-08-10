@@ -35,6 +35,8 @@ from collections.abc import Iterable, Sequence
 from pathlib import Path
 from typing import Any
 
+from src.models.densenet3d import normalize_norm_spec
+
 IN_CHANNELS = 8
 SPATIAL_DIMS = 3
 
@@ -216,8 +218,15 @@ def build_resnet3d(
     bias_downsample: bool = False,
     dropout_prob: float = 0.0,
     conv1_stride: int | Sequence[int] = 1,
+    norm: str | Sequence[Any] = "batch",
 ) -> Any:
     """ResNet-3D của MONAI, tuỳ chọn nạp MedicalNet.
+
+    `norm` tồn tại ở đây vì mọi config của dự án đều mang khoá đó (kế thừa từ
+    `baseline_3dpatch.yaml`), và một tham số bị *bỏ qua âm thầm* thì tệ hơn một tham
+    số không tồn tại. **Với trọng số MedicalNet chỉ `batch` là hợp lệ**: checkpoint
+    mang `running_mean`/`running_var` của BatchNorm, đổi sang norm khác thì những khoá
+    đó không còn đối tác và một phần thống kê đã học biến mất.
 
     `shortcut_type` và `bias_downsample` phải khớp biến thể sinh ra file trọng số.
     Khi có `pretrained_path`, hàm này **đối chiếu với `MEDICALNET_ARGS` và từ chối
@@ -267,8 +276,17 @@ def build_resnet3d(
         available = [n for n in dir(monai_resnet) if n.startswith("resnet") and n[6:].isdigit()]
         raise ValueError(f"MONAI không có resnet{depth}. Có: {sorted(available)}")
 
+    norm_spec = normalize_norm_spec(norm)
+
     weights = resolve_pretrained_path(pretrained_path)
     if weights is not None:
+        if norm_spec != "batch":
+            raise ValueError(
+                f"norm={norm!r} không dùng được với trọng số MedicalNet. Checkpoint mang "
+                "running_mean/running_var của BatchNorm; đổi norm thì những khoá đó mất "
+                "đối tác và một phần thống kê đã học biến mất — trong khi tỉ lệ khớp vẫn "
+                "trông cao. Đổi norm là một thí nghiệm riêng, chạy from-scratch."
+            )
         need = medicalnet_args(depth)
         got = (str(shortcut_type), bool(bias_downsample))
         if got != need:
@@ -289,6 +307,7 @@ def build_resnet3d(
         shortcut_type=shortcut_type,
         bias_downsample=bias_downsample,
         conv1_t_stride=stride,
+        norm=norm_spec,
     )
 
     if weights is not None:
