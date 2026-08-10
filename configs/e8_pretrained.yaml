@@ -54,11 +54,26 @@ model:
   # chạy được — bất định epistemic là đóng góp headline, mất nó thì thắng accuracy
   # cũng không bù lại.
   dropout_prob: 0.2
-  shortcut_type: B
-  bias_downsample: false
-  # Sửa cho khớp chỗ mount thật. Để trống = train from scratch (khi đó E8 chỉ còn là
-  # phép so kiến trúc ResNet vs DenseNet, KHÔNG phải phép thử pretrained).
-  pretrained_path: /kaggle/input/datasets/marcohoang/medicalnet/resnet_18_23dataset.pth
+  # ⚠️ Hai khoá này KHÔNG được tự chọn. Biến thể sinh ra từng file trọng số MedicalNet
+  # là cố định (MONAI `get_medicalnet_pretrained_resnet_args`, và README của
+  # Tencent/MedicalNet ghi "resnet_18_23dataset.pth ... resnet_shortcut A"):
+  #     resnet18, resnet34           -> shortcut_type "A", bias_downsample true
+  #     resnet10, 50, 101, 152, 200  -> shortcut_type "B", bias_downsample false
+  #
+  # File này từng để "B"/false cho resnet18. Đó là SAI, và nó không tự lộ ra: shortcut
+  # "A" không có tham số nào, "B" dựng thêm conv 1x1 + norm ở ba chỗ nối tầng, nên ~18
+  # khoá khởi tạo ngẫu nhiên trong khi tỉ lệ khớp vẫn báo ~85% — dư sức qua ngưỡng 50%.
+  # `build_resnet3d` nay đối chiếu cặp này với bảng và từ chối chạy nếu lệch.
+  shortcut_type: A
+  bias_downsample: true
+  # Để TRỐNG. Đường dẫn thật truyền lúc chạy qua env LLDMMRI_PRETRAINED_PATH, cùng quy
+  # ước với LLDMMRI_CACHE_DIR. Ghi cứng đường dẫn mount là lớp lỗi đã sửa bốn lần
+  # (S-081 -> S-084): Kaggle để dataset ở /kaggle/input/datasets/<user>/<slug>/ chứ
+  # không phải /kaggle/input/<slug>/.
+  #
+  # Không có trọng số thì train FROM SCRATCH và in cảnh báo. Khi đó E8 chỉ còn là phép
+  # so kiến trúc ResNet vs DenseNet, KHÔNG phải phép thử pretrained.
+  pretrained_path: ""
   # Bằng chứng đã có, KHÔNG phải phỏng đoán (WORKLOG S-036 → S-039):
   #   batch            -> macro-F1 val 0.2725 @ epoch 11   (chạy thật, fold 1)
   #   instance+affine  -> SẬP: đoán 1 lớp, macro-F1 0.0668 đứng yên, loss = ln 7

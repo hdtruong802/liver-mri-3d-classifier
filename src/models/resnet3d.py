@@ -30,6 +30,8 @@ Vì vậy `load_medicalnet_weights` **đo tỉ lệ khoá khớp và từ chối
 
 from __future__ import annotations
 
+import os
+from collections.abc import Iterable
 from pathlib import Path
 from typing import Any
 
@@ -39,7 +41,68 @@ SPATIAL_DIMS = 3
 # Dưới ngưỡng này thì gần như chắc chắn sai file trọng số hoặc sai biến thể ResNet.
 MIN_MATCH_FRACTION = 0.5
 
-__all__ = ["adapt_first_conv", "build_resnet3d", "load_medicalnet_weights"]
+# Đầu phân loại là khoá DUY NHẤT được phép thiếu: MedicalNet là model segmentation
+# (`conv_seg`), không có `fc`, và 7 lớp của ta cũng không nhận được đầu cũ dù có.
+CLASSIFIER_PREFIX = "fc."
+
+# Biến thể ResNet sinh ra từng file trọng số MedicalNet. KHÔNG tự chọn được — lấy từ
+# `monai.networks.nets.resnet.get_medicalnet_pretrained_resnet_args`, và khớp với
+# README của Tencent/MedicalNet ("resnet_18_23dataset.pth ... resnet_shortcut A").
+#
+# Vì sao bảng này phải tồn tại thay vì để người viết config tự điền: shortcut "A" là
+# avg-pool cộng đệm 0 và **không có tham số nào**, còn "B" dựng thêm conv 1×1 + norm ở
+# ba chỗ nối tầng. Đặt "B" cho resnet18 thì ~18 khoá không có đối tác trong file trọng
+# số và khởi tạo ngẫu nhiên, trong khi tỉ lệ khớp vẫn báo ~85% — dư sức qua ngưỡng 50%.
+# Đó là lý do `load_medicalnet_weights` kiểm theo *khoá nào thiếu*, không chỉ theo tỉ lệ.
+MEDICALNET_ARGS: dict[int, tuple[str, bool]] = {
+    10: ("B", False),
+    18: ("A", True),
+    34: ("A", True),
+    50: ("B", False),
+    101: ("B", False),
+    152: ("B", False),
+    200: ("B", False),
+}
+
+__all__ = [
+    "MEDICALNET_ARGS",
+    "adapt_first_conv",
+    "build_resnet3d",
+    "load_medicalnet_weights",
+    "medicalnet_args",
+    "resolve_pretrained_path",
+    "unexpected_missing_keys",
+]
+
+
+def medicalnet_args(depth: int) -> tuple[str, bool]:
+    """``(shortcut_type, bias_downsample)`` bắt buộc cho trọng số MedicalNet độ sâu này."""
+    if depth not in MEDICALNET_ARGS:
+        raise ValueError(f"MedicalNet không có resnet{depth}. Có: {sorted(MEDICALNET_ARGS)}")
+    return MEDICALNET_ARGS[depth]
+
+
+def unexpected_missing_keys(missing: Iterable[str]) -> list[str]:
+    """Khoá bị thiếu mà KHÔNG phải đầu phân loại, tức dấu hiệu lệch kiến trúc.
+
+    Tách ra thành hàm thuần để test được mà không cần torch: đây là cổng chặn thật,
+    và một cổng chặn không có test thì hỏng thầm lặng đúng lúc không ai nhìn.
+    """
+    return sorted(k for k in missing if not k.startswith(CLASSIFIER_PREFIX))
+
+
+def resolve_pretrained_path(value: str | Path | None) -> Path | None:
+    """Đường dẫn trọng số: env ``LLDMMRI_PRETRAINED_PATH`` thắng, sau đó config.
+
+    Cùng quy ước với ``LLDMMRI_CACHE_DIR``/``LLDMMRI_OUTPUT_DIR``. Config **không nên**
+    ghi cứng đường dẫn mount: Kaggle để dataset ở ``/kaggle/input/datasets/<user>/<slug>/``
+    chứ không phải ``/kaggle/input/<slug>/``, và giả định về hình dạng đường dẫn đó là
+    lớp lỗi đã phải sửa bốn lần (WORKLOG S-081 → S-084).
+    """
+    env = os.environ.get("LLDMMRI_PRETRAINED_PATH")
+    if env:
+        return Path(env)
+    return Path(value) if value else None
 
 
 def adapt_first_conv(weight: Any, in_channels: int) -> Any:
@@ -118,6 +181,22 @@ def load_medicalnet_weights(
             "kiểm lại trước khi chạy, vì đây là chỗ pretrained dễ mất tác dụng nhất."
         )
 
+    # Cổng thật nằm ở ĐÂY, không ở `min_match`. Tỉ lệ khớp là đại lượng thô: đặt
+    # `shortcut_type: B` cho resnet18 (đúng ra phải là "A") vẫn cho ~85% vì "B" chỉ
+    # thêm conv+norm ở ba chỗ nối tầng. Ba chỗ đó nằm trên đường tắt của 3/4 stage,
+    # khởi tạo ngẫu nhiên, và không có gì trong kết quả tố cáo điều đó.
+    unexpected_missing = unexpected_missing_keys(missing)
+    if unexpected_missing:
+        raise ValueError(
+            f"{len(unexpected_missing)} khoá của model KHÔNG có đối tác trong "
+            f"{path.name} và không thuộc đầu phân loại — kiến trúc dựng ra không phải "
+            f"biến thể sinh ra file trọng số này. Tỉ lệ khớp {fraction:.0%} nên ngưỡng "
+            f"{min_match:.0%} không bắt được.\n"
+            f"  Kiểm `shortcut_type`/`bias_downsample`: MedicalNet resnet18/34 cần "
+            f"('A', True), các độ sâu khác cần ('B', False).\n"
+            f"  Thiếu (10 khoá đầu): {unexpected_missing[:10]}"
+        )
+
     return {
         "matched": matched,
         "total": total,
@@ -139,9 +218,10 @@ def build_resnet3d(
 ) -> Any:
     """ResNet-3D của MONAI, tuỳ chọn nạp MedicalNet.
 
-    `shortcut_type` và `bias_downsample` phải khớp biến thể sinh ra file trọng số, nếu
-    không phần lớn khoá sẽ lệch hình dạng và `load_medicalnet_weights` sẽ nổ — đó là
-    hành vi mong muốn, không phải phiền toái.
+    `shortcut_type` và `bias_downsample` phải khớp biến thể sinh ra file trọng số.
+    Khi có `pretrained_path`, hàm này **đối chiếu với `MEDICALNET_ARGS` và từ chối
+    chạy nếu lệch**, thay vì để lỗi trôi xuống lớp nạp trọng số: sai cặp này không
+    làm hỏng hình dạng khoá nào, nó chỉ khiến một phần mạng lặng lẽ ngẫu nhiên.
 
     `dropout_prob` mặc định 0: ResNet của MONAI không có dropout, và MC-dropout của dự
     án (`src/eval/mc_dropout.py`) cần ít nhất một lớp Dropout để hoạt động. Đặt > 0 sẽ
@@ -155,6 +235,18 @@ def build_resnet3d(
         available = [n for n in dir(monai_resnet) if n.startswith("resnet") and n[6:].isdigit()]
         raise ValueError(f"MONAI không có resnet{depth}. Có: {sorted(available)}")
 
+    weights = resolve_pretrained_path(pretrained_path)
+    if weights is not None:
+        need = medicalnet_args(depth)
+        got = (str(shortcut_type), bool(bias_downsample))
+        if got != need:
+            raise ValueError(
+                f"resnet{depth} + trọng số MedicalNet cần shortcut_type={need[0]!r}, "
+                f"bias_downsample={need[1]}, nhận {got[0]!r}/{got[1]}. Sai cặp này KHÔNG "
+                "làm hỏng hình dạng khoá nào — nó chỉ để một phần mạng khởi tạo ngẫu "
+                "nhiên trong khi tỉ lệ khớp vẫn trông cao."
+            )
+
     model = factory(
         spatial_dims=SPATIAL_DIMS,
         n_input_channels=in_channels,
@@ -163,11 +255,18 @@ def build_resnet3d(
         bias_downsample=bias_downsample,
     )
 
-    if pretrained_path:
-        report = load_medicalnet_weights(model, pretrained_path, in_channels)
+    if weights is not None:
+        report = load_medicalnet_weights(model, weights, in_channels)
         print(
             f"MedicalNet: khớp {report['matched']}/{report['total']} khoá "
-            f"({report['fraction']:.0%}), conv đầu thích ứng: {report['adapted_conv']}"
+            f"({report['fraction']:.0%}), conv đầu thích ứng: {report['adapted_conv']}, "
+            f"thiếu {len(report['missing'])} khoá (đầu phân loại)"
+        )
+    else:
+        print(
+            "⚠ KHÔNG có trọng số pretrained (config trống và LLDMMRI_PRETRAINED_PATH "
+            "chưa đặt) — đang train FROM SCRATCH. Đây là phép so kiến trúc, không phải "
+            "phép thử pretrained."
         )
 
     if dropout_prob > 0:
