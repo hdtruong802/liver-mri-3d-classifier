@@ -5025,3 +5025,106 @@ Như S-120: `notebooks/18_build_cache_cghnet.ipynb` (**Accelerator = None**) r�
 
 - **Đừng thêm lại tqdm vào `run_epoch`.** Đã dựng và đã bỏ, lý do ở trên và ở docstring của `run_epoch`. Nếu thật sự cần tiến độ mịn hơn thì hướng đúng là **một thanh theo epoch** (300 đơn vị, một dòng cập nhật mỗi epoch) chứ không phải theo batch — nó hoạt động ở cả hai chế độ. Chưa làm.
 - `train_log.csv` của run cũ (E4/E8/E12/E13) **không có** cột `f1_*`. Kiểm `DictReader.fieldnames` trước khi đọc.
+
+---
+
+## S-123 · 2026-08-10 · claude-code
+
+**Mục tiêu phiên:** Người dùng huỷ E13 (<0.5), CGHNet fold 1 đạt 0.69 và ba lớp yếu vẫn thấp. Yêu cầu **ưu tiên tìm nguyên nhân** rồi mới tìm cách chữa.
+
+**Nhánh / commit:** `main` · `e947221` → `ca9112f`
+
+**Đã đụng file:** `src/eval/weak_classes.py` (mới), `src/train/loop.py`, `src/train/run.py`, `configs/e14_mixup.yaml` · `cghnet_mixup.yaml` (mới), `tests/test_weak_classes.py` · `test_mixup.py` · `test_notebook_contract.py` (mới), `notebooks/07` · `09` · `16` · `17` · `19`, `AGENTS.md` (§5 mục mới + §6 hai dòng).
+
+### 🐛 Lỗi chặn đường: `KeyError: 'macro_f1'`
+
+`train()` trả về khoá **`best_macro_f1`**, còn ba notebook tôi viết lại in `results[fold]["macro_f1"]`. Nó nổ ở dòng `print` **cuối cùng**, tức **sau khi đã train xong cả fold** — nên vòng lặp dừng và fold 2 không chạy.
+
+**Không mất gì trong run của người dùng:** `best.pt`, `metrics_best.json`, `val_probs_best.npz` của fold 1 đều đã ghi. Chạy lại mục 3 và mục 4 là có thang bậc, không phải train lại.
+
+⚠️ **Vì sao lọt được:** `notebooks/07` và `09` viết `.get("macro_f1", float("nan"))` — nên chúng in `nan` **im lặng suốt từ đầu** mà không ai để ý. Khi chép sang notebook mới tôi đổi thành truy cập trực tiếp, biến một lỗi im lặng thành một lỗi ồn ào. **Lỗi im lặng khó phát hiện hơn.**
+
+Sửa: `TRAIN_RESULT_KEYS` khai tường minh trong `run.py`, và `tests/test_notebook_contract.py` đối chiếu **mọi** notebook với nó. Kèm hai cổng nữa cho lớp lỗi "chỉ nổ trên Kaggle": cell code phải parse được, và checkpoint của dự án không được đọc bằng `torch.load` trần (torch 2.6+ đổi mặc định thành `weights_only=True`).
+
+### 📊 Chẩn đoán ba lớp yếu — `src/eval/weak_classes.py`
+
+Chạy hết trên xác suất đã lưu (E4 5 fold · 394 ca, E6b 5 fold, E5 2 fold, `cache_build_log.csv`). **Không tốn một giây GPU.**
+
+**§1 — KHÔNG phải mất cân bằng lớp. Model đang *thừa* dự đoán hai lớp yếu.**
+
+| lớp | thật | model đoán | tỉ lệ | P | R |
+|---|---|---|---|---|---|
+| **ICC** | 46 | **58** | **1.26** | 0.466 | 0.587 |
+| **áp-xe** | 42 | **55** | **1.31** | 0.582 | 0.762 |
+| di căn | 40 | 42 | 1.05 | 0.476 | 0.500 |
+| HCC | 125 | **107** | **0.86** | 0.841 | 0.720 |
+
+Vấn đề là **precision**, không phải recall. Đây là phát hiện quan trọng nhất của phiên: nó **đảo ngược** giả thuyết mặc định mà tôi đã suýt hành động theo.
+
+**§2 — KHÔNG phải kích thước.** di căn, u máu, nang đều extent trung vị **25mm** mà F1 0.488 / 0.831 / 0.762; áp-xe **lớn nhất** (60mm) và F1 0.660.
+
+**§3 — KHÔNG phải tầng quyết định.** p(đoán) trung vị 0.75–0.99 so với p(thật) 0.000–0.019; **1/117 lỗi** có biên < 0.10.
+
+**§4 — ICC và di căn là HAI vấn đề khác nhau.** ICC top-1 0.587 → top-2 **0.848** (thông tin *có*, xếp sai hạng). di căn top-2 **bằng** top-1 = 0.500: trong 20 ca sai **không một ca nào** có di căn ở hạng hai, hạng trung vị 2. Biểu diễn không mã hoá được lớp này.
+
+**§5 — Lỗi CÓ CẤU TRÚC.** Trùng lặp E4 so với E6b **86/117 = 74%**, kỳ vọng 35 nếu độc lập; riêng di căn **18/20**. Và **gộp xác suất E4+E6b làm macro-F1 TỆ ĐI**: 0.6688 so với 0.6851 — trung bình hai câu trả lời sai đầy tự tin thì vẫn sai, còn ca chỉ một bên đúng thì bị pha loãng. Oracle 0.782 so với 0.703, tức có 8 điểm dư địa mà ensemble kiểu này không lấy được.
+
+**§6 — Nút thắt precision của lớp yếu phần lớn là lỗi của HCC.** HCC → di căn **15** · ICC → áp-xe **10** · HCC → ICC **9**. Chữa hết 35 lỗi của HCC: macro-F1 0.6851 → **0.7449 (+0.0598)**. **Muốn nâng lớp yếu thì có thể phải chữa lớp mạnh.**
+
+#### Bảy hướng bị LOẠI — đây là giá trị chính của phiên
+
+| hướng | bị loại bởi |
+|---|---|
+| `class_weights: balanced` / `effective_number` | §1 |
+| logit adjustment, prior correction | §1 + §3 |
+| ngưỡng riêng từng lớp, vector scaling | §3 |
+| focal loss mạnh hơn | §1; và E5 đã đo di căn −0.171 (n=16 nên nhiễu, nhưng cùng chiều) |
+| thêm augmentation | §5 |
+| gộp với một biến thể gần nó | §5, đã đo |
+| cắt sát tổn thương hơn / bỏ sàn 40mm | §2 |
+
+Mỗi hướng lẽ ra tốn 4–20 giờ GPU để phát hiện là vô ích.
+
+### Mixup + label smoothing — hai can thiệp còn khớp chẩn đoán
+
+Bệnh lý còn lại: **tự tin sai + có cấu trúc + biểu diễn thiếu**, trên 312 ca train.
+
+- `data.mixup_alpha` trong `run_epoch`: λ ~ Beta(α,α), trộn batch với chính nó đã hoán vị, `loss = λ·L(y) + (1−λ)·L(y[perm])`. **Chỉ áp khi train** — chốt trong `run_epoch` chứ không tin người gọi. Gọi criterion **hai lần** để tương thích `deep_supervision` của CGHNet (nó nhận dict, và chỉ nhận nhãn dạng chỉ số lớp). Dùng **RNG của torch**, không dùng `np.random.default_rng()` mỗi batch (AGENTS.md §8).
+- `loss.label_smoothing`: đã có trong config từ đầu và **chưa bao giờ đặt > 0**. Đặt 0.05, không phải 0.1 — bớt tự tin tuyệt đối chứ không làm nhoè cả bài toán 7 lớp.
+- `configs/e14_mixup.yaml` (base E4) và `configs/cghnet_mixup.yaml` (base CGHNet), mỗi cái khác base **đúng ba khoá**. Người dùng chốt chạy **cả hai**.
+
+⚠️ Gộp hai khoá là **hai biến**. Chấp nhận vì cả hai nhắm cùng một bệnh lý; phải ghi trong báo cáo.
+
+⚠️ `train_loss` khi bật mixup là loss **trên nhãn đã trộn** — không so trực tiếp với run cũ. `val_loss` thì so được (eval không trộn). Và `probs`/`labels` của **lượt train** ứng với ảnh đã trộn nên vô nghĩa; không sao vì `run.py` chỉ đọc `train_out["loss"]`.
+
+### Ngân sách mới, đo thật ở fold 1
+
+**CGHNet 1,6 h/fold** — rẻ hơn hẳn E4 (3,8h). Đủ 5 fold chỉ **8h**, lọt một session. Ước lượng ~8h/fold của tôi ở S-120 sai xa; con số 209.91 GFLOPs của bài quả thật không dùng để suy giờ được, đúng như cảnh báo đã ghi trong cổng ngân sách.
+
+### Kết quả / số liệu
+
+Không có số khoa học mới từ train. Test: 469 → **544 passed**, 61 skipped. Gate PASS.
+
+### Dang dở
+
+- **Chưa chạy fold nào của hai config mixup.**
+- CGHNet còn thiếu 4 fold ở bản gốc. Không có mốc đủ 5 fold thì `cghnet_mixup` chỉ so được trên 1–2 fold.
+- **Cổng đa dạng E4 ⊕ CGHNet chưa chạy** — cần người dùng tải `runs/CGHNET/` về. E4/E6b trùng 74% vì chỉ khác augmentation; E4 và CGHNet khác cả kiến trúc lẫn hình học nên có thể đa dạng thật, và khi đó ensemble nâng macro-F1 mà không cần train thêm.
+- E13 đã huỷ (<0.5). Con số đó **rất đáng ngờ** so với việc cổng A khớp 102/102 khoá và cổng B đo đúng hình học — nghi lỗi triển khai hơn là kết luận về Siamese, nhưng người dùng đã quyết dừng.
+- E8: `runs/E8/` ở local vẫn rỗng.
+
+### Điểm vào phiên sau
+
+1. Chạy lại **mục 3 và mục 4** của `notebooks/19_cghnet.ipynb` (đã sửa `KeyError`) → có thang bậc ba đầu ra của CGHNet fold 1, **không phải train lại**.
+2. Tải `runs/CGHNET/` về local → chạy cổng đa dạng E4 ⊕ CGHNet, miễn phí.
+3. Chạy `cghnet` fold 2 (1,6h) để có mốc 2 fold, rồi hai run mixup.
+
+Bước 1 và 2 quyết định bước 3, đừng đảo thứ tự.
+
+### Cảnh báo cho tool sau
+
+- **ĐỌC `AGENTS.md` §5 mục "CHẨN ĐOÁN BA LỚP YẾU" trước khi đề xuất bất cứ cách nâng macro-F1 nào.** Bảy hướng đã bị loại bằng số đo, không phải bằng ý kiến. Đề xuất lại một trong bảy hướng đó mà không có bằng chứng mới là lãng phí quota.
+- **Đừng bật `class_weights` hay logit adjustment.** ICC và áp-xe đã bị *thừa* dự đoán 1.26× và 1.31×; nâng lớp hiếm lên là đi ngược bằng chứng.
+- **`train()` trả `best_macro_f1`, `metrics_best.json` ghi `macro_f1`, CSV ghi `val_macro_f1`** — ba tên cho cùng một đại lượng. `tests/test_notebook_contract.py` chặn việc đọc sai, nhưng đừng thêm tên thứ tư.
+- **`mixup_alpha` phải giữ mặc định 0.** Nó nằm trong hàm mà mọi thí nghiệm của dự án đi qua; đổi mặc định là đổi mọi con số cũ mà không có gì báo.
+- Trước khi tin một kết quả ensemble, kiểm **trùng lặp lỗi** bằng `weak_classes` §5. Gộp hai cấu hình trùng 74% lỗi làm macro-F1 **tệ đi**, đã đo.
