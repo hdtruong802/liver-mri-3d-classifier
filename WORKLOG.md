@@ -4805,3 +4805,123 @@ Chạy `notebooks/16_e8_pretrained.ipynb` với `FOLDS = [1, 2]`, **bật Intern
 - **Ngân sách E12: 74 s/epoch**, gấp 1,64 lần E4, vì khối đọc từ cache lớn hơn 1,84 lần và train vốn đã bị CPU chặn. 5 fold = 30,8h, tức vượt trọn quota 30h/tuần.
 - **`train()` đọc YAML từ đĩa, không dùng biến `CFG` trong notebook.** Sửa `CFG` bằng tay không có tác dụng lúc train, mà cổng 0 lại đọc từ chính file nên vẫn báo xanh.
 - `notebooks/14_e12_randomcrop.ipynb` cell train gọi sai API (`train(CFG, fold=...)`). Đúng là `train(CFG_PATH, fold_override=...)`. **Chưa sửa trong file.**
+
+---
+
+## S-120 · 2026-08-10 · claude-code
+
+**Mục tiêu phiên:** Sửa `conv1_stride` của E13 sau khi cổng ngân sách nổ, rồi dựng bản tái lập CGHNet làm nhánh độc lập.
+
+**Nhánh / commit:** `main` · `1ab966e` → `6adf7fd`, `3ad3e05`, `7a03394`
+
+**Đã đụng file:** `src/models/siamese_fusion.py`, `src/models/cghnet.py` (mới), `src/models/__init__.py`, `src/train/losses.py`, `src/train/loop.py`, `src/eval/compare.py` (mới), `configs/e13_siamese_pretrained.yaml` (mới), `configs/cghnet.yaml` (mới), `configs/preprocess_cghnet.yaml` (mới), `configs/e8_pretrained.yaml`, `tests/test_compare.py` · `test_siamese_pretrained.py` · `test_cghnet.py` (mới), `tests/test_models.py`, `notebooks/17_e13_siamese.ipynb` · `18_build_cache_cghnet.ipynb` · `19_cghnet.ipynb` (mới), `AGENTS.md`.
+
+### 📌 Đính chính S-119
+
+E12 fold 1 = **0.7104** và fold 3 = **0.7097**; entry S-119 ghi ngược hai số. Trung bình có trọng số lệch 0.00001 nên không đổi kết luận nào, nhưng bảng từng fold ở S-119 gán sai fold. Số đọc từ `runs/E12/fold_1/metrics_best.json`.
+
+### E13 — cổng ngân sách nổ đúng, và tôi ghi sai giá trị cần đặt
+
+Đo thật trên Kaggle: Siamese + ResNet18 pretrained với `conv1_stride: 1` tốn **79 s/epoch GPU** so với 42 s/epoch CPU, tức GPU thành nút thắt mới. Log train thật còn cao hơn ước lượng: **97–100 s/epoch** kể cả vòng val ⇒ **8,3 h/fold**, 5 fold là **41h**, vượt trọn quota 30h/tuần.
+
+**Ba cổng đầu của E13 đều qua, và cổng A qua tốt hơn E8:** khớp **102/102 khoá (100%)**, thiếu 0, `conv1` dùng nguyên vẹn 1 kênh (E8: 102/104, thiếu 2, phải nhân bản rồi chia 8). Cổng B đo được `vào encoder (16, 1, 112, 112, 32)` — đủ độ phân giải, đúng thứ E2 không làm được.
+
+⚠️ **Lỗi trong hướng dẫn của tôi:** tôi ghi `[1,2,2]` là "hạ mẫu trong mặt phẳng, giữ nguyên z". **Sai.** Tensor là `[B, C, X, Y, Z]` với Z là 32 lát, và MONAI trải `conv1_t_stride` ra ba chiều không gian theo đúng thứ tự đó. Đo thật:
+
+| stride | conv1 | layer4 | voxel sau conv1 |
+|---|---|---|---|
+| `[1,1,1]` | 112×112×32 | 7×7×2 | 401.408 (1,00×) |
+| **`[2,2,1]`** | **56×56×32** | **4×4×2** | 100.352 (0,25×) |
+| `[1,2,2]` | 112×56×16 | **7×4×1** | 100.352 — lệch trục, z còn 1 lát |
+
+`[2,2,1]` rẻ hơn 4 lần trên **toàn** mạng vì mọi tầng sau cũng nhỏ đi 4 lần. Config E13 nay mặc định `[2,2,1]`; đã sửa ở cả bốn chỗ (docstring `build_resnet3d`, `e8_pretrained.yaml`, config E13, bảng trong notebook 17).
+
+⚠️ **Đánh đổi:** E8 dùng `conv1_stride: 1`, nên `E13 − E8` **không còn cô lập đúng một biến**. Lấy lại được bằng cách chạy lại E8 với `[2,2,1]` (E8 đang CPU-bound nên chi phí không đổi, 3,4 h/fold = 6,8h cho 2 fold). Phép so chính `E13 − E4` không bị ảnh hưởng.
+
+### `src/eval/compare.py` — phép so ghép cặp, lẽ ra phải có từ E5
+
+Dự án đã cần phép so này **năm lần** (E5, E6, E6b, E12, E8 so với E4) và mỗi lần viết lại một script rời. Giờ là một module có test.
+
+Vì sao ghép cặp: hai cấu hình chạy trên **cùng** bệnh nhân nên phần lớn phương sai là phương sai của tập dữ liệu và nó triệt tiêu khi lấy hiệu. Bootstrap riêng từng bên rồi so hai CI là bỏ mất đúng phần triệt tiêu đó. Ba cổng: chỉ dùng fold có ở **cả hai** bên; tập bệnh nhân từng fold phải trùng và được **sắp lại** cùng thứ tự; nhãn thật hai bên phải giống nhau. Khoá theo **số** fold chứ không theo tên thư mục — hai run khác kiến trúc có hash khác nhau trong tên nên khớp theo tên không bao giờ khớp.
+
+### 🐛 `build_resnet3d` không khai `norm`
+
+`e8_pretrained.yaml` kế thừa `norm: batch` từ baseline nhưng builder chưa khai ⇒ `TypeError` ngay cell dựng model, **sau khi** đã mount cache và tải 132 MB trọng số. ResNet của MONAI có nhận `norm`, chỉ là builder của ta chưa truyền.
+
+Sửa kèm một test **quét mọi `configs/*.yaml`**: từng khoá trong khối `model:` phải là tham số của builder tương ứng. Kiểm bằng cách bỏ `norm` khỏi chữ ký rồi chạy lại logic — 9/9 config bị gắn cờ đúng như mong đợi. Đây là lớp lỗi bắt được ở local trong một giây mà nếu không có test thì chỉ lộ ra giữa một session Kaggle.
+
+Với trọng số MedicalNet **chỉ `batch` hợp lệ**: checkpoint mang `running_mean`/`running_var` của BatchNorm, đổi norm thì những khoá đó mất đối tác trong khi tỉ lệ khớp vẫn trông cao. Nay nó nổ.
+
+### E12 dừng ở 3 fold — tính lại để chắc
+
+| fold | n | E4 | E12 | hiệu |
+|---|---|---|---|---|
+| 1 | 82 | 0.7001 | 0.7104 | +0.010 |
+| 2 | 80 | 0.6771 | 0.6590 | −0.018 |
+| 3 | 78 | 0.7304 | 0.7097 | −0.021 |
+| TB có trọng số | 240 | 0.7023 | **0.6930** | **−0.009** |
+
+Tính ngược: để E12 gộp 394 ca chỉ **hoà** với E4 thì fold 4+5 phải đạt trung bình 0.679; để hơn 0.03 phải đạt **0.756**, cao hơn mọi fold dự án từng đo trừ fold 1 may mắn của E6b.
+
+### 🎯 CGHNet — tái lập bài báo, nhánh độc lập
+
+Người dùng yêu cầu **chắc chắn có một phương pháp đạt 0.8** và chỉ định tái lập `papers/1-s2.0-S0895611126000832-main.pdf`.
+
+**Ba điều phải nói thẳng, đã nói với người dùng:**
+
+1. **Không đảm bảo ra 0.818.** Bài **không công khai code**; và bài **không nói** ViT depth/dim/patch/head, độ sâu ResNet-3D, `γ`/`α` của Focal, `K` của attention pooling, có chiếu chiều token nhánh 3D hay không.
+2. **Thiên lệch chọn epoch −0.069** nghĩa là test-104 đạt 0.75 cần out-of-fold ~0.82; 0.80 cần ~0.87.
+3. **Ràng buộc số học:** giữ nguyên ICC 0.519 và di căn 0.273 thì kể cả 5 lớp kia đều đạt 0.90, macro-F1 cũng chỉ tới 0.756.
+
+**Nhưng dữ kiện đáng giá nhất trong bài không phải kiến trúc mà là HÌNH HỌC.** Bảng 1 có **ResNet3D trần = 0.709** trên đúng test-104, so với **0.6001** của ta (trung bình 5 model đơn — đúng cách họ báo; **không phải 0.6162** của ensemble). Chênh **0.109 trên cùng một họ kiến trúc**. Biến lớn nhất: mọi thí nghiệm của dự án đều **z = 32 hoặc 48**, còn cả baseline official lẫn CGHNet đều **z = 16**. `preprocess_e12.yaml` từng ghi rõ lý do từ chối z=16 (DenseNet121 cần ≥32) — CGHNet dùng ViT + ResNet nên không vướng.
+
+**Đặc tả trích được từ bài** (§4.3, Bảng 4, Bảng 6): resize khối tổn thương về 16×128×128 trilinear, random crop 14×112×112 lúc train + center crop lúc inference, xoay trong mặt phẳng và lật x/y/z **mỗi cái p=0.5**, Focal Loss + deep supervision 3 đầu, AdamW lr 1e-4 **weight_decay 1e-5** (khác baseline official 0.05 tới 5000 lần), cosine + warmup 5, **300 epoch batch 4**, `λ_res = 0.50`.
+
+**Bằng chứng gián tiếp cho bộ suy luận:** đếm tay tổng tham số cho **59.02M** so với **59.37M** của Bảng 5, lệch **−0,6%**. Chọn ResNet-18 (33M) hay ResNet-34 (63M), hoặc không chiếu 2048→384, thì lệch hàng chục triệu.
+
+#### Thang bậc chẩn đoán — lý do phép tái lập này well-posed thay vì cầu may
+
+Bài train bằng multi-head deep supervision, nên **một lần chạy cho ba con số**, và cả ba có mốc công bố (Bảng 2, test-104):
+
+| đầu ra | mốc | nếu lệch |
+|---|---|---|
+| nhánh 3D một mình | **0.724** | xuống ~0.62 ⇒ sai **protocol/dữ liệu**, không phải fusion |
+| nhánh 2D một mình | **0.742** | lệch nhiều ⇒ sai nhánh ViT |
+| hợp nhất | **0.818** | hai nhánh đúng mà cái này thấp ⇒ sai CGFM/ADF |
+
+**Không tốn thêm một giờ GPU nào**, và nó bao trọn phép thử "hình học 14×112×112 có phải nút thắt không". Mục 4 của notebook 19 đọc ra từ checkpoint bằng `forward_heads()` ở chế độ **eval** (bật `train()` sẽ kéo BatchNorm sang thống kê batch hiện tại).
+
+#### Hợp đồng đầu ra — cố ý phụ thuộc chế độ
+
+`model.train()` → dict `{"main", "aux": {"2d", "3d"}}`; `model.eval()` → **tensor**. Nhờ vậy **toàn bộ `src/eval/*` không phải sửa một dòng**: `mc_dropout.enable_dropout` gọi `model.eval()` rồi chỉ bật lại riêng các lớp `Dropout` nên `self.training` của module gốc vẫn `False`; `tta.py` và `xai/gradcam.py` đều gọi `model.eval()`. Đã kiểm trực tiếp trong code, không phải giả định.
+
+#### Nới lại cổng DenseNet-minimum, và đây là bài học về test
+
+`tests/test_models.py::test_every_preprocess_config_fits_densenet_minimum` viết luật "`target_size` ≥ 32 mọi chiều" thành **toàn cục**. Nhưng đó là ràng buộc của **DenseNet121**, không phải của dự án — và docstring của chính test đó đã nói "hình học 16 lát của CGHNet ... không dùng được với backbone hiện tại", tức nó biết mình đang giả định backbone nào mà vẫn viết thành luật chung.
+
+Nay test **suy** backbone từ các config train trỏ vào cùng `cache_dir`, thay vì một danh sách miễn trừ phải bảo trì tay. Thêm test chiều ngược lại: cache z=14 **không được** lọt vào một config DenseNet.
+
+### Kết quả / số liệu
+
+Không có số khoa học mới — chưa chạy CGHNet fold nào. Test: 425 → **458 passed**, 56 skipped. Gate PASS.
+
+### Dang dở
+
+- **CGHNet chưa chạy.** Cần build cache trước (notebook 18, CPU, ~20 phút), rồi notebook 19 với `FOLDS = [1, 2]`.
+- **E13 chưa chạy lại** sau khi sửa `conv1_stride`. Người dùng đã dừng run cũ ở epoch 2.
+- E8: 2 fold đang chạy hoặc đã xong, chưa có số ở đây. `runs/E8/` ở local còn rỗng.
+- E12 fold 4, 5 — cố ý không chạy. Bảng chẩn đoán overfit của 3 fold đã có thì chưa đọc.
+- Nếu muốn giữ phép cô lập `E13 − E8` thì phải chạy lại E8 với `conv1_stride: [2,2,1]`.
+
+### Điểm vào phiên sau
+
+Chạy `notebooks/18_build_cache_cghnet.ipynb` (**Accelerator = None**), lưu output thành Kaggle Dataset, rồi `notebooks/19_cghnet.ipynb` với `FOLDS = [1, 2]`. Xem **cổng A** (số tham số so với 59.37M) và **cổng C** (ngân sách) trước khi để nó train hết. Sau khi có kết quả, đọc **mục 4** theo đúng thứ tự thang bậc — đừng nhảy sang macro-F1 hợp nhất trước khi xem nhánh 3D.
+
+### Cảnh báo cho tool sau
+
+- **Bài CGHNet không có code.** Mọi khoá trong `configs/cghnet.yaml` có nhãn `[BÀI]` hoặc `[SUY]`. **Không được lẫn hai nhãn khi viết báo cáo**, và không được viết "ta tái lập được 0.818" nếu bản của ta khác kiến trúc.
+- **Số so được với bảng của họ là 0.6001** (trung bình 5 model đơn), không phải 0.6162 (ensemble). Họ báo mean ± std của 5 model.
+- **Ba cache không phân biệt được bằng `align_phases` + `crop_mode`** — cả ba đều `per_phase` + `lesion_tight`. Chỉ `target_size` + `crop_margin_voxels` phân biệt: E4 `[112,112,32]`/none · E12 `[112,112,32]`/`[12,12,4]` · CGHNet `[112,112,14]`/`[8,8,1]`. Cho nhầm thì model nhận hình học khác mà **không có gì báo lỗi**.
+- **`conv1_t_stride` của MONAI trải ra ba chiều theo thứ tự `[X, Y, Z]`.** `[2,2,1]` là "trong mặt phẳng"; `[1,2,2]` lệch trục và làm z còn một lát.
+- Model có deep supervision trả **dict ở train mode, tensor ở eval mode**. Ai thêm kiến trúc kiểu này phải thêm tên vào `src.models.DEEP_SUPERVISION_MODELS` và giữ đúng hợp đồng, nếu không `src/eval/*` sẽ nhận dict và nổ ở chỗ khó đọc.
+- **Một test viết luật của MỘT backbone thành luật toàn cục sẽ chặn đúng hướng đi mới.** Bài học từ `test_every_preprocess_config_fits_densenet_minimum`: nếu docstring của test phải nói "với backbone hiện tại" thì luật đó chưa được viết đúng phạm vi.
