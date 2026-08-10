@@ -4,7 +4,10 @@
 |---|---|---|---|---|
 | [`overview.html`](overview.html) | Bản khắc atlas giải phẫu | 12 | Giới thiệu dự án nói chung | ✅ Bản chính thức |
 | [`overview_v2.html`](overview_v2.html) | Bản khắc atlas giải phẫu | 7 + phụ lục nguồn | Báo cáo nội bộ VSF 28/07/2026 | ✅ Dựng xong, chưa soát trên máy chiếu |
-| [`overview_v3.html`](overview_v3.html) | Bản khắc atlas giải phẫu | 7 | Báo cáo tiến độ 07/08/2026, **deck đầu tiên mang số đo được** | ✅ Dựng xong, in đúng 7 trang |
+| [`sprint_1.html`](sprint_1.html) | Bản khắc atlas giải phẫu | 7 | Báo cáo tiến độ 07/08/2026, **deck đầu tiên mang số đo được** | ✅ Dựng xong, in đúng 7 trang |
+
+> `sprint_1.html` trước đây tên là `overview_v3.html`, đổi tên 2026-08-10 (nội dung không
+> đổi một byte nào). Các entry WORKLOG từ S-112 trở về trước gọi nó bằng tên cũ.
 
 Ba deck **song song**, không thay thế nhau. Cùng một thế giới thị giác, khác mạch kể:
 
@@ -14,7 +17,7 @@ Ba deck **song song**, không thay thế nhau. Cùng một thế giới thị gi
   kỹ thuật → metric → lộ trình*. Ngắn hơn, nặng về **trích dẫn ngoài**: mọi luận điểm
   ở slide 2–4 đều neo vào một công bố có DOI. Nguồn dồn vào một **slide phụ lục** đặt
   sau slide 7 (không đánh số vào 7, và không có dải mốc phần).
-- **v3 (7 bản khắc)** đi từ *bài toán → dữ liệu → mốc đối chiếu → mô hình → kết quả →
+- **`sprint_1` (7 bản khắc)** đi từ *bài toán → dữ liệu → mốc đối chiếu → mô hình → kết quả →
   hướng đi tiếp*. Đây là deck **đầu tiên mang số đo được của dự án**, gồm cả kết quả
   test-104. Vì vậy nó là deck đầu tiên chịu ràng buộc Loại B của
   [`DESIGN.md`](../DESIGN.md): mỗi con số phải kèm **CI** và **tên tập đo được**.
@@ -22,13 +25,13 @@ Ba deck **song song**, không thay thế nhau. Cùng một thế giới thị gi
 
 Mỗi file tự chứa, mở bằng double-click. In ra PDF được (mỗi bản khắc một trang ngang,
 URL tự hiện trong ngoặc). Điều hướng: mũi tên trái/phải, Space, PageUp/PageDown,
-Home/End. **v1 có thêm nút Trước/Sau ở đáy màn hình; v2 và v3 cố ý bỏ nút này** — deck
+Home/End. **v1 có thêm nút Trước/Sau ở đáy màn hình; v2 và `sprint_1` cố ý bỏ nút này** — deck
 chỉ điều khiển bằng bàn phím, không có phần tử nào nổi lên trên nội dung khi trình chiếu.
 
 > ⚠️ **v1 và v2 in ra thừa trang** (v2: 15 trang cho 8 bản khắc). Nguyên nhân là các mức
 > sàn `rem` trong thang chữ: khi in, `1rem` = 4,23mm trong khi `--u` chỉ còn ~2,6mm, nên
 > sàn thắng và chữ to lên tương đối chừng 23% so với bản màn hình, đủ để bề mặt đặc tràn
-> sang trang sau. **v3 đã sửa** bằng cách cho thang chữ suy thẳng từ `--u` trong
+> sang trang sau. **`sprint_1` đã sửa** bằng cách cho thang chữ suy thẳng từ `--u` trong
 > `@media print` (xem chú thích trong file). Nếu sửa v1/v2 thì chép cùng khối đó, và
 > đừng ghim `--u` thành một giá trị mm cố định: Chrome headless mặc định in khổ Letter
 > 279×216mm chứ không phải A4, hardcode bề rộng sẽ tràn ngang.
