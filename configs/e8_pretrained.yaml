@@ -69,8 +69,10 @@ model:
   # Stride của conv1. MONAI mặc định 1 (nhân 7x7x7 chạy ở nguyên 112x112x32, bản đồ
   # cuối 7x7x2). Med3D học trọng số ở stride (2,2,2), nhưng với z chỉ 32 voxel thì
   # stride 2 hạ z xuống đúng 1 lát và mất sạch cấu trúc theo z.
-  # Đặt [1, 2, 2] nếu cổng ngân sách báo GPU thành nút thắt: hạ mẫu trong mặt phẳng
+  # Đặt [2, 2, 1] nếu cổng ngân sách báo GPU thành nút thắt: hạ mẫu trong mặt phẳng
   # như Med3D, giữ nguyên z, rẻ hơn 4 lần, bản đồ cuối 4x4x2.
+  # ⚠️ Thứ tự trục là [X, Y, Z] với Z là 32 lát, nên [2,2,1] mới là "trong mặt phẳng";
+  # [1,2,2] giữ X rồi hạ Y và Z, cho bản đồ 7x4x1 lệch trục và z còn một lát.
   #
   # ⚠️ Còn HAI chỗ nữa MONAI khác Med3D mà KHÔNG chỉnh được: layer3 (Med3D stride 1
   # dilation 2) và layer4 (stride 1 dilation 4) so với stride 2 dilation 1 của MONAI.

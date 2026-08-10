@@ -257,16 +257,24 @@ def build_resnet3d(
     Hệ quả cho việc đọc kết quả: E8 null thì "pretrained không giúp" *không phải* lời
     giải thích duy nhất. Phải ghi điều này vào báo cáo.
 
-    Chỗ duy nhất chỉnh được là `conv1_stride`, và nó cũng là chỗ đắt nhất:
+    Chỗ duy nhất chỉnh được là `conv1_stride`, và nó cũng là chỗ đắt nhất.
+
+    ⚠️ **Thứ tự trục.** MONAI trải giá trị này ra ba chiều **không gian** theo đúng thứ
+    tự của tensor, mà tensor của dự án là ``[B, C, X, Y, Z]`` với Z là 32 lát. Nên
+    ``[2, 2, 1]`` mới là "hạ mẫu trong mặt phẳng, giữ nguyên z"; ``[1, 2, 2]`` giữ X
+    rồi hạ Y và Z, cho bản đồ lệch trục và z còn **1 lát**. Ba phương án, đo thật::
+
+        stride       conv1          ...  layer4     voxel sau conv1
+        [1, 1, 1]    112×112×32          7×7×2      401.408   (1.00×)
+        [2, 2, 1]     56× 56×32          4×4×2      100.352   (0.25×)  <- dùng cái này
+        [1, 2, 2]    112× 56×16          7×4×1      100.352   (0.25×)  <- lệch trục
 
     - ``1`` (mặc định MONAI) — nhân 7×7×7 chạy ở nguyên độ phân giải đầu vào. Riêng
-      tầng này nặng hơn cả phần thân mạng. Với khối 112×112×32 thì bản đồ cuối là
-      7×7×2, hợp với dữ liệu mỏng theo z của dự án.
-    - ``[1, 2, 2]`` — hạ mẫu trong mặt phẳng như Med3D, **giữ nguyên trục z**. Rẻ hơn
-      4 lần, bản đồ cuối 4×4×2. Đây là phương án đáng thử nếu cổng ngân sách báo GPU
-      thành nút thắt.
-    - ``2`` — khớp Med3D hoàn toàn, nhưng z 32 voxel bị hạ mẫu 32 lần còn **đúng 1
-      lát**, mất sạch cấu trúc theo z ở block cuối. Không nên dùng với hình học này.
+      tầng này nặng hơn cả phần thân mạng.
+    - ``[2, 2, 1]`` — hạ mẫu trong mặt phẳng như Med3D, **giữ nguyên trục z**. Rẻ hơn
+      4 lần trên toàn mạng (mọi tầng sau cũng nhỏ đi 4 lần), bản đồ cuối 4×4×2. Đây là
+      phương án khi cổng ngân sách báo GPU thành nút thắt.
+    - ``2`` — hạ mẫu cả z. Bản đồ cuối 4×4×1, mất cấu trúc theo z ở block cuối.
     """
     import torch.nn as nn
     from monai.networks.nets import resnet as monai_resnet

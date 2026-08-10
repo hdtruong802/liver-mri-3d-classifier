@@ -99,9 +99,19 @@ model:
   # Để TRỐNG. Đường dẫn thật truyền qua env LLDMMRI_PRETRAINED_PATH lúc chạy, cùng
   # quy ước với LLDMMRI_CACHE_DIR. Không có trọng số thì train from scratch + cảnh báo.
   pretrained_path: ""
-  # Stride conv1. 1 = mặc định MONAI, bản đồ cuối 7x7x2. Đặt [1,2,2] nếu cổng ngân
-  # sách báo GPU thành nút thắt (hạ mẫu trong mặt phẳng như Med3D, giữ nguyên z).
-  conv1_stride: 1
+  # Stride conv1. ĐO THẬT trên Kaggle 2026-08-10: với stride 1, Siamese tốn 79 s/epoch
+  # GPU (thật tế 97-100 s/epoch kể cả val) so với 42 s/epoch CPU -> GPU thành nút thắt,
+  # 8.3 h/fold, 5 fold = 41h, vượt trọn quota tuần.
+  #
+  # [2,2,1] hạ mẫu TRONG MẶT PHẲNG như Med3D và giữ nguyên trục z. Rẻ hơn 4 lần trên
+  # toàn mạng vì mọi tầng sau cũng nhỏ đi 4 lần.
+  #
+  # ⚠️ THỨ TỰ TRỤC: tensor là [B, C, X, Y, Z] với Z là 32 lát, và MONAI trải giá trị
+  # này ra ba chiều không gian theo đúng thứ tự đó. Đo thật:
+  #     [1,1,1]  conv1 112x112x32  ...  layer4 7x7x2   (1.00x voxel)
+  #     [2,2,1]  conv1  56x 56x32  ...  layer4 4x4x2   (0.25x)  <- đúng cái cần
+  #     [1,2,2]  conv1 112x 56x16  ...  layer4 7x4x1   (0.25x)  <- LỆCH TRỤC, z còn 1 lát
+  conv1_stride: [2, 2, 1]
   # --- ĐÂY LÀ CHỖ E2 CHẾT ---
   # [1,1,1] = KHÔNG hạ mẫu, encoder nhận đủ 112x112x32. E2 để [2,2,1] và chạy ở 48
   # in-plane, nên kết quả 0.35-0.49 của nó không nói gì về Siamese (S-065).
