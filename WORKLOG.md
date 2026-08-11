@@ -5128,3 +5128,93 @@ Bước 1 và 2 quyết định bước 3, đừng đảo thứ tự.
 - **`train()` trả `best_macro_f1`, `metrics_best.json` ghi `macro_f1`, CSV ghi `val_macro_f1`** — ba tên cho cùng một đại lượng. `tests/test_notebook_contract.py` chặn việc đọc sai, nhưng đừng thêm tên thứ tư.
 - **`mixup_alpha` phải giữ mặc định 0.** Nó nằm trong hàm mà mọi thí nghiệm của dự án đi qua; đổi mặc định là đổi mọi con số cũ mà không có gì báo.
 - Trước khi tin một kết quả ensemble, kiểm **trùng lặp lỗi** bằng `weak_classes` §5. Gộp hai cấu hình trùng 74% lỗi làm macro-F1 **tệ đi**, đã đo.
+
+---
+
+## S-124 · 2026-08-11 · claude-code
+
+**Mục tiêu phiên:** Người dùng báo mục 3+4 của notebook 19 "không hiện gì" và đã tải `runs/CGHNET/` về. Tìm nguyên nhân, rồi đọc kết quả CGHNet fold 1.
+
+**Nhánh / commit:** `main` · `94d8683` → *(commit của phiên này)*
+
+**Đã đụng file:** `notebooks/19_cghnet.ipynb`, `AGENTS.md` (§5 mục mới).
+
+### 🐛 Vì sao mục 3+4 im lặng: `/kaggle/working` bị xoá giữa hai session
+
+`OUT = Path(os.environ["LLDMMRI_OUTPUT_DIR"])` trỏ vào `/kaggle/working/runs/cghnet`. Người dùng train ở session trước, rồi chạy mục 3+4 ở session sau — thư mục đó đã bị xoá, `OUT.glob("fold*")` trả rỗng, vòng lặp không chạy lần nào, `rows` rỗng, và mục 4 cũng lặp trên rỗng.
+
+**Không cell nào báo lỗi.** Một cell in ra tiêu đề bảng rồi không có dòng nào trông y như một cell chưa có gì để in. Đây là **cùng một lớp lỗi với `KeyError` ở S-123**: cell im lặng thì tệ hơn cell nổ.
+
+Sửa: `_tim_run()` tìm theo thứ tự (1) thư mục vừa train trong session này, (2) run đã mount dưới `/kaggle/input`, và **raise kèm hướng dẫn** nếu không thấy fold nào. Mục 4 thêm hai `assert`: `rows` không rỗng, và `LLDMMRI_CACHE_DIR` đã đặt (nó chạy forward thật, không đọc từ file).
+
+⚠️ **Thang bậc ba đầu ra vẫn chưa đọc được.** `val_probs_best_heads.npz` chỉ do mục 4 sinh ra, nên nó không có trong bản tải về. Muốn có ba con số 0.724 / 0.742 / 0.818 thì phải mount cache CGHNet + upload `runs/CGHNET` thành Dataset rồi chạy mục 4 (~1 phút GPU).
+
+### CGHNet fold 1 — đọc được từ bản tải về
+
+macro-F1 **0.6935** @ epoch 112, accuracy 0.7073, κ 0.6422. So cặp với E4 fold 1 trên đúng 82 ca: **−0.0066**, CI95 [−0.1192, +0.1065], **P = 0.94**. Ngang nhau.
+
+F1 từng lớp so với E4 gộp 394 ca (chỉ để tham chiếu, khác cỡ mẫu):
+
+| lớp | CGHNet fold 1 | E4 gộp 394 |
+|---|---|---|
+| nang | **0.875** | 0.762 |
+| u máu | 0.828 | 0.831 |
+| FNH | **0.800** | 0.761 |
+| HCC | 0.731 | 0.776 |
+| ICC | **0.588** | 0.519 |
+| áp-xe | 0.588 | 0.660 |
+| di căn | 0.444 | 0.488 |
+
+⚠️ `val_loss` chạm đáy ở **epoch 16** (E4 fold 1: epoch 100). Theo ρ=0.770 của S-107 thì đó là dấu hiệu overfit rất sớm, vậy mà macro-F1 vẫn 0.6935 — **một ngoại lệ đối với quy luật đó**, đáng ghi lại.
+
+### 🎯 Phát hiện đáng giá nhất: ensemble E4 ⊕ CGHNet, không train thêm gì
+
+Cổng đa dạng đã chạy (miễn phí, trên xác suất đã lưu):
+
+| | trùng lặp lỗi | oracle |
+|---|---|---|
+| E4 so **E6b** (chỉ khác augmentation) | **74%** | 0.782 |
+| E4 so **CGHNet** (khác kiến trúc *và* hình học) | **50%** | 0.854 |
+
+Gộp xác suất 50/50 trên 82 ca fold 1:
+
+| | macro-F1 | ICC | áp-xe | di căn |
+|---|---|---|---|---|
+| E4 | 0.7001 | 0.500 | 0.941 | 0.526 |
+| CGHNet | 0.6935 | 0.588 | 0.588 | 0.444 |
+| **gộp 50/50** | **0.7651** | **0.632** | 0.941 | **0.588** |
+
+**+0.065 so với E4, và nó nâng đúng hai lớp yếu.** Quét trọng số cho w(E4) = 0.50 là tối ưu, nên 50/50 **không phải giá trị chọn trên tập đánh giá** — nó là mặc định không thiên vị.
+
+**Phép gộp này hợp lệ**, khác hẳn cái bị cấm ở AGENTS.md §3: cả hai model train trên đúng 312 ca của fold 1 và đánh giá trên đúng 82 ca val mà không model nào thấy. Cái bị cấm là gộp 5 checkpoint của 5 fold rồi báo số out-of-fold.
+
+⚠️ **1 fold, n=82, CI mỗi fold ~±0.19.** E6b sàng 2 fold cho +0.038 rồi 5 fold cho −0.002. Nhưng khác E6b ở một điểm: đây **không phải một cấu hình train mới**, và cơ chế (50% so với 74% trùng lặp) đo được **trực tiếp, độc lập với điểm số**. Đó là lý do tôi xếp nó trên mixup về kỳ vọng.
+
+### Kết quả / số liệu
+
+Không có số train mới. Test giữ **544 passed**, 61 skipped. Gate PASS.
+
+### Dang dở
+
+- CGHNet còn **4 fold**. 1,6 h/fold ⇒ 8h cho đủ 5. Đây là việc đáng chi nhất hiện tại: nó vừa cho mốc 5 fold của CGHNet, vừa cho ensemble E4 ⊕ CGHNet trên đủ 394 ca.
+- Thang bậc ba đầu ra của CGHNet chưa đọc (cần mount cache + chạy mục 4).
+- Hai config mixup chưa chạy fold nào.
+- E8: `runs/E8/` vẫn rỗng.
+
+### Điểm vào phiên sau
+
+Chạy **CGHNet fold 2–5** (`notebooks/19_cghnet.ipynb`, `FOLDS = [2, 3, 4, 5]`, ~6,4h). Xong thì:
+
+```
+python -m src.eval.compare     --baseline runs/E4_cv_results --candidate runs/CGHNET
+python -m src.eval.weak_classes --run-dir runs/E4_cv_results --compare runs/CGHNET
+```
+
+và gộp xác suất trên đủ 394 ca. Nếu +0.065 sống sót qua 5 fold thì đó là con số báo cáo được, và nó tới từ hai run đã có sẵn.
+
+### Cảnh báo cho tool sau
+
+- **`/kaggle/working` bị xoá giữa hai session.** Mọi cell đọc `LLDMMRI_OUTPUT_DIR` ở một session khác session train sẽ thấy rỗng. Notebook 19 nay tự dò `/kaggle/input` và raise nếu không thấy; các notebook khác **chưa** được sửa như vậy.
+- **Cell im lặng tệ hơn cell nổ.** Hai phiên liền bị cùng lớp lỗi này (S-123 `KeyError` in ra sau khi train xong; S-124 vòng lặp rỗng). Vòng lặp nào mà rỗng là bất thường thì phải `assert`.
+- **Trước khi tin một kết quả ensemble, đo trùng lặp lỗi.** 74% (E4/E6b) thì gộp làm **tệ đi**; 50% (E4/CGHNet) thì gộp cho **+0.065**. Con số quyết định là trùng lặp, không phải macro-F1 của từng thành viên.
+- CGHNet `val_loss` đáy @16 mà vẫn 0.6935 — **ngoại lệ với ρ=0.770**. Đừng dùng riêng epoch chạm đáy để loại một cấu hình nữa.

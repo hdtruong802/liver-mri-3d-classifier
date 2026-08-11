@@ -298,6 +298,42 @@ Ba điều rút ra từ bộ số này:
 
 ⚠️ **Con số của ta đo trên val fold 1 (82 ca), bảng văn liệu đo trên test-104.** Hai tập khác nhau — **không được** viết "ta ngang ResNet3D 0.709". So sánh nội bộ E0/E1/E4 với nhau thì hợp lệ vì cùng tập và cùng số epoch; **E3 thì không**, xem cảnh báo ở trên.
 
+### 🎯 ENSEMBLE E4 ⊕ CGHNet — +0.065 trên fold 1, KHÔNG train thêm gì (2026-08-11, WORKLOG S-124)
+
+**Hướng có kỳ vọng cao nhất hiện tại, và nó gần như miễn phí.** Chỉ có **1 fold**, nên chưa
+phải kết luận — nhưng cơ chế thì đo được độc lập với điểm số.
+
+CGHNet fold 1: macro-F1 **0.6935** (epoch 112), so với E4 fold 1 0.7001. Ngang nhau
+(−0.0066, CI95 [−0.119, +0.107], P=0.94). Nhưng **hai model sai ở những ca KHÁC nhau**:
+
+| | trùng lặp lỗi | oracle |
+|---|---|---|
+| E4 so **E6b** (chỉ khác augmentation) | **74%** | 0.782 |
+| E4 so **CGHNet** (khác kiến trúc *và* hình học) | **50%** | 0.854 |
+
+Và gộp xác suất 50/50 trên 82 ca của fold 1:
+
+| | macro-F1 | ICC | áp-xe | di căn |
+|---|---|---|---|---|
+| E4 | 0.7001 | 0.500 | 0.941 | 0.526 |
+| CGHNet | 0.6935 | 0.588 | 0.588 | 0.444 |
+| **gộp 50/50** | **0.7651** | **0.632** | 0.941 | **0.588** |
+
+**+0.065 so với E4, và nó nâng đúng hai lớp yếu.** Quét trọng số cho w(E4)=0.50 là tối ưu,
+tức 50/50 **không phải giá trị được chọn trên tập đánh giá** — nó là mặc định không thiên vị.
+
+⚠️ **Phép gộp này HỢP LỆ**, khác hẳn cái bị cấm ở §3: cả hai model train trên **đúng 312 ca**
+của fold 1 và đánh giá trên **đúng 82 ca val** mà không model nào thấy. Cái bị cấm là gộp 5
+checkpoint của 5 fold rồi báo số out-of-fold.
+
+⚠️ **1 fold, n=82, CI mỗi fold ~±0.19.** E6b sàng 2 fold cho +0.038 rồi 5 fold cho −0.002.
+Cần CGHNet đủ 5 fold (1,6 h/fold ⇒ 8h) mới kết luận được. Nhưng khác E6b ở một điểm quan
+trọng: đây **không phải cấu hình train mới**, và cơ chế (50% so với 74% trùng lặp) đo được
+trực tiếp, không suy từ điểm số.
+
+⚠️ CGHNet `val_loss` chạm đáy ở **epoch 16** (E4 fold 1: epoch 100). Theo ρ=0.770 của S-107
+thì đó là dấu hiệu overfit rất sớm, vậy mà nó vẫn đạt 0.6935 — một ngoại lệ đáng ghi.
+
 ### ⭐ CHẨN ĐOÁN BA LỚP YẾU — bảy hướng chữa đã bị LOẠI (2026-08-10, WORKLOG S-123)
 
 **Đọc mục này trước khi đề xuất bất cứ cách nào để nâng macro-F1.** Chạy lại bằng
