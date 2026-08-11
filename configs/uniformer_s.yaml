@@ -102,9 +102,21 @@ data:
   # instance` là ablation MỘT khoá.
   sampling: sqrt
 
-  # [LỆCH] `--mixup` CÓ trong train.sh của họ, nhưng đọc `train.py` thì KHÔNG có nhánh mixup
-  # nào trong vòng train — cờ nằm đó mà không được nối vào. Bật nó là thêm một biến mà họ
-  # KHÔNG thật sự dùng. Giữ 0; muốn ablate thì tạo config riêng.
+  # ⚠️ ĐÍNH CHÍNH 2026-08-11 (S-128): ghi chú trước ở đây nói "`--mixup` là cờ chết vì
+  # `train.py` không nối nhánh mixup nào" — SAI. Mixup của họ nằm trong **dataset**, không
+  # phải vòng train: `mp_liver_dataset.py::__getitem__` gọi `self.mixup(image, label)` khi
+  # `args.mixup and label != 6`.
+  #
+  # Và nó là một phép KHÁC HẲN loại mixup mà `data.mixup_alpha` cài. Chú thích của chính họ
+  # là `类内mixup` — **mixup TRONG CÙNG LỚP**:
+  #     lam = np.random.beta(1.0, 1.0)            # = Uniform(0, 1)
+  #     image = lam * image + (1 - lam) * image_cung_lop
+  #     # nhãn GIỮ NGUYÊN, không trộn
+  # tức nội suy hai ca cùng chẩn đoán để sinh biến thể mới, KHÔNG phải trộn chéo lớp kèm
+  # trộn nhãn kiểu Zhang và cs. Loại HCC (lớp 6) — chỉ áp cho 6 lớp thiểu số.
+  #
+  # `data.mixup_alpha` KHÔNG cài được phép đó, nên để 0 ở đây là đúng — nhưng vì lý do
+  # "chưa cài", không phải vì "họ không dùng". Xem AGENTS.md §5.
   mixup_alpha: 0.0
 
   augment:

@@ -468,11 +468,52 @@ Mới: `uniformer3d` (đăng ký trong `_BUILDERS`), `RandomAppearance`, `data.s
 | focal loss | **softmax** (`losses.py`) | của họ là **sigmoid** CB-focal. Chỗ lệch đáng kể nhất |
 | `emboss`/`sharpen` | kernel + `scale` của PIL, **bỏ offset 128 và clip** | cache ta là **z-score**, của họ là [0,1] qua `uint8`. Đổi lại ta không mất mát lượng tử hoá |
 | xoay | `rotate_mode: nearest` | họ xoay `mode='constant'` nên có dải 0 ở góc — đúng lỗi E12 đã đo (S-111). Đây là chỗ ta tốt hơn họ |
-| `--mixup` | **tắt** (`mixup_alpha: 0`) | cờ có trong `train.sh` nhưng `train.py` **không nối** nhánh mixup nào vào vòng train |
+| `--mixup` | **CHƯA CÀI ĐƯỢC** (`mixup_alpha: 0`) | ⚠️ xem đính chính ngay dưới bảng |
 
 ⚠️ Và một chỗ **họ làm mà ta giữ nguyên dù nó đáng ngờ**: `blur`/`unsharp` của họ gọi
 `ndimage.gaussian_filter` trên mảng **4 chiều** nên σ broadcast ra cả trục pha ⇒ **trộn 8 pha**.
 Gần như chắc chắn ngoài ý định của họ. `filter_spatial_only: true` là ablation một khoá.
+
+#### ⚠️ ĐÍNH CHÍNH S-128 — `--mixup` KHÔNG phải cờ chết, và nó là phép ta CHƯA CÓ
+
+S-125 ghi *"cờ có trong `train.sh` nhưng `train.py` không nối nhánh mixup nào"* — **sai**, vì
+tôi chỉ đọc `train.py`. Mixup của họ nằm trong **dataset**:
+`mp_liver_dataset.py::__getitem__` gọi `self.mixup(image, label)` khi `args.mixup and label != 6`.
+
+Và nó là một phép **khác hẳn** loại `data.mixup_alpha` của ta. Chú thích của chính họ là
+`类内mixup` — **mixup TRONG CÙNG LỚP**:
+
+```python
+alpha = 1.0
+index = random.choice([i for i, x in enumerate(self.lab_list) if int(x) == label])
+lam = np.random.beta(alpha, alpha)              # Beta(1,1) = Uniform(0,1)
+image = lam * image + (1 - lam) * load(self.img_list[index])
+# NHÃN GIỮ NGUYÊN — không trộn nhãn
+```
+
+| | mixup của ta (`data.mixup_alpha`) | mixup của họ |
+|---|---|---|
+| trộn với | ca **bất kỳ** trong batch | ca **cùng lớp** trong toàn tập train |
+| nhãn | trộn `λ·y + (1−λ)·y'` | **giữ nguyên** |
+| λ | Beta(0.2, 0.2), lệch về hai đầu | Beta(1,1) = **đều** |
+| phạm vi | mọi lớp | **loại HCC** (lớp 6) — chỉ 6 lớp thiểu số |
+| xác suất | mỗi batch | **mọi mẫu** đủ điều kiện |
+
+Bảng lớp của họ **trùng đúng thứ tự và đúng số ca** với `src/data/taxonomy.py`
+(63/46/42/40/42/36/125 = 394), nên `label != 6` chắc chắn là loại HCC.
+
+**Vì sao nó ăn khớp với `--sampling sqrt`:** lấy mẫu lại *có hoàn lại* sinh ra **bản sao y hệt**
+của ca hiếm; mixup trong cùng lớp biến mỗi bản sao thành một nội suy mới. Không có nó thì
+`sqrt` chỉ lặp lại đúng những ảnh cũ. Đây là mảnh thứ ba mà mục "hai lớp cân bằng" ở trên
+bỏ sót — và nó là mảnh làm cho phép lấy mẫu lại **thêm thông tin** thay vì chỉ nhân bản.
+
+**Vì sao nó khớp chẩn đoán §4 hơn mixup chuẩn:** di căn (n=40) không vào nổi top-2 ⇒ thiếu
+biểu diễn. Nội suy trong cùng lớp sinh biến thiên mới **đúng cho các lớp hiếm**, mà không tạo
+ra nhãn mềm chéo lớp — thứ mà §3 (0/117 lỗi sát sao) nói là không cứu được gì.
+
+⚠️ **Ta CHƯA cài được phép này.** `data.mixup_alpha` là mixup chéo lớp có trộn nhãn, không
+thay thế được. Cần một khoá riêng (`data.intra_class_mixup`) ở tầng **dataset**, không phải
+`run_epoch`, vì nó phải bốc một ca cùng lớp từ toàn tập train chứ không phải từ batch.
 
 #### Cây quyết định của ba augment lọc — 60% mẫu KHÔNG bị phép nào
 
