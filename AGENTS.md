@@ -300,6 +300,14 @@ Ba điều rút ra từ bộ số này:
 
 ### 🎯 ENSEMBLE E4 ⊕ CGHNet — +0.065 trên fold 1, KHÔNG train thêm gì (2026-08-11, WORKLOG S-124)
 
+> 🐛 **CẢNH BÁO THÊM 2026-08-11 (S-126): mọi con số CGHNet dưới đây là của bản CÓ LỖI.**
+> `pos_embed` của nhánh ViT được cấp phát **lười trong `forward`**, tức sinh ra *sau khi*
+> optimizer đã chụp `model.parameters()`, nên nó **chưa bao giờ nhận một bước cập nhật** —
+> nhánh ViT chạy trọn 300 epoch với positional embedding là nhiễu ngẫu nhiên đóng băng. Lỗi
+> đã sửa; **CGHNet phải train lại** và 0.6935 hết hiệu lực.
+> Trớ trêu là điều này làm hướng ensemble **hấp dẫn hơn**, không kém đi: 50% trùng lặp lỗi và
+> +0.065 đạt được với một nhánh 2D bị què. Nhưng nó cũng có nghĩa con số +0.065 chưa chốt được.
+
 **Hướng có kỳ vọng cao nhất hiện tại, và nó gần như miễn phí.** Chỉ có **1 fold**, nên chưa
 phải kết luận — nhưng cơ chế thì đo được độc lập với điểm số.
 
@@ -853,7 +861,7 @@ Bootstrap **ghép cặp** trên hiệu (2000 lần, phân tầng, mức bệnh n
 | **EMA** | `configs/e7_ema.yaml` (`train.ema_decay: 0.999`) | mặc định TẮT ở baseline. Khi bật, **mọi số trong `train_log.csv`/`metrics_best.json`/`val_probs_*.npz` là của model EMA** |
 | **E8 — backbone pretrained MedicalNet** | `notebooks/16_e8_pretrained.ipynb` trên Kaggle | sẵn sàng (2026-08-10). **Tự tải trọng số từ HuggingFace** `TencentMedicalNet/MedicalNet-Resnet18` (132 MB) nếu bật Internet; ưu tiên bản đã mount nếu có. Dùng lại **cache E4** (cổng loại cache E12 vì ba khoá thường dùng không phân biệt được hai cái). Đường dẫn trọng số qua env `LLDMMRI_PRETRAINED_PATH`, không ghi cứng trong config |
 | **Build cache CGHNet** (một lần, ~20 phút, **CPU**) | `notebooks/18_build_cache_cghnet.ipynb` trên Kaggle, **Accelerator = None** | sẵn sàng (2026-08-10), **chưa chạy**. Lưới **128×128×16** (`configs/preprocess_cghnet.yaml`: `target_size [112,112,14]` + lề `[8,8,1]`), đúng hình học của bài CGHNet. ~2,0 GB, nhỏ hơn cache E4. ⚠️ **z=14 nên KHÔNG dùng được cho config DenseNet121** (cần ≥32 mọi chiều, S-063); `tests/test_models.py` chặn cả hai chiều |
-| **CGHNet — tái lập bài báo 0.818** | `notebooks/19_cghnet.ipynb` trên Kaggle | sẵn sàng (2026-08-10), **chưa chạy**. Tái lập **từ văn bản**, bài không có code; mọi khoá trong `configs/cghnet.yaml` có nhãn `[BÀI]` hoặc `[SUY]`, **không được lẫn khi viết báo cáo**. Tổng tham số đếm tay 59.02M so với 59.37M của bài (−0,6%). Deep supervision cho **ba** đầu ra nên một lần chạy đối chiếu được ba mốc công bố: nhánh 3D **0.724** · nhánh 2D **0.742** · hợp nhất **0.818** — nhánh 3D thấp thì sai **protocol/dữ liệu**, không phải sai fusion |
+| **CGHNet — tái lập bài báo 0.818** | `notebooks/19_cghnet.ipynb` trên Kaggle | fold 1 đã chạy → 0.6935, **nhưng bằng bản CÓ LỖI** (`pos_embed` không bao giờ được học, S-126) ⇒ **phải train lại**. Tái lập **từ văn bản**, bài không có code; mọi khoá trong `configs/cghnet.yaml` có nhãn `[BÀI]` hoặc `[SUY]`, **không được lẫn khi viết báo cáo**. ⚠️ Việc tổng tham số khớp 59.37M **không chứng minh gì** — các khoá `[SUY]` đã được chọn *để* khớp con số đó (lập luận vòng tròn). Deep supervision cho **ba** đầu ra nên một lần chạy đối chiếu được ba mốc công bố: nhánh 3D **0.724** · nhánh 2D **0.742** · hợp nhất **0.818** — nhánh 3D thấp thì sai **protocol/dữ liệu**, không phải sai fusion |
 | **E13 — Siamese đa pha + encoder pretrained** | `notebooks/17_e13_siamese.ipynb` trên Kaggle | sẵn sàng (2026-08-10), **chưa chạy**. Tự tải trọng số như notebook 16, dùng **cache E4**. Khác baseline đúng khối `model:`. **Cổng B đo hình dạng thật đi vào encoder** — E2 chết vì chạy ở 48 in-plane và không có gì báo (S-065). **Cổng D** kiểm trọng số phase-attention có suy biến về 1/8 hay không: suy biến thì Siamese chỉ là một cách lấy trung bình đắt gấp 8. Bar chốt trước: fold 1+2 gộp ≥ 0.79 thì mục tiêu 0.75 trên test-104 còn khả thi, 0.69–0.72 là ngang E4 và nên dừng |
 | **⭐ UniFormer-S + Kinetics — tái lập đội hạng 2** | `notebooks/20_uniformer.ipynb` trên Kaggle, **bật Internet** | sẵn sàng (2026-08-11), **chưa chạy**. Dùng **lại cache CGHNet** (`--img_size 16 128 128 --crop_size 14 112 112` của họ khớp chính xác), không build cache mới. Tự tải `uniformer_small_k400_16x8.pth` (~200 MB) từ `Sense-X/uniformer_video`. **Năm cổng A–E chạy trước khi cam kết fold nào** — xem §5. ⚠️ Cổng C bắt buộc: `patch_embed1` stride `(1,2,2)` không hạ mẫu trục lát nên stage 3 có 2744 token so với 1568 của bản pretrained, **đắt hơn** CGHNet. Quá 60 s/epoch thì đặt `patch_embed1_stride: [2,2,2]` |
 | **Chạy CV trên Kaggle** | mở `notebooks/09_cv_runner.ipynb`, đặt `CONFIG_NAME` + `FOLDS` | sẵn sàng (W4); **thay cho notebook 07** (07 khoá cứng vào baseline và còn logic dò đường dẫn cũ đã sai) |

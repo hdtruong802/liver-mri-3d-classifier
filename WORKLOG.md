@@ -5327,3 +5327,125 @@ Bar quyết định chốt trước (gộp 2 fold): ≥0.78 đi tiếp 5 fold ·
 - **HCC là lớp 6, không phải 0** (`src/data/taxonomy.py`). Đã ghim nhầm một lần trong phiên này.
 - Mọi khoá trong `configs/uniformer_s.yaml` có nhãn `[REPO]` / `[SUY]` / `[LỆCH]`. **Không được lẫn khi viết báo cáo** — cùng quy ước với `configs/cghnet.yaml`.
 - `train_alldata.py` và `json_refine.py` của họ **cố ý ngoài phạm vi**: cái đầu train trên toàn bộ trainval nên không đánh giá out-of-fold được bằng bất kỳ cách nào; cái sau hợp nhất dự đoán trên test. Cả hai chỉ dùng được ở lần chạm test-104 thứ hai, cần pre-registration mới (AGENTS.md §3.4).
+
+---
+
+## S-126 · 2026-08-11 · claude-code
+
+**Mục tiêu phiên:** Trong lúc UniFormer train trên Kaggle, tìm nguyên nhân bản tái lập CGHNet không đạt được 0.818 của bài. Toàn bộ phiên **không tốn một giây GPU** — chỉ đọc `runs/CGHNET/fold_1/`, checkpoint, mã nguồn và bài báo.
+
+**Nhánh / commit:** `main` · `291840d` → *(commit của phiên này)*
+
+**Đã đụng file:** `src/models/cghnet.py`, `configs/cghnet.yaml` · `cghnet_mixup.yaml`, `tests/test_models.py`, `AGENTS.md`.
+
+### 🐛 LỖI CHẮC CHẮN: `pos_embed` của nhánh ViT CHƯA BAO GIỜ được học
+
+`CGHNet.__init__` đặt `self.pos_embed = None` rồi cấp phát **lười trong `forward`**:
+
+```python
+if self.pos_embed is None or self.pos_embed.shape[1] != tokens.shape[1]:
+    pos = torch.zeros(1, tokens.shape[1], embed_dim, device=tokens.device)
+    nn.init.trunc_normal_(pos, std=0.02)
+    self.pos_embed = nn.Parameter(pos)      # <-- sinh ra trong forward
+```
+
+Nhưng `src/train/run.py` dựng optimizer ở **dòng 363**, tức **trước** lần forward đầu:
+
+```python
+model = build_model(config["model"]).to(device)            # dòng 358 — pos_embed còn là None
+optimizer = torch.optim.AdamW(build_param_groups(model, weight_decay), ...)   # dòng 363
+```
+
+`build_param_groups` **vật chất hoá** danh sách từ `model.parameters()` ngay tại đó, và optimizer chỉ được dựng **một lần**, không bao giờ dựng lại (đã kiểm mọi chỗ dùng `optimizer` trong `run.py`).
+
+**Hệ quả:**
+
+* `nn.Module.__setattr__` **có** đăng ký `pos_embed` ⇒ nó nằm trong `state_dict()` và **có thật trong `best.pt`** (đã xác minh, shape `(1, 50, 384)`). Nhìn checkpoint thấy đủ, không có gì đáng ngờ.
+* Nhưng nó **không nằm trong param group nào** ⇒ **không nhận một bước cập nhật nào trong suốt 300 epoch**.
+
+Bài nói rõ *"supplemented by **learnable** positional embeddings E_pos"*. Của ta là **nhiễu ngẫu nhiên đóng băng** `trunc_normal_(std=0.02)`. Không lỗi nào nổ, không cảnh báo nào in ra.
+
+⚠️ **Con số CGHNet fold 1 = 0.6935 là của bản CÓ LỖI**, không so trực tiếp được với bất kỳ run nào sau khi sửa. Muốn có mốc CGHNet đúng thì phải train lại 1,6 h/fold.
+
+⚠️ **Không rõ lỗi này đáng bao nhiêu điểm.** Positional encoding ngẫu nhiên cố định vẫn là một mã vị trí hợp lệ (phân biệt được, nhất quán giữa các mẫu), nên transformer học đọc nó được. Tôi **không** cho rằng nó giải thích hết khoảng cách; nó chỉ là thứ duy nhất chắc chắn sai.
+
+**Đã sửa:** thêm `model.in_plane_size` (mặc định 112), cấp phát `pos_embed` trong `__init__`, và `forward` **nổ** nếu số token lệch thay vì cấp phát lại.
+
+### 🔒 Cổng chặn cả LỚP lỗi, không chỉ CGHNet
+
+`tests/test_models.py::test_khong_model_nao_sinh_tham_so_moi_khi_forward` quét **mọi** model trong `_BUILDERS`: so `named_parameters()` trước và sau một forward, lệch là fail. Kèm `test_moi_model_trong_registry_deu_co_trong_cong_tham_so_luoi` — tách riêng để **chạy được khi không có torch**, vì cổng chính `skip` ở local và độ phủ registry là phần dễ mục nhất.
+
+Cổng này che cả `uniformer3d` và mọi kiến trúc thêm sau này.
+
+### 📊 Cách đọc ĐÚNG khoảng cách — không phải "hụt 0.12"
+
+So tuyệt đối là sai vì hai bên đo trên hai tập khác nhau (ta: val fold 1, 82 ca, có thiên lệch chọn epoch; họ: test-104). **So tương đối thì miễn nhiễm với chuyện đó:**
+
+| | so với một CNN 3D trần |
+|---|---|
+| bài (Bảng 1) | CGHNet 0.818 so ResNet3D 0.709 = **+0.109** |
+| ta (fold 1, 82 ca) | CGHNet 0.6935 so E4/DenseNet 0.7001 = **−0.007**, P=0.94 |
+
+**Toàn bộ lợi thế kiến trúc mà bài công bố đã biến mất, không còn một chút nào.** Đó mới là phát biểu đúng của vấn đề. Và nó khớp với một quan sát về ngân sách tham số, đọc thẳng từ `best.pt`:
+
+| module | tham số | % |
+|---|---|---|
+| ResNet3D (nhánh 3D) | 46,361,909 | **78.5%** |
+| ViT (nhánh 2D) | 10,827,312 | 18.3% |
+| CGFM | 886,272 | 1.5% |
+| còn lại | ~950,000 | 1.7% |
+| **tổng** | **59,026,313** | (bài: 59.37M, −0.6%) |
+
+**4/5 model là một ResNet3D trần, và điểm số cũng đúng bằng một CNN trần.** Nghĩa là nhánh 2D + CGFM + ADF đang đóng góp ~0.
+
+### ⚠️ Việc khớp 59.37M KHÔNG chứng minh gì cả — nó là lập luận vòng tròn
+
+Bài không nói `depth`/`embed_dim`/`num_heads`/`patch_size` của nhánh ViT (đều gắn nhãn `[SUY]`), và tôi **đã chọn chúng để tổng tham số khớp 59.37M**. Nên khớp là hệ quả của cách chọn, không phải bằng chứng dựng đúng. Có vô số bộ giá trị khác cũng cho 59M. Điều này đáng ghi vì mục §6 của AGENTS.md từng trình bày con số −0,6% như một dấu hiệu tốt.
+
+### Ba nghi phạm còn lại, xếp theo mức tin cậy
+
+**1. Patch-embed của nhánh 2D quá hẹp — và cách đọc bài của tôi có thể sai.**
+Hiện tại `patch_embed` là `Conv2d(1, 48, 16, 16)`: **48 chiều** cho một patch 16×16 = 256 pixel của một thì. Concat 8 thì → 384, rồi `modality_proj` 384→384.
+
+Bài viết: *"these embeddings are concatenated along the modality axis and **linearly projected to align with** the latent dimension"*. Cụm "to align with" chỉ có nghĩa nếu chiều sau concat **khác** chiều latent — còn ở bản của ta phép chiếu là 384→384, chẳng "align" gì. Cách đọc hợp lý hơn: mỗi thì ra **384** chiều, concat → 3072, rồi `Linear(3072→384)`.
+
+Chênh tham số: +1.12M (tổng 60.14M, tức +1.3% so với bài thay vì −0.6%). **Số tham số không phân xử được** — cả hai đều trong sai số của các khoá `[SUY]`. Nhưng câu chữ nghiêng về cách đọc thứ hai, và nút cổ chai 5,3× ở ngay lớp đầu là một giới hạn dung lượng thật.
+
+**2. Nhánh 3D mất sạch chiều sâu ở đầu ra.** Với z=14 và 16 lần hạ mẫu, `layer4` ra **7×7×1** ⇒ `N_v = 49` token, **z co về 1**. Docstring cũ gọi đây là "tất yếu, không phải lỗi" — đúng về mặt số học, nhưng nó nghĩa là nhánh mang tên *"preserve holistic volumetric continuity"* giao cho CGFM những token **không còn chiều sâu nào**, trong khi CGFM lẽ ra ghép chúng với chuỗi 14 token theo lát của nhánh 2D. Đặt `no_max_pool` cho MONAI ResNet sẽ cho 14×14×2 = **392** token và giữ được z — một khoá, chưa thử.
+
+**3. Bài không nói CHỌN CHECKPOINT thế nào.** Đã grep toàn văn: không có "best model", "checkpoint", "early stopping", "model selection". Chỉ có "300 epochs" và "reported on the independent official fixed test set".
+
+⚠️ **Và điều này KHÔNG giúp khép khoảng cách** — phải nói rõ để không ai dùng nó làm cớ:
+* nếu họ báo epoch **cuối**, số so được của ta là `last` = **0.6242**, tức khoảng cách **rộng ra**;
+* nếu họ báo epoch **tốt nhất chọn trên test**, trừ đi thiên lệch chọn epoch của dự án (+0.069) thì họ còn ~0.75, ta còn ~0.62 — vẫn hụt ~0.13.
+
+Nghi ngờ về bài **không** thay thế được việc sửa bản tái lập.
+
+### Dòng học: model thuộc lòng 312 ca train
+
+`train_loss`: 2.93 (epoch 0–20) → 0.71 (20–50) → 0.18 (50–100) → **0.0000** từ ~epoch 180. `val_loss` chạm đáy ở **epoch 16** rồi lên 1.21 và nằm đó. 200 epoch cuối train trên gradient bằng 0; macro-F1 dao động 0.52–0.69 — nhiễu thuần trên 82 ca.
+
+Thiên lệch chọn epoch của chính CGHNet: `best`(112) 0.6935 so `last`(300) 0.6242 = **+0.069**, trùng khít con số +0.079 đo trên E4.
+
+Xác suất cùng bệnh lý với E4: tự tin TB 0.837 so accuracy 0.707 (+0.129), **0/24 lỗi có biên < 0.10**.
+
+### Kết quả / số liệu
+
+Không có số train mới. Test **608 → 609 passed**, 73 skipped. Ruff + format sạch. Gate PASS.
+
+### Dang dở
+
+- **Thang bậc ba đầu ra vẫn chưa đọc** — và giờ nó là phép đo quyết định, không còn là "nên có". Nó phân xử: nhánh 2D thấp hẳn so 0.742 ⇒ nghi phạm 1 và lỗi `pos_embed` là nguyên nhân; cả hai nhánh cùng ~0.62 ⇒ vấn đề nằm ở protocol/dữ liệu, không phải fusion.
+- CGHNet phải **train lại** sau khi sửa `pos_embed`; mốc 0.6935 đã hết hiệu lực.
+- Nghi phạm 1 (patch-embed rộng) và 2 (`no_max_pool`) chưa cài, mỗi cái là một khoá.
+
+### Điểm vào phiên sau
+
+Cache CGHNet **đã được mount sẵn trong session UniFormer** (notebook 20 dùng lại chính cache đó), nên chỉ cần mount thêm `runs/CGHNET` là chạy được **mục 4 của notebook 19** trong cùng session — ~1 phút GPU. Làm việc đó trước mọi thứ khác.
+
+### Cảnh báo cho tool sau
+
+- **Đừng cấp phát `nn.Parameter` trong `forward`.** Optimizer đã chụp `model.parameters()` từ trước; tham số đó sẽ nằm trong `state_dict` mà không bao giờ được học, và **không có gì báo**. `tests/test_models.py` nay chặn, nhưng chỉ khi có torch — ở local nó `skip`.
+- **Đừng dùng việc khớp tổng tham số làm bằng chứng dựng đúng kiến trúc** khi các khoá tự do được chọn *để* khớp con số đó. Đó là lập luận vòng tròn.
+- **So TƯƠNG ĐỐI khi hai bên đo trên hai tập khác nhau.** "CGHNet của ta hụt 0.12" là câu sai; "lợi thế +0.109 của CGHNet so với một CNN trần không tái lập được chút nào" là câu đúng, và nó chỉ thẳng vào nhánh 2D.
+- Bài CGHNet **không nói cách chọn checkpoint**, và cả hai cách đọc đều **không** khép được khoảng cách. Đừng dùng nó làm lời giải thích.

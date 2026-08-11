@@ -114,6 +114,7 @@ def build_cghnet(
     dropout_prob: float = 0.2,
     attn_pool_dim: int | None = None,
     lambda_res: float = DEFAULT_LAMBDA_RES,
+    in_plane_size: int = 112,
 ) -> Any:
     """Dựng CGHNet nhận ``[B, num_phases, X, Y, Z]`` → logits ``[B, num_classes]``.
 
@@ -135,6 +136,29 @@ def build_cghnet(
         attn_pool_dim: ``K`` của attention pooling. ``None`` = `num_classes`, theo câu
             *"projects each fused patch to a class logit vector"* của bài.
         lambda_res: hệ số hiệu chỉnh dư của ADF (Eq. 11). Bài chốt 0.50.
+        in_plane_size: cạnh trong mặt phẳng của khối **model nhận** (``data.crop_size[0]``).
+            Chỉ dùng để cấp phát `pos_embed` **trong `__init__`** — xem 🐛 dưới đây.
+
+    🐛 **LỖI ĐÃ SỬA 2026-08-11 (WORKLOG S-126) — `pos_embed` chưa bao giờ được học.**
+
+    Bản trước cấp phát ``self.pos_embed`` **lười, trong `forward`**, vì số patch phụ thuộc
+    kích thước ảnh. Nhưng `src/train/run.py` dựng optimizer ở dòng ``AdamW(build_param_groups(
+    model, ...))`` **trước** lần forward đầu, nên `pos_embed` sinh ra *sau khi* optimizer đã
+    chụp xong danh sách tham số:
+
+    * `nn.Module.__setattr__` **có** đăng ký nó ⇒ nó xuất hiện trong `state_dict()` và trong
+      `best.pt`, nên nhìn checkpoint thì thấy đủ và không có gì đáng ngờ;
+    * nhưng nó **không nằm trong param group nào** ⇒ **không bao giờ nhận một bước cập nhật**.
+
+    Suốt 300 epoch của fold 1, positional embedding là **nhiễu ngẫu nhiên đóng băng**
+    (``trunc_normal_(std=0.02)``), trong khi bài nói rõ *"supplemented by **learnable**
+    positional embeddings E_pos"*. Không lỗi nào nổ, không cảnh báo nào in ra.
+
+    ⚠️ **Hệ quả: con số CGHNet fold 1 = 0.6935 là của bản CÓ LỖI.** Nó không so trực tiếp
+    được với bất kỳ run nào sau khi sửa. Muốn có mốc CGHNet đúng thì phải train lại.
+
+    `tests/test_models.py::test_khong_model_nao_sinh_tham_so_moi_khi_forward` chặn cả **lớp**
+    lỗi này cho mọi model trong `_BUILDERS`, không chỉ cho CGHNet.
     """
     # Kiểm tham số TRƯỚC khi import torch, để cấu hình sai nổ ngay ở local.
     if embed_dim % num_phases != 0:
@@ -245,9 +269,13 @@ def build_cghnet(
             # Chiếu sau khi concat theo trục thì, "to align with the latent dimension".
             self.modality_proj = nn.Linear(embed_dim, embed_dim)
             self.cls_token = nn.Parameter(torch.zeros(1, 1, embed_dim))
-            # `pos_embed` cấp phát lười ở lần forward đầu: số patch phụ thuộc kích thước
-            # ảnh, mà kích thước đó do cache quyết định chứ không do config model.
-            self.pos_embed: Any = None
+            # `pos_embed` cấp phát NGAY Ở ĐÂY, không lười trong forward. Cấp phát lười làm
+            # nó sinh ra sau khi optimizer đã chụp `model.parameters()` ⇒ không bao giờ được
+            # học. Xem 🐛 ở docstring của `build_cghnet`.
+            n_patch = (in_plane_size // patch_size) ** 2
+            self.n_token = n_patch + 1  # + cls token
+            self.pos_embed = nn.Parameter(torch.zeros(1, self.n_token, embed_dim))
+            nn.init.trunc_normal_(self.pos_embed, std=0.02)
             self.blocks = nn.ModuleList(TransformerBlock() for _ in range(depth))
             self.norm_2d = nn.LayerNorm(embed_dim)
 
@@ -306,10 +334,14 @@ def build_cghnet(
 
             cls = self.cls_token.expand(tokens.shape[0], -1, -1)
             tokens = torch.cat([cls, tokens], dim=1)
-            if self.pos_embed is None or self.pos_embed.shape[1] != tokens.shape[1]:
-                pos = torch.zeros(1, tokens.shape[1], embed_dim, device=tokens.device)
-                nn.init.trunc_normal_(pos, std=0.02)
-                self.pos_embed = nn.Parameter(pos)
+            if tokens.shape[1] != self.n_token:
+                # NỔ thay vì cấp phát lại. Cấp phát lại trong forward chính là lỗi đã sửa;
+                # và một model dựng cho 112 in-plane mà nhận 96 thì hình học đã sai rồi.
+                raise ValueError(
+                    f"nhận {tokens.shape[1]} token/lát nhưng `pos_embed` dựng cho "
+                    f"{self.n_token}. Đặt `model.in_plane_size` khớp `data.crop_size[0]` "
+                    f"(hiện in_plane_size={in_plane_size}, patch_size={patch_size})."
+                )
             tokens = tokens + self.pos_embed
 
             for block in self.blocks:

@@ -354,3 +354,74 @@ def test_e3_geometry_matches_published_in_plane_size():
     size = load_yaml("configs/preprocess_e3.yaml")["target_size"]
     assert size[0] == size[1] == 112, "in-plane phải là 112, khớp baseline official và CGHNet"
     assert size[2] == 32, "Z=32 là mức thấp nhất DenseNet chịu được"
+
+
+#: Cấu hình nhỏ nhất mà mỗi builder chạy được, kèm shape đầu vào hợp lệ. Dùng cho cổng
+#: "forward không được sinh tham số mới" ngay dưới.
+_KHOI_TOI_THIEU: dict[str, tuple[dict, tuple[int, ...]]] = {
+    "densenet121_3d": ({"in_channels": 8, "num_classes": 7}, (1, 8, 32, 32, 32)),
+    "siamese_fusion": ({"num_phases": 8, "embed_dim": 32}, (1, 8, 32, 32, 32)),
+    "resnet3d": ({"depth": 10, "in_channels": 8, "num_classes": 7}, (1, 8, 32, 32, 32)),
+    "cghnet": (
+        {"num_phases": 8, "num_classes": 7, "resnet_depth": 10, "in_plane_size": 112},
+        (1, 8, 112, 112, 14),
+    ),
+    "uniformer3d": (
+        {"variant": "small", "patch_embed1_stride": (2, 2, 2), "require_pretrained": False},
+        (1, 8, 112, 112, 14),
+    ),
+}
+
+
+def test_moi_model_trong_registry_deu_co_trong_cong_tham_so_luoi():
+    """Phần dễ mục nhất của cổng bên dưới, tách ra để **chạy được khi không có torch**.
+
+    Cổng kia cần torch nên nó `skip` ở local; nếu để phép kiểm độ phủ nằm trong đó thì thêm
+    một model mới sẽ lặng lẽ không được che, đúng kiểu hỏng mà cả cổng này tồn tại để chặn.
+    """
+    from src.models import _BUILDERS
+
+    assert set(_KHOI_TOI_THIEU) == set(_BUILDERS), (
+        f"model mới chưa khai trong `_KHOI_TOI_THIEU`: "
+        f"{sorted(set(_BUILDERS) - set(_KHOI_TOI_THIEU))}. Thêm vào — đừng bỏ qua, "
+        "đây là cổng chặn thật."
+    )
+
+
+def test_khong_model_nao_sinh_tham_so_moi_khi_forward():
+    """⚠️ CỔNG CHẶN MỘT LỚP LỖI IM LẶNG — đọc kỹ trước khi sửa.
+
+    `src/train/run.py` dựng optimizer **trước** lần forward đầu::
+
+        model = build_model(config["model"]).to(device)
+        optimizer = torch.optim.AdamW(build_param_groups(model, weight_decay), ...)
+
+    Nên một tham số cấp phát *lười* trong `forward` sẽ:
+
+    * **được** `nn.Module.__setattr__` đăng ký ⇒ có trong `state_dict()` và trong `best.pt`,
+      nhìn checkpoint thấy đủ, không có gì đáng ngờ;
+    * **không** nằm trong param group nào ⇒ **không bao giờ nhận một bước cập nhật**.
+
+    Nó đứng nguyên ở giá trị khởi tạo suốt 300 epoch mà không lỗi nào nổ và không cảnh báo
+    nào in ra. Đây chính xác là chuyện đã xảy ra với `pos_embed` của CGHNet: nhánh ViT chạy
+    trọn fold 1 với positional embedding là **nhiễu ngẫu nhiên đóng băng**, trong khi bài nói
+    *"learnable positional embeddings"* (WORKLOG S-126).
+
+    Test này quét **mọi** model trong `_BUILDERS`, nên nó cũng che `uniformer3d` và mọi kiến
+    trúc thêm sau này.
+    """
+    torch = pytest.importorskip("torch", reason="cần torch")
+
+    from src.models import _BUILDERS
+
+    for name, (kwargs, shape) in _KHOI_TOI_THIEU.items():
+        model = _BUILDERS[name](**kwargs)
+        truoc = {n for n, _ in model.named_parameters()}
+        model.eval()
+        with torch.no_grad():
+            model(torch.zeros(*shape))
+        sau = {n for n, _ in model.named_parameters()}
+        assert sau == truoc, (
+            f"{name}: forward sinh thêm tham số {sorted(sau - truoc)}. Chúng sẽ KHÔNG nằm "
+            "trong optimizer và không bao giờ được học. Cấp phát trong __init__."
+        )

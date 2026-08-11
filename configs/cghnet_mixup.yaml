@@ -99,6 +99,12 @@ model:
   # không phải lỗi. Đặt [2,2,1] nếu cổng ngân sách báo GPU thành nút thắt.
   conv1_stride: 1
 
+  # Cạnh trong mặt phẳng của khối model NHẬN — phải khớp `data.crop_size[0]`.
+  # ⚠️ Khoá này tồn tại vì một lỗi thật: `pos_embed` từng được cấp phát LƯỜI trong `forward`,
+  # nên nó sinh ra SAU khi optimizer đã chụp `model.parameters()` và **chưa bao giờ được học**
+  # (WORKLOG S-126). Con số CGHNet fold 1 = 0.6935 là của bản có lỗi đó.
+  in_plane_size: 112
+
   # [BÀI] Bảng 6: quét 0.1-0.9, chốt 0.50; cả hai đầu đều tệ hơn.
   lambda_res: 0.50
   # [SUY] Bài không nói dropout. Giữ > 0 vì src/eval/mc_dropout.py cần ít nhất một lớp
