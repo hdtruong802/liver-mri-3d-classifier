@@ -144,10 +144,21 @@ data:
     # `random.randint(-10, 10)`, áp cho MỌI mẫu ⇒ biên độ 10°, xác suất 1.0.
     rotate_degrees: 10
     rotate_prob: 1.0
-    # [LỆCH] BẮT BUỘC `nearest`. Họ xoay bằng `ndimage.rotate(mode='constant')` nên có dải 0 ở
-    # góc; E12 đã đo lỗi đó làm ~100% mẫu train mang dải đệm 0 mà val thì không (WORKLOG
-    # S-111). Với lề 8 voxel của cache này, `constant` để lọt tới 517 voxel bị lấp ở offset
-    # biên, `nearest` cho 0 ở MỌI offset. Đây là chỗ ta CỐ Ý tốt hơn họ.
+    # [LỆCH] `nearest` — **chỗ lệch duy nhất còn lại mà là một LỰA CHỌN của ta**, và người
+    # dùng đã chốt giữ nó (2026-08-11) sau khi cân nhắc cả hai chiều.
+    #
+    # Họ xoay bằng `ndimage.rotate(mode='constant')` nên có dải 0 ở góc. Với lề 8 voxel của
+    # cache này, E12 đo được: `constant` để lọt tới **517** voxel bị lấp 0 ở offset cắt biên,
+    # `nearest` cho **0** ở mọi offset (WORKLOG S-111).
+    #
+    # ⚠️ NHƯNG hai bằng chứng nói chỗ lệch này gần như KHÔNG ảnh hưởng, và phải ghi cả hai để
+    # báo cáo đừng quy kết quá mức cho nó:
+    #   1. Đội hạng 2 **có đúng lỗi đó** (xoay `constant` sau khi đã crop) và vẫn đạt 0.8078
+    #      — nên nó không phải nút thắt của họ.
+    #   2. E12 = bản sửa đúng lỗi này trên E4, chạy 3 fold, cho **−0.0095**, tức null.
+    #
+    # Nói cách khác: giữ `nearest` vì nó đúng hơn về mặt phân bố train/val, KHÔNG phải vì kỳ
+    # vọng nó nâng điểm. Đừng viết "ta tốt hơn họ nhờ chỗ này".
     rotate_mode: nearest
 
     # TẮT: `RandomCrop3D` (bật bởi `crop_size`) đã làm việc dịch mà không đệm 0. Bật cả hai

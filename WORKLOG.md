@@ -5551,3 +5551,94 @@ Không train gì. Test giữ **609 passed**, 73 skipped. Gate PASS.
 - **Một phép sàng nhỏ chỉ đủ để LOẠI, không đủ để CHỌN.** Ba lần rồi: E6b (2 fold), ensemble E4⊕CGHNet (1 fold), và cả hai lần đều kèm sẵn cảnh báo cỡ mẫu mà vẫn dẫn tới kết luận sai. Cảnh báo không thay được phép đo.
 - **Trùng lặp lỗi thấp KHÔNG bảo đảm ensemble ăn.** 58% trùng lặp và oracle 0.812 mà trung bình xác suất vẫn cho −0.010. Con số dự báo được là *hướng* thiên lệch của hai model, không phải mức trùng lặp: hai thiên lệch **ngược chiều** thì trung bình chỉ chọn bên tự tin hơn.
 - **Trước khi tin một con số CGHNet, kiểm `config_used.json` có `in_plane_size` không.** Không có = bản lỗi `pos_embed` (S-126), số không so được với run sau này.
+
+---
+
+## S-128 · 2026-08-11 · claude-code
+
+**Mục tiêu phiên:** Người dùng chạy `notebooks/20_uniformer.ipynb` trên Kaggle, bị ngắt ở cổng E. Sửa notebook, đối chiếu output cổng C, và trả lời câu "augment của đội hạng 2 có gì mà mình chưa có".
+
+**Nhánh / commit:** `main` · `50a07fa` → *(commit của phiên này)*
+
+**Đã đụng file:** `configs/uniformer_s.yaml`, `notebooks/20_uniformer.ipynb`, `tests/test_uniformer3d.py`, `AGENTS.md` (§5 hai chỗ).
+
+### 🐛 Cổng E báo động SAI — lỗi của cổng, không phải của code
+
+Cổng E cho pha 3 sao chép pha 0 rồi đòi đầu ra hai pha bằng nhau. Tiền đề đó **sai với 2 trong 5 phép**:
+
+| phép | trục pha | hai pha bằng nhau ⇒ đầu ra bằng nhau? |
+|---|---|---|
+| `edge` · `emboss` · `sharpen` | kernel `(1,3,3,1)`, không chạm trục pha | **có** |
+| `blur` · `unsharp` | `filter_spatial_only: false` ⇒ σ broadcast ra **cả trục pha** | **không**, và đó là đúng hành vi của họ |
+
+Tôi đã lẫn hai chuyện: *"cùng một tham số ngẫu nhiên cho 8 pha"* (bất biến E6 thật) với *"8 pha ra kết quả giống nhau"* (chỉ đúng cho phép không trộn pha). 28 lượt lệch mà người dùng gặp khớp gần đúng kỳ vọng `filter_prob × (blur + unsharp)` = 0.40 × 0.30 = 12% ⇒ 24/200.
+
+Sửa: cổng E tách hai tầng. **E1a** bật `filter_spatial_only=True` (không phép nào trộn pha) ⇒ hai pha bằng nhau là **bắt buộc**, và đây mới là `assert`. **E1b** chế độ trung thực: **đếm** số lượt trộn pha, đối chiếu kỳ vọng, cảnh báo nếu lệch quá 3·√n; kèm kiểm trực tiếp ba phép không-trộn-pha.
+
+Sửa luôn **E2** trước khi nó nổ: `emboss` có kernel tổng 0 nên vùng phẳng ra **đúng 0**, mà rìa khối cắt bám tổn thương thường phẳng ⇒ cổng đếm voxel 0 ở rìa sẽ báo động sai ~10% số lượt. E12 cần đo voxel 0 do **hình học**, nên E2 nay dựng loader riêng với ba khoá lọc tắt.
+
+### ⚠️ ĐÍNH CHÍNH S-125 — `--mixup` của họ KHÔNG phải cờ chết
+
+S-125 ghi *"cờ có trong `train.sh` nhưng `train.py` không nối nhánh mixup nào"* — **sai**, vì tôi chỉ đọc `train.py`. Mixup của họ nằm trong **dataset**: `mp_liver_dataset.py::__getitem__` gọi `self.mixup(image, label)` khi `args.mixup and label != 6`.
+
+Và nó là phép **khác hẳn** loại `data.mixup_alpha` ta cài. Chú thích của chính họ là `类内mixup` — **mixup TRONG CÙNG LỚP**: trộn với một ca **cùng lớp** lấy từ toàn tập train, **nhãn giữ nguyên**, λ ~ Beta(1,1) = Uniform(0,1), **loại HCC** (lớp 6), áp cho **mọi** mẫu đủ điều kiện.
+
+Bảng lớp của họ trùng **đúng thứ tự và đúng số ca** với `src/data/taxonomy.py` (63/46/42/40/42/36/125 = 394) nên `label != 6` chắc chắn là loại HCC.
+
+Hai lý do nó đáng chú ý:
+
+1. **Nó ăn khớp với `--sampling sqrt`.** Lấy mẫu lại *có hoàn lại* sinh bản sao y hệt của ca hiếm; mixup trong cùng lớp biến mỗi bản sao thành một nội suy mới. Không có nó thì `sqrt` chỉ lặp lại ảnh cũ. Đây là **mảnh thứ ba** mà lập luận "hai lớp cân bằng đi ngược chẩn đoán §1" của S-125 bỏ sót — và nó là mảnh làm phép lấy mẫu lại *thêm thông tin*.
+2. **Khớp chẩn đoán §4 hơn mixup chuẩn.** Di căn (n=40) không vào nổi top-2 ⇒ thiếu biểu diễn. Nội suy trong cùng lớp sinh biến thiên mới đúng cho lớp hiếm mà **không** tạo nhãn mềm chéo lớp — thứ §3 (0/117 lỗi sát sao) nói không cứu được gì.
+
+⚠️ **Chưa cài.** `data.mixup_alpha` là mixup chéo lớp có trộn nhãn, không thay thế được. Cần khoá riêng ở tầng **dataset** (phải bốc ca cùng lớp từ toàn tập train, không phải từ batch).
+
+### 📏 Cổng C đo thật, và người dùng chọn trung thực thay vì ngân sách
+
+`patch_embed1_stride: [1,2,2]` trên T4: **0.869 s/batch · 78 s/epoch · 6.50 h/fold**.
+
+* 1 fold = 6.5h → lọt một session 12h
+* 5 fold = **32.5h → vượt quota 30h/tuần**
+
+Tôi đổi sang `[2,2,2]` (lát 14→7, stage 3 còn 1372 token, ~2–3× nhanh hơn) vì ngân sách. **Người dùng hoàn lại**: tái lập trung thực recipe đạt 0.8078 quan trọng hơn tiết kiệm quota. 32.5h là bài toán **kế hoạch** (trải qua hai tuần quota), không phải lý do đổi kiến trúc.
+
+`tests/test_uniformer3d.py::test_config_giu_dung_stride_cua_repo_hang_2` khoá lại `[1,2,2]` kèm lý do, để không ai "tối ưu" nó lần nữa mà không đọc.
+
+### 🐛 Chín lỗi khác trong notebook, soát tĩnh
+
+Hai cái thuộc lớp lỗi **im lặng** của S-123:
+
+1. Mục 3 đọc `m.get("kappa", nan)` — `metrics_best.json` ghi **`cohen_kappa`** ⇒ cột kappa in ra `nan` mà không báo gì. Nay `assert` khoá phải tồn tại.
+2. Mục 4 gói theo `config.yaml` — `train()` ghi **`config_used.json`** ⇒ khớp 0 file, run mang về **mất dấu vết cấu hình**.
+
+Bảy cái còn lại: parse số fold bằng `split("_")[0]` nổ với thư mục dạng `fold_1` (đổi sang regex) · cổng D `assert` khi `sampling: instance` làm ablation hợp lệ nổ notebook (nay bỏ qua, và **toàn bộ thân cổng nằm trong nhánh `else`** — patch đầu của tôi để nó ở mức module, sẽ crash) · cổng B forward trên CPU với 2744 token attention (đưa lên GPU) · cổng E dựng 4 loader = 16 worker (dùng lại `val_loader`) · cell train không giải phóng loader/model của các cổng · tải trọng số dở dang để nguyên tên đích nên lần sau dùng file cụt và **cổng A nổ với thông báo về kiến trúc, sai hướng hoàn toàn** (nay `.part` + kiểm > 50 MB) · `t0 is None` nếu loader < 3 batch.
+
+Và bar quyết định ở mục 3 nay tự đổi lời theo `len(rows)`: **1 fold không kết luận được gì kể cả khi cao.**
+
+### `rotate_mode: nearest` — giữ, và ghi rõ vì sao đừng quy kết cho nó
+
+Đây là chỗ lệch **duy nhất còn lại mà là một lựa chọn** của ta (ba chỗ kia — focal softmax, emboss bỏ offset, mixup — là "chưa làm được"). Người dùng chốt giữ `nearest`.
+
+⚠️ Nhưng hai bằng chứng nói chỗ lệch này gần như không ảnh hưởng, và cả hai phải vào báo cáo: (1) **đội hạng 2 có đúng lỗi đó** và vẫn đạt 0.8078; (2) **E12** — bản sửa đúng lỗi này trên E4, 3 fold — cho **−0.0095**, null. Giữ `nearest` vì nó đúng hơn về phân bố train/val, **không** vì kỳ vọng nó nâng điểm. Đừng viết "ta tốt hơn họ nhờ chỗ này".
+
+### 🗓️ Đính chính về mốc thời gian
+
+Tôi đã nói "còn tuần cuối" mấy lần trong phiên và **sai**. Nhịp báo cáo thật: W1 → 24/07 · W2 24/07–31/07 · W3 01/08–07/08 ⇒ hôm nay 11/08 là **ngày 4 của W4 (08–14/08)**, còn W5 và W6 ở sau. Còn ~2,5 tuần. Lời khuyên "dừng thí nghiệm và viết báo cáo ngay" của tôi dựa trên mốc sai đó.
+
+### Kết quả / số liệu
+
+Không có số train mới. Test **609 → 610 passed**, 73 skipped. Gate PASS.
+
+### Dang dở
+
+- **Chưa chạy fold nào của `uniformer_s`.** Cổng A–D đã xanh trên máy người dùng; cổng E vừa được sửa nên chưa qua lần nào.
+- **Intra-class mixup chưa cài** — mảnh còn thiếu duy nhất của recipe họ.
+- Thang bậc ba đầu ra của CGHNet vẫn chưa đọc (~1 phút GPU, cache đã mount sẵn trong session UniFormer).
+- **Bảng ablation lõi + kiểm định Holm** — deliverable của W4, chưa làm, và **không cần GPU**.
+
+### Cảnh báo cho tool sau
+
+- **Đừng "tối ưu" `patch_embed1_stride`.** Người dùng đã chốt giữ `[1,2,2]` của họ dù 5 fold tốn 32.5h. Có test khoá lại.
+- **Kaggle "Download" cho notebook KHÔNG kèm output.** Muốn soát output thì phải xin người dùng dán, hoặc lấy từ tab Logs.
+- **`metrics_best.json` ghi `cohen_kappa`, không phải `kappa`; `train()` ghi `config_used.json`, không phải `config.yaml`.** Hai chỗ này đã lừa được tôi trong cùng một notebook.
+- **Trước khi viết một cổng chặn, hỏi bất biến thật là gì.** Cổng E của tôi kiểm "8 pha ra kết quả giống nhau" trong khi bất biến cần giữ là "8 pha nhận cùng tham số" — hai chuyện khác nhau, và cổng sai làm mất một session của người dùng.
+- **Đừng đọc một cờ CLI rồi kết luận nó không được nối.** `--mixup` của họ nằm trong dataset, không phải `train.py`. Đọc cả `__getitem__` trước khi nói "cờ chết".
