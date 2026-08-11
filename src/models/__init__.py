@@ -12,12 +12,14 @@ from src.models.cghnet import build_cghnet
 from src.models.densenet3d import build_densenet3d, count_parameters
 from src.models.resnet3d import build_resnet3d
 from src.models.siamese_fusion import build_siamese_fusion
+from src.models.uniformer3d import build_uniformer3d
 
 _BUILDERS = {
     "densenet121_3d": build_densenet3d,
     "siamese_fusion": build_siamese_fusion,
     "resnet3d": build_resnet3d,
     "cghnet": build_cghnet,
+    "uniformer3d": build_uniformer3d,
 }
 
 # Model trả về **dict** ở chế độ train (deep supervision). Vòng train phải biết để lấy
@@ -50,5 +52,6 @@ __all__ = [
     "build_model",
     "build_resnet3d",
     "build_siamese_fusion",
+    "build_uniformer3d",
     "count_parameters",
 ]

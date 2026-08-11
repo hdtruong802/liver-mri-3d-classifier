@@ -334,6 +334,111 @@ trực tiếp, không suy từ điểm số.
 ⚠️ CGHNet `val_loss` chạm đáy ở **epoch 16** (E4 fold 1: epoch 100). Theo ρ=0.770 của S-107
 thì đó là dấu hiệu overfit rất sớm, vậy mà nó vẫn đạt 0.6935 — một ngoại lệ đáng ghi.
 
+### ⭐ UNIFORMER + KINETICS — hướng thứ ba, và là phép so một biến sạch nhất của bài toán (2026-08-11, WORKLOG S-125)
+
+Tái lập recipe của **đội hạng 2** LLD-MMRI 2023: [`ZHEGG/miccai2023`](https://github.com/ZHEGG/miccai2023).
+Code: `src/models/uniformer3d.py` · `configs/uniformer_s.yaml` · `notebooks/20_uniformer.ipynb`.
+**Chưa chạy fold nào.**
+
+⚠️ **Là hạng 2 (`NPUBXY`, 0.8078), KHÔNG phải hạng 1** (`WorkingisAllyouneed`, 0.8322).
+README của repo tự ghi *"second-place solution"*. Đừng viết nhầm trong báo cáo.
+
+#### Vì sao hướng này khác bảy hướng đã bị loại
+
+**Baseline official của challenge CHÍNH LÀ UniFormer-S 3D, from scratch → 0.6083.** Repo này
+dùng **đúng kiến trúc đó** và `train.sh` của họ bật `--pretrained`, nạp
+`uniformer_small_k400_16x8.pth` — trọng số học trên **video Kinetics-400**.
+
+| | macro-F1 test-104 |
+|---|---|
+| UniFormer-S, **from scratch** (baseline official) | 0.6083 |
+| UniFormer + **Kinetics** + cb_loss + sqrt sampling + smoothing 0.1 + drop-path 0.1 + 3 aug lọc | **0.8078** |
+
+Cùng kiến trúc, chênh **~0.20**. Không mốc đối chiếu nào khác trong văn liệu của dataset này
+tách được một cụm biến với biên độ như vậy.
+
+**Chẩn đoán §5 không loại được nó.** Bảy hướng bị loại đều là chỉnh loss/ngưỡng/augment **trên
+cùng một biểu diễn**; §4 nói thẳng ràng buộc *là* biểu diễn (di căn không vào nổi top-2).
+Pretrained là can thiệp duy nhất đổi được biểu diễn. Dự án chưa từng thử đúng cách: E8 dùng
+MedicalNet (pretrain segmentation, yếu hơn nhiều) và vướng lỗi `shortcut_type`; bản tái lập
+CGHNet train ViT from scratch — đúng theo bài CGHNet, nhưng nghĩa là chưa có backbone pretrained mạnh.
+
+⚠️ Chênh 0.20 **không phải phép thử một biến sạch** — nó gộp 6 thứ. Tái lập cả cụm thì chỉ quy
+kết được cho **cả cụm**. Không được viết "pretrained cho +0.20".
+
+#### Repo đã có gần hết — phần lớn là YAML
+
+| của họ | ta có sẵn |
+|---|---|
+| `--img_size 16 128 128 --crop_size 14 112 112` | **`configs/preprocess_cghnet.yaml`** — khớp chính xác, **không build cache mới** |
+| `--cb_loss` (Cui và cs., β=0.9999) | `losses.py::effective_number_weights`, cùng công thức `1−β^n` |
+| `--smoothing 0.1` · flip · rotate · random_crop · mixup | đã có hết |
+
+Mới: `uniformer3d` (đăng ký trong `_BUILDERS`), `RandomAppearance`, `data.sampling`.
+**Không thêm dependency nào** — `timm` không cần (`DropPath` ~10 dòng, `trunc_normal_` có trong torch).
+
+#### Ba con số phải biết trước khi chạy
+
+1. **Ngân sách đi ngược trực giác.** `patch_embed1` stride `(1,2,2)` **không hạ mẫu trục lát**:
+
+   | | bản pretrained 16×224×224 | của ta 14×112×112 |
+   |---|---|---|
+   | stage 3 (SABlock ×8, attention **toàn cục**) | 8×14×14 = **1568** token | 14×14×14 = **2744** token |
+
+   1.75× token ⇒ ~3× chi phí stage 3, tức **đắt hơn** CGHNet (209 GFLOPs, 1.6 h/fold đo thật).
+   Cổng C đo s/epoch thật; quá 60 thì `patch_embed1_stride: [2,2,2]` (lát 14→7, còn 1372 token).
+   ⚠️ **Không suy giờ từ GFLOPs** — ước lượng kiểu đó cho CGHNet đã sai xa (S-123).
+
+2. **Trọng số: bản `small` có ĐÚNG file, bản `base` thì không.**
+   [`Sense-X/uniformer_video`](https://huggingface.co/Sense-X/uniformer_video) có
+   `uniformer_small_k400_16x8.pth` (đúng của họ) nhưng chỉ có `uniformer_base_k600_**32x4**.pth`;
+   bản `16x8` của base chỉ trên Google Drive. Đã chốt **chỉ làm small** — là 3/6 thành viên
+   ensemble của họ. Không tham số nào có shape phụ thuộc số frame (đã kiểm), nên 32x4 vẫn nạp
+   được nếu sau này cần base, và đó là một chỗ lệch phải ghi.
+
+3. **⚠️ Recipe của họ bật HAI lớp cân bằng cùng lúc, đi ngược chẩn đoán §1.**
+   `--cb_loss` (trọng số lớp trong loss) **và** `--sampling sqrt` (lấy mẫu lại). §1 đo ICC bị
+   dự đoán **thừa** 1.26× và áp-xe 1.31× trên E4 — đẩy thêm là sai chiều. Không mâu thuẫn: §1
+   đo trên **DenseNet from scratch**, biểu diễn khác có cán cân khác. **Tái lập trung thực
+   trước, chẩn đoán sau** — cổng D + `weak_classes` sau fold 1; vượt 1.4× thì
+   `data.sampling: instance` là ablation một khoá.
+
+#### Bốn chỗ CỐ Ý lệch khỏi họ (đều phải vào báo cáo)
+
+| chỗ | ta làm gì | vì sao |
+|---|---|---|
+| focal loss | **softmax** (`losses.py`) | của họ là **sigmoid** CB-focal. Chỗ lệch đáng kể nhất |
+| `emboss`/`sharpen` | kernel + `scale` của PIL, **bỏ offset 128 và clip** | cache ta là **z-score**, của họ là [0,1] qua `uint8`. Đổi lại ta không mất mát lượng tử hoá |
+| xoay | `rotate_mode: nearest` | họ xoay `mode='constant'` nên có dải 0 ở góc — đúng lỗi E12 đã đo (S-111). Đây là chỗ ta tốt hơn họ |
+| `--mixup` | **tắt** (`mixup_alpha: 0`) | cờ có trong `train.sh` nhưng `train.py` **không nối** nhánh mixup nào vào vòng train |
+
+⚠️ Và một chỗ **họ làm mà ta giữ nguyên dù nó đáng ngờ**: `blur`/`unsharp` của họ gọi
+`ndimage.gaussian_filter` trên mảng **4 chiều** nên σ broadcast ra cả trục pha ⇒ **trộn 8 pha**.
+Gần như chắc chắn ngoài ý định của họ. `filter_spatial_only: true` là ablation một khoá.
+
+#### Cây quyết định của ba augment lọc — 60% mẫu KHÔNG bị phép nào
+
+Chúng **loại trừ nhau** (`elif`), nên gộp vào một lớp `RandomAppearance` là cách duy nhất giữ
+đúng phân bố: edge 10% · emboss 10% · blur 8% · sharpen 8% · unsharp 4% · **không gì 60%**.
+Nhẹ hơn nhiều so với "bật cả ba". Mọi phép áp **cùng tham số cho cả 8 pha** — đúng như họ, và
+đúng bài học E6 (S-102).
+
+#### Bar quyết định, chốt trước khi chạy (fold 1+2)
+
+| gộp 2 fold | kết luận |
+|---|---|
+| **≥ 0.78** | pretrained là đòn bẩy thật ⇒ chạy đủ 5 fold, thành cấu hình chính |
+| **0.73–0.78** | có tác dụng, chưa tới 0.8 ⇒ 5 fold, và ensemble với E4 ⊕ CGHNet |
+| **0.69–0.72** | ngang E4 (0.6879 cùng 2 fold) ⇒ **dừng**, ghi thành kết quả âm: ba backbone pretrained độc lập đều không vượt from-scratch |
+| **< 0.69** | nghi **lỗi triển khai** hơn kết luận khoa học (E13 cho <0.5 dù cổng A khớp 102/102) ⇒ đọc lại cổng A và B |
+
+⚠️ **2 fold chỉ đủ để LOẠI, không đủ để CHỌN** (E6b: +0.038 ở 2 fold rồi −0.002 ở 5 fold, S-107).
+
+**Ngoài phạm vi, có lý do:** `train_alldata.py` của họ train trên **toàn bộ** trainval nên
+không đánh giá out-of-fold được bằng bất kỳ cách nào (chỉ dùng được trên test-104 — lần chạm
+thứ hai, cần pre-registration mới); `json_refine.py` hợp nhất dự đoán trên test; ensemble 6
+model của họ chọn fold nào lấy model nào **sau khi nhìn điểm val**, tức chọn trên tập đánh giá.
+
 ### ⭐ CHẨN ĐOÁN BA LỚP YẾU — bảy hướng chữa đã bị LOẠI (2026-08-10, WORKLOG S-123)
 
 **Đọc mục này trước khi đề xuất bất cứ cách nào để nâng macro-F1.** Chạy lại bằng
@@ -750,6 +855,7 @@ Bootstrap **ghép cặp** trên hiệu (2000 lần, phân tầng, mức bệnh n
 | **Build cache CGHNet** (một lần, ~20 phút, **CPU**) | `notebooks/18_build_cache_cghnet.ipynb` trên Kaggle, **Accelerator = None** | sẵn sàng (2026-08-10), **chưa chạy**. Lưới **128×128×16** (`configs/preprocess_cghnet.yaml`: `target_size [112,112,14]` + lề `[8,8,1]`), đúng hình học của bài CGHNet. ~2,0 GB, nhỏ hơn cache E4. ⚠️ **z=14 nên KHÔNG dùng được cho config DenseNet121** (cần ≥32 mọi chiều, S-063); `tests/test_models.py` chặn cả hai chiều |
 | **CGHNet — tái lập bài báo 0.818** | `notebooks/19_cghnet.ipynb` trên Kaggle | sẵn sàng (2026-08-10), **chưa chạy**. Tái lập **từ văn bản**, bài không có code; mọi khoá trong `configs/cghnet.yaml` có nhãn `[BÀI]` hoặc `[SUY]`, **không được lẫn khi viết báo cáo**. Tổng tham số đếm tay 59.02M so với 59.37M của bài (−0,6%). Deep supervision cho **ba** đầu ra nên một lần chạy đối chiếu được ba mốc công bố: nhánh 3D **0.724** · nhánh 2D **0.742** · hợp nhất **0.818** — nhánh 3D thấp thì sai **protocol/dữ liệu**, không phải sai fusion |
 | **E13 — Siamese đa pha + encoder pretrained** | `notebooks/17_e13_siamese.ipynb` trên Kaggle | sẵn sàng (2026-08-10), **chưa chạy**. Tự tải trọng số như notebook 16, dùng **cache E4**. Khác baseline đúng khối `model:`. **Cổng B đo hình dạng thật đi vào encoder** — E2 chết vì chạy ở 48 in-plane và không có gì báo (S-065). **Cổng D** kiểm trọng số phase-attention có suy biến về 1/8 hay không: suy biến thì Siamese chỉ là một cách lấy trung bình đắt gấp 8. Bar chốt trước: fold 1+2 gộp ≥ 0.79 thì mục tiêu 0.75 trên test-104 còn khả thi, 0.69–0.72 là ngang E4 và nên dừng |
+| **⭐ UniFormer-S + Kinetics — tái lập đội hạng 2** | `notebooks/20_uniformer.ipynb` trên Kaggle, **bật Internet** | sẵn sàng (2026-08-11), **chưa chạy**. Dùng **lại cache CGHNet** (`--img_size 16 128 128 --crop_size 14 112 112` của họ khớp chính xác), không build cache mới. Tự tải `uniformer_small_k400_16x8.pth` (~200 MB) từ `Sense-X/uniformer_video`. **Năm cổng A–E chạy trước khi cam kết fold nào** — xem §5. ⚠️ Cổng C bắt buộc: `patch_embed1` stride `(1,2,2)` không hạ mẫu trục lát nên stage 3 có 2744 token so với 1568 của bản pretrained, **đắt hơn** CGHNet. Quá 60 s/epoch thì đặt `patch_embed1_stride: [2,2,2]` |
 | **Chạy CV trên Kaggle** | mở `notebooks/09_cv_runner.ipynb`, đặt `CONFIG_NAME` + `FOLDS` | sẵn sàng (W4); **thay cho notebook 07** (07 khoá cứng vào baseline và còn logic dò đường dẫn cũ đã sai) |
 | Đánh giá (CPU, không cần GPU) | `python -m src.eval.run --run-dir artifacts/runs/baseline_3dpatch` | sẵn sàng (W3); đọc `val_probs_*.npz` đã lưu → bảng metric ± CI bootstrap + gộp out-of-fold |
 | **So hai cấu hình, có ghép cặp** (CPU) | `python -m src.eval.compare --baseline runs/E4_cv_results --candidate runs/E8` | sẵn sàng (2026-08-10). Bootstrap **trên hiệu**, cùng bệnh nhân, phân tầng theo lớp. Chỉ dùng fold có ở **cả hai** bên; nổ nếu tập bệnh nhân hoặc nhãn lệch. Thay cho việc so hai CI riêng lẻ — cách đó bỏ mất phần phương sai triệt tiêu và cho phép kiểm yếu hơn thực tế |

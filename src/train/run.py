@@ -21,6 +21,7 @@ import argparse
 import hashlib
 import json
 import time
+from collections.abc import Sequence
 from pathlib import Path
 from typing import Any
 
@@ -99,6 +100,81 @@ def run_dir(config: dict[str, Any], fold: int) -> Path:
     return resolve_output_dir(config) / f"fold{fold}_{digest}"
 
 
+#: ``data.sampling`` → số mũ ``q`` trong công thức của đội hạng 2 LLD-MMRI 2023
+#: (`ZHEGG/miccai2023`, `datasets/mp_liver_dataset.py::count_probabilities`). ``train.sh`` của
+#: họ dùng ``--sampling sqrt``.
+SAMPLING_EXPONENTS: dict[str, float] = {"instance": 0.0, "sqrt": 0.5, "class": 1.0}
+
+
+def sampling_weights(labels: Sequence[int], mode: str) -> Any:
+    """Trọng số lấy mẫu **cho từng mẫu**, theo công thức của đội hạng 2.
+
+    Nguyên văn code của họ::
+
+        relative_freq = class_count ** q / (class_count ** q).sum()
+        sampling_probabilities = relative_freq ** (-1)
+        sample_weights = sampling_probabilities[labels]
+
+    Vì ``.sum()`` là hằng số, phần này rút gọn thành **trọng số mỗi lớp ∝ count^(−q)**:
+
+    * ``instance`` (q=0) → đều nhau, tức không cân bằng gì.
+    * ``sqrt`` (q=0.5) → nghịch **căn** tần suất. Nhẹ hơn nghịch tần suất trần, cùng tinh thần
+      với `effective_number` ở `src/train/losses.py`.
+    * ``class`` (q=1) → nghịch tần suất trần, cân bằng hoàn toàn.
+
+    Hàm **thuần numpy** để test được mà không cần torch.
+
+    ⚠️ **Xung đột đã biết với chẩn đoán §1 của AGENTS.md.** Recipe của họ bật *đồng thời*
+    `--cb_loss` (trọng số lớp trong loss) **và** `--sampling sqrt` (lấy mẫu lại) — hai lớp cân
+    bằng cùng lúc. Chẩn đoán của ta đo ICC bị dự đoán **thừa** 1.26× và áp-xe 1.31× trên E4,
+    tức đẩy thêm lớp hiếm là đi ngược bằng chứng. Hai điều này không mâu thuẫn: §1 đo trên
+    **E4/DenseNet from scratch**, một biểu diễn khác có cán cân dự đoán khác. Tái lập trung
+    thực trước, đo cán cân dự đoán sau (cổng D của notebook 20).
+    """
+    import numpy as np
+
+    if mode not in SAMPLING_EXPONENTS:
+        raise ValueError(f"data.sampling phải thuộc {sorted(SAMPLING_EXPONENTS)}, nhận {mode!r}")
+    q = SAMPLING_EXPONENTS[mode]
+    arr = np.asarray(labels, dtype=int)
+    if arr.size == 0:
+        raise ValueError("không có nhãn train nào để tính trọng số lấy mẫu")
+    counts = np.bincount(arr, minlength=int(arr.max()) + 1).astype(float)
+    # Lớp vắng mặt trong fold này có count 0 → count^(-q) là vô cực. Không mẫu nào mang nhãn
+    # đó nên giá trị không bao giờ được dùng; đặt 1.0 để không sinh inf/NaN trong mảng.
+    per_class = np.ones_like(counts)
+    present = counts > 0
+    per_class[present] = counts[present] ** (-q)
+    return per_class[arr]
+
+
+def build_sampler(labels: Sequence[int], mode: str) -> Any:
+    """`WeightedRandomSampler` cho `data.sampling`; ``None`` khi ``instance``.
+
+    ``instance`` trả `None` để người gọi dùng ``shuffle=True`` — **giữ nguyên hành vi của mọi
+    config cũ**. Nói cho chính xác thì đó không giống hệt bản của họ (họ vẫn qua sampler với
+    trọng số đều và *có hoàn lại*, còn `shuffle` là một phép hoán vị **không** hoàn lại), nhưng
+    tương thích ngược quan trọng hơn: mọi con số cũ của dự án phải so được với số mới.
+
+    Generator lấy seed từ RNG toàn cục nên `src/utils/seed.py::set_seed` điều khiển được nó
+    (AGENTS.md §8). Để `WeightedRandomSampler` tự sinh generator thì run không lặp lại được.
+    """
+    import torch
+    from torch.utils.data import WeightedRandomSampler
+
+    if mode == "instance":
+        return None
+    weights = sampling_weights(labels, mode)
+    generator = torch.Generator()
+    generator.manual_seed(int(torch.randint(0, 2**31 - 1, (1,)).item()))
+    return WeightedRandomSampler(
+        weights=torch.as_tensor(weights, dtype=torch.double),
+        num_samples=len(weights),
+        replacement=True,
+        generator=generator,
+    )
+
+
 def build_loaders(config: dict[str, Any], fold: int) -> tuple[Any, Any, list[int]]:
     """Dựng DataLoader train/val cho một fold; trả kèm nhãn train (để tính class weight).
 
@@ -136,10 +212,16 @@ def build_loaders(config: dict[str, Any], fold: int) -> tuple[Any, Any, list[int
         # Hai khoá này chỉ hợp lệ khi có worker thật; truyền lúc num_workers=0 sẽ nổ.
         common["persistent_workers"] = bool(data_config.get("persistent_workers", True))
         common["prefetch_factor"] = int(data_config.get("prefetch_factor", 4))
-    train_loader = DataLoader(train_ds, batch_size=batch_size, shuffle=True, **common)
+    train_labels = [label for _, label, _ in train_ds.samples]
+
+    # `shuffle` và `sampler` loại trừ nhau trong DataLoader — truyền cả hai là nổ.
+    sampler = build_sampler(train_labels, str(data_config.get("sampling", "instance")))
+    if sampler is None:
+        train_loader = DataLoader(train_ds, batch_size=batch_size, shuffle=True, **common)
+    else:
+        train_loader = DataLoader(train_ds, batch_size=batch_size, sampler=sampler, **common)
     val_loader = DataLoader(val_ds, batch_size=batch_size, shuffle=False, **common)
 
-    train_labels = [label for _, label, _ in train_ds.samples]
     return train_loader, val_loader, train_labels
 
 
