@@ -5449,3 +5449,105 @@ Cache CGHNet **đã được mount sẵn trong session UniFormer** (notebook 20 
 - **Đừng dùng việc khớp tổng tham số làm bằng chứng dựng đúng kiến trúc** khi các khoá tự do được chọn *để* khớp con số đó. Đó là lập luận vòng tròn.
 - **So TƯƠNG ĐỐI khi hai bên đo trên hai tập khác nhau.** "CGHNet của ta hụt 0.12" là câu sai; "lợi thế +0.109 của CGHNet so với một CNN trần không tái lập được chút nào" là câu đúng, và nó chỉ thẳng vào nhánh 2D.
 - Bài CGHNet **không nói cách chọn checkpoint**, và cả hai cách đọc đều **không** khép được khoảng cách. Đừng dùng nó làm lời giải thích.
+
+---
+
+## S-127 · 2026-08-11 · claude-code
+
+**Mục tiêu phiên:** Người dùng đã tải đủ 5 fold CGHNet về. Đánh giá.
+
+**Nhánh / commit:** `main` · `aafee6d` → *(commit của phiên này)*
+
+**Đã đụng file:** `AGENTS.md` (viết lại mục ensemble E4 ⊕ CGHNet).
+
+### ⚠️ Điều kiện đọc mọi con số dưới đây
+
+Cả 5 `config_used.json` **không có khoá `in_plane_size`** ⇒ cả 5 fold train bằng **bản trước khi sửa lỗi `pos_embed`** (S-126): nhánh ViT chạy trọn 300 epoch với positional embedding là nhiễu ngẫu nhiên đóng băng. Config giống hệt nhau trừ `fold`, seed 1337.
+
+Đây là một CV 5 fold **hợp lệ và tự nhất quán**, nhưng của cấu hình *"CGHNet với positional embedding đóng băng"*. Mọi kết luận phải mang nhãn đó.
+
+Cổng chống rò rỉ: 5 tập val phân hoạch sạch **đúng 394 ca**, tập bệnh nhân và nhãn khớp E4 từng fold (`src/eval/compare.py` nổ nếu lệch).
+
+### ❌ Ensemble E4 ⊕ CGHNet: +0.065 KHÔNG sống sót
+
+| | hiệu | CI95 | P |
+|---|---|---|---|
+| **gộp 50/50 − E4** | **−0.0102** | [−0.0388, +0.0181] | **0.47** |
+| gộp 50/50 − CGHNet | +0.0080 | [−0.0358, +0.0537] | 0.74 |
+| CGHNet − E4 | −0.0185 | [−0.0683, +0.0314] | 0.46 |
+
+Gộp out-of-fold 394 ca: E4 **0.6851** · CGHNet **0.6673** · gộp **0.6748**.
+
+| fold | n | E4 | CGHNet | gộp | gộp−E4 |
+|---|---|---|---|---|---|
+| 1 | 82 | 0.7001 | 0.6935 | **0.7651** | **+0.0650** |
+| 2 | 80 | 0.6771 | 0.6532 | 0.6236 | −0.0535 |
+| 3 | 78 | 0.7304 | 0.6663 | 0.7101 | −0.0202 |
+| 4 | 77 | 0.6680 | 0.7223 | 0.6503 | −0.0177 |
+| 5 | 77 | 0.6618 | 0.5983 | 0.6273 | −0.0344 |
+
+**Fold 1 là fold duy nhất ensemble có tác dụng.** Quét trọng số trên 394 ca: cực đại ở w(E4)=**0.9** cho 0.6867, tức gần đúng bằng E4 một mình (0.6851) — và ở fold 1 cực đại từng rơi đúng 0.50. Không có trọng số nào cứu được.
+
+**Lần thứ BA dự án bị một phép sàng cỡ nhỏ lừa.** E6b: +0.038 ở 2 fold → −0.002 ở 5 fold (S-107). Ensemble này: +0.065 ở 1 fold → −0.010 ở 5 fold. Đáng chú ý là S-124 đã ghi sẵn cảnh báo cỡ mẫu **và vẫn** kết luận "hướng có kỳ vọng cao nhất hiện tại" — cảnh báo không thay được phép đo.
+
+### ✅ Phần vẫn đúng, và nó là phát hiện khoa học thật của phiên
+
+**E4 và CGHNet hỏng theo hai chiều NGƯỢC NHAU.** `weak_classes` §1 trên cùng 394 ca:
+
+| lớp | E4 đoán/thật | CGHNet đoán/thật |
+|---|---|---|
+| ICC | **1.26** thừa | **0.89** thiếu |
+| áp-xe | **1.31** thừa | **0.76** thiếu |
+| di căn | 1.05 | **0.80** thiếu |
+| HCC | **0.86** thiếu | **1.13** thừa |
+
+Ba hướng nhầm lớn nhất cũng đảo chiều:
+
+* E4: **HCC → di căn 15 · ICC → áp-xe 10 · HCC → ICC 9** — lớp đa số rò *vào* lớp yếu.
+* CGHNet: **ICC → HCC 14 · di căn → HCC 13 · áp-xe → HCC 11** — lớp yếu sập *vào* lớp đa số.
+
+Đo được trên đủ 394 ca:
+
+| | trùng lặp lỗi | oracle |
+|---|---|---|
+| E4 so E6b (chỉ khác augmentation) | 74% | 0.782 |
+| **E4 so CGHNet** | **58%** (kỳ vọng 36 nếu độc lập) | **0.8123** |
+
+**Dư địa 12.7 điểm (0.812 so với 0.685 đạt được), và trung bình xác suất không lấy được một điểm nào.** Giải thích khớp với bảng trên: E4 nói "di căn" đầy tự tin, CGHNet nói "HCC" đầy tự tin; trung bình hai thiên lệch ngược chiều chỉ chọn bên tự tin hơn chứ không sửa bên nào. Muốn khai thác thì cần bộ phối hợp **học được** (stacking trên out-of-fold), không phải trung bình cố định.
+
+⚠️ Đây là câu chuyện đáng đưa vào báo cáo, và nó thuộc đúng đóng góp headline của dự án: hai model bất đồng **có cấu trúc** và đo được, mà phép gộp đơn giản không khai thác nổi.
+
+### Dòng học của CGHNet trên đủ 5 fold
+
+| fold | best | last | epoch `val_loss` chạm đáy | thiên lệch |
+|---|---|---|---|---|
+| 1 | 0.6935 | 0.6242 | 16 | +0.069 |
+| 2 | 0.6532 | 0.5491 | 25 | +0.104 |
+| 3 | 0.6663 | 0.5211 | 40 | +0.145 |
+| 4 | 0.7223 | 0.6070 | 28 | +0.115 |
+| 5 | 0.5983 | 0.5136 | 15 | +0.085 |
+
+**Thiên lệch chọn epoch trung bình +0.104**, lớn hơn hẳn +0.079 của E4. Cả 5 fold chạm đáy `val_loss` ở epoch **15–40** (E4 trải 3–227), và `train_loss` về **0.0000** từ ~epoch 180 — thuộc lòng hoàn toàn 312 ca train, rồi 120 epoch cuối chạy trên gradient bằng 0.
+
+Spearman(epoch chạm đáy, macro-F1) trên 5 run CGHNet: ρ=0.500 P=0.391 — **không** có ý nghĩa, nhưng cũng không bác được ρ=0.770 của S-107: khoảng epoch chạm đáy ở đây chỉ trải 15–40 nên gần như không có phương sai để tương quan.
+
+⚠️ Ghi chú S-124 gọi fold 1 (đáy@16 mà vẫn 0.6935) là "ngoại lệ với ρ=0.770" — với đủ 5 fold thì **không còn là ngoại lệ**, nó chỉ là fold may nhất của một cấu hình overfit đều.
+
+### Kết quả / số liệu
+
+Không train gì. Test giữ **609 passed**, 73 skipped. Gate PASS.
+
+**E4 vẫn là cấu hình gốc.** Không có ứng viên nào vượt được nó trên out-of-fold.
+
+### Dang dở
+
+- CGHNet **phải train lại 5 fold** sau khi sửa `pos_embed` (8h) nếu còn muốn theo hướng này.
+- Thang bậc ba đầu ra vẫn chưa đọc — nay càng đáng làm vì §1 cho thấy nhánh nào đó đang kéo mọi thứ về HCC.
+- Stacking học được trên out-of-fold: chưa thử, và là cách duy nhất còn lại để chạm vào 12.7 điểm dư địa. ⚠️ Phải fit **trong từng fold** hoặc leave-one-fold-out, không fit trên chính 394 ca đang báo.
+- Hai config mixup chưa chạy fold nào. `runs/E8/` vẫn rỗng.
+
+### Cảnh báo cho tool sau
+
+- **Một phép sàng nhỏ chỉ đủ để LOẠI, không đủ để CHỌN.** Ba lần rồi: E6b (2 fold), ensemble E4⊕CGHNet (1 fold), và cả hai lần đều kèm sẵn cảnh báo cỡ mẫu mà vẫn dẫn tới kết luận sai. Cảnh báo không thay được phép đo.
+- **Trùng lặp lỗi thấp KHÔNG bảo đảm ensemble ăn.** 58% trùng lặp và oracle 0.812 mà trung bình xác suất vẫn cho −0.010. Con số dự báo được là *hướng* thiên lệch của hai model, không phải mức trùng lặp: hai thiên lệch **ngược chiều** thì trung bình chỉ chọn bên tự tin hơn.
+- **Trước khi tin một con số CGHNet, kiểm `config_used.json` có `in_plane_size` không.** Không có = bản lỗi `pos_embed` (S-126), số không so được với run sau này.

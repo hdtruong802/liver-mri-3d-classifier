@@ -298,18 +298,68 @@ Ba điều rút ra từ bộ số này:
 
 ⚠️ **Con số của ta đo trên val fold 1 (82 ca), bảng văn liệu đo trên test-104.** Hai tập khác nhau — **không được** viết "ta ngang ResNet3D 0.709". So sánh nội bộ E0/E1/E4 với nhau thì hợp lệ vì cùng tập và cùng số epoch; **E3 thì không**, xem cảnh báo ở trên.
 
-### 🎯 ENSEMBLE E4 ⊕ CGHNet — +0.065 trên fold 1, KHÔNG train thêm gì (2026-08-11, WORKLOG S-124)
+### ⚠️ ENSEMBLE E4 ⊕ CGHNet — KẾT LUẬN ĐÃ BỊ BÁC BỞI 5 FOLD (2026-08-11, WORKLOG S-127)
 
-> 🐛 **CẢNH BÁO THÊM 2026-08-11 (S-126): mọi con số CGHNet dưới đây là của bản CÓ LỖI.**
-> `pos_embed` của nhánh ViT được cấp phát **lười trong `forward`**, tức sinh ra *sau khi*
-> optimizer đã chụp `model.parameters()`, nên nó **chưa bao giờ nhận một bước cập nhật** —
-> nhánh ViT chạy trọn 300 epoch với positional embedding là nhiễu ngẫu nhiên đóng băng. Lỗi
-> đã sửa; **CGHNet phải train lại** và 0.6935 hết hiệu lực.
-> Trớ trêu là điều này làm hướng ensemble **hấp dẫn hơn**, không kém đi: 50% trùng lặp lỗi và
-> +0.065 đạt được với một nhánh 2D bị què. Nhưng nó cũng có nghĩa con số +0.065 chưa chốt được.
+> **Giữ lại làm hồ sơ, KHÔNG dùng làm căn cứ.** Mục này từng kết luận ensemble E4 ⊕ CGHNet là
+> "hướng có kỳ vọng cao nhất hiện tại" dựa trên **1 fold**. Đủ 5 fold (394 ca) thì:
+>
+> | | hiệu | CI95 | P |
+> |---|---|---|---|
+> | **gộp 50/50 − E4** | **−0.0102** | [−0.0388, +0.0181] | **0.47** |
+> | CGHNet − E4 | −0.0185 | [−0.0683, +0.0314] | 0.46 |
+>
+> Gộp out-of-fold: E4 **0.6851** · CGHNet **0.6673** · gộp 50/50 **0.6748**.
+> **Fold 1 là fold duy nhất ensemble có tác dụng** (+0.065); bốn fold kia −0.054, −0.020,
+> −0.018, −0.034. Quét trọng số cho cực đại ở w(E4)=0.9 → 0.6867, tức **gần đúng bằng E4 một
+> mình**. **E4 vẫn là cấu hình gốc.**
+>
+> 🐛 Và mọi con số CGHNet ở đây là của **bản CÓ LỖI** (`pos_embed` không bao giờ được học,
+> S-126). Đã sửa; muốn có mốc CGHNet đúng thì phải train lại 5 fold.
+>
+> **Đây là lần thứ BA dự án bị một phép sàng cỡ nhỏ lừa:** E6b +0.038 ở 2 fold → −0.002 ở 5
+> fold (S-107); ensemble này +0.065 ở 1 fold → −0.010 ở 5 fold. Quy tắc rút ra không đổi:
+> **một phép sàng nhỏ chỉ đủ để LOẠI, không đủ để CHỌN.**
 
-**Hướng có kỳ vọng cao nhất hiện tại, và nó gần như miễn phí.** Chỉ có **1 fold**, nên chưa
-phải kết luận — nhưng cơ chế thì đo được độc lập với điểm số.
+#### Phần vẫn đúng và vẫn đáng giá: hai kiến trúc hỏng theo HAI CHIỀU NGƯỢC NHAU
+
+Trên đủ 394 ca, `weak_classes` §1 cho hai bức tranh đối xứng:
+
+| lớp | E4 đoán/thật | CGHNet đoán/thật |
+|---|---|---|
+| ICC | **1.26** (thừa) | **0.89** (thiếu) |
+| áp-xe | **1.31** (thừa) | **0.76** (thiếu) |
+| di căn | 1.05 | **0.80** (thiếu) |
+| HCC | **0.86** (thiếu) | **1.13** (thừa) |
+
+Ba hướng nhầm lớn nhất cũng đảo chiều: E4 là **HCC → di căn 15 · ICC → áp-xe 10 · HCC → ICC 9**
+(lớp đa số rò VÀO lớp yếu); CGHNet là **ICC → HCC 14 · di căn → HCC 13 · áp-xe → HCC 11**
+(lớp yếu sập VÀO lớp đa số).
+
+Hệ quả đo được:
+
+| | trùng lặp lỗi | oracle |
+|---|---|---|
+| E4 so E6b (chỉ khác augmentation) | 74% | 0.782 |
+| **E4 so CGHNet** (khác kiến trúc *và* hình học) | **58%** (kỳ vọng 36 nếu độc lập) | **0.8123** |
+
+**Có 12.7 điểm dư địa (0.812 so với 0.685 đạt được), và trung bình xác suất đơn thuần không
+lấy được một điểm nào.** Giải thích nhất quán với bảng trên: E4 nói "di căn" đầy tự tin,
+CGHNet nói "HCC" đầy tự tin; trung bình hai thiên lệch ngược chiều chỉ chọn bên nào tự tin
+hơn, không sửa được bên nào. Muốn khai thác 12.7 điểm đó thì cần một bộ phối hợp **học được**
+(stacking trên out-of-fold), không phải phép trung bình cố định.
+
+⚠️ Thiên lệch chọn epoch của CGHNet là **+0.104** trung bình (0.6673 so 0.5692), lớn hơn hẳn
++0.079 của E4. Cả 5 fold đều chạm đáy `val_loss` ở epoch **15–40**, và `train_loss` về
+**0.0000** từ khoảng epoch 180 — model thuộc lòng 312 ca train.
+
+#### Hồ sơ: con số fold 1 từng làm cơ sở cho kết luận đã bị bác
+
+⛔ **Mọi con số trong tiểu mục này đã bị 5 fold bác bỏ — xem bảng ở đầu mục. Đừng trích dẫn
+nó như kết quả.** Giữ lại đúng một lý do: để thấy một phép sàng 1 fold trông thuyết phục đến
+mức nào, kể cả khi kèm sẵn cảnh báo về cỡ mẫu.
+
+*(Nguyên văn kết luận cũ, nay đã sai: "hướng có kỳ vọng cao nhất hiện tại, và nó gần như
+miễn phí".)*
 
 CGHNet fold 1: macro-F1 **0.6935** (epoch 112), so với E4 fold 1 0.7001. Ngang nhau
 (−0.0066, CI95 [−0.119, +0.107], P=0.94). Nhưng **hai model sai ở những ca KHÁC nhau**:
