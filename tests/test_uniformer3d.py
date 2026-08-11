@@ -174,17 +174,18 @@ def test_stride_2_2_2_la_duong_thoat_va_re_hon_ca_ban_pretrained():
     )
 
 
-def test_config_dung_2_2_2_va_day_la_CHO_LECH_CO_Y():
-    """Cổng C đo thật trên T4: `[1,2,2]` cho **78 s/epoch ⇒ 6.50 h/fold**, tức 5 fold =
-    32.5h, **vượt quota 30h/tuần**. Một fold 6.5h vì thế không bao giờ xác nhận được.
+def test_config_giu_dung_stride_cua_repo_hang_2():
+    """`[1,2,2]` là **của họ**, và người dùng đã chốt giữ nguyên dù nó đắt (2026-08-11).
 
-    `[2,2,2]` hạ lát 14→7 ⇒ stage 3 còn 1372 token (¼ chi phí attention).
+    Cổng C đo thật trên T4: **0.869 s/batch · 78 s/epoch · 6.50 h/fold** ⇒ 5 fold = 32.5h,
+    vượt quota 30h/tuần. Tôi đã đổi sang `[2,2,2]` vì ngân sách và **người dùng hoàn lại**:
+    tái lập trung thực recipe đạt 0.8078 quan trọng hơn tiết kiệm quota.
 
-    Test này khoá lại rằng đây là **lựa chọn có ý thức, lệch khỏi repo hạng 2** — ai đổi về
-    `[1,2,2]` thì phải sửa test và do đó phải đọc lý do. Và nó có lập luận khoa học thật:
-    bản pretrained có T=8 sau `patch_embed1`, nên 7 gần cấu trúc đã học hơn 14 của họ.
+    Test này tồn tại để chặn việc "tối ưu" lại khoá đó mà không đọc lý do — ai đổi thì phải
+    sửa test, và do đó phải đọc dòng này. Hệ quả 32.5h là bài toán **kế hoạch** (trải qua hai
+    tuần quota), không phải lý do đổi kiến trúc.
     """
-    assert _cfg()["model"]["patch_embed1_stride"] == [2, 2, 2]
+    assert _cfg()["model"]["patch_embed1_stride"] == [1, 2, 2]
 
 
 # --- config: những chỗ sai sẽ chỉ lộ ra giữa một session Kaggle ------------------------

@@ -444,7 +444,12 @@ Mới: `uniformer3d` (đăng ký trong `_BUILDERS`), `RandomAppearance`, `data.s
    | stage 3 (SABlock ×8, attention **toàn cục**) | 8×14×14 = **1568** token | 14×14×14 = **2744** token |
 
    1.75× token ⇒ ~3× chi phí stage 3, tức **đắt hơn** CGHNet (209 GFLOPs, 1.6 h/fold đo thật).
-   Cổng C đo s/epoch thật; quá 60 thì `patch_embed1_stride: [2,2,2]` (lát 14→7, còn 1372 token).
+
+   **Cổng C ĐO THẬT trên T4 (2026-08-11): 0.869 s/batch · 78 s/epoch · 6.50 h/fold.**
+   1 fold lọt một session 12h; **5 fold = 32.5h, vượt quota 30h/tuần** ⇒ phải trải qua hai
+   tuần quota. ⚠️ **Người dùng đã chốt GIỮ NGUYÊN `[1,2,2]` của họ**, không đổi sang `[2,2,2]`
+   dù rẻ hơn ~2–3×: tái lập trung thực recipe đạt 0.8078 quan trọng hơn tiết kiệm quota.
+   32.5h là bài toán **kế hoạch**, không phải lý do đổi kiến trúc. Đừng "tối ưu" lại khoá đó.
    ⚠️ **Không suy giờ từ GFLOPs** — ước lượng kiểu đó cho CGHNet đã sai xa (S-123).
 
 2. **Trọng số: bản `small` có ĐÚNG file, bản `base` thì không.**
