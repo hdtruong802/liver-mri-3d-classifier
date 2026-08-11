@@ -174,6 +174,19 @@ def test_stride_2_2_2_la_duong_thoat_va_re_hon_ca_ban_pretrained():
     )
 
 
+def test_config_dung_2_2_2_va_day_la_CHO_LECH_CO_Y():
+    """Cổng C đo thật trên T4: `[1,2,2]` cho **78 s/epoch ⇒ 6.50 h/fold**, tức 5 fold =
+    32.5h, **vượt quota 30h/tuần**. Một fold 6.5h vì thế không bao giờ xác nhận được.
+
+    `[2,2,2]` hạ lát 14→7 ⇒ stage 3 còn 1372 token (¼ chi phí attention).
+
+    Test này khoá lại rằng đây là **lựa chọn có ý thức, lệch khỏi repo hạng 2** — ai đổi về
+    `[1,2,2]` thì phải sửa test và do đó phải đọc lý do. Và nó có lập luận khoa học thật:
+    bản pretrained có T=8 sau `patch_embed1`, nên 7 gần cấu trúc đã học hơn 14 của họ.
+    """
+    assert _cfg()["model"]["patch_embed1_stride"] == [2, 2, 2]
+
+
 # --- config: những chỗ sai sẽ chỉ lộ ra giữa một session Kaggle ------------------------
 
 
@@ -195,7 +208,6 @@ def test_config_dung_cache_cghnet_va_hinh_hoc_khop_cache_do():
 def test_config_giu_dung_cac_khoa_cua_repo_hang_2():
     cfg = _cfg()
     assert cfg["model"]["variant"] == "small"
-    assert cfg["model"]["patch_embed1_stride"] == [1, 2, 2]
     assert cfg["model"]["drop_path_rate"] == 0.1
     assert cfg["data"]["batch_size"] == 4
     assert cfg["train"]["accum_steps"] == 1

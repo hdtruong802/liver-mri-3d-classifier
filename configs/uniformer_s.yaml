@@ -54,14 +54,28 @@ model:
   # [REPO] `PatchEmbed(patch_size=(1,2,2))` với `stride=None` ⇒ stride = patch_size.
   # Thứ tự (D, H, W) theo quy ước của MODEL; `forward` tự hoán vị [X,Y,Z] của cache sang đó.
   #
-  # ⚠️ NÚT THẮT NGÂN SÁCH: (1,2,2) KHÔNG hạ mẫu trục lát, nên đắt hơn bản pretrained:
+  # ⚠️ [LỆCH] — của họ là [1, 2, 2]. ĐÃ ĐO THẬT và phải đổi, xem dưới.
+  #
+  # (1,2,2) KHÔNG hạ mẫu trục lát, nên đắt hơn bản pretrained:
   #     stage 3 (SABlock ×8, attention TOÀN CỤC)
   #        bản pretrained 16×224×224 → 8×14×14  = 1568 token
-  #        cấu hình này  14×112×112 → 14×14×14 = 2744 token   (1.75×, chi phí ~3×)
-  # Cổng C của notebook đo s/epoch THẬT. Quá 60 s/epoch thì đổi sang [2,2,2]:
-  # lát 14→7, còn 1372 token — dưới cả bản pretrained.
+  #        của họ trên  14×112×112  → 14×14×14 = 2744 token   (1.75×, chi phí ~3×)
+  #
+  # Cổng C đo trên T4 (2026-08-11): **0.869 s/batch · 78 s/epoch · 6.50 h/fold**
+  #   ⇒ 5 fold = **32.5h, VƯỢT quota 30h/tuần**. Một fold 6.5h vì thế không bao giờ xác
+  #     nhận được bằng 5 fold, tức là tiêu 6.5h cho một con số không kết luận được.
+  #
+  # [2,2,2] hạ lát 14→7 ⇒ stage 3 còn **1372** token (½ số token, ¼ chi phí attention).
+  # Ước ~2–3× nhanh hơn ⇒ ~2.2–3.3 h/fold, 5 fold lọt quota.
+  #
+  # ⚠️ Đây là chỗ lệch khỏi họ và PHẢI ghi vào báo cáo. Nhưng nó có một lập luận khoa học
+  # thật, không chỉ là cái cớ ngân sách: bản pretrained có **T = 8** sau `patch_embed1`, nên
+  # 7 của [2,2,2] **gần cấu trúc thời gian đã học** hơn 14 của họ. Trọng số Kinetics vì thế
+  # có thể chuyển giao tốt hơn, không phải tệ hơn.
+  #
   # ⚠️ ĐỪNG suy giờ từ GFLOPs: ước lượng kiểu đó cho CGHNet đã sai xa (WORKLOG S-123).
-  patch_embed1_stride: [1, 2, 2]
+  # Đổi khoá này thì chạy lại cổng C để có số thật, đừng suy từ 78/2.
+  patch_embed1_stride: [2, 2, 2]
 
   # [REPO] factory của họ không truyền `drop_rate`, và `--drop` của timm mặc định 0.0.
   drop_rate: 0.0
