@@ -15,9 +15,8 @@ export function ResultDetailsTabs({
   const [active, setActive] = useState<Tab>('probabilities');
 
   return (
-    <section aria-labelledby="details-heading" className="mt-6">
-      <div className="flex flex-wrap items-end justify-between gap-3 border-b border-pacs-700">
-        <h2 id="details-heading" className="pb-3 text-lg font-bold text-white">Chi tiết ca demo</h2>
+    <section aria-label="Kết quả ca demo" className="mt-6">
+      <div className="flex justify-end border-b border-pacs-700">
         <div role="tablist" aria-label="Chi tiết kết quả" className="flex gap-1">
           <TabButton active={active === 'probabilities'} onClick={() => setActive('probabilities')} id="probabilities">
             Xác suất

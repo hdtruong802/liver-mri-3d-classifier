@@ -69,7 +69,7 @@ export function modelViewUrl(
   return `/api/cases/${encodeURIComponent(caseId)}/model-view?${params}`;
 }
 
-/** Ảnh MRI nguồn khi ca chưa có artefact crop E4/heatmap đã kiểm tra. */
+/** MRI fallback khi ca chưa có artefact crop E4/heatmap đã kiểm tra. */
 export function sliceUrl(caseId: string, phaseToken: string, z: number, annotation: boolean): string {
   const params = new URLSearchParams({
     phase: phaseToken,

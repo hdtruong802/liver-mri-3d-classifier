@@ -5835,3 +5835,22 @@ Không train mới. Test giữ **610 passed**, 73 skipped. Gate PASS.
 - Đã kiểm tra trực tiếp MR207769: viewer hiển thị ảnh C-pre nguồn ở lát 32/84, tám phase có thể chọn, heatmap bị vô hiệu đúng cách khi artefact E4 thiếu.
 - `tests/test_webapp_volumes.py tests/test_webapp_model_heatmaps.py`: **26 passed**.
 - `npm run typecheck`, `npm run build`, `git diff --check` và quality gate: pass.
+
+---
+
+## S-134 · 2026-08-12 · codex
+
+**Mục tiêu phiên:** tinh gọn chrome của vùng kết quả và viewer theo phản hồi trực tiếp của người dùng.
+
+**Nhánh / commit:** `main` · *(commit theo sau entry này)*
+
+### Đã làm
+
+- Bỏ tiêu đề lặp **“Chi tiết ca demo”**; tab Xác suất/Khám phá ảnh vẫn giữ nhãn ARIA cho công cụ hỗ trợ.
+- Bỏ toàn bộ nhãn UI **“MRI nguồn”** / **“ảnh nguồn”** và chip trạng thái tương ứng.
+- Khi không có artefact E4, không còn render nút bị khoá **“Heatmap chưa có”**. Chỉ hiện control heatmap khi nó thật sự hoạt động; MRI và toggle vùng tổn thương giữ nguyên.
+- Giữ nguyên thay đổi người dùng có sẵn ở `reports/W3_REPORT.md`.
+
+### Kiểm chứng
+
+- `npm run typecheck`, `npm run build`, `git diff --check` và quality gate: pass.

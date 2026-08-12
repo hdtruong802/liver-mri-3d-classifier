@@ -5,7 +5,7 @@
  */
 
 import { useCallback, useEffect, useMemo, useRef, useState, type PointerEvent } from 'react';
-import { ChevronLeft, ChevronRight, Flame, Layers, Maximize2, Scan, Target } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Flame, Maximize2, Scan, Target } from 'lucide-react';
 
 import { modelViewUrl, sliceUrl } from '@/api/client';
 import type { CaseVolumeInfo, ModelHeatmapInfo, PhaseInfo } from '@/api/types';
@@ -180,7 +180,7 @@ export function SliceViewer({ caseId, phases, modelHeatmap, volumes }: Props) {
       <section className="panel p-5">
         <EmptyState
           label="Chưa có ảnh MRI cho ca này"
-          detail="Backend chưa tìm thấy đủ volume MRI nguồn. Kiểm tra LLDMMRI_SAMPLE_DIR trước khi xem ảnh."
+          detail="Backend chưa tìm thấy đủ volume MRI. Kiểm tra LLDMMRI_SAMPLE_DIR trước khi xem ảnh."
           icon={Flame}
         />
       </section>
@@ -195,18 +195,11 @@ export function SliceViewer({ caseId, phases, modelHeatmap, volumes }: Props) {
     ? modelViewUrl(caseId, token, z, showAnnotation, showHeatmap)
     : sliceUrl(caseId, token, z, showAnnotation);
   const annotationAvailable = hasModelHeatmap || activeVolume?.has_mask === true;
-  const viewerTitle = hasModelHeatmap ? 'MRI và heatmap model' : 'MRI nguồn';
-  const imageAlt = hasModelHeatmap ? 'MRI crop E4' : 'MRI nguồn';
 
   return (
-    <section aria-labelledby="viewer-heading" className="panel p-5">
-      <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+    <section aria-label="Khám phá ảnh MRI" className="panel p-5">
+      <div className="mb-4 flex flex-wrap items-center gap-2">
         <div className="flex flex-wrap items-center gap-2">
-          <Layers className="h-4 w-4 text-accent" aria-hidden="true" />
-          <h3 id="viewer-heading" className="label">{viewerTitle}</h3>
-          <span className={`chip border ${hasModelHeatmap ? 'border-ok/40 bg-ok/10 text-ok-soft' : 'border-pacs-700 bg-pacs-800 text-slate-400'}`}>
-            {hasModelHeatmap ? 'crop E4' : 'ảnh nguồn'}
-          </span>
           <Toggle
             active={showAnnotation}
             onClick={() => setShowAnnotation((value) => !value)}
@@ -217,16 +210,17 @@ export function SliceViewer({ caseId, phases, modelHeatmap, volumes }: Props) {
             title="Nhãn dataset do người chú giải khoanh, không phải output segmentation của model"
             disabled={!annotationAvailable}
           />
-          <Toggle
-            active={showHeatmap}
-            onClick={() => setShowHeatmap((value) => !value)}
-            icon={Flame}
-            activeLabel="Đang hiện heatmap"
-            inactiveLabel={hasModelHeatmap ? 'Hiện heatmap' : 'Heatmap chưa có'}
-            activeClass="border-attention bg-attention/15 text-attention-soft"
-            title={hasModelHeatmap ? 'Độ nhạy cục bộ của model với lớp đã dự đoán' : 'Cần artefact heatmap đa thì trên crop E4'}
-            disabled={!hasModelHeatmap}
-          />
+          {hasModelHeatmap && (
+            <Toggle
+              active={showHeatmap}
+              onClick={() => setShowHeatmap((value) => !value)}
+              icon={Flame}
+              activeLabel="Đang hiện heatmap"
+              inactiveLabel="Hiện heatmap"
+              activeClass="border-attention bg-attention/15 text-attention-soft"
+              title="Độ nhạy cục bộ của model với lớp đã dự đoán"
+            />
+          )}
           {zoomed && (
             <button
               type="button"
@@ -279,7 +273,7 @@ export function SliceViewer({ caseId, phases, modelHeatmap, volumes }: Props) {
           <img
             key={`${token}-${z}-${showAnnotation}-${showHeatmap}`}
             src={imageUrl}
-            alt={`${imageAlt}, thì ${token}, lát ${z + 1} trên ${total}${showHeatmap ? ', có heatmap độ nhạy model' : ''}${showAnnotation ? ', có nhãn vùng tổn thương do người chú giải' : ''}`}
+            alt={`MRI, thì ${token}, lát ${z + 1} trên ${total}${showHeatmap ? ', có heatmap độ nhạy model' : ''}${showAnnotation ? ', có nhãn vùng tổn thương do người chú giải' : ''}`}
             onError={() => setFailed(true)}
             draggable={false}
             style={{ transform: `translate(${offset.x}px, ${offset.y}px) scale(${scale})` }}
@@ -288,11 +282,11 @@ export function SliceViewer({ caseId, phases, modelHeatmap, volumes }: Props) {
         )}
       </div>
 
-      <p className="mt-3 max-w-measure text-data text-slate-400">
-        {hasModelHeatmap
-          ? 'Heatmap thể hiện độ nhạy cục bộ của model với lớp đã dự đoán; không phải vùng tổn thương do model khoanh và không mang ý nghĩa chẩn đoán.'
-          : 'Đang xem MRI nguồn. Heatmap đa thì trên crop E4 chưa được xuất cho ca này; không dựng heatmap thay thế để tránh chồng sai không gian.'}
-      </p>
+      {hasModelHeatmap && (
+        <p className="mt-3 max-w-measure text-data text-slate-400">
+          Heatmap thể hiện độ nhạy cục bộ của model với lớp đã dự đoán; không phải vùng tổn thương do model khoanh và không mang ý nghĩa chẩn đoán.
+        </p>
+      )}
 
       <div className="mt-4 flex items-center gap-3">
         <span className="h-1.5 flex-1 overflow-hidden rounded-full bg-pacs-700" aria-hidden="true">
