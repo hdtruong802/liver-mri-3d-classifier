@@ -5838,6 +5838,25 @@ Không train mới. Test giữ **610 passed**, 73 skipped. Gate PASS.
 
 ---
 
+## S-135 · 2026-08-12 · codex
+
+**Mục tiêu phiên:** thay các nhãn kỹ thuật và nhãn phụ trong demo bằng ngôn ngữ ngắn, dễ đọc hơn.
+
+**Nhánh / commit:** `main` · *(commit theo sau entry này)*
+
+### Đã làm
+
+- Đổi badge `prediction out-of-fold` thành **“Kết quả đánh giá độc lập”**; tooltip giải thích model chưa học ca đó ở lượt huấn luyện tương ứng.
+- Bỏ chip **“đường đi chính”** cạnh tiêu đề Ca demo dựng sẵn.
+- Đổi nhãn tab **“Xác suất” → “Dự đoán”** và **“Khám phá ảnh” → “Ảnh MRI”**. Giữ nguyên hành vi, ID và ARIA của tab.
+- Không đụng thay đổi chưa commit trong `reports/W3_REPORT.md` và `webapp/frontend/src/App.tsx`.
+
+### Kiểm chứng
+
+- `npm run typecheck`, `npm run build`, `git diff --check` và quality gate: pass.
+
+---
+
 ## S-134 · 2026-08-12 · codex
 
 **Mục tiêu phiên:** tinh gọn chrome của vùng kết quả và viewer theo phản hồi trực tiếp của người dùng.

@@ -4,7 +4,7 @@
  * `PRODUCT.md` mục *Evidence on Hand*: "Số placeholder trông giống số thật là rủi ro
  * nghiêm trọng nhất của dự án này — người review sẽ tưởng đó là kết quả."
  *
- * Badge chữ cho biết prediction OOF hay suy luận trực tiếp. Upload ZIP V1 không đi qua
+ * Badge chữ cho biết kết quả đánh giá độc lập hay suy luận trực tiếp. Upload ZIP V1 không đi qua
  * component này vì nó không tạo prediction.
  */
 
@@ -20,8 +20,11 @@ export function ProvenanceBadge({
   className?: string;
 }) {
   return (
-    <span className={`chip border border-ok/40 bg-ok/10 text-ok-soft ${className}`} title={provenance.note}>
-      {provenance.source === 'oof' ? 'prediction out-of-fold' : 'suy luận trực tiếp'}
+    <span
+      className={`chip border border-ok/40 bg-ok/10 text-ok-soft ${className}`}
+      title={provenance.source === 'oof' ? 'Model chưa học ca này trong lượt huấn luyện tương ứng.' : provenance.note}
+    >
+      {provenance.source === 'oof' ? 'Kết quả đánh giá độc lập' : 'Suy luận trực tiếp'}
       {provenance.model_version ? ` · ${provenance.model_version}` : ''}
     </span>
   );

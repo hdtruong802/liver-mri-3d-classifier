@@ -28,7 +28,6 @@ export function CaseStrip({ cases, selected, busy, onSelect }: Props) {
         <h2 id="cases-heading" className="text-lg font-bold text-white">
           Ca demo dựng sẵn
         </h2>
-        <span className="chip border border-pacs-600 bg-pacs-800 text-slate-400">đường đi chính</span>
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">

@@ -19,10 +19,10 @@ export function ResultDetailsTabs({
       <div className="flex justify-end border-b border-pacs-700">
         <div role="tablist" aria-label="Chi tiết kết quả" className="flex gap-1">
           <TabButton active={active === 'probabilities'} onClick={() => setActive('probabilities')} id="probabilities">
-            Xác suất
+            Dự đoán
           </TabButton>
           <TabButton active={active === 'images'} onClick={() => setActive('images')} id="images">
-            Khám phá ảnh
+            Ảnh MRI
           </TabButton>
         </div>
       </div>
