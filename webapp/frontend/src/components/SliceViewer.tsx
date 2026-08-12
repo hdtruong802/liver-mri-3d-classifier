@@ -7,14 +7,15 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type PointerEvent } from 'react';
 import { ChevronLeft, ChevronRight, Flame, Layers, Maximize2, Scan, Target } from 'lucide-react';
 
-import { modelViewUrl } from '@/api/client';
-import type { ModelHeatmapInfo, PhaseInfo } from '@/api/types';
+import { modelViewUrl, sliceUrl } from '@/api/client';
+import type { CaseVolumeInfo, ModelHeatmapInfo, PhaseInfo } from '@/api/types';
 import { EmptyState } from '@/components/Provenance';
 
 interface Props {
   caseId: string;
   phases: PhaseInfo[];
   modelHeatmap: ModelHeatmapInfo | null;
+  volumes: CaseVolumeInfo[];
 }
 
 const MIN_SCALE = 1;
@@ -31,16 +32,22 @@ function toSegments(indices: number[]): Array<[number, number]> {
   return segments;
 }
 
-export function SliceViewer({ caseId, phases, modelHeatmap }: Props) {
+export function SliceViewer({ caseId, phases, modelHeatmap, volumes }: Props) {
+  const hasModelHeatmap = modelHeatmap?.available === true;
+  const volumeByToken = useMemo(
+    () => new Map(volumes.map((volume) => [volume.file_token, volume])),
+    [volumes],
+  );
   const available = useMemo(
     () =>
-      modelHeatmap?.available
-        ? phases.filter((phase) => modelHeatmap.phase_tokens.includes(phase.file_token))
-        : [],
-    [modelHeatmap, phases],
+      hasModelHeatmap
+        ? phases.filter((phase) => modelHeatmap?.phase_tokens.includes(phase.file_token) ?? false)
+        : phases.filter((phase) => volumeByToken.has(phase.file_token)),
+    [hasModelHeatmap, modelHeatmap, phases, volumeByToken],
   );
   const [token, setToken] = useState('C-pre');
-  const total = modelHeatmap?.n_slices ?? 0;
+  const activeVolume = volumeByToken.get(token);
+  const total = hasModelHeatmap ? modelHeatmap?.n_slices ?? 0 : activeVolume?.n_slices ?? 0;
   const [z, setZ] = useState(0);
   const [failed, setFailed] = useState(false);
   const [showAnnotation, setShowAnnotation] = useState(false);
@@ -65,7 +72,9 @@ export function SliceViewer({ caseId, phases, modelHeatmap }: Props) {
   const clamp = useCallback((value: number) => Math.max(0, Math.min(total - 1, value)), [total]);
   const step = useCallback((delta: number) => setZ((current) => clamp(current + delta)), [clamp]);
 
-  const lesionSlices = modelHeatmap?.lesion_slices[token] ?? [];
+  const lesionSlices = hasModelHeatmap
+    ? modelHeatmap?.lesion_slices[token] ?? []
+    : activeVolume?.mask_slices ?? [];
   const segments = useMemo(() => toSegments(lesionSlices), [lesionSlices]);
   const lesionAnchor = useMemo(() => {
     if (segments.length === 0) return null;
@@ -76,8 +85,10 @@ export function SliceViewer({ caseId, phases, modelHeatmap }: Props) {
   // The first usable view opens at the longest C-pre annotation span. Switching
   // phase preserves z: all eight artefact crops use the same E4 dimensions.
   useEffect(() => {
-    if (initialSliceSet.current || total <= 0 || !modelHeatmap?.available) return;
-    const cPreSlices = modelHeatmap.lesion_slices['C-pre'] ?? [];
+    if (initialSliceSet.current || total <= 0) return;
+    const cPreSlices = hasModelHeatmap
+      ? modelHeatmap?.lesion_slices['C-pre'] ?? []
+      : volumeByToken.get('C-pre')?.mask_slices ?? [];
     const cPreSegments = toSegments(cPreSlices);
     const longest = cPreSegments.reduce<Array<[number, number]>[number] | null>(
       (best, current) => (!best || current[1] - current[0] > best[1] - best[0] ? current : best),
@@ -85,10 +96,16 @@ export function SliceViewer({ caseId, phases, modelHeatmap }: Props) {
     );
     setZ(longest ? Math.round((longest[0] + longest[1]) / 2) : Math.floor(total / 2));
     initialSliceSet.current = true;
-  }, [modelHeatmap, total]);
+  }, [hasModelHeatmap, modelHeatmap, total, volumeByToken]);
 
   useEffect(() => setZ((current) => clamp(current)), [clamp]);
   useEffect(() => setFailed(false), [token, z, showAnnotation, showHeatmap]);
+  useEffect(() => {
+    if (!hasModelHeatmap) setShowHeatmap(false);
+  }, [hasModelHeatmap]);
+  useEffect(() => {
+    if (!hasModelHeatmap && !activeVolume?.has_mask) setShowAnnotation(false);
+  }, [activeVolume?.has_mask, hasModelHeatmap]);
 
   const clampOffset = useCallback((next: { x: number; y: number }, atScale: number) => {
     const frame = frameRef.current;
@@ -162,8 +179,8 @@ export function SliceViewer({ caseId, phases, modelHeatmap }: Props) {
     return (
       <section className="panel p-5">
         <EmptyState
-          label="Chưa có heatmap đa thì"
-          detail={modelHeatmap?.note ?? 'Chọn ca demo có artefact heatmap E4 đã được xuất và kiểm tra.'}
+          label="Chưa có ảnh MRI cho ca này"
+          detail="Backend chưa tìm thấy đủ volume MRI nguồn. Kiểm tra LLDMMRI_SAMPLE_DIR trước khi xem ảnh."
           icon={Flame}
         />
       </section>
@@ -174,15 +191,22 @@ export function SliceViewer({ caseId, phases, modelHeatmap }: Props) {
   const before = z;
   const after = total - 1 - z;
   const zoomed = scale > 1.001;
-  const imageUrl = modelViewUrl(caseId, token, z, showAnnotation, showHeatmap);
+  const imageUrl = hasModelHeatmap
+    ? modelViewUrl(caseId, token, z, showAnnotation, showHeatmap)
+    : sliceUrl(caseId, token, z, showAnnotation);
+  const annotationAvailable = hasModelHeatmap || activeVolume?.has_mask === true;
+  const viewerTitle = hasModelHeatmap ? 'MRI và heatmap model' : 'MRI nguồn';
+  const imageAlt = hasModelHeatmap ? 'MRI crop E4' : 'MRI nguồn';
 
   return (
     <section aria-labelledby="viewer-heading" className="panel p-5">
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
         <div className="flex flex-wrap items-center gap-2">
           <Layers className="h-4 w-4 text-accent" aria-hidden="true" />
-          <h3 id="viewer-heading" className="label">MRI và heatmap model</h3>
-          <span className="chip border border-ok/40 bg-ok/10 text-ok-soft">crop E4</span>
+          <h3 id="viewer-heading" className="label">{viewerTitle}</h3>
+          <span className={`chip border ${hasModelHeatmap ? 'border-ok/40 bg-ok/10 text-ok-soft' : 'border-pacs-700 bg-pacs-800 text-slate-400'}`}>
+            {hasModelHeatmap ? 'crop E4' : 'ảnh nguồn'}
+          </span>
           <Toggle
             active={showAnnotation}
             onClick={() => setShowAnnotation((value) => !value)}
@@ -191,15 +215,17 @@ export function SliceViewer({ caseId, phases, modelHeatmap }: Props) {
             inactiveLabel="Hiện vùng tổn thương"
             activeClass="border-annotation bg-annotation/15 text-annotation-soft"
             title="Nhãn dataset do người chú giải khoanh, không phải output segmentation của model"
+            disabled={!annotationAvailable}
           />
           <Toggle
             active={showHeatmap}
             onClick={() => setShowHeatmap((value) => !value)}
             icon={Flame}
             activeLabel="Đang hiện heatmap"
-            inactiveLabel="Hiện heatmap"
+            inactiveLabel={hasModelHeatmap ? 'Hiện heatmap' : 'Heatmap chưa có'}
             activeClass="border-attention bg-attention/15 text-attention-soft"
-            title="Độ nhạy cục bộ của model với lớp đã dự đoán"
+            title={hasModelHeatmap ? 'Độ nhạy cục bộ của model với lớp đã dự đoán' : 'Cần artefact heatmap đa thì trên crop E4'}
+            disabled={!hasModelHeatmap}
           />
           {zoomed && (
             <button
@@ -253,7 +279,7 @@ export function SliceViewer({ caseId, phases, modelHeatmap }: Props) {
           <img
             key={`${token}-${z}-${showAnnotation}-${showHeatmap}`}
             src={imageUrl}
-            alt={`MRI crop E4, thì ${token}, lát ${z + 1} trên ${total}${showHeatmap ? ', có heatmap độ nhạy model' : ''}${showAnnotation ? ', có nhãn vùng tổn thương do người chú giải' : ''}`}
+            alt={`${imageAlt}, thì ${token}, lát ${z + 1} trên ${total}${showHeatmap ? ', có heatmap độ nhạy model' : ''}${showAnnotation ? ', có nhãn vùng tổn thương do người chú giải' : ''}`}
             onError={() => setFailed(true)}
             draggable={false}
             style={{ transform: `translate(${offset.x}px, ${offset.y}px) scale(${scale})` }}
@@ -263,7 +289,9 @@ export function SliceViewer({ caseId, phases, modelHeatmap }: Props) {
       </div>
 
       <p className="mt-3 max-w-measure text-data text-slate-400">
-        Heatmap thể hiện độ nhạy cục bộ của model với lớp đã dự đoán; không phải vùng tổn thương do model khoanh và không mang ý nghĩa chẩn đoán.
+        {hasModelHeatmap
+          ? 'Heatmap thể hiện độ nhạy cục bộ của model với lớp đã dự đoán; không phải vùng tổn thương do model khoanh và không mang ý nghĩa chẩn đoán.'
+          : 'Đang xem MRI nguồn. Heatmap đa thì trên crop E4 chưa được xuất cho ca này; không dựng heatmap thay thế để tránh chồng sai không gian.'}
       </p>
 
       <div className="mt-4 flex items-center gap-3">
@@ -314,6 +342,7 @@ function Toggle({
   inactiveLabel,
   activeClass,
   title,
+  disabled = false,
 }: {
   active: boolean;
   onClick: () => void;
@@ -322,6 +351,7 @@ function Toggle({
   inactiveLabel: string;
   activeClass: string;
   title: string;
+  disabled?: boolean;
 }) {
   return (
     <button
@@ -329,8 +359,11 @@ function Toggle({
       aria-pressed={active}
       onClick={onClick}
       title={title}
+      disabled={disabled}
       className={`inline-flex items-center gap-1.5 rounded-control border px-2.5 py-1 text-data font-semibold transition ${
         active ? activeClass : 'border-pacs-700 bg-pacs-800 text-slate-400 hover:text-white'
+      } ${
+        disabled ? 'cursor-not-allowed opacity-45 hover:text-slate-400' : ''
       }`}
     >
       <Icon className="h-3.5 w-3.5" aria-hidden="true" />

@@ -105,6 +105,7 @@ export default function App() {
                     caseId={detail.case_id}
                     phases={meta.phases}
                     modelHeatmap={detail.model_heatmap}
+                    volumes={detail.volumes}
                   />
                 }
               />

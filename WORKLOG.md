@@ -5814,3 +5814,24 @@ Không train mới. Test giữ **610 passed**, 73 skipped. Gate PASS.
 - `tests/test_webapp_model_heatmaps.py`: **10 passed**.
 - `npm run typecheck` và `npm run build`: pass.
 - `git diff --check` (trừ report có sẵn): pass.
+
+---
+
+## S-133 · 2026-08-12 · codex
+
+**Mục tiêu phiên:** sửa viewer MRI bị che hoàn toàn khi ca demo chưa có artefact heatmap E4.
+
+**Nhánh / commit:** `main` · *(commit theo sau entry này)*
+
+### Đã làm
+
+- Sửa fallback của viewer: thiếu/artefact heatmap không hợp lệ **không còn chặn MRI**. Viewer dùng endpoint ảnh NIfTI nguồn hiện có, giữ đủ phase, slice navigation, zoom/pan và track nhãn người chú giải.
+- Heatmap vẫn bị khoá với nhãn rõ `Heatmap chưa có`; không dựng overlay thay thế hoặc cố phủ lên NIfTI gốc vì sẽ sai không gian so với crop E4.
+- Phân biệt rõ `MRI nguồn` và `crop E4` trên UI/copy. Chỉ hiện empty state khi backend không có bất kỳ MRI nguồn nào cho ca.
+- Cập nhật README/config contract để phản ánh graceful fallback này. Giữ nguyên thay đổi người dùng có sẵn ở `reports/W3_REPORT.md`.
+
+### Kiểm chứng
+
+- Đã kiểm tra trực tiếp MR207769: viewer hiển thị ảnh C-pre nguồn ở lát 32/84, tám phase có thể chọn, heatmap bị vô hiệu đúng cách khi artefact E4 thiếu.
+- `tests/test_webapp_volumes.py tests/test_webapp_model_heatmaps.py`: **26 passed**.
+- `npm run typecheck`, `npm run build`, `git diff --check` và quality gate: pass.

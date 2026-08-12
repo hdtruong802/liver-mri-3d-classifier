@@ -12,7 +12,7 @@ Demo cho người review nghiên cứu thấy hành vi của mô hình phân lo�
 | Ảnh MRI hiển thị | **thật**, đọc trực tiếp từ file gốc |
 | Kết quả ca demo | **prediction out-of-fold thật**, chỉ hiển thị cho ca demo có dữ liệu OOF |
 | ZIP người dùng tải | chỉ kiểm tra manifest đủ 8 thì; không giải nén bền vững, không chạy model, không trả prediction |
-| Heatmap đa thì | artefact offline E4; thiếu hoặc sai shape thì viewer hiển thị empty state |
+| Heatmap đa thì | artefact offline E4; thiếu hoặc sai shape thì viewer chỉ hiện MRI nguồn, không dựng heatmap thay thế |
 
 Khi có pipeline ROI tương đương lúc train ở giai đoạn sau, có thể bổ sung suy luận `live` như một contract riêng. V1 không suy luận từ dữ liệu tải lên.
 

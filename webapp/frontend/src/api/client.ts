@@ -68,3 +68,13 @@ export function modelViewUrl(
   });
   return `/api/cases/${encodeURIComponent(caseId)}/model-view?${params}`;
 }
+
+/** Ảnh MRI nguồn khi ca chưa có artefact crop E4/heatmap đã kiểm tra. */
+export function sliceUrl(caseId: string, phaseToken: string, z: number, annotation: boolean): string {
+  const params = new URLSearchParams({
+    phase: phaseToken,
+    z: String(z),
+    mask: String(annotation),
+  });
+  return `/api/cases/${encodeURIComponent(caseId)}/slice?${params}`;
+}

@@ -26,7 +26,7 @@ def _env_path(name: str, default: Path) -> Path:
 SAMPLE_DIR: Path = _env_path("LLDMMRI_SAMPLE_DIR", REPO_ROOT / "data" / "sample")
 
 # Artefact offline: crop E4, heatmap 8 thì, và mask người chú giải trên cùng lưới.
-# Không có artefact thì UI chỉ hiển thị empty state, không dựng ảnh/màu giả.
+# Không có artefact thì UI dùng ảnh MRI nguồn, nhưng tuyệt đối không dựng heatmap/màu giả.
 MODEL_HEATMAP_DIR: Path = _env_path(
     "LLDMMRI_MODEL_HEATMAP_DIR", REPO_ROOT / "runs" / "E4_per_phase_results" / "model_heatmaps"
 )
