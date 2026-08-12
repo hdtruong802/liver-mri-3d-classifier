@@ -6087,3 +6087,19 @@ Không train mới. Test giữ **610 passed**, 73 skipped. Gate PASS.
 
 - Local preview không có lỗi console.
 - `npm run typecheck`, `npm run build`, Impeccable detector và quality gate: pass.
+
+---
+
+## S-148 · 2026-08-12 · codex
+
+**Mục tiêu phiên:** commit và push toàn bộ thay đổi cục bộ còn lại theo yêu cầu rõ ràng của người dùng.
+
+### Đã làm
+
+- Commit phần cập nhật copy UI (RUO, biểu đồ xác suất, nhãn summary và thao tác slice) cùng chỉnh sửa nội dung `reports/W3_REPORT.md`.
+- Xác nhận report vẫn nêu rõ trạng thái Research Use Only ở phần mở đầu và không có dữ liệu bệnh nhân, checkpoint hay artefact trong diff.
+- Chuẩn hoá ba khoảng trắng cuối dòng trong report; không thay đổi nội dung.
+
+### Kiểm chứng
+
+- `npm run typecheck`, `npm run build`, Impeccable detector và quality gate: pass.

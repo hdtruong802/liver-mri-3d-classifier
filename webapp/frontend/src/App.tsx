@@ -56,8 +56,8 @@ export default function App() {
         </div>
         <div className="border-t border-pacs-700 bg-pacs-950">
           <p className="mx-auto flex max-w-shell items-center gap-2 px-6 py-2 label text-slate-400">
-            <span className="inline-block h-2 w-2 border border-slate-400" aria-hidden="true" />
-            {meta?.ruo_notice ?? 'Research Use Only: chưa kiểm định lâm sàng'} · không dùng để chẩn đoán
+            {/* <span className="inline-block h-2 w-2 border border-slate-400" aria-hidden="true" /> */}
+            {meta?.ruo_notice ?? 'Research Use Only: chưa kiểm định lâm sàng'}, không dùng để chẩn đoán
           </p>
         </div>
       </header>

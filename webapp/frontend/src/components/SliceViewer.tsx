@@ -301,7 +301,7 @@ export function SliceViewer({ caseId, phases, modelHeatmap, volumes }: Props) {
 
         <label className="mt-3 block">
           <span className="text-sm font-semibold text-annotation-soft">Vị trí lát</span>
-          <span className="text-data text-slate-400">. Lăn chuột để đổi lát · Ctrl + lăn để phóng to · kéo để di chuyển ảnh.</span>
+          <span className="text-data text-slate-400"> (Lăn chuột để đổi lát | Ctrl + lăn chuột để phóng to | Kéo để di chuyển ảnh)</span>
           <input
             type="range"
             min={0}
@@ -394,7 +394,7 @@ function LesionTrack({
       </div>
       <div className="mt-2 flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
         <p className="text-data text-slate-400">
-          <span className="text-annotation-soft">Vùng tổn thương</span> ở {count}/{total} lát ({first + 1}–{last + 1}) · do người chú giải khoanh, không phải model tìm ra
+          <span className="text-annotation-soft">Vùng tổn thương</span> ở {count}/{total} lát ({first + 1}–{last + 1})
           {onLesionSlice && <span className="ml-2 text-annotation-soft">▸ lát đang xem có tổn thương</span>}
         </p>
         <button
@@ -403,7 +403,7 @@ function LesionTrack({
           className="inline-flex min-h-11 shrink-0 items-center gap-1.5 rounded-control border border-pacs-600 bg-pacs-800 px-2.5 py-1 text-data font-semibold text-slate-300 transition hover:border-annotation hover:text-annotation-soft"
         >
           <Target className="h-3.5 w-3.5" aria-hidden="true" />
-          Đến lát tổn thương đầu tiên
+          Đến lát tổn thương
         </button>
       </div>
     </div>

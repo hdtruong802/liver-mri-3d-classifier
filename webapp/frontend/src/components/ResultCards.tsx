@@ -13,12 +13,12 @@ export function ResultSummary({ result }: { result: PredictResult }) {
           <p className="mt-2 text-2xl font-bold text-white">{predicted?.label_vi ?? result.pred_class_name}</p>
         </div>
         <div className="py-4 lg:px-6">
-          <p className="label">Xác suất đã hiệu chỉnh</p>
+          <p className="label">Xác suất dự đoán</p>
           <p className="mt-2 font-mono text-xl font-semibold text-accent">{percent(result.confidence)}%</p>
         </div>
         <div className="py-4 lg:pl-6">
           <div className="flex items-baseline justify-between gap-3">
-            <p className="label">Nhóm ác</p>
+            <p className="label">Nhóm ác tính</p>
             <p className="font-mono text-xl font-semibold text-attention-soft">{malignancyPercent}%</p>
           </div>
           <div

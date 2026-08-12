@@ -51,7 +51,7 @@ export function ClassProbabilityChart({ probs }: { probs: ClassProbability[] }) 
           </h3>
         </div>
         <span className="text-data text-slate-400">
-          {probs.length} lớp · tổng bằng 100%
+          {probs.length} lớp (100%)
         </span>
       </div>
 

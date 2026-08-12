@@ -64,7 +64,10 @@ Nhiệt độ được fit theo kiểu leave-one-fold-out: giá trị *T* áp l�
 
 *(accuracy thật 0,7030; cột cuối kèm độ lệch so với accuracy)*
 
-Ba nhận xét. Thứ nhất, mô hình tự tin thái quá nghiêm trọng: tự tin trung bình 0,889 trong khi chỉ đúng 70,3%, trung vị 0,987. Thứ hai, giá trị *T* tối ưu theo NLL khác hẳn *T* tối ưu theo ECE, và chọn nhầm sẽ đẩy mô hình sang thiếu tự tin. Thứ ba, một tham số vô hướng là không đủ: ngay cả *T* tốt nhất cũng chỉ hạ ECE xuống 0,153.
+Ba nhận xét:
+- Thứ nhất, mô hình tự tin thái quá nghiêm trọng: tự tin trung bình 0,889 trong khi chỉ đúng 70,3%, trung vị 0,987.
+- Thứ hai, giá trị *T* tối ưu theo NLL khác hẳn *T* tối ưu theo ECE, và chọn nhầm sẽ đẩy mô hình sang thiếu tự tin.
+- Thứ ba, một tham số vô hướng là không đủ: ngay cả *T* tốt nhất cũng chỉ hạ ECE xuống 0,153.
 
 ### 3.2. Cơ chế từ chối ca không chắc
 
@@ -89,7 +92,7 @@ Dòng đối chứng mang cả lập luận: cùng mô hình, cùng dự đoán,
 
 ### 3.3. Khả năng giải thích
 
-Bản đồ vùng chú ý chạy trên 4 ca minh hoạ. Hai ca đoán đúng có đỉnh chú ý nằm đúng tâm tổn thương, tức mô hình nhìn vào tổn thương chứ không vào rìa ảnh. Một ca đoán sai cho thấy cả hai dấu hiệu thất bại cùng lúc: đỉnh chú ý nằm ở lát biên, lệch 32 voxel khỏi tâm, và bản đồ ứng với lớp đúng bị suy biến, tức không vùng nào ủng hộ đáp án đúng. Hai thì chemical-shift có độ nhạy thấp nhất ở cả 4 ca, phù hợp với lâm sàng vì chúng chủ yếu để phát hiện mỡ.
+Heatmap trên 4 ca minh hoạ. Hai ca đoán đúng có đỉnh chú ý nằm đúng tâm tổn thương, tức mô hình nhìn vào tổn thương chứ không vào rìa ảnh. Một ca đoán sai cho thấy cả hai dấu hiệu thất bại cùng lúc: đỉnh chú ý nằm ở lát biên, lệch 32 voxel khỏi tâm, và bản đồ ứng với lớp đúng bị suy biến, tức không vùng nào ủng hộ đáp án đúng. Hai thì chemical-shift có độ nhạy thấp nhất ở cả 4 ca, phù hợp với lâm sàng vì chúng chủ yếu để phát hiện mỡ.
 
 Cần nói rõ giới hạn: bản đồ ở độ phân giải gốc chỉ 7×7×2, cỡ mẫu là 4 ca, và đây là phân tích độ nhạy chứ không phải ablation, nên không kết luận được bỏ hẳn một thì thì mất bao nhiêu điểm.
 
@@ -97,7 +100,7 @@ Cần nói rõ giới hạn: bản đồ ở độ phân giải gốc chỉ 7×7
 
 ### 4.1. Protocol
 
-Tập test 104 ca được giữ kín và chỉ đánh giá một lần. Trước khi chạy, toàn bộ lựa chọn được ghi thành văn bản và khoá lại: cấu hình mô hình, bộ dự đoán là ensemble 5 fold, không dùng test-time augmentation, nhiệt độ *T* fit trên out-of-fold rồi áp mù, danh sách metric, các mức coverage, và ước lượng kỳ vọng ghi trước là 0,62 – 0,72.
+Tập test 104 ca được giữ kín và chỉ đánh giá một lần. Trước khi chạy, toàn bộ lựa chọn được ghi thành văn bản và khoá lại: cấu hình mô hình, bộ dự đoán là ensemble 5 fold, không dùng test-time augmentation, nhiệt độ *T* fit trên out-of-fold rồi áp mù, danh sách metric, các mức coverage.
 
 Ensemble 5 fold hợp lệ ở đây vì không mô hình nào trong 5 mô hình từng nhìn thấy 104 ca này; trên out-of-fold thì cách gộp đó bị cấm.
 
@@ -116,7 +119,7 @@ Tất cả các hàng dưới đây đo trên cùng một tập test 104 ca:
 | **Nghiên cứu này** (ensemble 5 fold) | **0,6162** [0,5246; 0,7032] | 0,5647 |
 | Baseline ban tổ chức | 0,6083 | 0,5414 |
 
-Con số của nghiên cứu cao hơn baseline ban tổ chức đúng 0,0038, trong khi khoảng tin cậy rộng ±0,09 và phủ trùm con số đó. Phát biểu đúng là **ngang baseline, chưa phân biệt được về mặt thống kê**. Cũng vì lý do đó, mọi khoảng cách trong bảng đều chưa có ý nghĩa thống kê, trừ so với ba đội đầu bảng và CGHNet.
+Con số của nghiên cứu cao hơn baseline ban tổ chức đúng 0,0038, trong khi khoảng tin cậy rộng ±0,09 và phủ trùm con số đó. Phát biểu đúng là **ngang baseline, chưa phân biệt được về mặt thống kê**.
 
 Kết quả từng lớp: u máu 0,903 · nang 0,762 · HCC 0,679 · FNH 0,640 · áp-xe 0,538 · ICC 0,519 · **di căn 0,273**. Hướng nhầm chính giống hệt out-of-fold: HCC bị đoán thành di căn, 6 trong 32 ca HCC. Ngay cả khi 5 lớp còn lại đều đạt 0,90, macro-F1 cũng chỉ tới **0,756**; muốn vượt mốc đó thì bắt buộc phải cải thiện hai lớp yếu.
 
@@ -151,13 +154,13 @@ Tất cả đo trên out-of-fold, bootstrap ghép cặp trên cùng bệnh nhân
 
 Ba điểm rút ra:
 
-**Focal loss không cần thiết vì một lý do cụ thể.** Nó có làm mô hình bớt tự tin từ đầu (ECE thô 0,154 so với 0,221), nhưng sau khi hiệu chỉnh đúng cách thì hai bên bằng nhau: 0,1255 và 0,1281. Lợi thế biến mất qua đúng bước mà pipeline vốn đã làm.
+**Focal loss không cần thiết vì một lý do cụ thể:** Nó có làm mô hình bớt tự tin từ đầu (ECE thô 0,154 so với 0,221), nhưng sau khi hiệu chỉnh đúng cách thì hai bên bằng nhau: 0,1255 và 0,1281. Lợi thế biến mất qua đúng bước mà pipeline vốn đã làm.
 
-**Sàng lọc trên 2 fold là không đủ.** Thí nghiệm bỏ nhiễu cường độ cho +0,038 khi chạy 2 fold, rồi −0,002 khi chạy đủ 5 fold; toàn bộ mức tăng đến từ một fold may mắn. Từ nay mọi thí nghiệm chạy đủ 5 fold trước khi kết luận.
+**Sàng lọc trên 2 fold là không đủ:** Thí nghiệm bỏ nhiễu cường độ cho +0,038 khi chạy 2 fold, rồi −0,002 khi chạy đủ 5 fold; toàn bộ mức tăng đến từ một fold may mắn. Từ nay mọi thí nghiệm chạy đủ 5 fold trước khi kết luận.
 
-**Nút thắt là thời điểm mô hình bắt đầu học thuộc.** Trên cả 10 lần huấn luyện, epoch mà hàm mất mát trên validation chạm đáy dự báo gần trọn vẹn macro-F1 cuối cùng của fold đó: tương quan hạng Spearman ρ = +0,770, P = 0,0092. Đây là tương quan trên 10 lần chạy và hai đại lượng cùng sinh từ một đường cong, nên là một chẩn đoán tốt chứ chưa phải bằng chứng nhân quả.
+**Nút thắt là thời điểm mô hình bắt đầu học thuộc:** Trên cả 10 lần huấn luyện, epoch mà hàm mất mát trên validation chạm đáy dự báo gần trọn vẹn macro-F1 cuối cùng của fold đó: tương quan hạng Spearman ρ = +0,770, P = 0,0092. Đây là tương quan trên 10 lần chạy và hai đại lượng cùng sinh từ một đường cong, nên là một chẩn đoán tốt chứ chưa phải bằng chứng nhân quả.
 
-**Lỗi phát hiện chiều 07/08.** Trong khâu tăng cường dữ liệu, phép tịnh tiến lấp phần trống bằng giá trị 0 và phép xoay lấp góc bằng 0. Hệ quả: khoảng 100% mẫu huấn luyện mang một dải đen ở rìa, trong khi 0% mẫu validation có. Đây là lệch phân bố train/validation có hệ thống, xuất hiện ở mọi bước huấn luyện, và khớp với chẩn đoán ở trên. Cách làm chuẩn của baseline ban tổ chức và của CGHNet là cắt ngẫu nhiên từ một khối rộng hơn, không đệm; ablation của CGHNet cho thấy bỏ phép cắt ngẫu nhiên làm mất 8,8 điểm. Có một bằng chứng độc lập cùng hướng: mô hình mất 0,02 đến 0,06 điểm khi ảnh bị lật, dù chính augmentation của nó lật cả ba trục. Bản sửa đã dựng xong, chưa chạy.
+**Lỗi phát hiện chiều 07/08:** Trong khâu tăng cường dữ liệu, phép tịnh tiến lấp phần trống bằng giá trị 0 và phép xoay lấp góc bằng 0. Hệ quả: khoảng 100% mẫu huấn luyện mang một dải đen ở rìa, trong khi 0% mẫu validation có. Đây là lệch phân bố train/validation có hệ thống, xuất hiện ở mọi bước huấn luyện, và khớp với chẩn đoán ở trên. Cách làm chuẩn của baseline ban tổ chức và của CGHNet là cắt ngẫu nhiên từ một khối rộng hơn, không đệm; ablation của CGHNet cho thấy bỏ phép cắt ngẫu nhiên làm mất 8,8 điểm. Có một bằng chứng độc lập cùng hướng: mô hình mất 0,02 đến 0,06 điểm khi ảnh bị lật, dù chính augmentation của nó lật cả ba trục. Bản sửa đã dựng xong, chưa chạy.
 
 ## 6. Thời gian xử lý một ca
 
@@ -172,13 +175,10 @@ Tiền xử lý chiếm khoảng 96% thời gian chờ, nên muốn giảm độ
 
 ## 7. Giới hạn
 
-1. **Tập test chỉ được đánh giá thêm một lần nữa.** Mọi cải tiến từ nay phải chốt trên out-of-fold; muốn có số test cho cấu hình mới thì phải khoá protocol lại và báo cáo rõ đó là lần đánh giá thứ hai.
-2. **n = 104 nên khoảng tin cậy rộng ±0,09.** Mọi so sánh với mốc văn liệu đều chưa phân biệt được về thống kê, trừ ba đội đầu bảng và CGHNet.
-3. **Con số out-of-fold 0,6851 không phải ước lượng không thiên lệch**, vì nó mang thiên lệch chọn checkpoint +0,079. Con số trung thực hơn là 0,6038.
-4. **Trần 0,756 là ràng buộc số học**, không phải phỏng đoán: không có cách nào vượt nó mà không cải thiện hai lớp di căn và ICC.
-5. **Bốn kết quả âm có thể do bộ đo quá yếu chứ không hẳn do ý tưởng sai.** Bản sàng 2 fold có n = 162 và khoảng tin cậy khoảng ±0,08, không đủ lực phát hiện hiệu ứng cỡ +0,03.
-6. **Chưa có đánh giá ngoài miền**, nên báo cáo cuối sẽ không có bằng chứng về khả năng khái quát sang cơ sở dữ liệu khác.
-7. **Cách căn các thì hiện tại chỉ khử tịnh tiến**, không khử xoay và biến dạng.
+1. **Con số out-of-fold 0,6851 không phải ước lượng không thiên lệch**, vì nó mang thiên lệch chọn checkpoint +0,079. Con số trung thực hơn là 0,6038.
+2. **Trần 0,756 là ràng buộc số học**, không phải phỏng đoán: không có cách nào vượt nó mà không cải thiện hai lớp di căn và ICC.
+3. **Bốn kết quả âm có thể do bộ đo quá yếu chứ không hẳn do ý tưởng sai.** Bản sàng 2 fold có n = 162 và khoảng tin cậy khoảng ±0,08, không đủ lực phát hiện hiệu ứng cỡ +0,03.
+4. **Cách căn các thì hiện tại chỉ khử tịnh tiến**, không khử xoay và biến dạng.
 
 ## 8. Công việc tiếp theo
 
@@ -202,12 +202,8 @@ Tiền xử lý chiếm khoảng 96% thời gian chờ, nên muốn giảm độ
 
 ## Kết luận
 
-W3 biến một con số sàng lọc thành một con số so sánh được trực tiếp với văn liệu, và con số đó khiêm tốn hơn kỳ vọng: 0,6162 trên tập test, ngang mốc baseline của ban tổ chức, còn cách khoảng 0,20 so với các phương pháp công bố gần đây. Việc đánh giá test sớm hơn kế hoạch hai tuần lấy đi khả năng thử nghiệm tự do, đổi lại một mốc thật để định hướng phần còn lại của dự án.
+W3 biến một con số sàng lọc thành một con số so sánh được trực tiếp với benchmark, và con số đó khiêm tốn hơn kỳ vọng: 0,6162 trên tập test, ngang mốc baseline của ban tổ chức, còn cách khoảng 0,20 so với các phương pháp công bố gần đây.
 
 Về đóng góp chính, cơ chế từ chối ca không chắc đã chứng minh được là có tác dụng thật trên tập test giữ kín: bỏ 20% ca khó nhất nâng macro-F1 từ 0,616 lên khoảng 0,68 đến 0,72, có ý nghĩa thống kê. Xác suất thì vẫn chưa đủ tin cậy, với ECE tốt nhất là 0,130, và nó đến từ việc gộp mô hình chứ không từ temperature scaling.
 
-Bốn hướng cải tiến đều không hiệu quả, và lời giải thích nhiều khả năng không nằm ở kiến trúc hay siêu tham số mà ở một lỗi trong khâu tăng cường dữ liệu khiến gần như mọi mẫu huấn luyện mang một dải đen mà mẫu validation không có. Nếu đúng như vậy thì phần lớn công sức tinh chỉnh của hai tuần qua đã diễn ra trên một nền dữ liệu bị lệch, và việc sửa nó phải đi trước mọi ý tưởng khác.
-
----
-
-*Research Use Only. Con số trên tập test là kết quả của một lần đánh giá duy nhất theo protocol khoá trước khi chạy; các con số còn lại đo trên tập validation out-of-fold và mang thiên lệch đã nêu ở mục 2. Không con số nào được dùng để suy diễn về hiệu năng lâm sàng.*
+Bốn hướng cải tiến đều không hiệu quả, và lời giải thích nhiều khả năng không nằm ở kiến trúc hay siêu tham số mà ở một lỗi trong khâu tăng cường dữ liệu khiến gần như mọi mẫu huấn luyện mang một dải đen mà mẫu validation không có.
