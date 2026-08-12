@@ -47,16 +47,15 @@ export function ZipUpload() {
           <div className="flex items-center gap-2">
             <Archive className="h-5 w-5 text-accent" aria-hidden="true" />
             <h2 id="upload-heading" className="text-lg font-bold text-white">
-              Tải bộ MRI (.zip)
+              Tải bộ MRI lên
             </h2>
           </div>
           <p className="mt-2 max-w-measure text-sm text-slate-300">
-            ZIP phải chứa đúng một file <span className="font-mono">.nii</span> hoặc{' '}
-            <span className="font-mono">.nii.gz</span> cho mỗi 8 thì bắt buộc. Thư mục bên trong
-            không quan trọng; tên file phải cho phép nhận diện thì.
+            Chọn một file ZIP có đủ 8 thì MRI. Mỗi thì cần một ảnh <span className="font-mono">.nii</span> hoặc{' '}
+            <span className="font-mono">.nii.gz</span> với tên file thể hiện thì tương ứng.
           </p>
         </div>
-        <span className="chip border border-pacs-700 bg-pacs-800 text-slate-300">8 thì bắt buộc</span>
+        <span className="chip border border-pacs-700 bg-pacs-800 text-slate-300">Đủ 8 thì</span>
       </div>
 
       <input
@@ -72,14 +71,14 @@ export function ZipUpload() {
         <FileUp className="h-5 w-5 shrink-0 text-accent" aria-hidden="true" />
         <div className="min-w-0 flex-1">
           <p className="truncate font-mono text-sm font-semibold text-white">
-            {archive ? archive.name : 'Chưa chọn file ZIP'}
+            {archive ? archive.name : 'Chưa chọn bộ MRI'}
           </p>
           <p className="text-data text-slate-400">
-            {archive ? 'Sẵn sàng kiểm tra cấu trúc 8 thì.' : 'Không hỗ trợ folder picker ở V1.'}
+            {archive ? 'Sẵn sàng kiểm tra đủ 8 thì MRI.' : 'Chọn file ZIP để bắt đầu.'}
           </p>
         </div>
         <button type="button" onClick={chooseArchive} className="btn-ghost">
-          {archive ? 'Đổi ZIP' : 'Chọn ZIP'}
+          {archive ? 'Đổi file ZIP' : 'Chọn file ZIP'}
         </button>
         <button type="button" onClick={validate} disabled={!archive || busy} className="btn-primary">
           {busy ? 'Đang kiểm tra…' : 'Kiểm tra bộ MRI'}

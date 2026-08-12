@@ -5915,6 +5915,26 @@ Không train mới. Test giữ **610 passed**, 73 skipped. Gate PASS.
 
 ---
 
+## S-140 · 2026-08-12 · codex
+
+**Mục tiêu phiên:** viết lại luồng tải bộ MRI để người dùng biết ngay cần chọn gì và bước tiếp theo là gì.
+
+**Nhánh / commit:** `main` · *(commit theo sau entry này)*
+
+### Đã làm
+
+- Đổi tiêu đề thành **“Tải bộ MRI lên”**, badge thành **“Đủ 8 thì”** và rút mô tả về một hướng dẫn dễ đọc.
+- Trạng thái ban đầu giờ là **“Chưa chọn bộ MRI — Chọn file ZIP để bắt đầu.”**; trạng thái sau chọn file cũng nói rõ bước kiểm tra tiếp theo.
+- Bỏ cụm từ kỹ thuật “folder picker ở V1”, giữ các yêu cầu định dạng `.nii` / `.nii.gz` cần thiết.
+- Giữ nguyên các thay đổi chưa commit có sẵn của người dùng ở các file khác.
+
+### Kiểm chứng
+
+- Impeccable type scan: không có phát hiện.
+- `npm run typecheck`, `npm run build` và quality gate: pass (build chỉ có cảnh báo bundle đã có).
+
+---
+
 ## S-139 · 2026-08-12 · codex
 
 **Mục tiêu phiên:** bỏ thông tin hover thừa che biểu đồ xác suất theo lớp.
