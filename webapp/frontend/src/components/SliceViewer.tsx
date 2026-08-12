@@ -241,10 +241,6 @@ export function SliceViewer({ caseId, phases, volumes, classes, gradcam }: Props
             </button>
           )}
         </div>
-        <p className="font-mono text-data text-slate-400">
-          {volume.shape.join('×')} voxel ·{' '}
-          {volume.spacing_mm.map((s) => s.toFixed(2).replace('.', ',')).join(' × ')} mm
-        </p>
       </div>
 
       <div role="group" aria-label="Chọn thì MRI" className="mb-4 flex flex-wrap gap-2">
@@ -380,7 +376,6 @@ export function SliceViewer({ caseId, phases, volumes, classes, gradcam }: Props
           caseId={caseId}
           gradcam={gradcam}
           classes={classes}
-          phaseLabels={phases.map((p) => p.label_vi)}
         />
       </div>
     </section>

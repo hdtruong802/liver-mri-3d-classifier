@@ -163,7 +163,13 @@ elseif (Get-Command python -ErrorAction SilentlyContinue) {
 }
 
 if ($ruffCmd -and $ruffTargets.Count -gt 0) {
-    $exe, $prefix = $ruffCmd[0], @($ruffCmd[1..($ruffCmd.Count - 1)])
+    $exe = $ruffCmd[0]
+    $prefix = if ($ruffCmd.Count -gt 1) {
+        @($ruffCmd[1..($ruffCmd.Count - 1)])
+    }
+    else {
+        @()
+    }
     & $exe @prefix check @ruffTargets
     if ($LASTEXITCODE -eq 0) {
         Write-Result OK 'ruff check'

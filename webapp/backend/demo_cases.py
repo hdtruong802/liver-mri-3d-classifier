@@ -55,7 +55,7 @@ class DemoCase:
 
     Chỉ số tổn thương khác nhau giữa các bệnh nhân (0, 1, 3…), nên không suy ra được.
     Nếu dùng `file_stem` để tra dự đoán thì `normalize_pid("MR207769_3")` cho `2077693`,
-    không khớp bệnh nhân nào, và app sẽ lặng lẽ rơi về số mô phỏng thay vì báo lỗi.
+    không khớp bệnh nhân nào, và app phải báo rõ prediction OOF không có thay vì trả một số khác.
     """
 
     case_id: str
@@ -122,15 +122,11 @@ def _case_provenance(case: DemoCase) -> Provenance:
     """Nguồn của phần MÔ TẢ ca (ảnh, hình học) — không phải của kết quả suy luận.
 
     Ảnh là thật, đọc thẳng từ đĩa. Kết quả suy luận có provenance riêng, gắn ở
-    `PredictResult` (`webapp/backend/inference.py`), và hai thứ đó có thể khác nguồn:
-    ảnh thật + số mô phỏng là tổ hợp hợp lệ khi ca không nằm trong 394 ca out-of-fold.
+    `PredictResult` (`webapp/backend/inference.py`). V1 chỉ hiển thị kết quả khi ca có
+    prediction OOF; nếu thiếu thì endpoint prediction báo rõ thay vì đổi nguồn số.
     """
-    from webapp.backend.predictions import load_store
-
-    store = load_store()
-    known = store is not None and store.get(case.case_id) is not None
     return Provenance(
-        source=ProvenanceSource.OOF if known else ProvenanceSource.SIMULATED,
+        source=ProvenanceSource.OOF,
         model_version=None,
         note=case.source_note,
     )

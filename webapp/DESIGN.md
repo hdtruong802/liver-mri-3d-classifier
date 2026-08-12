@@ -185,16 +185,11 @@ Panel bo `1rem`, control bo `0.75rem`, chip bo tròn hoàn toàn. Viền `1px` m
 
 Chiều sâu đến từ hai cấp nền cộng viền mảnh. `shadow-glow` (`0 0 24px -4px rgba(34,211,238,.45)`) chỉ dùng cho **hành động chính lúc hover** và vùng thả file đang active — không rải lên panel tĩnh.
 
-## Đánh dấu số minh hoạ
+## Nguồn prediction và ZIP validation
 
-Backend khai nguồn gốc ở `provenance.source` của mọi phản hồi. Khi nó là `simulated`, UI bắt buộc dựng **hai tín hiệu độc lập**:
+Ca demo hiển thị badge `prediction out-of-fold` hoặc `suy luận trực tiếp` ngay cạnh kết quả. Không có nhánh số mô phỏng trong giao diện.
 
-1. **Badge chữ** cạnh khối số: "minh hoạ, chưa có model".
-2. **Chữ nghiêng** cho chính con số.
-
-Màu **không** nằm trong hai tín hiệu này — chúng phải sống sót qua bản khử màu và qua screen reader.
-
-Khi `source` thành `oof` hoặc `live`, cả hai tự tắt.
+Upload V1 là một ZIP NIfTI: UI chỉ hiển thị bảng kiểm tám thì sau khi backend đọc manifest. Dù ZIP hợp lệ, nó không được tạo prediction, uncertainty hay `defer`; copy phải hướng người xem về ca demo OOF để xem kết quả.
 
 ## Dải RUO
 
@@ -212,7 +207,7 @@ Ngân sách nhỏ. **Được phép:** `fade-in` khi khối kết quả xuất h
 
 ### Do
 - **Do** cho mọi thứ mã hoá bằng màu một nhãn chữ hoặc icon đi kèm.
-- **Do** dùng cả badge chữ lẫn chữ nghiêng cho số minh hoạ.
+- **Do** hiển thị nguồn prediction của ca demo bằng badge chữ; giữ bảng kiểm ZIP tách khỏi kết quả.
 - **Do** giữ `slate-400` làm sàn cho chữ.
 - **Do** để ảnh MRI là thứ sáng nhất màn hình.
 - **Do** kiểm tương phản bằng số. Nền tối đánh lừa mắt rất giỏi.

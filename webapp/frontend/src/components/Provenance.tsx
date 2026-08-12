@@ -4,16 +4,13 @@
  * `PRODUCT.md` mục *Evidence on Hand*: "Số placeholder trông giống số thật là rủi ro
  * nghiêm trọng nhất của dự án này — người review sẽ tưởng đó là kết quả."
  *
- * HAI tín hiệu độc lập cho cùng một sự thật, cố ý:
- *   1. badge chữ — đọc được, dịch được, screen reader đọc được;
- *   2. chữ nghiêng (`.provisional`) — sống sót qua bản khử màu.
- * Màu KHÔNG nằm trong hai tín hiệu này. Một tín hiệu hỏng thì tín hiệu kia vẫn giữ.
+ * Badge chữ cho biết prediction OOF hay suy luận trực tiếp. Upload ZIP V1 không đi qua
+ * component này vì nó không tạo prediction.
  */
 
-import { FlaskConical, ImageOff } from 'lucide-react';
+import { ImageOff } from 'lucide-react';
 
 import type { Provenance } from '@/api/types';
-import { isProvisional } from '@/api/types';
 
 export function ProvenanceBadge({
   provenance,
@@ -22,21 +19,10 @@ export function ProvenanceBadge({
   provenance: Provenance;
   className?: string;
 }) {
-  if (!isProvisional(provenance)) {
-    return (
-      <span className={`chip border border-ok/40 bg-ok/10 text-ok-soft ${className}`}>
-        {provenance.source === 'oof' ? 'prediction out-of-fold' : 'suy luận trực tiếp'}
-        {provenance.model_version ? ` · ${provenance.model_version}` : ''}
-      </span>
-    );
-  }
   return (
-    <span
-      className={`chip border border-warn/40 bg-warn/10 italic text-warn-soft ${className}`}
-      title={provenance.note}
-    >
-      <FlaskConical className="h-3 w-3 shrink-0" aria-hidden="true" />
-      minh hoạ, chưa có model
+    <span className={`chip border border-ok/40 bg-ok/10 text-ok-soft ${className}`} title={provenance.note}>
+      {provenance.source === 'oof' ? 'prediction out-of-fold' : 'suy luận trực tiếp'}
+      {provenance.model_version ? ` · ${provenance.model_version}` : ''}
     </span>
   );
 }

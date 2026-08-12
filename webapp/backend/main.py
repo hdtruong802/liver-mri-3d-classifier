@@ -7,7 +7,7 @@ Chạy local. Kaggle không phải server và không bao giờ host API ở đó
 
 from __future__ import annotations
 
-import time
+from zipfile import BadZipFile, ZipFile
 
 from fastapi import FastAPI, HTTPException, UploadFile
 from fastapi.responses import Response
@@ -15,7 +15,7 @@ from src.data.taxonomy import CLASS_NAMES, MALIGNANT_INDICES, NUM_CLASSES, SHORT
 
 from webapp.backend import demo_cases, inference
 from webapp.backend.config import DEFAULT_DEFER_THRESHOLD, RUO_NOTICE, SAMPLE_DIR
-from webapp.backend.phases import PHASES, PhaseDetectionError, detect_phase_set
+from webapp.backend.phases import PHASES, PhaseDetectionError, detect_phase
 from webapp.backend.schemas import (
     CaseDetail,
     CaseSummary,
@@ -24,6 +24,9 @@ from webapp.backend.schemas import (
     MetaResponse,
     PhaseInfo,
     PredictResult,
+    UploadPhaseState,
+    UploadPhaseValidation,
+    UploadValidationResult,
 )
 from webapp.backend.volumes import render_slice_png
 
@@ -176,34 +179,83 @@ def predict_case(case_id: str) -> PredictResult:
     """Suy luận trên một ca demo dựng sẵn — đường đi chính."""
     if case_id not in demo_cases.CASES_BY_ID:
         raise HTTPException(status_code=404, detail=f"không có ca demo {case_id!r}")
-    started = time.perf_counter()
-    result = inference.predict(case_id)
-    result.inference_ms = int((time.perf_counter() - started) * 1000)
-    return result
+    try:
+        return inference.predict(case_id)
+    except LookupError as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
 
 
-@app.post("/api/predict", response_model=PredictResult)
-async def predict_upload(files: list[UploadFile]) -> PredictResult:
+def _upload_manifest(archive_name: str, names: list[str]) -> UploadValidationResult:
     """Suy luận trên bộ 8 file người dùng tải lên — đường phụ.
 
-    Nhận diện thì theo **token trong tên file**, không theo thứ tự chọn (contract
-    plan §8.1). Bộ file thiếu hoặc trùng thì bị từ chối thẳng: chấp nhận im lặng một
-    bộ đầu vào sai sẽ cho ra một con số trông hợp lý mà vô nghĩa.
-
-    Giới hạn đã biết, hiển thị luôn ở frontend: pipeline train cắt bám tổn thương nên
-    đường này chưa có ROI và chưa chạy đúng như lúc train. Đó là lý do ca demo dựng
-    sẵn mới là đường đi chính.
+    Chỉ đọc manifest: không giải nén bền vững, không chạy model và không tạo prediction.
     """
-    names = [f.filename or "" for f in files]
-    try:
-        detected = detect_phase_set(names)
-    except PhaseDetectionError as exc:
-        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    nifti_names = [name for name in names if name.lower().endswith((".nii", ".nii.gz"))]
+    errors: list[str] = []
+    if not nifti_names:
+        errors.append("ZIP không chứa file NIfTI .nii hoặc .nii.gz.")
+    found: dict[str, list[str]] = {phase.file_token: [] for phase in PHASES}
+    for name in nifti_names:
+        leaf_name = name.replace("\\", "/").rsplit("/", 1)[-1]
+        try:
+            phase = detect_phase(leaf_name)
+        except PhaseDetectionError as exc:
+            errors.append(str(exc))
+            continue
+        found[phase.file_token].append(name)
 
-    # Định danh ca tất định theo bộ tên file, để cùng bộ upload cho cùng màn hình.
-    case_id = "upload:" + ",".join(sorted(detected.values()))
-    started = time.perf_counter()
-    result = inference.predict(case_id)
-    result.case_id = "upload"
-    result.inference_ms = int((time.perf_counter() - started) * 1000)
-    return result
+    rows: list[UploadPhaseValidation] = []
+    for phase in PHASES:
+        files = found[phase.file_token]
+        filename = " · ".join(files) if files else None
+        if len(files) > 1:
+            state = UploadPhaseState.DUPLICATE
+            errors.append(f"trùng thì {phase.label_vi}: {filename}")
+        elif files:
+            state = UploadPhaseState.READY
+        else:
+            state = UploadPhaseState.MISSING
+        rows.append(
+            UploadPhaseValidation(
+                index=phase.index,
+                file_token=phase.file_token,
+                label_vi=phase.label_vi,
+                filename=filename,
+                state=state,
+            )
+        )
+
+    valid = not errors and all(len(files) == 1 for files in found.values())
+    return UploadValidationResult(
+        archive_name=archive_name,
+        valid=valid,
+        message=(
+            (
+                "Bộ MRI có đủ 8 thì hợp lệ. App chỉ kiểm tra cấu trúc; "
+                "hãy chọn ca demo để xem dự đoán OOF."
+            )
+            if valid
+            else (
+                "Bộ MRI chưa đúng contract 8 thì. "
+                "Hãy kiểm tra tên và số lượng file NIfTI trong ZIP."
+            )
+        ),
+        errors=errors,
+        phases=rows,
+    )
+
+
+@app.post("/api/validate-upload", response_model=UploadValidationResult)
+async def validate_upload(archive: UploadFile) -> UploadValidationResult:
+    """Kiểm tra manifest một ZIP MRI, không lưu file, không tạo prediction."""
+    archive_name = archive.filename or "upload.zip"
+    if not archive_name.lower().endswith(".zip"):
+        raise HTTPException(status_code=422, detail="Chỉ nhận một file .zip.")
+
+    try:
+        with ZipFile(archive.file) as bundle:
+            names = [entry.filename for entry in bundle.infolist() if not entry.is_dir()]
+    except BadZipFile as exc:
+        raise HTTPException(status_code=422, detail="File tải lên không phải ZIP hợp lệ.") from exc
+
+    return _upload_manifest(archive_name, names)

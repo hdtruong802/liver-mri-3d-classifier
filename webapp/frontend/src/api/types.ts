@@ -8,7 +8,7 @@
  */
 
 /** Con số trong phản hồi từ đâu ra. Quyết định cách frontend được phép vẽ nó. */
-export type ProvenanceSource = 'simulated' | 'oof' | 'live';
+export type ProvenanceSource = 'oof' | 'live';
 
 export interface Provenance {
   source: ProvenanceSource;
@@ -66,6 +66,25 @@ export interface PhaseInfo {
   file_token: string;
   label_vi: string;
   description_vi: string;
+}
+
+export type UploadPhaseState = 'ready' | 'missing' | 'duplicate';
+
+export interface UploadPhaseValidation {
+  index: number;
+  file_token: string;
+  label_vi: string;
+  filename: string | null;
+  state: UploadPhaseState;
+}
+
+/** Chỉ là kiểm tra manifest ZIP; cố ý không chứa prediction hoặc uncertainty. */
+export interface UploadValidationResult {
+  archive_name: string;
+  valid: boolean;
+  message: string;
+  errors: string[];
+  phases: UploadPhaseValidation[];
 }
 
 export interface ClassInfo {
@@ -142,9 +161,4 @@ export interface CaseDetail {
   reference_phase: string;
   gradcam: GradCamInfo | null;
   provenance: Provenance;
-}
-
-/** Số giả lập phải được đánh dấu bằng hai tín hiệu độc lập: chữ nghiêng và nhãn chữ. */
-export function isProvisional(provenance: Provenance): boolean {
-  return provenance.source === 'simulated';
 }

@@ -6,6 +6,9 @@ Nhóm test quan trọng nhất ở đây là nhóm `provenance`: nó giữ lời
 
 from __future__ import annotations
 
+from io import BytesIO
+from zipfile import ZipFile
+
 import numpy as np
 import pytest
 from src.data.taxonomy import CLASS_NAMES, MALIGNANT_INDICES, NUM_CLASSES
@@ -21,12 +24,20 @@ from webapp.backend import demo_cases, inference  # noqa: E402
 from webapp.backend.config import DEFAULT_DEFER_THRESHOLD, RUO_NOTICE  # noqa: E402
 from webapp.backend.main import app  # noqa: E402
 from webapp.backend.phases import PHASES  # noqa: E402
-from webapp.backend.schemas import ProvenanceSource  # noqa: E402
+from webapp.backend.schemas import Provenance, ProvenanceSource  # noqa: E402
 
 
 @pytest.fixture(scope="module")
 def client() -> TestClient:
     return TestClient(app)
+
+
+def _demo_prediction(client: TestClient) -> dict[str, object]:
+    response = client.post(f"/api/cases/{demo_cases.DEMO_CASES[0].case_id}/predict")
+    if response.status_code == 503:
+        pytest.skip("máy này chưa có prediction out-of-fold cho ca demo")
+    assert response.status_code == 200
+    return response.json()
 
 
 # --------------------------------------------------------------------------- meta
@@ -70,30 +81,10 @@ def test_meta_lists_eight_phases(client: TestClient) -> None:
 
 def test_every_prediction_carries_provenance(client: TestClient) -> None:
     """Không có phản hồi suy luận nào được ra khỏi backend mà thiếu `provenance`."""
-    response = client.post(f"/api/cases/{demo_cases.DEMO_CASES[0].case_id}/predict")
-    assert response.status_code == 200
-    body = response.json()
+    body = _demo_prediction(client)
     assert "provenance" in body
     assert body["provenance"]["source"] in {s.value for s in ProvenanceSource}
     assert body["provenance"]["note"].strip()
-
-
-def test_simulated_result_declares_itself_simulated() -> None:
-    result = inference.simulate_result("bất kỳ ca nào")
-    assert result.provenance.source is ProvenanceSource.SIMULATED
-    assert result.provenance.model_version is None, "không được bịa chuỗi phiên bản model"
-    assert "chưa có model" in result.provenance.note
-
-
-def test_simulated_result_is_deterministic() -> None:
-    """Cùng ca phải cho cùng màn hình mỗi lần mở.
-
-    Số nhảy giữa hai lần tải sẽ khiến người xem tưởng model không ổn định.
-    """
-    first = inference.simulate_result("MR-391135_1")
-    second = inference.simulate_result("MR-391135_1")
-    assert first.model_dump() == second.model_dump()
-    assert inference.simulate_result("một ca khác").probs != first.probs
 
 
 def test_no_model_loaded_yet() -> None:
@@ -105,7 +96,7 @@ def test_no_model_loaded_yet() -> None:
 
 
 def test_probs_cover_seven_classes_and_sum_to_one(client: TestClient) -> None:
-    body = client.post(f"/api/cases/{demo_cases.DEMO_CASES[0].case_id}/predict").json()
+    body = _demo_prediction(client)
     probs = body["probs"]
     assert len(probs) == 7
     assert [p["class_name"] for p in probs] == [CLASS_NAMES[i] for i in range(7)]
@@ -113,13 +104,13 @@ def test_probs_cover_seven_classes_and_sum_to_one(client: TestClient) -> None:
 
 
 def test_malignant_prob_is_sum_of_malignant_classes(client: TestClient) -> None:
-    body = client.post(f"/api/cases/{demo_cases.DEMO_CASES[0].case_id}/predict").json()
+    body = _demo_prediction(client)
     expected = sum(p["probability"] for p in body["probs"] if p["class_index"] in MALIGNANT_INDICES)
     assert body["malignant_prob"] == pytest.approx(expected, abs=1e-6)
 
 
 def test_pred_class_is_argmax(client: TestClient) -> None:
-    body = client.post(f"/api/cases/{demo_cases.DEMO_CASES[0].case_id}/predict").json()
+    body = _demo_prediction(client)
     leader = max(body["probs"], key=lambda p: p["probability"])
     assert body["pred_class_index"] == leader["class_index"]
     assert body["confidence"] == pytest.approx(leader["probability"], abs=1e-6)
@@ -132,7 +123,7 @@ def test_uncertainty_chi_bao_dai_luong_do_duoc(client: TestClient) -> None:
     Đổi so với trước: dự án GIỜ có phân rã epistemic (`src/eval/selective.py`), nên
     trường đó hợp lệ. `aleatoric` vẫn không được báo vì không dùng tới ở đâu cả.
     """
-    body = client.post(f"/api/cases/{demo_cases.DEMO_CASES[0].case_id}/predict").json()
+    body = _demo_prediction(client)
     assert set(body["uncertainty"]) == {"entropy", "epistemic", "ensemble_std"}
     assert "aleatoric" not in body["uncertainty"]
     # `epistemic` và `ensemble_std` là hai đại lượng khác nhau; không được điền lẫn.
@@ -153,7 +144,7 @@ def test_assemble_result_rejects_non_normalised_probs() -> None:
         inference.assemble_result(
             case_id="x",
             probs=np.full(NUM_CLASSES, 0.5),
-            provenance=inference.simulate_result("x").provenance,
+            provenance=Provenance(source=ProvenanceSource.OOF, note="prediction OOF"),
         )
 
 
@@ -173,7 +164,7 @@ def test_defer_fires_below_threshold(
     result = inference.assemble_result(
         case_id="x",
         probs=probs,
-        provenance=inference.simulate_result("x").provenance,
+        provenance=Provenance(source=ProvenanceSource.OOF, note="prediction OOF"),
         defer_threshold=threshold,
     )
     assert result.defer is expect_defer
@@ -191,35 +182,67 @@ def test_predict_khong_con_heatmap_slices(client: TestClient) -> None:
     Bản đồ chú ý giờ đi qua `CaseDetail.gradcam` + endpoint ảnh. Hai cơ chế cho cùng
     một việc là nợ, không phải linh hoạt — test này chặn việc thêm lại.
     """
-    body = client.post(f"/api/cases/{demo_cases.DEMO_CASES[0].case_id}/predict").json()
+    body = _demo_prediction(client)
     assert "heatmap_slices" not in body
 
 
 # ------------------------------------------------------------------------- upload
 
 
-def _upload_files(tokens: list[str]) -> list[tuple[str, tuple[str, bytes, str]]]:
-    return [("files", (f"MR-1_1_{t}_0000.nii", b"x", "application/octet-stream")) for t in tokens]
+def _zip_upload(names: list[str]) -> dict[str, tuple[str, bytes, str]]:
+    payload = BytesIO()
+    with ZipFile(payload, "w") as archive:
+        for name in names:
+            archive.writestr(name, b"nifti-placeholder")
+    return {"archive": ("MR-1.zip", payload.getvalue(), "application/zip")}
 
 
-def test_upload_accepts_eight_phases_any_order(client: TestClient) -> None:
-    tokens = [p.file_token for p in PHASES][::-1]
-    response = client.post("/api/predict", files=_upload_files(tokens))
+def test_upload_validates_eight_phases_any_order_without_prediction(client: TestClient) -> None:
+    names = [f"nested/MR-1_1_{phase.file_token}_0000.nii.gz" for phase in PHASES][::-1]
+    response = client.post("/api/validate-upload", files=_zip_upload(names))
     assert response.status_code == 200
-    assert response.json()["provenance"]["source"] == "simulated"
+    body = response.json()
+    assert body["valid"] is True
+    assert [phase["state"] for phase in body["phases"]] == ["ready"] * 8
+    assert "prediction" not in body
+    assert "uncertainty" not in body
 
 
 def test_upload_rejects_missing_phase(client: TestClient) -> None:
-    tokens = [p.file_token for p in PHASES][:-1]
-    response = client.post("/api/predict", files=_upload_files(tokens))
-    assert response.status_code == 422
-    assert "thiếu" in response.json()["detail"]
+    names = [f"MR-1_1_{phase.file_token}_0000.nii" for phase in PHASES[:-1]]
+    response = client.post("/api/validate-upload", files=_zip_upload(names))
+    assert response.status_code == 200
+    body = response.json()
+    assert body["valid"] is False
+    assert body["phases"][-1]["state"] == "missing"
 
 
 def test_upload_rejects_unknown_phase(client: TestClient) -> None:
-    tokens = [p.file_token for p in PHASES][:-1] + ["ADC"]
-    response = client.post("/api/predict", files=_upload_files(tokens))
-    assert response.status_code == 422
+    names = [f"MR-1_1_{phase.file_token}_0000.nii" for phase in PHASES[:-1]] + ["MR-1_1_ADC.nii"]
+    response = client.post("/api/validate-upload", files=_zip_upload(names))
+    assert response.status_code == 200
+    body = response.json()
+    assert body["valid"] is False
+    assert body["errors"]
+
+
+def test_upload_rejects_duplicate_phase(client: TestClient) -> None:
+    names = [f"MR-1_1_{phase.file_token}_0000.nii" for phase in PHASES]
+    names.append("MR-1_1_C+V_copy.nii")
+    response = client.post("/api/validate-upload", files=_zip_upload(names))
+    assert response.status_code == 200
+    body = response.json()
+    assert body["valid"] is False
+    portal_phase = next(phase for phase in body["phases"] if phase["file_token"] == "C+V")
+    assert portal_phase["state"] == "duplicate"
+
+
+def test_upload_rejects_zip_without_nifti(client: TestClient) -> None:
+    response = client.post("/api/validate-upload", files=_zip_upload(["README.txt"]))
+    assert response.status_code == 200
+    body = response.json()
+    assert body["valid"] is False
+    assert "NIfTI" in body["errors"][0]
 
 
 # --------------------------------------------------------------------------- ca demo

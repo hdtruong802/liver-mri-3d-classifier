@@ -1,6 +1,12 @@
 /** Gọi API. Cùng origin qua proxy của Vite, nên không cần CORS. */
 
-import type { CaseDetail, CaseSummary, MetaResponse, PredictResult } from '@/api/types';
+import type {
+  CaseDetail,
+  CaseSummary,
+  MetaResponse,
+  PredictResult,
+  UploadValidationResult,
+} from '@/api/types';
 
 export class ApiError extends Error {
   constructor(
@@ -40,10 +46,10 @@ export const getCase = (caseId: string) => request<CaseDetail>(`/api/cases/${enc
 export const predictCase = (caseId: string) =>
   request<PredictResult>(`/api/cases/${encodeURIComponent(caseId)}/predict`, { method: 'POST' });
 
-export function predictUpload(files: File[]): Promise<PredictResult> {
+export function validateUpload(archive: File): Promise<UploadValidationResult> {
   const form = new FormData();
-  for (const file of files) form.append('files', file, file.name);
-  return request<PredictResult>('/api/predict', { method: 'POST', body: form });
+  form.append('archive', archive, archive.name);
+  return request<UploadValidationResult>('/api/validate-upload', { method: 'POST', body: form });
 }
 
 /** URL ảnh một lát. Ảnh MRI thật, render từ NIfTI ở backend. */

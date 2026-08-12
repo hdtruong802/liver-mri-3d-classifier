@@ -35,13 +35,7 @@ interface Row {
   malignant: boolean;
 }
 
-export function ClassProbabilityChart({
-  probs,
-  provisional,
-}: {
-  probs: ClassProbability[];
-  provisional: boolean;
-}) {
+export function ClassProbabilityChart({ probs }: { probs: ClassProbability[] }) {
   const rows: Row[] = [...probs]
     .sort((a, b) => b.probability - a.probability)
     .map((entry) => ({
@@ -52,7 +46,7 @@ export function ClassProbabilityChart({
     }));
 
   return (
-    <section aria-labelledby="probs-heading" className="panel p-5 lg:col-span-7">
+    <section aria-labelledby="probs-heading" className="panel p-5">
       <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
         <div className="flex items-center gap-2">
           <BarChart3 className="h-4 w-4 text-accent" aria-hidden="true" />
@@ -62,7 +56,6 @@ export function ClassProbabilityChart({
         </div>
         <span className="text-data text-slate-400">
           {probs.length} lớp · tổng bằng 100%
-          {provisional ? ' · số minh hoạ' : ''}
         </span>
       </div>
 
@@ -113,43 +106,13 @@ export function ClassProbabilityChart({
                   fill: '#FFFFFF',
                   fontSize: 11,
                   fontWeight: 600,
-                  fontStyle: provisional ? 'italic' : 'normal',
+                  fontStyle: 'normal',
                 }}
               />
             </Bar>
           </BarChart>
         </ResponsiveContainer>
       </div>
-    </section>
-  );
-}
-
-/** Dải chú giải các lớp — khối 10 của bố cục. */
-export function ClassLegend({ probs }: { probs: ClassProbability[] }) {
-  return (
-    <section aria-labelledby="legend-heading" className="panel mt-6 p-5">
-      <h3 id="legend-heading" className="label mb-3">
-        Chú giải các lớp
-      </h3>
-      <ul className="flex flex-wrap gap-2">
-        {probs.map((entry) => (
-          <li
-            key={entry.class_index}
-            className="chip border border-pacs-700 bg-pacs-800 text-slate-300"
-          >
-            <span
-              className="h-2.5 w-2.5 shrink-0 rounded-full"
-              style={{ background: colorOfClass(entry.class_index) }}
-              aria-hidden="true"
-            />
-            <span className="font-semibold">{entry.label_vi}</span>
-            <span className="text-slate-400">
-              {entry.class_name.replace(/_/g, ' ').toLowerCase()} · nhóm{' '}
-              {groupLabel(entry.malignant)}
-            </span>
-          </li>
-        ))}
-      </ul>
     </section>
   );
 }

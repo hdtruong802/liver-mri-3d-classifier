@@ -115,7 +115,7 @@ Headline = **RQ-B**; RQ-A là model; RQ-C là ablation.
 
 | Tuần | Mục tiêu | Deliverable | Ước lượng | Buffer / Go-no-go |
 |---|---|---|---|---|
-| **T5** | Web app tự code serve model 3D + interpretability | (a) FastAPI backend load model, endpoint `/predict` dự kiến nhận đúng 8 file `.nii` theo phase → class + probs + uncertainty + malignant_prob; (b) frontend HTML/JS: picker đa tệp, slice-viewer, prob bar, uncertainty gauge, cờ "defer"; (c) **Grad-CAM 3D + phase-importance** trả về overlay; (d) freeze best model + card | 9 ngày | **GNG-5:** nếu latency > ngưỡng → serve trên lesion-crop + rigid-only preprocessing + K=3. React → HTML/JS thuần nếu hụt giờ |
+| **T5** | Web app tự code serve model 3D + interpretability | (a) FastAPI phục vụ ca demo OOF, endpoint `/api/validate-upload` nhận một ZIP NIfTI và chỉ kiểm tra 8 thì; (b) frontend React: chọn ca demo, ZIP checker, slice-viewer, prob bar, cờ `defer`; (c) **Grad-CAM 3D** trả về overlay; (d) freeze best model + card | 9 ngày | **GNG-5:** suy luận upload chỉ mở khi có pipeline ROI tương đương train; React vẫn là lựa chọn hợp lệ |
 | **T6** | Failure analysis + đóng gói tái lập + viết báo cáo | (a) confusion matrix + case sai + Grad-CAM sanity; (b) bảng/figure cuối **có CI**; (c) reproducibility pack (seed/config/notebook công khai, requirements pin, split file, checkpoints); (d) bản thảo paper/report; (e) README + hướng dẫn chạy | 8 ngày | **Buffer 2 ngày** cho train fail cuối / viết. Cắt được: deformable registration, arm full-volume nếu chưa xong |
 
 **Critical path:** truy cập data → cache preprocessing → fusion baseline có CV+CI → calibration/selective → web app → báo cáo.
@@ -186,28 +186,17 @@ Headline = **RQ-B**; RQ-A là model; RQ-C là ablation.
 **Stack:** FastAPI (backend) + HTML/JS thuần (frontend), React tuỳ chọn. **Không Streamlit/Gradio.**
 
 ### 8.1 Backend (FastAPI)
-- Load model **một lần** lúc startup (torch + MONAI transforms + best checkpoint / ensemble K=3).
-- `POST /predict` dự kiến nhận **đúng 8 file `.nii`** của cùng một bệnh nhân cho C-pre, C+A, C+V, C+Delay, T2WI, DWI, In Phase và Out Phase. Frontend dùng picker đa tệp; backend nhận diện phase theo token tên file, không dựa vào thứ tự chọn. Đây là contract thiết kế, chưa được triển khai; DICOM series (ZIP) là mở rộng sau.
-- Sau preprocessing rút gọn (rigid-only + crop, **bỏ N4** cho nhanh), endpoint dự kiến trả JSON:
-  ```json
-  {
-    "pred_class": "<class>",
-    "probs": {"HCC": "<probability>", "ICC": "<probability>"},
-    "malignant_prob": "<probability>",
-    "uncertainty": {"entropy": "<value>", "ensemble_std": "<value>"},
-    "defer": "<boolean>",
-    "heatmap_slices": ["<base64 png>", "..."]
-  }
-  ```
-- **Grad-CAM 3D** → trả overlay ở vài lát chính (base64 PNG) hoặc volume downsample.
-- `defer=true` khi confidence < ngưỡng coverage đã hiệu chỉnh → gợi ý "chuyển bác sĩ".
-- Job chậm → `BackgroundTasks` + polling `/status/{id}`.
+- Phục vụ prediction OOF thật cho ca demo qua `POST /api/cases/{id}/predict`; không sinh số mô phỏng.
+- `POST /api/validate-upload` nhận một ZIP NIfTI và chỉ trả `valid`, lỗi cùng bảng kiểm 8 phase. Không giải nén bền vững, không chạy model và không trả `PredictResult`.
+- Suy luận từ upload chỉ được mở khi có pipeline ROI tương đương lúc train; đó là contract riêng, không giả lập bằng tên file.
+- **Grad-CAM 3D** của ca demo trả qua endpoint ảnh riêng.
+- `defer` của ca demo dùng quy tắc bất định đã khóa trước trên validation; phần so sánh tín hiệu thuộc report.
 
 ### 8.2 Frontend (HTML/JS)
-- Picker đa tệp dự kiến hiển thị trạng thái đủ/thiếu cho từng phase `.nii`; **slice-viewer** trên `<canvas>` (cuộn qua lát) với overlay heatmap; **bar chart xác suất** (Chart.js hoặc SVG thuần); **gauge uncertainty**; badge "ác/lành"; cờ **defer**. Đây là mô tả thiết kế, chưa có UI/API.
+- Một vùng tải ZIP hiển thị bảng kiểm đủ/thiếu/trùng theo 8 phase. Ca demo hiển thị hàng tóm tắt prediction, donut xác suất nhóm ác, trạng thái `defer`, cùng hai tab **Xác suất** và **Khám phá ảnh**.
 
 ### 8.3 Latency & serving trong ràng buộc
-- Nút thắt là **registration/N4**, không phải forward pass. Giải pháp: demo chạy trên **lesion-crop** (64³–96³), rigid-only, forward K=3 → **~vài giây CPU**, nhanh hơn nhiều trên GPU. Chấp nhận upload đã căn sẵn để bỏ registration.
+- Nút thắt là **registration/N4**, không phải forward pass. V1 không suy luận upload nên không giả định tiền xử lý đã tương đương; khi bổ sung inference phải có lesion-crop và registration tương thích recipe train.
 - **Triển khai:** chạy local + `ngrok` để demo; hoặc **Docker FastAPI trên Hugging Face Spaces** (được phép — đây là Docker Space, không phải Gradio) / Render free tier. Kaggle không phải server → chỉ để train, không host API.
 - Precompute sẵn 3–5 ca demo từ prediction OOF trên validation để trình diễn mượt khi mạng/host chậm; không dùng Test-104, không commit NIfTI, checkpoint hay artefact bệnh nhân.
 

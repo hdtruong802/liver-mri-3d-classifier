@@ -5735,3 +5735,29 @@ Không train mới. Test giữ **610 passed**, 73 skipped. Gate PASS.
 - **Đừng ensemble UniFormer với E4/CGHNet.** Đã đo trên fold 1: gộp làm tệ đi 0.055.
 - **Checkpoint của E6b/E6/E5/E12/E1/CGHNet đã bị xoá** (S-129, người dùng chốt). `val_probs` của chúng còn đủ nên mọi phân tích trên xác suất vẫn chạy; chỉ mất khả năng chạy lại inference.
 - Khi so UniFormer với bảng văn liệu: **0.8111 là val fold 1, không phải test-104.** Thiên lệch chọn epoch của nó là +0.042, và mức hụt OOF→test đo trên E4 là −0.069. Không được đặt cạnh 0.8078 của đội hạng 2.
+
+---
+
+## S-130 · 2026-08-12 · codex
+
+**Mục tiêu phiên:** tinh gọn UI web app demo và thay luồng upload tám file riêng lẻ bằng kiểm tra một ZIP NIfTI.
+
+**Nhánh / commit:** `main` · *(commit theo sau entry này)*
+
+### Đã làm
+
+- Giữ nguyên toàn bộ thẻ ca demo giàu ngữ cảnh; kết quả chỉ lấy prediction **out-of-fold thật**. Bỏ hoàn toàn nhánh fallback sinh số mô phỏng.
+- Thay `POST /api/predict` bằng `POST /api/validate-upload`. Endpoint chỉ đọc manifest ZIP, kiểm tra đủ/trùng/thiếu/phase lạ cho tám file `.nii`/`.nii.gz`, không giải nén bền vững, không chạy model và không trả prediction.
+- Rút giao diện: header chỉ còn tên app + RUO; bỏ metadata rỗng, trạng thái checkpoint, reset và footer lặp. Vùng ZIP mới có bảng kiểm tám thì sau validation.
+- Sắp lại kết quả ca demo thành lớp dự đoán + xác suất, donut nhóm ác, trạng thái `defer`; phần chi tiết thành tab **Xác suất** và **Khám phá ảnh**. Bỏ số voxel/spacing, layer/fold, phase-importance và diễn giải kỹ thuật dài khỏi UI.
+- Sửa copy `defer` để mô tả quy tắc đã khóa cho ca đang xem, không suy diễn rằng chỉ một tín hiệu bất định có ích. Cập nhật contract trong `PRODUCT.md`, webapp README/DESIGN và plan.
+- Nâng Impeccable lên **v4.0.4**. Giữ nguyên thay đổi người dùng có sẵn ở `reports/W3_REPORT.md`.
+
+### Kiểm chứng
+
+- `tests/test_webapp_phases.py tests/test_webapp_api.py tests/test_webapp_predictions.py tests/test_webapp_volumes.py`: **35 passed**.
+- `npm run typecheck` và `npm run build`: pass.
+- Đã kiểm tra desktop và viewport 390 px: thẻ demo, tab mặc định, summary OOF, biểu đồ và MRI/Grad-CAM render đúng.
+- `powershell -NoProfile -ExecutionPolicy Bypass -File scripts/quality-gate.ps1`: PASS (dùng Python Anaconda để ruff khả dụng).
+
+**Bảo trì gate:** sửa `scripts/quality-gate.ps1` khi `ruff` là executable trực tiếp: gate cũ index mảng rỗng ở mode staged trước khi gọi ruff. Không đổi rule kiểm tra nào.

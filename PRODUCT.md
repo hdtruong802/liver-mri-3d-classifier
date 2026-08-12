@@ -37,7 +37,7 @@ Hệ quả trực tiếp lên sản phẩm: **mức bất định là nội dung
 
 - **Ràng buộc dự án:** 1 người, 6 tuần, 3 sprint. Web app thuộc Sprint 3 — sau khi đã có model và kết quả.
 - **Huấn luyện:** Kaggle Notebook, session ≤ 12h, VRAM ~16GB, có thể bị ngắt bất kỳ lúc nào. Kaggle không phải server, không host API ở đó.
-- **Luồng dùng demo:** người review mở web app → chọn một ca demo dựng sẵn hoặc tải thử đúng 8 file `.nii` của cùng một bệnh nhân → chờ vài giây → đọc kết quả. Phase được nhận diện từ tên file, không dựa vào thứ tự chọn.
+- **Luồng dùng demo:** người review chọn ca demo dựng sẵn để xem prediction OOF. Họ cũng có thể tải một ZIP NIfTI để kiểm tra đủ 8 thì; ZIP không tạo prediction ở V1. Phase được nhận diện từ tên file, không dựa vào thứ tự chọn.
 - **Ca demo dựng sẵn (3–5 ca) là đường đi chính**, không phải phương án dự phòng: dùng prediction OOF từ validation, không dùng Test-104; dữ liệu và artefact thô luôn ở storage private, ngoài Git.
 - **Latency:** nút thắt là registration/tiền xử lý, không phải forward pass. Demo chạy trên lesion-crop, rigid-only, bỏ N4 → vài giây trên CPU.
 - **Triển khai:** local + ngrok, hoặc Docker trên Hugging Face Spaces / Render free tier. **Chưa chốt.**
@@ -47,9 +47,9 @@ Hệ quả trực tiếp lên sản phẩm: **mức bất định là nội dung
 
 **Model làm gì:** phân loại 7 lớp tổn thương gan (HCC, ICC, di căn, nang, u máu, FNH, áp-xe — 3 ác, 4 lành) ở mức ROI, trên volume 3D đa pha 8 thì MRI.
 
-**Web app trả về:** lớp dự đoán · xác suất từng lớp · xác suất ác tính · mức bất định (entropy, ensemble std) · cờ `defer` · heatmap Grad-CAM 3D trên vài lát chính.
+**Web app trả về cho ca demo OOF:** lớp dự đoán · xác suất từng lớp · xác suất ác tính · trạng thái `defer` · ảnh MRI và Grad-CAM. ZIP người dùng tải chỉ nhận bảng kiểm cấu trúc.
 
-**Contract demo dự kiến, chưa triển khai:** V1 chỉ nhận đúng 8 file `.nii` cho C-pre, C+A, C+V, C+Delay, T2WI, DWI, In Phase và Out Phase. DICOM series (ZIP) là mở rộng sau, không thuộc V1.
+**Contract upload V1:** nhận một ZIP chứa đúng một `.nii` hoặc `.nii.gz` cho mỗi thì C-pre, C+A, C+V, C+Delay, T2WI, DWI, In Phase và Out Phase. Thư mục trong ZIP không quan trọng. Backend chỉ kiểm tra manifest; DICOM-folder là mở rộng riêng, không thuộc V1.
 
 **Ràng buộc kỹ thuật đã khoá:**
 - Backend FastAPI, web app **tự code full-stack**. **Không Streamlit, không Gradio, không framework demo dựng sẵn** — app tự code là bản thân deliverable, không phải lựa chọn kỹ thuật. Thư viện frontend thì tự do (hiện dùng React + Vite + Tailwind); ràng buộc "frontend HTML/CSS/JS thuần" đã gỡ ngày 2026-07-31, xem WORKLOG S-076.
@@ -78,7 +78,7 @@ Không có thương hiệu, logo, hay identity có sẵn. Ba cam kết bắt bu�
 
 **Đã có:**
 - [`docs/MRI_Classification_Spec_Sheet.md`](docs/MRI_Classification_Spec_Sheet.md) — chốt kỹ thuật: dataset, model, toàn bộ định nghĩa metric, chiến lược ngưỡng.
-- [`docs/liver_mri_3d_classification_plan.md`](docs/liver_mri_3d_classification_plan.md) — kế hoạch 6 tuần, kill-switch, schema JSON của `/predict` (§8.1), outline báo cáo.
+- [`docs/liver_mri_3d_classification_plan.md`](docs/liver_mri_3d_classification_plan.md) — kế hoạch 6 tuần, kill-switch, contract API web app (§8.1), outline báo cáo.
 
 **Chưa có, và tuyệt đối không được bịa:**
 - **Chưa có dữ liệu** — quyền truy cập LLD-MMRI đang chờ.

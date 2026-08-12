@@ -160,10 +160,11 @@ def test_defer_theo_epistemic_chu_khong_theo_confidence(run_dir: Path):
         assert result.defer == (case.epistemic > store.defer_threshold)
 
 
-def test_predict_roi_ve_mo_phong_khi_khong_co_ca(run_dir: Path, monkeypatch):
+def test_predict_bao_ro_khi_khong_co_ca_oof(run_dir: Path, monkeypatch):
     monkeypatch.setenv("LLDMMRI_PREDICTIONS_DIR", str(run_dir))
     load_store.cache_clear()
-    assert predict("KHONG-TON-TAI-9").provenance.source is ProvenanceSource.SIMULATED
+    with pytest.raises(LookupError, match="Không có prediction out-of-fold"):
+        predict("KHONG-TON-TAI-9")
 
 
 def test_oof_bao_dung_co_so_va_diem_defer(run_dir: Path):
@@ -178,13 +179,10 @@ def test_oof_bao_dung_co_so_va_diem_defer(run_dir: Path):
     assert r.defer_score != pytest.approx(r.confidence), "trùng nhau là dấu hiệu nối nhầm trường"
 
 
-def test_mo_phong_van_dung_co_so_confidence(run_dir: Path, monkeypatch):
-    monkeypatch.setenv("LLDMMRI_PREDICTIONS_DIR", str(run_dir))
-    load_store.cache_clear()
-    r = predict("MR999999")  # không có trong run_dir
-    assert r.provenance.source is ProvenanceSource.SIMULATED
-    assert r.defer_basis is DeferBasis.CONFIDENCE
-    assert r.defer_score == pytest.approx(r.confidence)
+def test_predict_bao_ro_khi_khong_co_store(monkeypatch):
+    monkeypatch.setattr("webapp.backend.inference.load_store", lambda: None)
+    with pytest.raises(LookupError, match="Chưa có prediction out-of-fold"):
+        predict("MR999999")
 
 
 def test_id_khong_co_chu_so_khong_lam_no_api(run_dir: Path):

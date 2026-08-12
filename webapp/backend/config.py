@@ -2,8 +2,8 @@
 
 Mọi đường dẫn đi qua biến môi trường (`AGENTS.md` §7: không hardcode đường dẫn rải
 rác trong code). Không có giá trị nào ở đây là hyperparam khoa học — ngưỡng `defer`
-thật sẽ được khoá trên validation ở W4 và nạp cùng checkpoint; con số dưới đây chỉ
-để dựng giao diện và được đánh dấu `simulated`.
+thật sẽ được khoá trên validation và nạp cùng prediction store; con số dưới đây chỉ
+là default cho utility thuần, không được dùng để dựng prediction upload.
 """
 
 from __future__ import annotations
@@ -30,8 +30,8 @@ CHECKPOINT_PATH: Path | None = (
     Path(os.environ["LLDMMRI_CHECKPOINT"]) if os.environ.get("LLDMMRI_CHECKPOINT") else None
 )
 
-# Ngưỡng confidence dưới đó thì `defer`. Giá trị thật chốt ở W4 từ đường risk-coverage
-# trên validation, KHÔNG phải chọn tay. 0.55 ở đây là số dựng giao diện.
+# Ngưỡng mặc định cho utility thuần. Quy tắc defer của prediction OOF được nạp cùng store,
+# đã khóa trên validation; UI không dùng giá trị này để dựng kết quả tải lên.
 DEFAULT_DEFER_THRESHOLD: float = float(os.environ.get("LLDMMRI_DEFER_THRESHOLD", "0.55"))
 
 RUO_NOTICE: str = "Research Use Only: chưa kiểm định lâm sàng"

@@ -1,8 +1,7 @@
 """Tám thì MRI của LLD-MMRI và cách nhận diện chúng từ tên file.
 
 Contract ở `docs/liver_mri_3d_classification_plan.md` §8.1: backend nhận diện thì
-theo **token trong tên file**, không dựa vào thứ tự người dùng chọn. Frontend dùng
-picker đa tệp nên thứ tự là ngẫu nhiên.
+theo **token trong tên file**, không dựa vào thứ tự hay thư mục bên trong ZIP.
 
 Nguồn sự thật của danh sách thì là `configs/data.yaml` (khối `phases`). Ở đây chép
 lại thành hằng số vì lớp serve **không được kéo theo pyyaml và cả stack train**

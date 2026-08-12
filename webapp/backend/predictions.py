@@ -22,9 +22,9 @@ Kết quả đo ở WORKLOG S-087 buộc phải tách ba đường:
 2. **Xác suất hiển thị** ← model tất định, đã temperature scaling. Model thô tự tin quá
    mức nghiêm trọng (trung bình 0.889 khi accuracy 0.703, trung vị 0.987), nên đưa số
    thô lên màn hình là nói dối người đọc.
-3. **Xếp hạng / ngưỡng defer** ← **epistemic** của MC-dropout, KHÔNG phải max-prob.
-   Đo được: xếp theo epistemic nâng macro-F1@80% thêm +0.035 [+0.004, +0.065] P=0.030;
-   xếp theo max-prob nâng −0.003 (P=0.88), tức là vô ích.
+3. **Ngưỡng defer** ← bất định epistemic của MC-dropout, theo rule đã khóa cho bộ
+   dự đoán OOF này. Các phép so sánh giữa cách xếp hạng bất định được trình bày trong report,
+   không được suy diễn từ từng ca ở web app.
 
 ## Temperature và ngưỡng defer ở đây khác lúc đánh giá
 

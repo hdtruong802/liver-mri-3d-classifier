@@ -74,11 +74,6 @@
       disabled:cursor-not-allowed disabled:text-slate-400;
   }
 
-  /* Con số minh hoạ. Chữ nghiêng là tín hiệu THỨ HAI sau badge chữ, và nó sống sót
-     qua bản khử màu — màu cố ý không nằm trong hai tín hiệu này. */
-  .provisional {
-    font-style: italic;
-  }
 }
 
 /* Thanh cuộn hợp với nền tối. */

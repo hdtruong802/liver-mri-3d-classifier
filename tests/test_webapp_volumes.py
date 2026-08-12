@@ -96,17 +96,9 @@ def test_case_detail_reports_real_geometry() -> None:
 
 
 def test_case_detail_danh_dau_dung_nguon() -> None:
-    """Nguồn phải khớp thực tế: `oof` khi ca có dự đoán thật, `simulated` khi không.
-
-    Ghép ảnh thật với số mô phỏng mà không đánh dấu sẽ làm số giả trông đáng tin hơn
-    bản chất của nó — đó là lý do trường này tồn tại.
-    """
-    from webapp.backend.predictions import load_store
-
+    """Mô tả ca demo luôn mang nguồn OOF; endpoint prediction sẽ báo lỗi nếu thiếu số OOF."""
     detail = demo_cases.get_case_detail(CASE_ID)
-    store = load_store()
-    co_du_doan_that = store is not None and store.get(CASE_ID) is not None
-    assert detail.provenance.source.value == ("oof" if co_du_doan_that else "simulated")
+    assert detail.provenance.source.value == "oof"
 
 
 # --- mask tổn thương --------------------------------------------------------

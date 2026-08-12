@@ -21,13 +21,10 @@ from pydantic import BaseModel, Field
 class ProvenanceSource(StrEnum):
     """Con số trong phản hồi này từ đâu ra.
 
-    - `simulated`: sinh ra để dựng giao diện. **Chưa có model.** Frontend bắt buộc
-      đánh dấu bằng cả chữ nghiêng lẫn nhãn chữ (`webapp/DESIGN.md`).
     - `oof`: prediction out-of-fold thật trên validation. Là số thật, đo được.
     - `live`: forward pass thật từ checkpoint đã nạp.
     """
 
-    SIMULATED = "simulated"
     OOF = "oof"
     LIVE = "live"
 
@@ -49,12 +46,11 @@ class Uncertainty(BaseModel):
     Trường nào không đo được thì để `None`, không điền 0 — 0 là một khẳng định mạnh
     ("hoàn toàn không có bất định"), còn `None` là "chưa đo".
 
-    ⚠️ `entropy` và `epistemic` **không thay thế được cho nhau**. Entropy là bất định
+    `entropy` và `epistemic` **không thay thế được cho nhau**. Entropy là bất định
     *toàn phần* của một phân phối duy nhất: nó cao cả khi bài toán vốn mập mờ
     (aleatoric) lẫn khi model không biết (epistemic). `epistemic` tách riêng phần thứ
-    hai bằng cách đo mức bất đồng **giữa** các lượt dự đoán. Chỉ đại lượng thứ hai
-    được đo là có tác dụng xếp hạng ca khó (WORKLOG S-087) — đó là lý do quyết định
-    từ chối dùng nó chứ không dùng entropy hay max-prob.
+    hai bằng cách đo mức bất đồng **giữa** các lượt dự đoán. Endpoint khai báo rõ
+    đại lượng dùng cho từng quyết định từ chối; so sánh các cách xếp hạng thuộc report.
     """
 
     entropy: float = Field(
@@ -81,13 +77,11 @@ class Uncertainty(BaseModel):
 class DeferBasis(StrEnum):
     """Quyết định từ chối dựa trên đại lượng nào.
 
-    Hai đại lượng khác nhau, và chọn sai cái là hỏng cả tính năng:
+    Hai đại lượng có chiều so sánh khác nhau:
 
-    - `confidence` — max-prob của phân phối. **Đo được rằng nó vô dụng** để xếp hạng
-      ca khó: từ chối 20% ca theo max-prob thay đổi macro-F1 đúng −0.003, P=0.88
-      (WORKLOG S-087). Chỉ dùng cho nhánh mô phỏng, nơi chưa có epistemic.
+    - `confidence` — max-prob của phân phối.
     - `epistemic` — mức bất đồng giữa các lượt dự đoán (MC-dropout). Từ chối theo nó
-      nâng macro-F1@80% thêm +0.035 [+0.004, +0.065], P=0.030.
+      là một dạng tín hiệu bất định riêng.
 
     Chiều so sánh **ngược nhau**: confidence thấp thì từ chối, epistemic cao thì từ
     chối. Frontend phải đọc trường này chứ không được giả định một chiều.
@@ -150,6 +144,32 @@ class PhaseInfo(BaseModel):
     file_token: str
     label_vi: str
     description_vi: str
+
+
+class UploadPhaseState(StrEnum):
+    """Trạng thái một thì bắt buộc sau khi đọc manifest ZIP."""
+
+    READY = "ready"
+    MISSING = "missing"
+    DUPLICATE = "duplicate"
+
+
+class UploadPhaseValidation(BaseModel):
+    index: int
+    file_token: str
+    label_vi: str
+    filename: str | None = None
+    state: UploadPhaseState
+
+
+class UploadValidationResult(BaseModel):
+    """Kết quả kiểm tra cấu trúc ZIP; không chứa prediction hay uncertainty."""
+
+    archive_name: str
+    valid: bool
+    message: str
+    errors: list[str] = Field(default_factory=list)
+    phases: list[UploadPhaseValidation] = Field(min_length=8, max_length=8)
 
 
 class ClassInfo(BaseModel):
