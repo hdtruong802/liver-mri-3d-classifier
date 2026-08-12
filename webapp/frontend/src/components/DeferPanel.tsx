@@ -23,7 +23,7 @@ export function DeferPanel({ result }: { result: PredictResult }) {
   return (
     <section
       aria-labelledby="defer-heading"
-      className={`mt-4 rounded-frame border p-4 ${state.shell}`}
+      className={`mt-4 rounded-[6px] border p-4 ${state.shell}`}
     >
       <div className="flex items-start gap-3">
         <div className="mt-0.5 shrink-0">{state.icon}</div>

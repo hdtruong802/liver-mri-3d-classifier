@@ -6051,3 +6051,19 @@ Không train mới. Test giữ **610 passed**, 73 skipped. Gate PASS.
 
 - `npm run typecheck`, `npm run build`, Impeccable detector và quality gate: pass.
 - Frontend không có script hay dependency test runner; `npm test -- --run` báo thiếu script, không phải lỗi kiểm thử.
+
+---
+
+## S-146 · 2026-08-12 · codex
+
+**Mục tiêu phiên:** khắc phục Vite HMR lỗi CSS sau giao diện workstation.
+
+### Đã làm
+
+- Bỏ `@apply rounded-frame`, vì dev server đã khởi động trước khi Tailwind nạp token custom và HMR không thể resolve utility đó.
+- Khai báo trực tiếp bán kính 6 px cho khung MRI; cảnh báo và `defer` dùng utility arbitrary `rounded-[6px]`, không phụ thuộc custom utility runtime.
+
+### Kiểm chứng
+
+- Không còn tham chiếu `rounded-frame` trong frontend source.
+- `npm run typecheck`, `npm run build` và Impeccable detector: pass.

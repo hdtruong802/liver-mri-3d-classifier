@@ -66,7 +66,7 @@ export default function App() {
         {error ? (
           <div
             role="alert"
-            className="mb-6 flex items-start gap-3 rounded-frame border border-danger/50 bg-danger/10 p-4"
+            className="mb-6 flex items-start gap-3 rounded-[6px] border border-danger/50 bg-danger/10 p-4"
           >
             <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-danger" aria-hidden="true" />
             <p className="max-w-measure text-sm text-slate-300">{error}</p>

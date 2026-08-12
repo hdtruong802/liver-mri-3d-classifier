@@ -58,7 +58,8 @@
   }
 
   .workstation-frame {
-    @apply rounded-frame border border-pacs-600 bg-pacs-900;
+    border-radius: 6px;
+    @apply border border-pacs-600 bg-pacs-900;
   }
 
   .chip {
