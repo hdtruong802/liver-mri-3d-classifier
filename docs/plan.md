@@ -45,7 +45,7 @@ Kế hoạch gốc dự trù **6 tuần cho riêng phần MRI** (Sprint 1 = T1�
 | **W3** | Baseline có **CV 5-fold + CI bootstrap**; fusion v0; registration; external harmonized | Bảng CV macro-F1/κ ± CI; fusion v0 (early concat 8 kênh); rigid registration pipeline; external ác/lành + Duke OOD set | CI bootstrap ≥2000 mức BN trên mọi số; không leakage; quality gate |
 | **W4** | Chọn **model chính**: fusion variants + pretrained + full-volume + xử lý lớp hiếm | Fusion v1 (phase-attention); pretrained backbones; arm full-volume; class-balanced/focal; model chính chốt theo CV | So sánh CV có CI; model chính reproduce được từ config+seed; quality gate |
 | **W5** | **Trustworthiness + ablation + thống kê + KHOÁ protocol + chạm test-104 (1 lần)** | Calibration (ECE/Brier/reliability); risk–coverage/AURC; bảng ablation lõi; DeLong/McNemar/Holm; external + OOD; **kết quả test-104 khoá kín** | **Pre-register** trước train cuối; threshold/temperature khoá trên val; **WORKLOG ghi trước khi chạm test** |
-| **W6** | Web app tự code + XAI + failure analysis + repro pack + **báo cáo cuối** | FastAPI + frontend thuần (probs+uncertainty+defer+heatmap); Grad-CAM 3D + phase-importance; reproducibility pack; report W6 có CI + limitations | Quality gate + Impeccable detector trên UI; README chạy được; mọi số trong report có CI |
+| **W6** | Web app tự code + XAI + failure analysis + repro pack + **báo cáo cuối** | FastAPI + frontend (probs+uncertainty+defer+heatmap); heatmap `|input × gradient|` đa thì trên crop E4; reproducibility pack; report W6 có CI + limitations | Quality gate + Impeccable detector trên UI; README chạy được; mọi số trong report có CI |
 
 **Critical path:** truy cập data → cache preprocessing → baseline có CV+CI → model chính → calibration/selective → **khoá + test-104** → web app → report.
 
@@ -213,14 +213,14 @@ Mục tiêu: nối **model đã khoá** vào web app tự code, đóng gói tái
 DoD:
 - [ ] FastAPI backend load model **1 lần** lúc startup; `POST /predict` dự kiến nhận đúng 8 file `.nii` theo phase → class + probs + uncertainty + malignant_prob + defer + heatmap. DICOM ZIP là mở rộng sau.
 - [ ] Frontend HTML/JS thuần: upload, slice-viewer `<canvas>`, prob bar, uncertainty gauge, cờ **defer**, **RUO hiển thị mọi màn hình có kết quả**.
-- [ ] Grad-CAM 3D + phase-importance trả overlay; sanity check (nhìn đúng vùng u).
+- [ ] Heatmap `|input × gradient|` đa thì trả overlay trên crop E4; sanity check định tính (không chỉ nhìn nền/gan lành).
 - [ ] Failure analysis: confusion matrix + case sai theo lớp.
 - [ ] Reproducibility pack: seed/config/notebook công khai (strip output)/requirements pin/split file/checkpoints.
 - [ ] Report cuối (W6): mọi số **có CI** + limitations trung thực; README chạy được.
 
 **2. Task (thứ tự phụ thuộc)**
 1. *(Khởi động sớm — làm song song cuối W5)* `webapp/backend/` skeleton: FastAPI `main.py`, `requirements.txt` **tách khỏi** train stack, wiring preprocessing rút gọn (rigid-only + crop, **bỏ N4**).
-2. `src/xai/gradcam3d.py` + `src/xai/phase_importance.py` → overlay base64 PNG vài lát chính.
+2. `src/xai/input_heatmap.py` → artefact heatmap đa thì, render PNG hợp nhất theo phase/lát.
 3. `POST /predict` dự kiến nhận picker đa tệp gồm đúng 8 file `.nii`, nhận diện phase theo tên file và trả JSON đầy đủ (probs/uncertainty/malignant_prob/defer/heatmap); `defer=true` khi confidence < ngưỡng coverage đã hiệu chỉnh.
 4. `webapp/frontend/` — HTML/CSS/JS thuần (§12 AGENTS.md + PRODUCT.md): số liệu là nhân vật chính, màu không phải kênh thông tin duy nhất, RUO nổi bật, tôn trọng `prefers-reduced-motion`.
 5. Precompute 3–5 ca demo từ prediction OOF trên validation (mượt khi host chậm, không dùng Test-104 và không commit dữ liệu/artefact bệnh nhân).
@@ -228,7 +228,7 @@ DoD:
 7. **Quality gate + Impeccable detector** trên UI trước khi chốt (§12).
 
 **3. Deliverable**
-Web app chạy được (FastAPI + frontend thuần) có uncertainty + heatmap + defer · Grad-CAM 3D + phase-importance · failure analysis · reproducibility pack · **report cuối có CI + limitations** · README.
+Web app chạy được (FastAPI + frontend) có uncertainty + heatmap + defer · heatmap đa thì trên crop E4 · failure analysis · reproducibility pack · **report cuối có CI + limitations** · README.
 
 **4. Rủi ro & kill-switch**
 - **W6 quá tải (webapp + report trong 1 tuần):** giảm tải bằng cách **khởi động backend skeleton từ cuối W5**; nếu vẫn trễ → frontend tối thiểu (upload + probs + uncertainty + defer + RUO), hoãn slice-viewer đẹp.
@@ -261,7 +261,7 @@ Web app chạy được (FastAPI + frontend thuần) có uncertainty + heatmap +
 | W3 | `src/eval/{metrics,bootstrap}` · `src/models/fusion` (v0) · `src/preprocess/registration` |
 | W4 | `src/models/{fusion(v1),backbones}` · `src/train/{losses,full_volume}` · `src/data/` (sampler) |
 | W5 | `src/eval/{calibration,selective,stats}` · `src/eval/run --split test` |
-| W6 | `webapp/backend/` · `webapp/frontend/` · `src/xai/{gradcam3d,phase_importance}` · `reports/` · `README.md` |
+| W6 | `webapp/backend/` · `webapp/frontend/` · `src/xai/input_heatmap.py` · `reports/` · `README.md` |
 
 > Mỗi khi tạo entrypoint đầu tiên: **cập nhật bảng lệnh AGENTS.md §6 trong cùng commit** và ghi WORKLOG.
 
@@ -306,7 +306,7 @@ deformable registration → arm full-volume → deep ensemble K=5→K=3 → exte
 - **Buffer nội tuần:** W5 giữ 1 ngày cho re-train fail; W6 giữ 2 ngày cho train cuối/viết.
 - **Task cắt được (không ảnh hưởng headline):** đánh dấu ⚑ — deformable registration, arm full-volume, phase-attention v2, external nhãn thô (thay bằng OOD-only), React frontend, N4 trong pipeline demo.
 - **Nếu trễ 1 tuần trọn vẹn:** dồn W3 vào W2 bằng cách chỉ chạy 3-fold thay vì 5-fold cho baseline (vẫn có CI, độ ổn định thấp hơn — ghi rõ trong report), và bắt đầu backend skeleton ngay W5.
-- **Đệm sớm cho W6:** backend FastAPI skeleton + Grad-CAM integration nên dựng **song song cuối W5** (dùng checkpoint sơ bộ, thay bằng checkpoint khoá sau).
+- **Đệm sớm cho W6:** backend FastAPI skeleton + xuất artefact heatmap đa thì nên dựng **song song cuối W5** (dùng checkpoint sơ bộ, thay bằng checkpoint khoá sau).
 
 ---
 

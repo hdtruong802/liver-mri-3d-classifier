@@ -1,5 +1,5 @@
-"""Giải thích dự đoán: Grad-CAM 3D và độ nhạy theo thì.
+"""Heatmap độ nhạy cục bộ của model, sinh offline trên Kaggle.
 
-Mọi thứ ở đây chạy **offline** (Kaggle), không phải trong web app: backend bị ràng
-buộc không kéo theo torch (AGENTS.md §4), mà Grad-CAM thì cần backward pass.
+Backend web app không kéo theo Torch; các artefact được tạo từ đúng crop E4 rồi
+chỉ được backend kiểm tra và render.
 """

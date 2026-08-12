@@ -69,7 +69,7 @@ Headline = **RQ-B**; RQ-A là model; RQ-C là ablation.
 | Explainable multiparametric MRI (Radiology:AI 2025) | Multiparam | acc tới 93–97% *(nhãn/data khác — không so trực tiếp)* |
 | DL pipeline w/ uncertainty (arXiv 2110.08817) | Multi-phasic/seq | tiền lệ cho RQ-B (detection+diff) |
 
-- **Đánh vào:** calibration + selective prediction bài bản; rigor thống kê (CI + DeLong/McNemar); reproducibility mở trên Kaggle; interpretability nối lâm sàng (Grad-CAM 3D + phase-importance).
+- **Đánh vào:** calibration + selective prediction bài bản; rigor thống kê (CI + DeLong/McNemar); reproducibility mở trên Kaggle; heatmap độ nhạy đa thì chỉ hỗ trợ failure analysis định tính.
 - **KHÔNG đấu:** accuracy leaderboard test-104 (bão hòa, phương sai cao); transformer khổng lồ multi-GPU; segmentation.
 - **Phân biệt với 2110.08817:** họ làm localization+differentiation; của ta = **calibration + selective prediction chuẩn hoá + external nhãn thô + OOD + pipeline mở tái lập trên chính LLD-MMRI.**
 
@@ -115,8 +115,8 @@ Headline = **RQ-B**; RQ-A là model; RQ-C là ablation.
 
 | Tuần | Mục tiêu | Deliverable | Ước lượng | Buffer / Go-no-go |
 |---|---|---|---|---|
-| **T5** | Web app tự code serve model 3D + interpretability | (a) FastAPI phục vụ ca demo OOF, endpoint `/api/validate-upload` nhận một ZIP NIfTI và chỉ kiểm tra 8 thì; (b) frontend React: chọn ca demo, ZIP checker, slice-viewer, prob bar, cờ `defer`; (c) **Grad-CAM 3D** trả về overlay; (d) freeze best model + card | 9 ngày | **GNG-5:** suy luận upload chỉ mở khi có pipeline ROI tương đương train; React vẫn là lựa chọn hợp lệ |
-| **T6** | Failure analysis + đóng gói tái lập + viết báo cáo | (a) confusion matrix + case sai + Grad-CAM sanity; (b) bảng/figure cuối **có CI**; (c) reproducibility pack (seed/config/notebook công khai, requirements pin, split file, checkpoints); (d) bản thảo paper/report; (e) README + hướng dẫn chạy | 8 ngày | **Buffer 2 ngày** cho train fail cuối / viết. Cắt được: deformable registration, arm full-volume nếu chưa xong |
+| **T5** | Web app tự code serve model 3D + heatmap định tính | (a) FastAPI phục vụ ca demo OOF, endpoint `/api/validate-upload` nhận một ZIP NIfTI và chỉ kiểm tra 8 thì; (b) frontend React: chọn ca demo, ZIP checker, slice-viewer, prob bar, cờ `defer`; (c) heatmap `|input × gradient|` đa thì phủ trực tiếp lên crop E4; (d) freeze best model + card | 9 ngày | **GNG-5:** suy luận upload chỉ mở khi có pipeline ROI tương đương train; React vẫn là lựa chọn hợp lệ |
+| **T6** | Failure analysis + đóng gói tái lập + viết báo cáo | (a) confusion matrix + case sai + kiểm tra heatmap định tính; (b) bảng/figure cuối **có CI**; (c) reproducibility pack (seed/config/notebook công khai, requirements pin, split file, checkpoints); (d) bản thảo paper/report; (e) README + hướng dẫn chạy | 8 ngày | **Buffer 2 ngày** cho train fail cuối / viết. Cắt được: deformable registration, arm full-volume nếu chưa xong |
 
 **Critical path:** truy cập data → cache preprocessing → fusion baseline có CV+CI → calibration/selective → web app → báo cáo.
 **Cắt được nếu trễ (theo thứ tự):** deformable registration → chỉ rigid; arm full-volume → chỉ patch-3D; deep ensemble K=5 → K=3; external nhãn thô → OOD-only; React → HTML/JS thuần.
@@ -175,7 +175,7 @@ Headline = **RQ-B**; RQ-A là model; RQ-C là ablation.
 
 ### 7.3 Failure analysis & cảnh báo kết quả giả
 - [ ] Confusion matrix + liệt kê case sai theo lớp.
-- [ ] **Grad-CAM 3D** kiểm model nhìn đúng vùng u (không nhìn nền/gan lành).
+- [ ] Heatmap độ nhạy đa thì kiểm model không chỉ nhìn nền/gan lành; đây là kiểm tra định tính, không phải segmentation.
 - [ ] Reliability diagram + worst OOD cases.
 - [ ] **Cảnh báo:** leakage; test nhỏ cherry-pick; tuning trên test; báo best-of-many-seeds; báo điểm không CI.
 
@@ -189,7 +189,7 @@ Headline = **RQ-B**; RQ-A là model; RQ-C là ablation.
 - Phục vụ prediction OOF thật cho ca demo qua `POST /api/cases/{id}/predict`; không sinh số mô phỏng.
 - `POST /api/validate-upload` nhận một ZIP NIfTI và chỉ trả `valid`, lỗi cùng bảng kiểm 8 phase. Không giải nén bền vững, không chạy model và không trả `PredictResult`.
 - Suy luận từ upload chỉ được mở khi có pipeline ROI tương đương lúc train; đó là contract riêng, không giả lập bằng tên file.
-- **Grad-CAM 3D** của ca demo trả qua endpoint ảnh riêng.
+- Heatmap độ nhạy của ca demo trả qua `/api/cases/{id}/model-view`, trực tiếp trên crop E4 và chỉ giải thích lớp dự đoán.
 - `defer` của ca demo dùng quy tắc bất định đã khóa trước trên validation; phần so sánh tín hiệu thuộc report.
 
 ### 8.2 Frontend (HTML/JS)
@@ -212,7 +212,7 @@ Headline = **RQ-B**; RQ-A là model; RQ-C là ablation.
 5. **Method** — fusion đa pha + phase-attention; calibration (temp/ensemble/MC-dropout); selective prediction.
 6. **Experiments** — setup, metric, **giao thức thống kê (pre-registered, bootstrap CI, DeLong/McNemar/Holm)**.
 7. **Results** — bảng chính có CI; calibration (ECE/reliability); **risk–coverage/AURC**; external nhãn thô + OOD; **bảng ablation**.
-8. **Interpretability** — Grad-CAM 3D + phase-importance nối LI-RADS.
+8. **Failure analysis định tính** — heatmap độ nhạy đa thì, với giới hạn diễn giải nêu rõ.
 9. **Discussion & Limitations** — thẳng thắn: không có external 7-class matched; test nhỏ.
 10. **Reproducibility statement** + **Conclusion**.
 

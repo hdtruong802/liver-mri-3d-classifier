@@ -5789,3 +5789,28 @@ Không train mới. Test giữ **610 passed**, 73 skipped. Gate PASS.
 ### Điểm vào lần sau
 
 - Sinh artefact thật trên Kaggle bằng `notebooks/11_model_heatmaps.ipynb`, rồi đặt các `.npz` ở `runs/E4_per_phase_results/model_heatmaps/` (hoặc đặt `LLDMMRI_MODEL_HEATMAP_DIR`). Không đưa artefact MRI/NIfTI vào git.
+
+---
+
+## S-132 · 2026-08-12 · codex
+
+**Mục tiêu phiên:** đánh giá giá trị của Grad-CAM và tạm gỡ nó khỏi cây nghiên cứu đang hoạt động theo quyết định người dùng.
+
+**Nhánh / commit:** `main` · *(commit theo sau entry này)*
+
+### Quyết định
+
+- **Grad-CAM không phải đóng góp cốt lõi** của dự án: headline vẫn là calibration + selective prediction. Nó chỉ có giá trị sanity check định tính.
+- Bản Grad-CAM/HiResCAM cũ còn có hai giới hạn thực tế với DenseNet E4: bản đồ tầng sâu thiếu phân giải theo Z và Grad-CAM gốc có thể suy biến vì đặc trưng có dấu. Heatmap `|input × gradient|` đa thì trên đúng crop E4 giữ lại phần kiểm tra định tính hữu ích mà không mang gánh nặng đó.
+
+### Đã làm
+
+- Gỡ `src/xai/gradcam.py`, `tests/test_xai_gradcam.py` và `notebooks/10_gradcam.ipynb` khỏi cây hoạt động. Git vẫn giữ đầy đủ lịch sử để khôi phục nếu có một câu hỏi nghiên cứu riêng cần Grad-CAM sau này.
+- Đồng bộ Spec Sheet, plan, AGENTS và slide hiện hành sang heatmap độ nhạy đa thì; các report, preregistration và WORKLOG cũ vẫn giữ nguyên như hồ sơ lịch sử.
+- Cập nhật các chú thích/code notebook còn nhắc tới Grad-CAM; không đổi model, split, metric hay kết quả đã khoá. Giữ nguyên thay đổi người dùng có sẵn ở `reports/W3_REPORT.md`.
+
+### Kiểm chứng
+
+- `tests/test_webapp_model_heatmaps.py`: **10 passed**.
+- `npm run typecheck` và `npm run build`: pass.
+- `git diff --check` (trừ report có sẵn): pass.

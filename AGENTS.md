@@ -121,7 +121,7 @@ liver-mri-3d-classifier/
 │   ├── models/                  # backbone 3D + các biến thể fusion
 │   ├── train/                   # vòng train, checkpoint/resume
 │   ├── eval/                    # metric, calibration, selective, thống kê
-│   ├── xai/                     # Grad-CAM 3D, attention rollout
+│   ├── xai/                     # heatmap độ nhạy offline, attention rollout
 │   └── utils/                   # seed.py, io, logging
 ├── tests/                       # trong đó có test chống leakage
 ├── notebooks/                   # notebook Kaggle (đã strip output)
@@ -929,9 +929,9 @@ Focal *có* làm model bớt tự tin quá mức từ đầu (T cần nhỏ hơn
 
 ⚠️ MCE xấu đi (0.384 → 0.499) và AURC xấu đi nhẹ (0.181 → 0.196). Fold 2 tụt rõ (0.677 → 0.609) còn fold 1 hoà (0.700 → 0.697).
 
-### Grad-CAM 4 ca demo — kết quả thật (2026-08-05, WORKLOG S-098)
+### Lưu trữ: Grad-CAM 4 ca demo — kết quả thật (2026-08-05, WORKLOG S-098)
 
-`notebooks/10_gradcam.ipynb`, tầng `denseblock3`, **HiResCAM** (không phải Grad-CAM gốc — xem `src/xai/gradcam.py`). Mỗi ca dùng model của fold chứa nó ở val.
+Đây là kết quả lịch sử; module và notebook Grad-CAM đã được gỡ khỏi cây hoạt động ở S-132. Mỗi ca trong phép đo cũ dùng model của fold chứa nó ở val. Demo hiện dùng heatmap `|input × gradient|` đa thì trên crop E4.
 
 | ca | thật | đoán | bản đồ lớp thật | đỉnh (x,y,z) | lệch tâm |
 |---|---|---|---|---|---|
@@ -1059,7 +1059,7 @@ Bootstrap **ghép cặp** trên hiệu (2000 lần, phân tầng, mức bệnh n
 | Cài backend web app (một lần / máy) | `pip install -r webapp/backend/requirements.txt` | sẵn sàng; **tách hẳn** khỏi `requirements.txt` train, không kéo torch/monai |
 | Cài frontend web app (một lần / máy) | `cd webapp/frontend && npm install` | sẵn sàng |
 | **Chạy web app** — backend | `python -m uvicorn webapp.backend.main:app --reload` | sẵn sàng; cổng 8000. Ảnh thật từ `LLDMMRI_SAMPLE_DIR`; **số thật** từ `LLDMMRI_PREDICTIONS_DIR` (mặc định `runs/E4_per_phase_results`) — 394 ca out-of-fold, `provenance.source = oof`. Ca ngoài 394 đó rơi về `simulated` |
-| **Grad-CAM + độ nhạy theo thì** (GPU, vài phút) | chạy `notebooks/10_gradcam.ipynb` trên Kaggle | sẵn sàng (W4); inference + backward, **không train**. Cổng B đo hình dạng tầng trước khi chạy — tầng cuối của DenseNet có thể còn Z=1, khi đó bản đồ là hằng số theo lát |
+| **Heatmap độ nhạy đa thì** (GPU, vài phút) | chạy `notebooks/11_model_heatmaps.ipynb` trên Kaggle | sinh `|input × gradient|` trên đúng crop E4 cho lớp dự đoán; inference + backward, **không train**; artefact `.npz` được web app kiểm tra trước khi render |
 | **Trích ca demo** (chạy trên Kaggle) | `python scripts/export_demo_cases.py --out /kaggle/working/demo_cases` | sẵn sàng (W4); 4 ca out-of-fold chọn theo hành vi thật của model, xem docstring |
 | **Chạy web app** — frontend | `cd webapp/frontend && npm run dev` | sẵn sàng; proxy `/api` sang 8000. Mở **`http://localhost:5173`** — trên Windows Vite bind vào `::1`, nên `127.0.0.1:5173` **không** vào được |
 | Build frontend | `cd webapp/frontend && npm run build` · `npm run typecheck` | sẵn sàng |

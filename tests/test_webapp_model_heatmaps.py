@@ -125,4 +125,3 @@ def test_model_view_route_exists_and_legacy_route_is_absent(
     model_heatmaps.load_all.cache_clear()
     response = main.case_model_view("MR113627", phase="C-pre", z=2, annotation=True, heatmap=True)
     assert response.media_type == "image/png" and response.body.startswith(b"\x89PNG")
-    assert "/api/cases/{case_id}/gradcam" not in {route.path for route in main.app.routes}

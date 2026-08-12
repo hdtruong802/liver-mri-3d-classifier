@@ -55,7 +55,7 @@ z=32 hoặc 48, còn cả baseline official lẫn CGHNet đều z=16).
 
 Nhờ vậy **toàn bộ `src/eval/*` không phải sửa**: `mc_dropout.enable_dropout` gọi
 `model.eval()` rồi chỉ bật lại riêng các lớp `Dropout` (nên `self.training` của module gốc
-vẫn `False`), còn `tta.py` và `xai/gradcam.py` đều gọi `model.eval()`.
+vẫn `False`), còn TTA và các helper XAI offline đều gọi `model.eval()`.
 
 ⚠️ Kiểu trả về đổi theo chế độ là thứ dễ gây bất ngờ, nên nó có test riêng
 (`tests/test_cghnet.py`). Nếu ai đó cần dict ở eval thì gọi `forward_heads()` tường minh.

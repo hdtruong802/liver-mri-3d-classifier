@@ -70,8 +70,8 @@ def tta_predict(
     từng lượt — cần nó vì nếu TTA làm *tệ* đi thì phải biết lượt nào gây ra.
 
     ⚠️ **Gọi `model.eval()` trước.** Hàm này tự gọi, nhưng nếu người gọi tính lớp đích
-    hay xác suất ở ngoài mà quên `eval()` thì con số đó sai — đã dính một lần với
-    Grad-CAM (WORKLOG S-096).
+    hay xác suất ở ngoài mà quên `eval()` thì con số đó sai — đã từng gặp ở bước
+    xuất heatmap offline (WORKLOG S-096).
     """
     import torch
 

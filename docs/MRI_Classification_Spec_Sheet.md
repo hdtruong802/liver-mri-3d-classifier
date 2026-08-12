@@ -31,13 +31,13 @@
 > **SOTA có kiểm soát:** n≈500 khiến 3D transformer lớn dễ **overfit**. Chọn backbone 3D *vừa phải* + **pretrain y tế mạnh** + **fusion tốt** hơn là đổi backbone hào nhoáng.
 
 - **Baseline (sàn):** **DenseNet121-3D** (MONAI), mốc tham chiếu để đo lợi ích của fusion/pretrain.
-- **Main model (chính):** 3D CNN + **multi-phase fusion**, Grad-CAM 3D chạy trực tiếp, nhẹ VRAM.
+- **Main model (chính):** 3D CNN + **multi-phase fusion**; heatmap độ nhạy chỉ là kiểm tra định tính offline, không phải đóng góp chính.
   > - **Backbone:** MedicalNet ResNet-3D (pretrain 23 bộ y tế) hoặc Models Genesis, transfer mạnh trên dữ liệu nhỏ.
   > - **Fusion levers (giá trị nghiên cứu):** v0 early concat 8 kênh → v1 per-phase encoder + **phase-attention** → v2 tách nhóm structural (T1/T2/DWI) vs dynamic (pre/art/venous/delay), model pha động như chuỗi.
 - **Ablation lõi (mỗi cái chứng minh 1 lựa chọn):** fusion variants; **phase-importance** bằng leave-one-phase-out (kỳ vọng arterial/venous nổi bật, nối LI-RADS); dimensionality 2D vs 2.5D vs 3D-patch vs 3D-full-volume (data-efficiency curve); pretrained vs scratch; registered vs unregistered; loss CE vs Focal vs class-balanced.
 - **Fallback 2.5D:** stack 3 lát kề hoặc 3 lát trực giao làm kênh, backbone 2D ImageNet-pretrained. Chuyển fallback khi 3D thua 2.5D quá margin **và** vượt ngân sách compute.
 - **Training:** AdamW, lr ~1e-4, cosine + warmup, AMP + gradient accumulation (batch 2 đến 4, effective 16 đến 32) + gradient checkpointing, early stopping theo macro-F1 CV, checkpoint/resume mỗi epoch (Kaggle session ≤12h).
-- **XAI note:** CNN → Grad-CAM trực tiếp; nhánh attention → attention-rollout. Heatmap phải khớp vùng u, không nhìn nền hay gan lành.
+- **XAI note:** Dùng heatmap ``|input × gradient|`` trên đúng crop E4 cho lớp model dự đoán. Heatmap phải khớp không gian crop và có thể dùng để kiểm tra model không nhìn nền/gan lành; không phải segmentation hay bằng chứng lâm sàng.
 
 ### Comparison Protocol (2 phase)
 - **Controlled comparison:** mọi model cùng split/aug/epoch-budget/seed/cách fusion, chỉ đổi **backbone**; fine-tune từ pretrained, không train from scratch.
@@ -101,7 +101,7 @@
 
 - **Sprint 1 (T1 đến T2):** tải data + EDA + preprocessing v0 cache thành Kaggle Dataset + split 5-fold patient-level + baseline 2.5D và 3D-patch + fusion v0; ra **bảng CV macro-F1/κ ± CI** đầu tiên; harmonize external nhãn thô + Duke OOD.
 - **Sprint 2 (T3 đến T4):** fusion variants + phase-attention + arm 3D full-volume + pretrained backbones + xử lý mất cân bằng; **calibration + selective prediction**; ablation lõi; so sánh thống kê (DeLong/McNemar/Holm); external + OOD; chạy test-104 một lần.
-- **Sprint 3 (T5 đến T6):** **web app tự code** (FastAPI backend + HTML/JS thuần, **không Streamlit/Gradio**): V1 dự kiến upload đúng 8 file `.nii` của cùng một bệnh nhân, nhận diện phase theo tên file → trả class + probs + uncertainty + malignant_prob + heatmap Grad-CAM 3D + cờ "defer"; DICOM ZIP là mở rộng sau; serve trên lesion-crop để đạt latency vài giây; failure analysis; reproducibility pack (seed/config/notebook công khai/split file/checkpoints); viết báo cáo có CI + limitations.
+- **Sprint 3 (T5 đến T6):** **web app tự code** (FastAPI backend + React, **không Streamlit/Gradio**): V1 kiểm tra một ZIP chứa đúng 8 NIfTI; ca demo OOF hiển thị class + probs + uncertainty + malignant_prob + cờ "defer" và heatmap độ nhạy đa thì trên crop E4. DICOM ZIP là mở rộng sau; failure analysis; reproducibility pack (seed/config/notebook công khai/split file/checkpoints); viết báo cáo có CI + limitations.
 - **Kill-switch (full ambition có điểm dừng):** chưa có quyền data → CT fallback; 3D thua 2.5D → 2.5D primary; full-volume không kịp → xuống ablation; hụt giờ GPU → ensemble K=5 giảm còn K=3; deep ensemble hụt giờ → MC-dropout; latency cao → rigid-only + crop + K=3.
 - **Ưu tiên không bao giờ cắt:** model fusion có CV+CI, calibration + selective prediction, rigor thống kê, web app tối thiểu chạy được, reproducibility pack.
 
