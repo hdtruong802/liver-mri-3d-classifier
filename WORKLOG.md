@@ -6015,3 +6015,17 @@ Không train mới. Test giữ **610 passed**, 73 skipped. Gate PASS.
 ### Kiểm chứng
 
 - `npm run typecheck`, `npm run build` và Impeccable detector: pass.
+
+---
+
+## S-144 · 2026-08-12 · codex
+
+**Mục tiêu phiên:** dùng hai nút mũi tên rõ ràng để chuyển lát MRI.
+
+### Đã làm
+
+- Đổi biểu tượng điều hướng lát từ chevron sang mũi tên đầy đủ `←` và `→`; hai nút vẫn nằm cạnh bộ đếm lát, có trạng thái đầu/cuối và vùng chạm 44 px.
+
+### Kiểm chứng
+
+- `npm run typecheck`, `npm run build` và Impeccable detector: pass.

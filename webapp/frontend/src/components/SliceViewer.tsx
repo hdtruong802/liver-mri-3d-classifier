@@ -5,7 +5,7 @@
  */
 
 import { useCallback, useEffect, useMemo, useRef, useState, type PointerEvent } from 'react';
-import { ChevronLeft, ChevronRight, Flame, Maximize2, Scan, Target } from 'lucide-react';
+import { ArrowLeft, ArrowRight, Flame, Maximize2, Scan, Target } from 'lucide-react';
 
 import { modelViewUrl, sliceUrl } from '@/api/client';
 import type { CaseVolumeInfo, ModelHeatmapInfo, PhaseInfo } from '@/api/types';
@@ -419,7 +419,7 @@ function StepButton({
   onClick: () => void;
   label: string;
 }) {
-  const Icon = direction === 'prev' ? ChevronLeft : ChevronRight;
+  const Icon = direction === 'prev' ? ArrowLeft : ArrowRight;
   return (
     <button
       type="button"
