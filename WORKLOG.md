@@ -5915,6 +5915,28 @@ Không train mới. Test giữ **610 passed**, 73 skipped. Gate PASS.
 
 ---
 
+## S-141 · 2026-08-12 · codex
+
+**Mục tiêu phiên:** xử lý các hạng mục ưu tiên cao từ Impeccable audit cho web app.
+
+**Nhánh / commit:** `main` · *(commit theo sau entry này)*
+
+### Đã làm
+
+- Bổ sung semantics `tabpanel`, roving tab stop và điều hướng `Arrow` / `Home` / `End` cho phần chi tiết ca; biểu đồ xác suất chỉ tải khi người dùng mở tab đó.
+- Nâng các control MRI tương tác lên vùng chạm tối thiểu 44 px, gồm chọn thì, overlay, reset, tới tổn thương và nút chuyển lát.
+- Respect `prefers-reduced-motion` bằng cách rút ngắn riêng các animation không thiết yếu thay vì vô hiệu hóa mọi transition.
+- Tắt production source map; tách Recharts thành chunk tải chậm; chuyển màu biểu đồ lặp lại sang CSS custom properties.
+- Giữ nguyên các thay đổi chưa commit sẵn có của người dùng trong `reports/W3_REPORT.md`, `App.tsx`, `ResultCards.tsx`, `ClassProbabilityChart.tsx` và `SliceViewer.tsx`.
+
+### Kiểm chứng
+
+- `npm run typecheck`: pass.
+- `npm run build`: pass; chunk chính gzip 11.43 kB, Recharts gzip 140.55 kB chỉ tải khi cần, không xuất source map.
+- Impeccable detector: không có phát hiện.
+
+---
+
 ## S-140 · 2026-08-12 · codex
 
 **Mục tiêu phiên:** viết lại luồng tải bộ MRI để người dùng biết ngay cần chọn gì và bước tiếp theo là gì.

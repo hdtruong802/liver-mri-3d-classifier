@@ -15,6 +15,12 @@
 @tailwind components;
 @tailwind utilities;
 
+:root {
+  --chart-grid: #1c2540;
+  --chart-label: #94a3b8;
+  --chart-value: #ffffff;
+}
+
 @layer base {
   html,
   body,
@@ -96,11 +102,10 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  *,
-  *::before,
-  *::after {
+  .animate-fade-in,
+  .animate-pulse-soft,
+  .animate-spin {
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
-    transition-duration: 0.01ms !important;
   }
 }

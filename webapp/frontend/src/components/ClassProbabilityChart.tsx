@@ -60,15 +60,15 @@ export function ClassProbabilityChart({ probs }: { probs: ClassProbability[] }) 
           <BarChart data={rows} margin={{ top: 20, right: 8, left: -12, bottom: 4 }}>
             <XAxis
               dataKey="name"
-              tick={{ fill: '#94A3B8', fontSize: 11 }}
-              axisLine={{ stroke: '#1C2540' }}
+              tick={{ fill: 'var(--chart-label)', fontSize: 11 }}
+              axisLine={{ stroke: 'var(--chart-grid)' }}
               tickLine={false}
               interval={0}
             />
             <YAxis
               domain={[0, 100]}
               unit="%"
-              tick={{ fill: '#94A3B8', fontSize: 11 }}
+              tick={{ fill: 'var(--chart-label)', fontSize: 11 }}
               axisLine={false}
               tickLine={false}
             />
@@ -81,7 +81,7 @@ export function ClassProbabilityChart({ probs }: { probs: ClassProbability[] }) 
                 position="top"
                 formatter={(value) => `${percent(Number(value ?? 0) / 100, 1)}%`}
                 style={{
-                  fill: '#FFFFFF',
+                  fill: 'var(--chart-value)',
                   fontSize: 11,
                   fontWeight: 600,
                   fontStyle: 'normal',

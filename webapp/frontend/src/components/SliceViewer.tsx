@@ -221,7 +221,7 @@ export function SliceViewer({ caseId, phases, modelHeatmap, volumes }: Props) {
             <button
               type="button"
               onClick={resetView}
-              className="inline-flex items-center gap-1.5 rounded-control border border-pacs-600 bg-pacs-800 px-2.5 py-1 text-data font-semibold text-slate-300 transition hover:border-accent hover:text-accent-glow"
+              className="inline-flex min-h-11 items-center gap-1.5 rounded-control border border-pacs-600 bg-pacs-800 px-2.5 py-1 text-data font-semibold text-slate-300 transition hover:border-accent hover:text-accent-glow"
             >
               <Maximize2 className="h-3.5 w-3.5" aria-hidden="true" />
               Vừa khung ({scale.toFixed(1)}×)
@@ -240,7 +240,7 @@ export function SliceViewer({ caseId, phases, modelHeatmap, volumes }: Props) {
               aria-pressed={active}
               title={phase.description_vi}
               onClick={() => setToken(phase.file_token)}
-              className={`rounded-control border px-3 py-1.5 text-data font-semibold transition ${
+              className={`min-h-11 rounded-control border px-3 py-1.5 text-data font-semibold transition ${
                 active
                   ? 'border-accent bg-accent/15 text-accent-glow'
                   : 'border-pacs-700 bg-pacs-800 text-slate-400 hover:text-white'
@@ -351,7 +351,7 @@ function Toggle({
       onClick={onClick}
       title={title}
       disabled={disabled}
-      className={`inline-flex items-center gap-1.5 rounded-control border px-2.5 py-1 text-data font-semibold transition ${
+      className={`inline-flex min-h-11 items-center gap-1.5 rounded-control border px-2.5 py-1 text-data font-semibold transition ${
         active ? activeClass : 'border-pacs-700 bg-pacs-800 text-slate-400 hover:text-white'
       } ${
         disabled ? 'cursor-not-allowed opacity-45 hover:text-slate-400' : ''
@@ -398,7 +398,7 @@ function LesionTrack({
         <button
           type="button"
           onClick={onJump}
-          className="inline-flex shrink-0 items-center gap-1.5 rounded-control border border-pacs-600 bg-pacs-800 px-2.5 py-1 text-data font-semibold text-slate-300 transition hover:border-annotation hover:text-annotation-soft"
+          className="inline-flex min-h-11 shrink-0 items-center gap-1.5 rounded-control border border-pacs-600 bg-pacs-800 px-2.5 py-1 text-data font-semibold text-slate-300 transition hover:border-annotation hover:text-annotation-soft"
         >
           <Target className="h-3.5 w-3.5" aria-hidden="true" />
           Đến lát tổn thương đầu tiên
@@ -427,7 +427,7 @@ function StepButton({
       disabled={disabled}
       aria-label={label}
       title={label}
-      className={`grid h-8 w-8 place-items-center rounded-control border transition ${
+      className={`grid h-11 w-11 place-items-center rounded-control border transition ${
         disabled
           ? 'border-pacs-700 bg-pacs-800 text-slate-400 opacity-40'
           : 'border-pacs-600 bg-pacs-800 text-slate-300 hover:border-accent hover:text-accent-glow'
