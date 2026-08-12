@@ -41,7 +41,7 @@ export function CaseStrip({ cases, selected, busy, onSelect }: Props) {
               aria-current={active ? 'true' : undefined}
               onClick={() => onSelect(item.case_id)}
               className={[
-                'grid w-full gap-2 border-b border-pacs-700 px-4 py-3 text-left transition last:border-b-0 sm:grid-cols-[minmax(7rem,0.65fr)_minmax(0,1.5fr)_auto] sm:items-center sm:gap-4',
+                'grid w-full gap-3 border-b border-pacs-700 px-4 py-3 text-left transition last:border-b-0 sm:grid-cols-[10rem_minmax(0,1fr)_auto] sm:items-center sm:gap-5',
                 active
                   ? 'bg-pacs-900'
                   : 'hover:bg-pacs-900/60',
@@ -49,27 +49,29 @@ export function CaseStrip({ cases, selected, busy, onSelect }: Props) {
               ].join(' ')}
             >
               <span className={`font-mono text-sm font-semibold ${active ? 'text-accent-glow' : 'text-white'}`}>{item.case_id}</span>
-              <span className="text-data text-slate-300">{item.label_vi}</span>
-              <span className="flex flex-wrap items-center justify-between gap-2 sm:justify-end">
-                <span className="text-data text-slate-400">{item.source_note}</span>
-                <span
-                  className={
-                    active
-                      ? 'chip bg-accent/20 text-accent-glow'
-                      : 'chip border border-pacs-600 bg-pacs-800 text-slate-400'
-                  }
-                >
-                  {busy && active ? (
-                    <>
-                      <Loader2 className="h-3 w-3 animate-spin" aria-hidden="true" />
-                      đang đọc
-                    </>
-                  ) : item.available ? (
-                    active ? 'đang xem' : 'chọn để đọc'
-                  ) : (
-                    'không có dữ liệu'
-                  )}
+              <span className="min-w-0">
+                <span className="block text-sm font-semibold text-slate-200">{item.label_vi}</span>
+                <span className="mt-1 block text-data leading-5 text-slate-400">
+                  {item.source_note}
                 </span>
+              </span>
+              <span
+                className={
+                  active
+                    ? 'chip shrink-0 bg-accent/20 text-accent-glow'
+                    : 'chip shrink-0 border border-pacs-600 bg-pacs-800 text-slate-400'
+                }
+              >
+                {busy && active ? (
+                  <>
+                    <Loader2 className="h-3 w-3 animate-spin" aria-hidden="true" />
+                    đang đọc
+                  </>
+                ) : item.available ? (
+                  active ? 'đang xem' : 'chọn để đọc'
+                ) : (
+                  'không có dữ liệu'
+                )}
               </span>
             </button>
           );

@@ -6067,3 +6067,23 @@ Không train mới. Test giữ **610 passed**, 73 skipped. Gate PASS.
 
 - Không còn tham chiếu `rounded-frame` trong frontend source.
 - `npm run typecheck`, `npm run build` và Impeccable detector: pass.
+
+---
+
+## S-147 · 2026-08-12 · codex
+
+**Mục tiêu phiên:** khắc phục worklist ca demo bị vỡ bố cục sau đợt chuyển sang giao diện workstation.
+
+**Nhánh / commit:** `main` · *(commit theo sau entry này)*
+
+### Đã làm
+
+- Tổ chức lại mỗi hàng ca demo thành ba vùng ổn định: mã MR có độ rộng cố định, nhãn cùng diễn giải ở vùng giữa co giãn, và trạng thái ở cuối hàng.
+- Đưa diễn giải xuống dưới nhãn thay vì đặt chung với chip trạng thái; thông tin đầy đủ vẫn hiển thị và chỉ tự xuống dòng khi không đủ chỗ.
+- Kiểm tra trực tiếp ở desktop và 390 px: không còn mã ca hay nhãn bị ép thành chữ dọc; mobile xếp các phần theo thứ tự đọc được.
+- Giữ nguyên các chỉnh sửa chưa commit của người dùng trong `reports/W3_REPORT.md`, `App.tsx`, `ClassProbabilityChart.tsx`, `ResultCards.tsx` và `SliceViewer.tsx`.
+
+### Kiểm chứng
+
+- Local preview không có lỗi console.
+- `npm run typecheck`, `npm run build`, Impeccable detector và quality gate: pass.
