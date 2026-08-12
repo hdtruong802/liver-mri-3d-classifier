@@ -392,7 +392,93 @@ trực tiếp, không suy từ điểm số.
 ⚠️ CGHNet `val_loss` chạm đáy ở **epoch 16** (E4 fold 1: epoch 100). Theo ρ=0.770 của S-107
 thì đó là dấu hiệu overfit rất sớm, vậy mà nó vẫn đạt 0.6935 — một ngoại lệ đáng ghi.
 
-### ⭐ UNIFORMER + KINETICS — hướng thứ ba, và là phép so một biến sạch nhất của bài toán (2026-08-11, WORKLOG S-125)
+### 🏆 UNIFORMER + KINETICS — FOLD 1 = 0.8111, và phép kiểm cơ chế chốt trước ĐÃ BẮN (2026-08-12, WORKLOG S-129)
+
+**Con số cao nhất dự án từng có, và lần đầu một can thiệp vượt E4 có ý nghĩa thống kê.**
+Cấu hình đúng `configs/uniformer_s.yaml` không sửa gì (`patch_embed1_stride [1,2,2]` trung
+thực, `require_pretrained: true`).
+
+| cùng 82 ca fold 1 | macro-F1 | accuracy |
+|---|---|---|
+| E4 (DenseNet) | 0.7001 | 0.7073 |
+| CGHNet | 0.6935 | 0.7073 |
+| **UniFormer + Kinetics** | **0.8111** | **0.8049** |
+
+Bootstrap **ghép cặp** trên hiệu (phân tầng theo lớp, 2000 lượt):
+
+| | hiệu | CI95 | P |
+|---|---|---|---|
+| UniFormer − E4 | **+0.1133** | [+0.0053, +0.2221] | **0.036** |
+| UniFormer − CGHNet | **+0.1205** | [+0.0013, +0.2365] | **0.048** |
+
+#### ⭐ Vì sao đây KHÁC ba lần bị fold 1 lừa trước đó
+
+E6b (+0.066 ở fold 1) và ensemble E4⊕CGHNet (+0.065 ở fold 1) đều chỉ có **điểm số**. Lần này
+**hai dấu hiệu cơ chế chốt trước ở plan S-125 đã được kiểm, và một cái bắn rất mạnh:**
+
+| di căn (n=8, fold 1) | top-1 | top-2 |
+|---|---|---|
+| E4 | 0.625 | 0.625 ← **bằng nhau** |
+| CGHNet | 0.500 | 0.625 |
+| **UniFormer** | **0.875** | **1.000** |
+
+§4 của chẩn đoán nói: *"trong 20 ca sai không một ca nào có di căn ở hạng hai — biểu diễn
+không mã hoá được lớp này"*, và kết luận ràng buộc **là biểu diễn**. Pretrained là can thiệp
+duy nhất đổi được biểu diễn, và **giờ mọi ca di căn đều nằm trong top-2**. Đây là dự đoán ra
+trước, không phải giải thích sau.
+
+⚠️ Dấu hiệu thứ hai **KHÔNG** đổi: vẫn **0/16 lỗi có biên < 0.10**. Tầng quyết định vẫn không
+cứu được gì — §3 giữ nguyên. Số lỗi giảm 24 → 16, nhưng lỗi còn lại vẫn tự tin sai.
+
+#### Từng lớp — lớp yếu tăng nhiều nhất
+
+| lớp | n | E4 | UniFormer | hiệu |
+|---|---|---|---|---|
+| nang | 9 | 0.625 | 0.889 | **+0.264** |
+| **di căn** | 8 | 0.526 | **0.737** | **+0.211** |
+| FNH | 8 | 0.750 | 0.941 | +0.191 |
+| **ICC** | 10 | 0.500 | **0.667** | **+0.167** |
+| HCC | 25 | 0.776 | 0.826 | +0.051 |
+| u máu | 13 | 0.783 | 0.818 | +0.036 |
+| áp-xe | 9 | 0.941 | 0.800 | −0.141 |
+
+áp-xe là lớp duy nhất giảm, và 0.941 của E4 ở fold 1 là ngoại lệ (E4 gộp 394 ca chỉ 0.660).
+
+#### Động học lành mạnh hơn hẳn — bằng chứng chống "epoch may"
+
+| | `val_loss` đáy | best @epoch | thiên lệch best−last | TB 50 epoch cuối |
+|---|---|---|---|---|
+| E4 | 100 | 231 | +0.071 | 0.607 |
+| CGHNet | 16 | 112 | +0.069 | 0.627 |
+| **UniFormer** | **48** | **259** | **+0.042** | **0.777** |
+
+**Trung bình 50 epoch cuối của UniFormer (0.777) cao hơn epoch tốt nhất của E4 (0.700).**
+Thiên lệch chọn epoch cũng nhỏ nhất trong ba. Không phải một đỉnh may mắn.
+
+#### ⚠️ Gộp với E4/CGHNet làm TỆ ĐI — đừng ensemble
+
+| | macro-F1 |
+|---|---|
+| UniFormer một mình | **0.8111** |
+| gộp 50/50 với E4 | 0.7563 |
+| gộp cả ba | 0.7820 |
+
+Trùng lặp lỗi UniFormer so E4 chỉ **50%** và oracle 0.895, nhưng trung bình xác suất vẫn kéo
+xuống — vì gộp một model mạnh với hai model yếu hơn 0.11 điểm thì phần yếu thắng. Cùng bài
+học S-127: **trùng lặp lỗi thấp không bảo đảm ensemble ăn.**
+
+#### ⚠️ Vẫn chỉ MỘT fold
+
+Bar chốt trước là **gộp 2 fold ≥ 0.78**. Hiện có 1 fold. Fold 1 đã lừa dự án hai lần (E6b
+0.7660; ensemble +0.065). Khác biệt lần này là bằng chứng cơ chế, nhưng **n=8 cho di căn** —
+8/8 vào top-2 so với 5/8 của E4 là hướng đúng, không phải chứng minh.
+
+**Việc phải làm: fold 2 (6.5h).** Nếu gộp 2 fold ≥ 0.78 thì đây thành cấu hình chính và chạy
+đủ 5 fold (còn 26h, phải trải qua hai tuần quota).
+
+---
+
+### ⭐ UNIFORMER + KINETICS — thiết kế và các chỗ lệch (2026-08-11, WORKLOG S-125)
 
 Tái lập recipe của **đội hạng 2** LLD-MMRI 2023: [`ZHEGG/miccai2023`](https://github.com/ZHEGG/miccai2023).
 Code: `src/models/uniformer3d.py` · `configs/uniformer_s.yaml` · `notebooks/20_uniformer.ipynb`.

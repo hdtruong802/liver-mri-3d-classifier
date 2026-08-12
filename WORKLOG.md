@@ -5642,3 +5642,96 @@ Không có số train mới. Test **609 → 610 passed**, 73 skipped. Gate PASS.
 - **`metrics_best.json` ghi `cohen_kappa`, không phải `kappa`; `train()` ghi `config_used.json`, không phải `config.yaml`.** Hai chỗ này đã lừa được tôi trong cùng một notebook.
 - **Trước khi viết một cổng chặn, hỏi bất biến thật là gì.** Cổng E của tôi kiểm "8 pha ra kết quả giống nhau" trong khi bất biến cần giữ là "8 pha nhận cùng tham số" — hai chuyện khác nhau, và cổng sai làm mất một session của người dùng.
 - **Đừng đọc một cờ CLI rồi kết luận nó không được nối.** `--mixup` của họ nằm trong dataset, không phải `train.py`. Đọc cả `__getitem__` trước khi nói "cờ chết".
+
+---
+
+## S-129 · 2026-08-12 · claude-code
+
+**Mục tiêu phiên:** Người dùng chạy xong UniFormer fold 1, tải về `runs/Uniformer3D/fold_1`. Đánh giá, rồi dọn `runs/` cho nhẹ máy.
+
+**Nhánh / commit:** `main` · `be88f88` → *(commit của phiên này)*
+
+**Đã đụng file:** `AGENTS.md` (§5 mục mới), `runs/` (xoá checkpoint, không đụng kết quả).
+
+### 🏆 macro-F1 fold 1 = 0.8111 — cao nhất dự án từng có
+
+Config đã chạy đúng bản trung thực, đã kiểm `config_used.json`: `patch_embed1_stride [1,2,2]`, `variant small`, `sampling sqrt`, `class_weights effective_number`, `label_smoothing 0.1`, `drop_path 0.1`, `rotate_mode nearest`, ba augment lọc 0.1/0.1/0.4, `require_pretrained: true` (nên cổng A đã qua, trọng số Kinetics thật sự vào model).
+
+| cùng 82 ca fold 1 | macro-F1 | accuracy |
+|---|---|---|
+| E4 | 0.7001 | 0.7073 |
+| CGHNet | 0.6935 | 0.7073 |
+| **UniFormer** | **0.8111** | **0.8049** |
+
+Bootstrap ghép cặp, phân tầng theo lớp, 2000 lượt:
+
+| | hiệu | CI95 | P |
+|---|---|---|---|
+| UniFormer − E4 | **+0.1133** | [+0.0053, +0.2221] | **0.036** |
+| UniFormer − CGHNet | **+0.1205** | [+0.0013, +0.2365] | **0.048** |
+
+**Lần đầu một can thiệp của dự án vượt E4 có ý nghĩa thống kê.** Đạt được P<0.05 trên chỉ 82 ca nghĩa là hiệu ứng lớn — mọi thí nghiệm trước đều cho CI chứa 0 rộng rãi.
+
+### ⭐ Vì sao lần này KHÁC ba lần bị fold 1 lừa
+
+E6b (+0.066 fold 1 → −0.002 ở 5 fold) và ensemble E4⊕CGHNet (+0.065 fold 1 → −0.010 ở 5 fold) đều chỉ có **điểm số**. Lần này **dấu hiệu cơ chế chốt trước ở plan S-125 đã bắn**:
+
+| di căn (n=8) | top-1 | top-2 |
+|---|---|---|
+| E4 | 0.625 | 0.625 ← **bằng nhau** |
+| CGHNet | 0.500 | 0.625 |
+| **UniFormer** | **0.875** | **1.000** |
+
+§4 của chẩn đoán (S-123) nói: *"trong 20 ca sai không một ca nào có di căn ở hạng hai — biểu diễn không mã hoá được lớp này"*, và kết luận ràng buộc **là biểu diễn**. Pretrained là can thiệp duy nhất đổi được biểu diễn. Giờ **8/8 ca di căn nằm trong top-2**. Dự đoán ra trước, không phải giải thích sau.
+
+⚠️ Dấu hiệu thứ hai **không** đổi: vẫn **0/16 lỗi có biên < 0.10**. §3 giữ nguyên — tầng quyết định vẫn không cứu được gì. Số lỗi giảm 24 → 16 nhưng lỗi còn lại vẫn tự tin sai.
+
+### Từng lớp và động học
+
+Lớp yếu tăng nhiều nhất: nang +0.264 · **di căn +0.211** · FNH +0.191 · **ICC +0.167**. Chỉ áp-xe giảm (−0.141), và 0.941 của E4 ở fold 1 vốn là ngoại lệ (E4 gộp 394 ca chỉ 0.660).
+
+| | `val_loss` đáy | best @epoch | thiên lệch best−last | TB 50 epoch cuối |
+|---|---|---|---|---|
+| E4 | 100 | 231 | +0.071 | 0.607 |
+| CGHNet | 16 | 112 | +0.069 | 0.627 |
+| **UniFormer** | **48** | **259** | **+0.042** | **0.777** |
+
+**Trung bình 50 epoch cuối (0.777) cao hơn epoch tốt nhất của E4 (0.700)** — bằng chứng mạnh chống giả thuyết "đỉnh may mắn". Thiên lệch chọn epoch cũng nhỏ nhất trong ba cấu hình.
+
+### ⚠️ Gộp với E4/CGHNet làm TỆ ĐI
+
+UniFormer một mình 0.8111 · gộp 50/50 với E4 **0.7563** · gộp cả ba **0.7820**. Trùng lặp lỗi UniFormer so E4 chỉ 50% và oracle 0.895, nhưng trung bình xác suất vẫn kéo xuống vì gộp một model mạnh với hai model yếu hơn 0.11 điểm thì phần yếu thắng. Củng cố bài học S-127: **trùng lặp lỗi thấp không bảo đảm ensemble ăn.**
+
+### 🧹 Dọn `runs/`: 2.1 GB → 308 MB
+
+Toàn bộ phần *kết quả* của mọi run cộng lại chỉ **3.7 MB**; 2.24 GB là checkpoint.
+
+Đã xoá, theo hai bước:
+
+1. **Miễn phí:** 5 checkpoint E4 **trùng byte-for-byte** (`fold_N/best.pt` == `weights/best_fold_N.pt`, đã đối chiếu sha256 cả 5) ~220 MB, và `runs/E8/` chỉ có thư mục rỗng.
+2. **Người dùng chốt xoá hết checkpoint của cấu hình đã bác:** CGHNET (1.2 GB, và là bản CÓ LỖI `pos_embed`), E6b, E6, E5_focal, E12, E1_results.
+
+Còn lại **6 checkpoint**: `E4_per_phase_results/weights/best_fold_1..5.pt` (cấu hình gốc, cần cho lần chạm test-104 thứ hai / MC-dropout / TTA / Grad-CAM) và `Uniformer3D/fold_1/uniformer3D_best_1.pt`.
+
+✅ **Không mất một kết quả nào.** Đã kiểm sau khi xoá: mọi run còn đủ `val_probs_*.npz` + `metrics_best.json` + `train_log.csv` + `config_used.json`; `runs/test104/` nguyên vẹn; `src.eval.compare` và `src.eval.weak_classes` chạy lại ra đúng số cũ.
+
+⚠️ Cái mất: không chạy lại được inference (TTA / MC-dropout / Grad-CAM) trên các cấu hình đã bác mà không train lại. Không có kế hoạch nào cần.
+
+### Kết quả / số liệu
+
+Không train mới. Test giữ **610 passed**, 73 skipped. Gate PASS.
+
+### Dang dở
+
+- **Fold 2 của UniFormer (6.5h)** — việc quan trọng nhất. Bar chốt trước là **gộp 2 fold ≥ 0.78**.
+- Đủ 5 fold cần thêm 26h ⇒ phải trải qua hai tuần quota.
+- Intra-class mixup chưa cài (mảnh thiếu duy nhất của recipe họ).
+- Thang bậc ba đầu ra của CGHNet chưa đọc — ⚠️ **và giờ đã xoá checkpoint CGHNet**, nên muốn đọc thì phải train lại. Cân nhắc: CGHNet đã bị bác (P=0.46) và UniFormer vượt xa, nên giá trị của thang bậc đó giảm hẳn.
+- Bảng ablation lõi + kiểm định Holm — deliverable W4, chưa làm, không cần GPU.
+
+### Cảnh báo cho tool sau
+
+- **Vẫn chỉ MỘT fold.** Fold 1 đã lừa dự án hai lần. Khác biệt lần này là bằng chứng cơ chế (di căn top-2 = 1.000), nhưng **n=8 cho di căn** — hướng đúng, không phải chứng minh. Đừng viết 0.8111 vào báo cáo như một kết quả đã chốt.
+- **Đừng ensemble UniFormer với E4/CGHNet.** Đã đo trên fold 1: gộp làm tệ đi 0.055.
+- **Checkpoint của E6b/E6/E5/E12/E1/CGHNet đã bị xoá** (S-129, người dùng chốt). `val_probs` của chúng còn đủ nên mọi phân tích trên xác suất vẫn chạy; chỉ mất khả năng chạy lại inference.
+- Khi so UniFormer với bảng văn liệu: **0.8111 là val fold 1, không phải test-104.** Thiên lệch chọn epoch của nó là +0.042, và mức hụt OOF→test đo trên E4 là −0.069. Không được đặt cạnh 0.8078 của đội hạng 2.
