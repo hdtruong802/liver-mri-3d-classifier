@@ -5893,3 +5893,22 @@ Không train mới. Test giữ **610 passed**, 73 skipped. Gate PASS.
 - `npm run typecheck`: pass.
 - `npm run build`: pass (chỉ có cảnh báo bundle đã có).
 - quality gate: pass.
+
+---
+
+## S-137 · 2026-08-12 · codex
+
+**Mục tiêu phiên:** tăng khả năng nhận diện nhãn điều khiển lát trong MRI viewer.
+
+**Nhánh / commit:** `main` · *(commit theo sau entry này)*
+
+### Đã làm
+
+- Tách **“Vị trí lát”** khỏi dòng hướng dẫn thao tác; nhãn dùng cỡ `text-sm`, chữ đậm và `annotation-soft` fuchsia, đúng màu của **“Vùng tổn thương”**.
+- Giữ phần hướng dẫn lăn chuột/zoom/pan ở vai trò phụ với `text-data` và `slate-400`.
+- Giữ nguyên các thay đổi chưa commit có sẵn của người dùng, gồm phần copy hướng dẫn trong `SliceViewer.tsx`.
+
+### Kiểm chứng
+
+- Impeccable type scan: không có phát hiện.
+- `npm run typecheck`, `npm run build` và quality gate: pass (build chỉ có cảnh báo bundle đã có).

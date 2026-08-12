@@ -303,7 +303,8 @@ export function SliceViewer({ caseId, phases, modelHeatmap, volumes }: Props) {
       </div>
 
       <label className="mt-3 block">
-        <span className="text-data text-slate-400">Vị trí lát. Lăn chuột để đổi lát · Ctrl + lăn để phóng to · kéo để di chuyển ảnh.</span>
+        <span className="text-sm font-semibold text-annotation-soft">Vị trí lát</span>
+        <span className="text-data text-slate-400">. Lăn chuột để đổi lát · Ctrl + lăn để phóng to · kéo để di chuyển ảnh.</span>
         <input
           type="range"
           min={0}
