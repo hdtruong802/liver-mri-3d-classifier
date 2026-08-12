@@ -6,8 +6,7 @@
  *   - **7 lớp, không phải 6.** Bản bolt khai một taxonomy riêng: thiếu ICC và áp-xe,
  *     thừa một lớp "Healthy" không tồn tại trong bài toán. Ở đây danh sách đến từ
  *     `GET /api/meta`, gốc là `src/data/taxonomy.py`.
- *   - **Màu không đi một mình.** Mỗi cột có nhãn tên lớp bên dưới và nhãn nhóm
- *     "ác"/"lành" trong tooltip cùng dải chú giải. Khử màu vẫn đọc được.
+ *   - **Màu không đi một mình.** Mỗi cột có nhãn tên lớp bên dưới; khử màu vẫn đọc được.
  *   - **Không giấu cột thấp.** Một xác suất 0,3% vẫn là thông tin về hình dạng phân
  *     phối, nên trục Y cố định 0–100 và mọi cột đều được vẽ.
  */
@@ -18,7 +17,6 @@ import {
   Cell,
   LabelList,
   ResponsiveContainer,
-  Tooltip,
   XAxis,
   YAxis,
 } from 'recharts';
@@ -26,13 +24,12 @@ import { BarChart3 } from 'lucide-react';
 
 import type { ClassProbability } from '@/api/types';
 import { colorOfClass } from '@/catalog';
-import { groupLabel, percent } from '@/format';
+import { percent } from '@/format';
 
 interface Row {
   name: string;
   value: number;
   color: string;
-  malignant: boolean;
 }
 
 export function ClassProbabilityChart({ probs }: { probs: ClassProbability[] }) {
@@ -42,7 +39,6 @@ export function ClassProbabilityChart({ probs }: { probs: ClassProbability[] }) 
       name: entry.label_vi,
       value: Number((entry.probability * 100).toFixed(1)),
       color: colorOfClass(entry.class_index),
-      malignant: entry.malignant,
     }));
 
   return (
@@ -75,24 +71,6 @@ export function ClassProbabilityChart({ probs }: { probs: ClassProbability[] }) 
               tick={{ fill: '#94A3B8', fontSize: 11 }}
               axisLine={false}
               tickLine={false}
-            />
-            <Tooltip
-              cursor={{ fill: 'rgba(255,255,255,0.04)' }}
-              contentStyle={{
-                background: '#0B1020',
-                border: '1px solid #1C2540',
-                borderRadius: 12,
-                fontSize: 12,
-                color: '#CBD5E1',
-              }}
-              // recharts 3 nới kiểu của `value` và `item` thành union có `undefined`,
-              // nên phải ép về số ở đây thay vì khai `value: number`.
-              formatter={(value, _name, item) => {
-                const pct = Number(value ?? 0);
-                const row = (item as { payload?: Row } | undefined)?.payload;
-                const group = row ? ` · nhóm ${groupLabel(row.malignant)}` : '';
-                return [`${percent(pct / 100)}%${group}`, 'Xác suất'];
-              }}
             />
             <Bar dataKey="value" radius={[6, 6, 0, 0]} maxBarSize={56} isAnimationActive={false}>
               {rows.map((row) => (

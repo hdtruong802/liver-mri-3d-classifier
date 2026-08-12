@@ -5915,6 +5915,25 @@ Không train mới. Test giữ **610 passed**, 73 skipped. Gate PASS.
 
 ---
 
+## S-139 · 2026-08-12 · codex
+
+**Mục tiêu phiên:** bỏ thông tin hover thừa che biểu đồ xác suất theo lớp.
+
+**Nhánh / commit:** `main` · *(commit theo sau entry này)*
+
+### Đã làm
+
+- Bỏ toàn bộ tooltip và nền highlight khi rê chuột trên cột xác suất.
+- Giữ giá trị phần trăm và tên lớp luôn hiện trực tiếp trên biểu đồ; xoá các import/dữ liệu tooltip không còn dùng.
+- Giữ nguyên thay đổi chưa commit của người dùng trong tiêu đề biểu đồ và các file khác.
+
+### Kiểm chứng
+
+- Impeccable type scan: không có phát hiện.
+- `npm run typecheck`, `npm run build` và quality gate: pass (build chỉ có cảnh báo bundle đã có).
+
+---
+
 ## S-138 · 2026-08-12 · codex
 
 **Mục tiêu phiên:** làm điều hướng vùng tổn thương trong MRI viewer đúng với nhãn nút.
