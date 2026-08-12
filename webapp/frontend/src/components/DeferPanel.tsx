@@ -7,7 +7,7 @@ export function DeferPanel({ result }: { result: PredictResult }) {
   const state = result.defer
     ? {
         title: 'Mô hình từ chối quyết ca này',
-        copy: 'Mức bất định của ca này vượt ngưỡng đã khóa trước trên validation. Ca được đánh dấu để cần đối chiếu chuyên môn; đây là một kết quả hợp lệ của hệ.',
+        copy: 'Mô hình chưa đủ chắc chắn để đưa ra dự đoán cho ca này. Cần xem kết quả cùng đánh giá của người có chuyên môn.',
         icon: <AlertTriangle className="h-6 w-6 text-warn" aria-hidden="true" />,
         shell: 'border-warn/50 bg-warn/10',
         text: 'text-warn-soft',
@@ -15,7 +15,7 @@ export function DeferPanel({ result }: { result: PredictResult }) {
       }
     : {
         title: 'Mô hình nhận quyết ca này',
-        copy: 'Mức bất định của ca này nằm dưới ngưỡng đã khóa trước trên validation. Kết quả vẫn chỉ dành cho mục đích nghiên cứu.',
+        copy: 'Mô hình có thể đưa ra dự đoán cho ca này. Kết quả chỉ phục vụ mục đích nghiên cứu, không dùng để chẩn đoán.',
         icon: <ShieldCheck className="h-6 w-6 text-ok" aria-hidden="true" />,
         shell: 'border-ok/40 bg-ok/5',
         text: 'text-ok-soft',

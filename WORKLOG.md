@@ -5873,3 +5873,23 @@ Không train mới. Test giữ **610 passed**, 73 skipped. Gate PASS.
 ### Kiểm chứng
 
 - `npm run typecheck`, `npm run build`, `git diff --check` và quality gate: pass.
+
+---
+
+## S-136 · 2026-08-12 · codex
+
+**Mục tiêu phiên:** viết lại thông điệp trạng thái từ chối để người dùng hiểu được ý nghĩa mà không gặp chi tiết nội bộ của mô hình.
+
+**Nhánh / commit:** `main` · *(commit theo sau entry này)*
+
+### Đã làm
+
+- Thay mô tả `defer` bằng: “Mô hình chưa đủ chắc chắn để đưa ra dự đoán cho ca này. Cần xem kết quả cùng đánh giá của người có chuyên môn.”
+- Đồng bộ trạng thái còn lại sang ngôn ngữ tương tự, giữ cảnh báo Research Use Only và không dùng để chẩn đoán.
+- Bỏ toàn bộ đề cập đến ngưỡng và validation khỏi hai thông điệp này. Giữ nguyên các thay đổi chưa commit của người dùng ở `reports/W3_REPORT.md`, `webapp/frontend/src/App.tsx` và `webapp/frontend/src/components/ResultCards.tsx`.
+
+### Kiểm chứng
+
+- `npm run typecheck`: pass.
+- `npm run build`: pass (chỉ có cảnh báo bundle đã có).
+- quality gate: pass.
