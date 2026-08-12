@@ -47,7 +47,7 @@ Hệ quả trực tiếp lên sản phẩm: **mức bất định là nội dung
 
 **Model làm gì:** phân loại 7 lớp tổn thương gan (HCC, ICC, di căn, nang, u máu, FNH, áp-xe — 3 ác, 4 lành) ở mức ROI, trên volume 3D đa pha 8 thì MRI.
 
-**Web app trả về cho ca demo OOF:** lớp dự đoán · xác suất từng lớp · xác suất ác tính · trạng thái `defer` · ảnh MRI và Grad-CAM. ZIP người dùng tải chỉ nhận bảng kiểm cấu trúc.
+**Web app trả về cho ca demo OOF:** lớp dự đoán · xác suất từng lớp · xác suất ác tính · trạng thái `defer` · MRI crop E4 với heatmap độ nhạy đa thì. ZIP người dùng tải chỉ nhận bảng kiểm cấu trúc.
 
 **Contract upload V1:** nhận một ZIP chứa đúng một `.nii` hoặc `.nii.gz` cho mỗi thì C-pre, C+A, C+V, C+Delay, T2WI, DWI, In Phase và Out Phase. Thư mục trong ZIP không quan trọng. Backend chỉ kiểm tra manifest; DICOM-folder là mở rộng riêng, không thuộc V1.
 

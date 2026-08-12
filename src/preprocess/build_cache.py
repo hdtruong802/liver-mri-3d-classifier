@@ -46,6 +46,7 @@ __all__ = [
     "build_cache",
     "process_patient",
     "process_patient_with_meta",
+    "resample_annotation_masks",
     "resolve_cache_dir",
 ]
 
@@ -295,6 +296,109 @@ def process_patient(
         patient_id, annotation, image_index, phase_config, config, mask_index
     )
     return volume
+
+
+def resample_annotation_masks(
+    patient_id: str,
+    annotation: Annotation,
+    image_index: dict,
+    phase_config: list[dict[str, str]],
+    config: dict[str, Any],
+    mask_index: dict | None,
+) -> np.ndarray:
+    """Resample eight annotation masks to the exact E4 crop grids.
+
+    This mirrors the grid construction in :func:`process_patient_with_meta`,
+    including ``align_phases: per_phase``.  It deliberately does not use the
+    cached, normalised image tensor as a geometry proxy: each phase has its own
+    crop centre under E4.  The helper is the only supported path for the Kaggle
+    export notebook, preventing a visually plausible but spatially wrong
+    overlay from being produced there.
+    """
+    from src.utils.ids import normalize_pid
+
+    if mask_index is None:
+        raise ValueError("mask_index is required to export annotation overlays")
+
+    axis_order = config["axis_order"]
+    ref_phase = config["reference_phase"]
+    size = tuple(config["target_size"])
+    crop_mode = config.get("crop_mode", "fixed_mm")
+    lesion_cfg = config.get("lesion_tight") or {}
+    source = lesion_cfg.get("source", "bbox")
+    align = config.get("align_phases", "reference")
+    if crop_mode not in CROP_MODES or source not in LESION_SOURCES or align not in ALIGN_MODES:
+        raise ValueError("invalid crop, lesion source, or phase-alignment configuration")
+
+    key = normalize_pid(patient_id)
+    ref_token = next(p["file"] for p in phase_config if p["name"] == ref_phase)
+    ref_path = image_index.get((key, ref_token))
+    if ref_path is None:
+        raise FileNotFoundError(f"{patient_id}: missing reference phase {ref_phase}")
+    ref_image = read_image(ref_path)
+
+    affine_direction = np.array(ref_image.GetDirection(), dtype=float).reshape(3, 3)
+    ref_spacing = np.array(ref_image.GetSpacing(), dtype=float)
+    ref_affine = np.eye(4)
+    ref_affine[:3, :3] = affine_direction @ np.diag(ref_spacing)
+    ref_affine[:3, 3] = ref_image.GetOrigin()
+
+    ref_mask_path = (
+        mask_index.get((key, ref_token))
+        if crop_mode == "lesion_tight" and source == "mask"
+        else None
+    )
+    center_voxel, extent_voxel, crop_source = _lesion_center_extent(
+        patient_id, annotation, ref_phase, axis_order, ref_image, ref_mask_path
+    )
+    extent_mm = extent_voxel * ref_spacing
+    if crop_mode == "lesion_tight":
+        spacing, _ = adaptive_spacing(
+            extent_mm,
+            size,
+            margin_factor=float(lesion_cfg.get("margin_factor", 1.6)),
+            min_fov_mm=tuple(lesion_cfg.get("min_fov_mm", (40.0, 40.0, 40.0))),
+            max_fov_mm=tuple(lesion_cfg.get("max_fov_mm", (200.0, 200.0, 200.0))),
+        )
+    else:
+        spacing = tuple(config["target_spacing"])
+
+    margin = tuple(int(m) for m in (config.get("crop_margin_voxels") or (0, 0, 0)))
+    if len(margin) != 3 or any(m < 0 for m in margin):
+        raise ValueError(f"invalid crop_margin_voxels: {margin!r}")
+    grid_size = tuple(s + 2 * m for s, m in zip(size, margin, strict=True))
+    center_world = voxel_to_world(ref_affine, center_voxel)
+    reference = make_reference_image(center_world, affine_direction, spacing, grid_size)
+
+    masks: list[np.ndarray] = []
+    for phase in phase_config:
+        image_path = image_index.get((key, phase["file"]))
+        mask_path = mask_index.get((key, phase["file"]))
+        if image_path is None:
+            raise FileNotFoundError(f"{patient_id}: missing phase {phase['file']}")
+        if mask_path is None:
+            raise FileNotFoundError(
+                f"{patient_id}: missing annotation mask for phase {phase['file']}"
+            )
+        image = read_image(image_path) if image_path != ref_path else ref_image
+        if align == "per_phase" and phase["name"] != ref_phase:
+            phase_center, _ = _phase_center_world(
+                patient_id,
+                phase["name"],
+                phase["file"],
+                image,
+                annotation,
+                mask_index,
+                key,
+                axis_order,
+                center_world,
+            )
+            grid = make_reference_image(phase_center, affine_direction, spacing, grid_size)
+        else:
+            grid = reference
+        mask = to_numpy(resample_to_grid(read_image(mask_path), grid, "nearest"))
+        masks.append((mask > 0).astype(np.uint8))
+    return np.stack(masks, axis=0)
 
 
 def build_cache(config_path: str | Path, limit: int = 0) -> Path:

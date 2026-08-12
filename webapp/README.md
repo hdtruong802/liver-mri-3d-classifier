@@ -12,7 +12,7 @@ Demo cho người review nghiên cứu thấy hành vi của mô hình phân lo�
 | Ảnh MRI hiển thị | **thật**, đọc trực tiếp từ file gốc |
 | Kết quả ca demo | **prediction out-of-fold thật**, chỉ hiển thị cho ca demo có dữ liệu OOF |
 | ZIP người dùng tải | chỉ kiểm tra manifest đủ 8 thì; không giải nén bền vững, không chạy model, không trả prediction |
-| Grad-CAM | chưa có, hiển thị bằng vùng gạch chéo "chưa khảo sát" |
+| Heatmap đa thì | artefact offline E4; thiếu hoặc sai shape thì viewer hiển thị empty state |
 
 Khi có pipeline ROI tương đương lúc train ở giai đoạn sau, có thể bổ sung suy luận `live` như một contract riêng. V1 không suy luận từ dữ liệu tải lên.
 
@@ -45,6 +45,7 @@ App đọc ảnh lúc chạy từ `LLDMMRI_SAMPLE_DIR`, mặc định `data/samp
 | Biến | Mặc định | Việc |
 |---|---|---|
 | `LLDMMRI_SAMPLE_DIR` | `data/sample` | Thư mục chứa 8 file `.nii` của ca demo |
+| `LLDMMRI_MODEL_HEATMAP_DIR` | `runs/E4_per_phase_results/model_heatmaps` | Thư mục artefact heatmap đa thì E4 đã xuất offline |
 | `LLDMMRI_CHECKPOINT` | *(chưa đặt)* | Đường dẫn checkpoint. Đặt vào khi nhánh suy luận thật đã viết |
 | `LLDMMRI_DEFER_THRESHOLD` | `0.55` | Ngưỡng confidence dưới đó thì `defer`. Giá trị thật sẽ khoá trên validation từ đường risk-coverage, không chọn tay |
 
@@ -53,6 +54,12 @@ App đọc ảnh lúc chạy từ `LLDMMRI_SAMPLE_DIR`, mặc định `data/samp
 Chỉ nhận **một ZIP**. ZIP có thể chứa thư mục con bất kỳ, nhưng phải có đúng một file `.nii` hoặc `.nii.gz` nhận diện được cho từng thì: C-pre, C+A, C+V, C+Delay, T2WI, DWI, In Phase và Out Phase. API `POST /api/validate-upload` chỉ đọc tên file trong ZIP và trả bảng kiểm 8 thì.
 
 Không dùng folder picker: hành vi khác nhau giữa các trình duyệt. DICOM-folder là mở rộng riêng khi app có contract DICOM, không trộn với NIfTI ZIP V1.
+
+## Heatmap đa thì E4
+
+Xuất artefact offline bằng [`notebooks/11_model_heatmaps.ipynb`](../notebooks/11_model_heatmaps.ipynb). Mỗi `<case>.npz` phải có `phase_tokens`, `crop_refs`, `heatmaps_pred`, `annotation_masks`, `pred_index` và `heatmap_scale`; ba mảng cùng shape `[8, X, Y, Z]`. `heatmaps_pred` là `|input × gradient|` của **lớp model đã dự đoán**, chuẩn hoá bằng một thang chung trên cả tám thì.
+
+Backend chỉ chấp nhận đúng thứ tự phase E4 và shape khớp nhau. Nó render duy nhất theo thứ tự MRI → heatmap hổ phách → nhãn người chú giải fuchsia, nên nhãn không bị che hoặc bị hiểu nhầm là model segmentation.
 
 ## Thiết kế
 
@@ -68,7 +75,7 @@ Bốn luật dễ phá nhất khi sửa tiếp:
 ## Test
 
 ```powershell
-python -m pytest tests/test_webapp_phases.py tests/test_webapp_api.py tests/test_webapp_volumes.py -q
+python -m pytest tests/test_webapp_phases.py tests/test_webapp_api.py tests/test_webapp_volumes.py tests/test_webapp_model_heatmaps.py -q
 ```
 
 `test_webapp_volumes.py` skip sạch khi không có `data/sample`. Hai file kia chạy được ở mọi máy.

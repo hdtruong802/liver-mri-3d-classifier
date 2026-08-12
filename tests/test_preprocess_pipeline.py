@@ -172,6 +172,42 @@ def test_process_patient_centres_lesion(tiny_dataset):
         )
 
 
+def test_annotation_masks_use_the_same_per_phase_e4_grids(misaligned_dataset):
+    """Mask crop must follow the exact phase grid, never a raw-NIfTI proxy grid."""
+    import nibabel as nib
+    from src.data.annotation import Annotation
+    from src.data.images import DEFAULT_LABEL_SUFFIXES, scan_image_index
+    from src.preprocess.build_cache import resample_annotation_masks
+
+    data_cfg, pre_cfg = misaligned_dataset
+    root = Path(data_cfg["data_root"])
+    labels = root / "lld" / "labels"
+    labels.mkdir(parents=True)
+    c_plus_v = np.zeros((120, 120, 20), dtype=np.uint8)
+    c_plus_v[56:65, 56:65, 9:12] = 1
+    dwi = np.zeros((60, 60, 20), dtype=np.uint8)
+    dwi[38:43, 38:43, 13:16] = 1
+    nib.save(
+        nib.Nifti1Image(c_plus_v, np.diag([1.0, 1.0, 3.0, 1.0])),
+        str(labels / "MR-1_1_C+V.nii"),
+    )
+    dwi_affine = np.diag([2.0, 2.0, 3.0, 1.0])
+    dwi_affine[:3, 3] = (-20.0, -20.0, 0.0)
+    nib.save(nib.Nifti1Image(dwi, dwi_affine), str(labels / "MR-1_1_DWI.nii"))
+
+    ann = Annotation(root / data_cfg["annotation_rel"])
+    image_index = scan_image_index(root / data_cfg["images_rel"], data_cfg["image_suffixes"])
+    mask_index = scan_image_index(labels, DEFAULT_LABEL_SUFFIXES)
+    masks = resample_annotation_masks(
+        "MR-1", ann, image_index, PHASES, {**pre_cfg, "align_phases": "per_phase"}, mask_index
+    )
+
+    assert masks.shape == (2, *SIZE)
+    assert masks.dtype == np.uint8
+    centre = tuple(s // 2 for s in SIZE)
+    assert masks[(0, *centre)] == 1 and masks[(1, *centre)] == 1
+
+
 def test_build_cache_writes_npz_and_is_resumable(tiny_dataset, tmp_path, monkeypatch):
     from src.preprocess.build_cache import build_cache
 

@@ -104,9 +104,7 @@ export default function App() {
                   <SliceViewer
                     caseId={detail.case_id}
                     phases={meta.phases}
-                    volumes={detail.volumes}
-                    classes={meta.classes}
-                    gradcam={detail.gradcam}
+                    modelHeatmap={detail.model_heatmap}
                   />
                 }
               />

@@ -158,8 +158,18 @@ if (Get-Command ruff -ErrorAction SilentlyContinue) {
     $ruffCmd = @('ruff')
 }
 elseif (Get-Command python -ErrorAction SilentlyContinue) {
-    & python -m ruff --version *> $null
-    if ($LASTEXITCODE -eq 0) { $ruffCmd = @('python', '-m', 'ruff') }
+    $previousErrorActionPreference = $ErrorActionPreference
+    try {
+        # Ruff is optional.  Its non-zero exit when absent must not abort the
+        # gate before it can report a normal SKIP.
+        $ErrorActionPreference = 'Continue'
+        & python -m ruff --version *> $null
+        $ruffAvailable = $LASTEXITCODE -eq 0
+    }
+    finally {
+        $ErrorActionPreference = $previousErrorActionPreference
+    }
+    if ($ruffAvailable) { $ruffCmd = @('python', '-m', 'ruff') }
 }
 
 if ($ruffCmd -and $ruffTargets.Count -gt 0) {

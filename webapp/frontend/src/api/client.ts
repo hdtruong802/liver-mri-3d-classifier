@@ -52,25 +52,19 @@ export function validateUpload(archive: File): Promise<UploadValidationResult> {
   return request<UploadValidationResult>('/api/validate-upload', { method: 'POST', body: form });
 }
 
-/** URL ảnh một lát. Ảnh MRI thật, render từ NIfTI ở backend. */
-export function sliceUrl(
+/** URL ảnh hợp nhất trên lưới crop E4: MRI → heatmap → nhãn người chú giải. */
+export function modelViewUrl(
   caseId: string,
   phaseToken: string,
   z: number,
-  mask = false,
+  annotation: boolean,
+  heatmap: boolean,
 ): string {
-  const params = new URLSearchParams({ phase: phaseToken, z: String(z) });
-  // Chỉ gửi `mask` khi bật: giữ URL của đường đi thường không đổi, nhờ vậy cache
-  // trình duyệt cho ảnh trần không bị vô hiệu mỗi lần người dùng tắt lớp phủ.
-  if (mask) params.set('mask', 'true');
-  return `/api/cases/${encodeURIComponent(caseId)}/slice?${params}`;
-}
-
-/**
- * Ảnh bản đồ chú ý. `target='true'` chỉ hợp lệ khi mô hình đoán sai — backend trả 404
- * nếu không có, thay vì lặng lẽ trả bản đồ của lớp đã đoán.
- */
-export function gradcamUrl(caseId: string, z: number, target: 'pred' | 'true'): string {
-  const params = new URLSearchParams({ z: String(z), target });
-  return `/api/cases/${encodeURIComponent(caseId)}/gradcam?${params}`;
+  const params = new URLSearchParams({
+    phase: phaseToken,
+    z: String(z),
+    annotation: String(annotation),
+    heatmap: String(heatmap),
+  });
+  return `/api/cases/${encodeURIComponent(caseId)}/model-view?${params}`;
 }

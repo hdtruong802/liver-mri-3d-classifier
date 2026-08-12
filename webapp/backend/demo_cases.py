@@ -30,7 +30,7 @@ from webapp.backend.schemas import (
     CaseDetail,
     CaseSummary,
     CaseVolumeInfo,
-    GradCamInfo,
+    ModelHeatmapInfo,
     Provenance,
     ProvenanceSource,
 )
@@ -132,39 +132,28 @@ def _case_provenance(case: DemoCase) -> Provenance:
     )
 
 
-def _gradcam_info(case_id: str) -> GradCamInfo:
-    """Mô tả bản đồ chú ý, hoặc `available=False` khi chưa tính.
+def _model_heatmap_info(case_id: str) -> ModelHeatmapInfo:
+    """Metadata only; invalid or missing artefacts never become a pseudo image."""
+    from webapp.backend import model_heatmaps
 
-    Import lười: `webapp.backend.gradcam` kéo theo PIL, mà module này còn được dùng ở
-    chỗ chỉ cần danh sách ca.
-    """
-    from webapp.backend import gradcam as gradcam_store
-
-    cam = gradcam_store.get(case_id)
-    if cam is None:
-        return GradCamInfo(
+    artifact = model_heatmaps.get(case_id)
+    if artifact is None:
+        return ModelHeatmapInfo(
             available=False,
             n_slices=0,
             note=(
-                "Chưa tính bản đồ chú ý cho ca này. Chạy notebooks/10_gradcam.ipynb "
-                "trên Kaggle rồi đặt .npz vào runs/E4_per_phase_results/gradcam/."
+                "Chưa có heatmap đa thì đã kiểm tra cho ca này. "
+                "Hãy xuất artefact offline trên Kaggle trước khi xem ảnh."
             ),
         )
-    return GradCamInfo(
+    return ModelHeatmapInfo(
         available=True,
-        n_slices=cam.n_slices,
-        native_shape=list(cam.native_shape),
-        layer=cam.layer,
-        fold=cam.fold,
-        pred_class_index=cam.pred_index,
-        true_class_index=cam.true_index,
-        phase_importance=[float(v) for v in cam.phase_importance],
-        true_map_status=cam.true_status,
+        phase_tokens=list(artifact.phase_tokens),
+        n_slices=artifact.n_slices,
+        pred_class_index=artifact.pred_index,
+        lesion_slices=artifact.lesion_slices,
         note=(
-            f"Bản đồ tính ở tầng {cam.layer}, kích thước gốc "
-            f"{'×'.join(str(v) for v in cam.native_shape)}, nội suy lên lưới crop. "
-            "Đây là chỗ mô hình nhạy — phỏng đoán của mô hình, không phải vùng do "
-            "người chú giải khoanh."
+            "MRI, heatmap độ nhạy và nhãn người chú giải đã được đưa vào cùng lưới crop E4."
         ),
     )
 
@@ -218,7 +207,7 @@ def get_case_detail(case_id: str) -> CaseDetail:
 
     return CaseDetail(
         case_id=case.case_id,
-        gradcam=_gradcam_info(case.case_id),
+        model_heatmap=_model_heatmap_info(case.case_id),
         label_vi=case.label_vi,
         source_note=case.source_note,
         volumes=volumes,

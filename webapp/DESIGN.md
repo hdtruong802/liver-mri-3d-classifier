@@ -144,7 +144,7 @@ Vẽ **viền đặc + ruột nhuộm 25%**, không tô kín: bác sĩ cần nh�
 
 ### Bản đồ chú ý của mô hình
 
-`#F59E0B` Grad-CAM · `#FCD34D` bản nhạt
+`#F59E0B` heatmap độ nhạy model · `#FCD34D` bản nhạt
 
 Phải khác hẳn màu vùng chú giải ở trên. Hai thứ trông giống nhau nhưng **ngược nhau về bản chất**: `annotation` là vùng **người** khoanh — ground truth; `attention` là chỗ **mô hình** nhạy — phỏng đoán, và với ca mô hình đoán sai thì nó *nên* trông sai. Lẫn hai thứ này là hiểu nhầm tệ nhất app có thể gây ra, nên chúng nằm ở hai phía đối diện của vòng màu và không bao giờ xuất hiện trong cùng một ảnh.
 

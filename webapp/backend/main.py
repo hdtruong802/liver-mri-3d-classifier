@@ -143,28 +143,27 @@ def case_slice(case_id: str, phase: str, z: int, mask: bool = False) -> Response
 
 
 @app.get(
-    "/api/cases/{case_id}/gradcam",
+    "/api/cases/{case_id}/model-view",
     responses={200: {"content": {"image/png": {}}}},
     response_class=Response,
 )
-def case_gradcam(case_id: str, z: int, target: str = "pred") -> Response:
-    """Một lát của bản đồ chú ý, phủ lên khối 112×112×32 mà mô hình thực sự nhìn.
+def case_model_view(
+    case_id: str,
+    phase: str = "C-pre",
+    z: int = 0,
+    annotation: bool = False,
+    heatmap: bool = False,
+) -> Response:
+    """Render crop E4 theo thứ tự MRI → heatmap → nhãn người chú giải."""
+    from webapp.backend import model_heatmaps
 
-    ⚠️ Ảnh này **không cùng không gian** với `/slice`: đó là lát gốc 480×480, còn đây
-    là khối đã cắt bám tổn thương. Số lát cũng khác nhau.
-
-    `target='true'` chỉ có khi mô hình đoán sai — khi đó so hai bản đồ cho thấy mô
-    hình đã nhìn nhầm chỗ nào.
-    """
-    from webapp.backend import gradcam as gradcam_store
-
-    cam = gradcam_store.get(case_id)
-    if cam is None:
-        raise HTTPException(status_code=404, detail=f"chưa có bản đồ chú ý cho ca {case_id!r}")
+    artifact = model_heatmaps.get(case_id)
+    if artifact is None:
+        raise HTTPException(status_code=404, detail=f"chưa có heatmap đa thì cho ca {case_id!r}")
     try:
-        payload = gradcam_store.render_png(cam, target, z)
-    except KeyError as exc:
-        raise HTTPException(status_code=404, detail=str(exc)) from exc
+        payload = model_heatmaps.render_png(
+            artifact, phase, z, annotation=annotation, heatmap=heatmap
+        )
     except ValueError as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
     except IndexError as exc:

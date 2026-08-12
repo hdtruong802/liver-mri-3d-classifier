@@ -5761,3 +5761,31 @@ Không train mới. Test giữ **610 passed**, 73 skipped. Gate PASS.
 - `powershell -NoProfile -ExecutionPolicy Bypass -File scripts/quality-gate.ps1`: PASS (dùng Python Anaconda để ruff khả dụng).
 
 **Bảo trì gate:** sửa `scripts/quality-gate.ps1` khi `ruff` là executable trực tiếp: gate cũ index mảng rỗng ở mode staged trước khi gọi ruff. Không đổi rule kiểm tra nào.
+
+---
+
+## S-131 · 2026-08-12 · codex
+
+**Mục tiêu phiên:** thay Grad-CAM trong web app bằng heatmap đa thì phủ trực tiếp lên MRI crop E4, mặc định C-pre.
+
+**Nhánh / commit:** `main` · *(commit theo sau entry này)*
+
+### Đã làm
+
+- Thay toàn bộ contract Grad-CAM của web app bằng artefact `ModelHeatmap`: tám `crop_refs`, `heatmaps_pred` theo `|input × gradient|`, tám `annotation_masks`, lớp dự đoán và một thang chuẩn hoá chung cho toàn bộ phase.
+- Thêm helper tạo heatmap và helper resample mask người chú giải trên đúng lưới crop E4 căn riêng từng thì; notebook mới `11_model_heatmaps.ipynb` chỉ gọi các helper này để sinh artefact trên Kaggle.
+- Thay route `/gradcam` bằng `GET /api/cases/{id}/model-view`. Backend kiểm tra nghiêm phase, shape, dtype, range và thứ tự phase trước khi render/cached một PNG hợp nhất theo thứ tự MRI → heatmap hổ phách → nhãn người chú giải fuchsia. Artefact thiếu hoặc sai chỉ trả empty state an toàn.
+- Viewer mới hiển thị tám phase, mặc định **C-pre**, giữ chỉ số lát khi đổi phase và tự nhảy vào giữa đoạn tổn thương dài nhất lúc mở. Hai toggle độc lập điều khiển vùng tổn thương và heatmap; heatmap hiện trên mọi lát, còn track lát chỉ đánh dấu annotation.
+- Bỏ toàn bộ API, component, copy và export Grad-CAM khỏi web app. Copy nêu rõ heatmap chỉ giải thích độ nhạy của model với lớp dự đoán, không phải segmentation và không dùng để chẩn đoán.
+- Cập nhật `PRODUCT.md`, `webapp/DESIGN.md` và `webapp/README.md`; sửa quality gate để thiếu Ruff được báo `SKIP` thay vì abort. Giữ nguyên thay đổi người dùng có sẵn trong `reports/W3_REPORT.md`.
+
+### Kiểm chứng
+
+- `tests/test_webapp_model_heatmaps.py`: **10 passed**.
+- `npm run typecheck`, `npm run build`, `python -m compileall` và `git diff --check` (trừ report có sẵn): pass.
+- Kiểm tra trực tiếp viewer ở desktop và 390 px: C-pre mặc định, đổi phase giữ lát, hai overlay độc lập và không tràn ngang.
+- `powershell -NoProfile -ExecutionPolicy Bypass -File scripts/quality-gate.ps1`: PASS; Ruff không cài trong Python hệ thống nên gate báo SKIP như thiết kế. Các module test cần SimpleITK/Torch được skip trong môi trường local này.
+
+### Điểm vào lần sau
+
+- Sinh artefact thật trên Kaggle bằng `notebooks/11_model_heatmaps.ipynb`, rồi đặt các `.npz` ở `runs/E4_per_phase_results/model_heatmaps/` (hoặc đặt `LLDMMRI_MODEL_HEATMAP_DIR`). Không đưa artefact MRI/NIfTI vào git.

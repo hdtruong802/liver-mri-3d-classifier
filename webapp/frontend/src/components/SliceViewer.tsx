@@ -1,45 +1,25 @@
 /**
- * Bộ xem ảnh MRI — khối 9 của bố cục, đúng chỗ `SliceViewer` của bản bolt vốn nằm.
- *
- * Ảnh là ảnh MRI **THẬT**, render từ file NIfTI ở backend. Bản bolt có một module 308
- * dòng sinh ảnh bụng giả bằng thuật toán; nó đã bị bỏ và không được dựng lại.
- * `PRODUCT.md` gọi dữ liệu giả trông như thật là rủi ro nghiêm trọng nhất của dự án,
- * và một ảnh MRI giả còn nguy hiểm hơn một con số giả vì không ai kiểm được bằng mắt.
- *
- * ## Quy ước thao tác
- *
- * Bám phản xạ của bác sĩ chẩn đoán hình ảnh (`PRODUCT.md` — người dùng đích), không
- * bám thói quen của web:
- *
- * - **Lăn chuột = chuyển lát.** Trong mọi phần mềm PACS, lăn chuột là đi qua khối.
- * - **Ctrl + lăn = zoom.** Quy ước của trình duyệt, ai cũng biết sẵn.
- * - **Kéo = di chuyển ảnh.** Trước đây kéo là chuyển lát; đổi vì zoom mà không pan
- *   được thì zoom sâu vô dụng — tổn thương ở rìa trôi ra ngoài khung.
- *
- * Chuyển lát vẫn còn bốn đường khác: nút mũi tên, thanh trượt, phím mũi tên, và nút
- * "Đi tới tổn thương".
+ * MRI viewer for the exact E4 crop space. The server renders one composed PNG
+ * in a fixed order: MRI → predicted-class sensitivity heatmap → human label.
+ * No raw-NIfTI overlay is allowed here because E4 aligns each phase separately.
  */
 
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type PointerEvent } from 'react';
 import { ChevronLeft, ChevronRight, Flame, Layers, Maximize2, Scan, Target } from 'lucide-react';
 
-import { sliceUrl } from '@/api/client';
-import type { CaseVolumeInfo, ClassInfo, GradCamInfo, PhaseInfo } from '@/api/types';
-import { AttentionPanel } from '@/components/AttentionPanel';
+import { modelViewUrl } from '@/api/client';
+import type { ModelHeatmapInfo, PhaseInfo } from '@/api/types';
 import { EmptyState } from '@/components/Provenance';
 
 interface Props {
   caseId: string;
   phases: PhaseInfo[];
-  volumes: CaseVolumeInfo[];
-  classes: ClassInfo[];
-  gradcam: GradCamInfo | null;
+  modelHeatmap: ModelHeatmapInfo | null;
 }
 
 const MIN_SCALE = 1;
 const MAX_SCALE = 8;
 
-/** Gom danh sách chỉ số lát thành các đoạn liên tục `[đầu, cuối]`. */
 function toSegments(indices: number[]): Array<[number, number]> {
   const sorted = [...indices].sort((a, b) => a - b);
   const segments: Array<[number, number]> = [];
@@ -51,46 +31,65 @@ function toSegments(indices: number[]): Array<[number, number]> {
   return segments;
 }
 
-export function SliceViewer({ caseId, phases, volumes, classes, gradcam }: Props) {
-  const available = phases.filter((phase) =>
-    volumes.some((volume) => volume.file_token === phase.file_token),
+export function SliceViewer({ caseId, phases, modelHeatmap }: Props) {
+  const available = useMemo(
+    () =>
+      modelHeatmap?.available
+        ? phases.filter((phase) => modelHeatmap.phase_tokens.includes(phase.file_token))
+        : [],
+    [modelHeatmap, phases],
   );
-  const [token, setToken] = useState(
-    () => available.find((p) => p.file_token === 'C+V')?.file_token ?? available[0]?.file_token ?? '',
-  );
-
-  const volume = volumes.find((v) => v.file_token === token);
-  const total = volume?.n_slices ?? 0;
-  const [z, setZ] = useState(() => Math.floor(total / 2));
+  const [token, setToken] = useState('C-pre');
+  const total = modelHeatmap?.n_slices ?? 0;
+  const [z, setZ] = useState(0);
   const [failed, setFailed] = useState(false);
-  const [showMask, setShowMask] = useState(false);
+  const [showAnnotation, setShowAnnotation] = useState(false);
+  const [showHeatmap, setShowHeatmap] = useState(false);
   const [scale, setScale] = useState(1);
   const [offset, setOffset] = useState({ x: 0, y: 0 });
 
   const frameRef = useRef<HTMLDivElement>(null);
   const dragging = useRef(false);
+  const initialSliceSet = useRef(false);
   const dragOrigin = useRef({ x: 0, y: 0, offset: { x: 0, y: 0 } });
 
-  // Đổi thì thì giữ vị trí TƯƠNG ĐỐI trong khối, không giữ chỉ số tuyệt đối: tám thì
-  // có số lát khác nhau, nên lát 40 của T2WI không phải cùng chỗ giải phẫu với lát 40
-  // của C+V. Giữ tỉ lệ là xấp xỉ đúng hơn, dù vẫn chỉ là xấp xỉ.
-  const previous = useRef({ token, total });
   useEffect(() => {
-    if (previous.current.token === token || total === 0) {
-      previous.current = { token, total };
-      return;
-    }
-    const ratio = previous.current.total > 1 ? z / (previous.current.total - 1) : 0.5;
-    setZ(Math.round(ratio * (total - 1)));
-    previous.current = { token, total };
-  }, [token, total, z]);
+    initialSliceSet.current = false;
+  }, [caseId]);
 
-  useEffect(() => setFailed(false), [token, z, showMask]);
+  useEffect(() => {
+    if (available.some((phase) => phase.file_token === token)) return;
+    setToken(available.find((phase) => phase.file_token === 'C-pre')?.file_token ?? available[0]?.file_token ?? '');
+  }, [available, token]);
 
   const clamp = useCallback((value: number) => Math.max(0, Math.min(total - 1, value)), [total]);
   const step = useCallback((delta: number) => setZ((current) => clamp(current + delta)), [clamp]);
 
-  /** Kẹp offset để ảnh không kéo được ra khỏi khung — ở scale 1 thì đứng yên hẳn. */
+  const lesionSlices = modelHeatmap?.lesion_slices[token] ?? [];
+  const segments = useMemo(() => toSegments(lesionSlices), [lesionSlices]);
+  const lesionAnchor = useMemo(() => {
+    if (segments.length === 0) return null;
+    const longest = segments.reduce((a, b) => (b[1] - b[0] > a[1] - a[0] ? b : a));
+    return Math.round((longest[0] + longest[1]) / 2);
+  }, [segments]);
+
+  // The first usable view opens at the longest C-pre annotation span. Switching
+  // phase preserves z: all eight artefact crops use the same E4 dimensions.
+  useEffect(() => {
+    if (initialSliceSet.current || total <= 0 || !modelHeatmap?.available) return;
+    const cPreSlices = modelHeatmap.lesion_slices['C-pre'] ?? [];
+    const cPreSegments = toSegments(cPreSlices);
+    const longest = cPreSegments.reduce<Array<[number, number]>[number] | null>(
+      (best, current) => (!best || current[1] - current[0] > best[1] - best[0] ? current : best),
+      null,
+    );
+    setZ(longest ? Math.round((longest[0] + longest[1]) / 2) : Math.floor(total / 2));
+    initialSliceSet.current = true;
+  }, [modelHeatmap, total]);
+
+  useEffect(() => setZ((current) => clamp(current)), [clamp]);
+  useEffect(() => setFailed(false), [token, z, showAnnotation, showHeatmap]);
+
   const clampOffset = useCallback((next: { x: number; y: number }, atScale: number) => {
     const frame = frameRef.current;
     if (!frame || atScale <= 1) return { x: 0, y: 0 };
@@ -101,40 +100,26 @@ export function SliceViewer({ caseId, phases, volumes, classes, gradcam }: Props
       y: Math.max(-maxY, Math.min(maxY, next.y)),
     };
   }, []);
-
   const resetView = useCallback(() => {
     setScale(1);
     setOffset({ x: 0, y: 0 });
   }, []);
 
-  // Lăn chuột phải gắn thủ công với `passive: false`. `onWheel` của React là passive,
-  // nên `preventDefault()` trong đó không có tác dụng và cả trang sẽ cuộn theo.
   useEffect(() => {
     const frame = frameRef.current;
     if (!frame) return;
-
     const onWheel = (event: WheelEvent) => {
       event.preventDefault();
-
-      // `ctrlKey` cũng bật khi người dùng chụm hai ngón trên trackpad — trình duyệt
-      // dịch cử chỉ đó thành Ctrl+wheel. Nhờ vậy pinch-to-zoom chạy mà không cần code.
       if (!event.ctrlKey) {
         step(event.deltaY > 0 ? 1 : -1);
         return;
       }
-
       const rect = frame.getBoundingClientRect();
       const cursorX = event.clientX - rect.left - rect.width / 2;
       const cursorY = event.clientY - rect.top - rect.height / 2;
-
       setScale((current) => {
-        const next = Math.max(
-          MIN_SCALE,
-          Math.min(MAX_SCALE, current * (event.deltaY > 0 ? 0.9 : 1 / 0.9)),
-        );
+        const next = Math.max(MIN_SCALE, Math.min(MAX_SCALE, current * (event.deltaY > 0 ? 0.9 : 1 / 0.9)));
         if (next === current) return current;
-        // Giữ nguyên điểm đang nằm dưới con trỏ: điểm ảnh tại con trỏ là
-        // (cursor - offset) / scale, và nó phải không đổi sau khi scale.
         setOffset((currentOffset) =>
           clampOffset(
             {
@@ -147,89 +132,75 @@ export function SliceViewer({ caseId, phases, volumes, classes, gradcam }: Props
         return next;
       });
     };
-
     frame.addEventListener('wheel', onWheel, { passive: false });
     return () => frame.removeEventListener('wheel', onWheel);
-  }, [step, clampOffset]);
+  }, [clampOffset, step]);
 
-  const onPointerDown = (event: React.PointerEvent<HTMLDivElement>) => {
+  const onPointerDown = (event: PointerEvent<HTMLDivElement>) => {
     dragging.current = true;
     dragOrigin.current = { x: event.clientX, y: event.clientY, offset };
     event.currentTarget.setPointerCapture(event.pointerId);
   };
-  const onPointerMove = (event: React.PointerEvent<HTMLDivElement>) => {
+  const onPointerMove = (event: PointerEvent<HTMLDivElement>) => {
     if (!dragging.current) return;
     setOffset(
       clampOffset(
         {
-          x: dragOrigin.current.offset.x + (event.clientX - dragOrigin.current.x),
-          y: dragOrigin.current.offset.y + (event.clientY - dragOrigin.current.y),
+          x: dragOrigin.current.offset.x + event.clientX - dragOrigin.current.x,
+          y: dragOrigin.current.offset.y + event.clientY - dragOrigin.current.y,
         },
         scale,
       ),
     );
   };
-  const onPointerUp = (event: React.PointerEvent<HTMLDivElement>) => {
+  const onPointerUp = (event: PointerEvent<HTMLDivElement>) => {
     dragging.current = false;
     event.currentTarget.releasePointerCapture(event.pointerId);
   };
 
-  const lesionSlices = useMemo(() => volume?.mask_slices ?? [], [volume]);
-  const segments = useMemo(() => toSegments(lesionSlices), [lesionSlices]);
-
-  /** Lát giữa của đoạn tổn thương DÀI NHẤT — chỗ nhiều khả năng thấy rõ nhất. */
-  const lesionAnchor = useMemo(() => {
-    if (segments.length === 0) return null;
-    const longest = segments.reduce((a, b) => (b[1] - b[0] > a[1] - a[0] ? b : a));
-    return Math.round((longest[0] + longest[1]) / 2);
-  }, [segments]);
-
-  if (available.length === 0 || !volume) {
+  if (available.length === 0 || !token || total <= 0) {
     return (
-      <div className="panel p-5">
+      <section className="panel p-5">
         <EmptyState
-          label="Chưa có volume để hiển thị"
-          detail="Dữ liệu bệnh nhân nằm ngoài repo. Đặt LLDMMRI_SAMPLE_DIR trỏ tới thư mục chứa 8 file .nii của ca."
+          label="Chưa có heatmap đa thì"
+          detail={modelHeatmap?.note ?? 'Chọn ca demo có artefact heatmap E4 đã được xuất và kiểm tra.'}
+          icon={Flame}
         />
-      </div>
+      </section>
     );
   }
 
-  const hasMask = volume.has_mask;
+  const onLesionSlice = lesionSlices.includes(z);
   const before = z;
   const after = total - 1 - z;
   const zoomed = scale > 1.001;
-  // Backend render `normalized.T[::-1]`, nên bề rộng ảnh là shape[0], chiều cao shape[1].
-  const aspect = volume.shape[1] > 0 ? volume.shape[0] / volume.shape[1] : 1;
-  const onLesionSlice = lesionSlices.includes(z);
+  const imageUrl = modelViewUrl(caseId, token, z, showAnnotation, showHeatmap);
 
   return (
     <section aria-labelledby="viewer-heading" className="panel p-5">
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
         <div className="flex flex-wrap items-center gap-2">
           <Layers className="h-4 w-4 text-accent" aria-hidden="true" />
-          <h3 id="viewer-heading" className="label">
-            Ảnh MRI theo thì
-          </h3>
-          <span className="chip border border-ok/40 bg-ok/10 text-ok-soft">ảnh thật</span>
-          {hasMask && (
-            <button
-              type="button"
-              aria-pressed={showMask}
-              onClick={() => setShowMask((v) => !v)}
-              title="Nhãn tổn thương của bộ dữ liệu, do người chú giải — không phải model vẽ ra"
-              className={[
-                'inline-flex items-center gap-1.5 rounded-control border px-2.5 py-1',
-                'text-data font-semibold transition',
-                showMask
-                  ? 'border-annotation bg-annotation/15 text-annotation-soft'
-                  : 'border-pacs-700 bg-pacs-800 text-slate-400 hover:text-white',
-              ].join(' ')}
-            >
-              <Scan className="h-3.5 w-3.5" aria-hidden="true" />
-              {showMask ? 'Đang hiện vùng tổn thương' : 'Hiện vùng tổn thương'}
-            </button>
-          )}
+          <h3 id="viewer-heading" className="label">MRI và heatmap model</h3>
+          <span className="chip border border-ok/40 bg-ok/10 text-ok-soft">crop E4</span>
+          <Toggle
+            active={showAnnotation}
+            onClick={() => setShowAnnotation((value) => !value)}
+            icon={Scan}
+            activeLabel="Đang hiện vùng tổn thương"
+            inactiveLabel="Hiện vùng tổn thương"
+            activeClass="border-annotation bg-annotation/15 text-annotation-soft"
+            title="Nhãn dataset do người chú giải khoanh, không phải output segmentation của model"
+          />
+          <Toggle
+            active={showHeatmap}
+            onClick={() => setShowHeatmap((value) => !value)}
+            icon={Flame}
+            activeLabel="Đang hiện heatmap"
+            inactiveLabel="Hiện heatmap"
+            activeClass="border-attention bg-attention/15 text-attention-soft"
+            title="Độ nhạy cục bộ của model với lớp đã dự đoán"
+          />
           {zoomed && (
             <button
               type="button"
@@ -253,12 +224,11 @@ export function SliceViewer({ caseId, phases, volumes, classes, gradcam }: Props
               aria-pressed={active}
               title={phase.description_vi}
               onClick={() => setToken(phase.file_token)}
-              className={[
-                'rounded-control border px-3 py-1.5 text-data font-semibold transition',
+              className={`rounded-control border px-3 py-1.5 text-data font-semibold transition ${
                 active
                   ? 'border-accent bg-accent/15 text-accent-glow'
-                  : 'border-pacs-700 bg-pacs-800 text-slate-400 hover:text-white',
-              ].join(' ')}
+                  : 'border-pacs-700 bg-pacs-800 text-slate-400 hover:text-white'
+              }`}
             >
               {phase.label_vi}
             </button>
@@ -266,86 +236,52 @@ export function SliceViewer({ caseId, phases, volumes, classes, gradcam }: Props
         })}
       </div>
 
-      {/* Khung ôm đúng tỉ lệ của khối, canh giữa. Trước đây ảnh bị chặn chiều cao trong
-          một khung full-width nên hai bên là hai mảng đen rộng gấp nhiều lần chính ảnh. */}
       <div
         ref={frameRef}
         onPointerDown={onPointerDown}
         onPointerMove={onPointerMove}
         onPointerUp={onPointerUp}
         onPointerCancel={onPointerUp}
-        style={{ aspectRatio: String(aspect), maxHeight: '72vh' }}
-        className={[
-          'relative mx-auto w-full touch-none select-none overflow-hidden',
-          'rounded-control border border-pacs-700 bg-black',
-          // Chỉ mời kéo khi có gì để kéo: ở 1× ảnh vừa khung nên pan không đổi gì,
-          // và con trỏ "grab" lúc đó là một lời hứa suông. `cursor` kế thừa được
-          // nên đặt ở đây là đủ cho cả ảnh bên trong.
-          zoomed ? 'cursor-grab active:cursor-grabbing' : 'cursor-default',
-        ].join(' ')}
+        style={{ aspectRatio: '1 / 1', width: 'min(100%, 72vh)' }}
+        className={`relative mx-auto touch-none select-none overflow-hidden rounded-control border border-pacs-700 bg-black ${
+          zoomed ? 'cursor-grab active:cursor-grabbing' : 'cursor-default'
+        }`}
       >
         {failed ? (
           <EmptyState label="Không đọc được lát này" detail={`Thì ${token}, lát ${z + 1}.`} />
         ) : (
           <img
-            key={`${token}-${z}-${showMask ? 'm' : ''}`}
-            src={sliceUrl(caseId, token, z, showMask && hasMask)}
-            alt={
-              `Lát ${z + 1} trên ${total}, thì ${token}, ảnh MRI thật của ca ${caseId}` +
-              (showMask && hasMask ? ', có phủ nhãn tổn thương do người chú giải' : '')
-            }
+            key={`${token}-${z}-${showAnnotation}-${showHeatmap}`}
+            src={imageUrl}
+            alt={`MRI crop E4, thì ${token}, lát ${z + 1} trên ${total}${showHeatmap ? ', có heatmap độ nhạy model' : ''}${showAnnotation ? ', có nhãn vùng tổn thương do người chú giải' : ''}`}
             onError={() => setFailed(true)}
             draggable={false}
-            // Không transition: đây là thao tác trực tiếp, không phải hiệu ứng
-            // (`webapp/DESIGN.md` §Motion — ngân sách chuyển động nhỏ).
             style={{ transform: `translate(${offset.x}px, ${offset.y}px) scale(${scale})` }}
             className="h-full w-full object-contain"
           />
         )}
       </div>
 
-      {/* Hai cuộn băng: trái là phần đã quay qua, phải là phần còn lại. Nút mũi tên
-          nằm ngay cạnh chỉ số lát vì đó là chỗ mắt đang nhìn khi cần đi từng lát —
-          đặt chúng ra rìa panel sẽ bắt mắt phải rời khỏi con số rồi quay lại. */}
+      <p className="mt-3 max-w-measure text-data text-slate-400">
+        Heatmap thể hiện độ nhạy cục bộ của model với lớp đã dự đoán; không phải vùng tổn thương do model khoanh và không mang ý nghĩa chẩn đoán.
+      </p>
+
       <div className="mt-4 flex items-center gap-3">
         <span className="h-1.5 flex-1 overflow-hidden rounded-full bg-pacs-700" aria-hidden="true">
-          <span
-            className="ml-auto block h-full bg-accent"
-            style={{ width: `${total > 1 ? (before / (total - 1)) * 100 : 0}%` }}
-          />
+          <span className="ml-auto block h-full bg-accent" style={{ width: `${total > 1 ? (before / (total - 1)) * 100 : 0}%` }} />
         </span>
-
         <div className="flex shrink-0 items-center gap-1">
-          <StepButton
-            direction="prev"
-            disabled={z <= 0}
-            onClick={() => step(-1)}
-            label="Lát trước"
-          />
-          <span className="min-w-[4.5rem] text-center font-mono text-data font-semibold text-white">
-            {z + 1} / {total}
-          </span>
-          <StepButton
-            direction="next"
-            disabled={z >= total - 1}
-            onClick={() => step(1)}
-            label="Lát sau"
-          />
+          <StepButton direction="prev" disabled={z <= 0} onClick={() => step(-1)} label="Lát trước" />
+          <span className="min-w-[4.5rem] text-center font-mono text-data font-semibold text-white">{z + 1} / {total}</span>
+          <StepButton direction="next" disabled={z >= total - 1} onClick={() => step(1)} label="Lát sau" />
         </div>
-
         <span className="h-1.5 flex-1 overflow-hidden rounded-full bg-pacs-700" aria-hidden="true">
-          <span
-            className="block h-full bg-accent"
-            style={{ width: `${total > 1 ? (after / (total - 1)) * 100 : 0}%` }}
-          />
+          <span className="block h-full bg-accent" style={{ width: `${total > 1 ? (after / (total - 1)) * 100 : 0}%` }} />
         </span>
       </div>
 
       <label className="mt-3 block">
-        <span className="text-data text-slate-400">
-          Vị trí lát trong khối. Lăn chuột để đổi lát · Ctrl + lăn để phóng to · kéo để di
-          chuyển ảnh.
-        </span>
+        <span className="text-data text-slate-400">Vị trí lát. Lăn chuột để đổi lát · Ctrl + lăn để phóng to · kéo để di chuyển ảnh.</span>
         <input
           type="range"
           min={0}
@@ -366,32 +302,43 @@ export function SliceViewer({ caseId, phases, volumes, classes, gradcam }: Props
           onJump={() => lesionAnchor !== null && setZ(clamp(lesionAnchor))}
         />
       )}
-
-      <div className="mt-4 border-t border-pacs-700 pt-4">
-        <p className="mb-2 flex items-center gap-2 label">
-          <Flame className="h-3.5 w-3.5 text-accent" aria-hidden="true" />
-          Vùng mô hình đang nhìn
-        </p>
-        <AttentionPanel
-          caseId={caseId}
-          gradcam={gradcam}
-          classes={classes}
-        />
-      </div>
     </section>
   );
 }
 
-/**
- * Dải đánh dấu lát nào có tổn thương, canh thẳng với thanh trượt ngay trên nó.
- *
- * Vẽ từng **đoạn liên tục** chứ không vẽ một dải từ lát đầu tới lát cuối: các lát có
- * tổn thương có thể đứt quãng (nhiều ổ, hoặc một ổ bị lát cắt bỏ sót ở giữa), và vẽ
- * liền một dải sẽ khẳng định sai rằng mọi lát ở giữa đều có tổn thương.
- *
- * Màu `annotation` trùng với màu mask trên ảnh, để mắt nối được hai thứ với nhau. Đi
- * kèm nhãn chữ vì màu không bao giờ là tuyến duy nhất (`webapp/DESIGN.md`).
- */
+function Toggle({
+  active,
+  onClick,
+  icon: Icon,
+  activeLabel,
+  inactiveLabel,
+  activeClass,
+  title,
+}: {
+  active: boolean;
+  onClick: () => void;
+  icon: typeof Scan;
+  activeLabel: string;
+  inactiveLabel: string;
+  activeClass: string;
+  title: string;
+}) {
+  return (
+    <button
+      type="button"
+      aria-pressed={active}
+      onClick={onClick}
+      title={title}
+      className={`inline-flex items-center gap-1.5 rounded-control border px-2.5 py-1 text-data font-semibold transition ${
+        active ? activeClass : 'border-pacs-700 bg-pacs-800 text-slate-400 hover:text-white'
+      }`}
+    >
+      <Icon className="h-3.5 w-3.5" aria-hidden="true" />
+      {active ? activeLabel : inactiveLabel}
+    </button>
+  );
+}
+
 function LesionTrack({
   segments,
   total,
@@ -408,7 +355,6 @@ function LesionTrack({
   const span = Math.max(total - 1, 1);
   const first = segments[0][0];
   const last = segments[segments.length - 1][1];
-
   return (
     <div className="mt-3">
       <div className="relative h-1.5 w-full overflow-hidden rounded-full bg-pacs-800" aria-hidden="true">
@@ -416,21 +362,14 @@ function LesionTrack({
           <span
             key={start}
             className="absolute top-0 h-full bg-annotation"
-            style={{
-              left: `${(start / span) * 100}%`,
-              width: `${Math.max(((end - start) / span) * 100, 0.6)}%`,
-            }}
+            style={{ left: `${(start / span) * 100}%`, width: `${Math.max(((end - start) / span) * 100, 0.6)}%` }}
           />
         ))}
       </div>
-
       <div className="mt-2 flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
         <p className="text-data text-slate-400">
-          <span className="text-annotation-soft">Vùng tổn thương</span> ở {count}/{total} lát (
-          {first + 1}–{last + 1}) · do người chú giải khoanh, không phải mô hình tìm ra
-          {onLesionSlice && (
-            <span className="ml-2 text-annotation-soft">▸ lát đang xem có tổn thương</span>
-          )}
+          <span className="text-annotation-soft">Vùng tổn thương</span> ở {count}/{total} lát ({first + 1}–{last + 1}) · do người chú giải khoanh, không phải model tìm ra
+          {onLesionSlice && <span className="ml-2 text-annotation-soft">▸ lát đang xem có tổn thương</span>}
         </p>
         <button
           type="button"
@@ -445,13 +384,6 @@ function LesionTrack({
   );
 }
 
-/**
- * Nút đi một lát. Tách thành component riêng để hai nút không thể lệch nhau về kích
- * thước hay trạng thái disabled — hai nút điều hướng trông khác nhau là lỗi dễ lọt.
- *
- * Vô hiệu ở hai đầu khối chứ không cuộn vòng: lát 1 và lát cuối là biên giải phẫu
- * thật, nhảy từ đỉnh gan xuống đáy sẽ đọc như một ảnh khác.
- */
 function StepButton({
   direction,
   disabled,
@@ -471,12 +403,11 @@ function StepButton({
       disabled={disabled}
       aria-label={label}
       title={label}
-      className={[
-        'grid h-8 w-8 place-items-center rounded-control border transition',
+      className={`grid h-8 w-8 place-items-center rounded-control border transition ${
         disabled
           ? 'border-pacs-700 bg-pacs-800 text-slate-400 opacity-40'
-          : 'border-pacs-600 bg-pacs-800 text-slate-300 hover:border-accent hover:text-accent-glow',
-      ].join(' ')}
+          : 'border-pacs-600 bg-pacs-800 text-slate-300 hover:border-accent hover:text-accent-glow'
+      }`}
     >
       <Icon className="h-4 w-4" aria-hidden="true" />
     </button>

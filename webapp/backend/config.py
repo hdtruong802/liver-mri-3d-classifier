@@ -25,6 +25,12 @@ def _env_path(name: str, default: Path) -> Path:
 # vào webapp/, không commit, không đi kèm khi đem demo lên host công khai.
 SAMPLE_DIR: Path = _env_path("LLDMMRI_SAMPLE_DIR", REPO_ROOT / "data" / "sample")
 
+# Artefact offline: crop E4, heatmap 8 thì, và mask người chú giải trên cùng lưới.
+# Không có artefact thì UI chỉ hiển thị empty state, không dựng ảnh/màu giả.
+MODEL_HEATMAP_DIR: Path = _env_path(
+    "LLDMMRI_MODEL_HEATMAP_DIR", REPO_ROOT / "runs" / "E4_per_phase_results" / "model_heatmaps"
+)
+
 # Checkpoint. Chưa có — W5 mới nạp model thật.
 CHECKPOINT_PATH: Path | None = (
     Path(os.environ["LLDMMRI_CHECKPOINT"]) if os.environ.get("LLDMMRI_CHECKPOINT") else None

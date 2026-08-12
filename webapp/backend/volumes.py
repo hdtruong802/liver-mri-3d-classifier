@@ -132,7 +132,7 @@ def _normalize(slab: np.ndarray) -> np.ndarray:
     return (((clipped - lo) / (hi - lo)) * 255.0).astype(np.uint8)
 
 
-def _overlay_mask(gray: np.ndarray, mask: np.ndarray) -> np.ndarray:
+def overlay_annotation(gray: np.ndarray, mask: np.ndarray) -> np.ndarray:
     """Phủ mask lên ảnh xám: viền đặc + ruột mờ, trả về mảng RGB.
 
     Viền đặc chứ không tô kín: bác sĩ cần **nhìn thấy pixel bên dưới** để tự đánh giá,
@@ -194,7 +194,7 @@ def render_slice_png(path: Path, z: int, mask_path: Path | None = None) -> bytes
                 f"khác ảnh {tuple(int(v) for v in img.shape[:3])}"
             )
         mask_slab = np.asarray(mask_img.dataobj[:, :, z]).T[::-1]
-        picture = Image.fromarray(_overlay_mask(oriented, mask_slab), mode="RGB")
+        picture = Image.fromarray(overlay_annotation(oriented, mask_slab), mode="RGB")
 
     buffer = io.BytesIO()
     picture.save(buffer, format="PNG", optimize=True)

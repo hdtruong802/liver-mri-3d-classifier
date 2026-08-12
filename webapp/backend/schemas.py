@@ -132,7 +132,7 @@ class PredictResult(BaseModel):
     )
     confidence: float = Field(ge=0.0, le=1.0, description="max-prob của phân phối đã hiệu chỉnh.")
     # `heatmap_slices` (base64 PNG) đã bị bỏ ở S-093: nó luôn rỗng, frontend chưa từng
-    # đọc, và giữ lại sẽ thành cơ chế thứ hai cạnh tranh với `CaseDetail.gradcam` +
+    # đọc, và giữ lại sẽ thành cơ chế thứ hai cạnh tranh với `CaseDetail.model_heatmap` +
     # endpoint ảnh. Hai đường cho cùng một việc là nợ, không phải linh hoạt.
     inference_ms: int | None = None
     provenance: Provenance
@@ -219,50 +219,14 @@ class CaseVolumeInfo(BaseModel):
     )
 
 
-class GradCamInfo(BaseModel):
-    """Bản đồ chú ý của mô hình cho một ca — mô tả, không phải ảnh.
-
-    Ảnh lấy qua `/api/cases/{id}/gradcam?z=..&target=..`.
-
-    ⚠️ Đây là **phỏng đoán của mô hình**, không phải nhãn của người chú giải (xem
-    `CaseVolumeInfo.has_mask`). Với ca mô hình đoán sai, bản đồ này *nên* trông sai —
-    đó là thông tin, không phải lỗi hiển thị.
-    """
+class ModelHeatmapInfo(BaseModel):
+    """Metadata for validated, precomputed model-sensitivity overlays."""
 
     available: bool
-    n_slices: int = Field(ge=0, description="Số lát của khối crop, KHÁC số lát ảnh gốc.")
-    native_shape: list[int] = Field(
-        default_factory=list,
-        description=(
-            "Kích thước THẬT của bản đồ trước khi nội suy lên lưới crop, ví dụ [7, 7, 2]. "
-            "Phải hiển thị: một bản đồ 7×7×2 phóng lên 112×112×32 trông mịn tới từng "
-            "voxel nhưng không hề mịn."
-        ),
-    )
-    layer: str = Field(default="", description="Tầng đã lấy đặc trưng.")
-    fold: str = Field(default="", description="Model của fold nào — fold chưa train trên ca này.")
-    pred_class_index: int | None = None
-    true_class_index: int | None = Field(
-        default=None,
-        description=(
-            "Chỉ khác `pred_class_index` khi mô hình đoán sai; khi đó có thêm target 'true'."
-        ),
-    )
-    phase_importance: list[float] = Field(
-        default_factory=list,
-        description=(
-            "Độ nhạy của logit với từng thì, tổng bằng 1. LÀ SALIENCY, không phải "
-            "ablation: nó không nói bỏ thì đó đi thì mất bao nhiêu điểm."
-        ),
-    )
-    true_map_status: str = Field(
-        default="khong-can",
-        description=(
-            "'ok' = có bản đồ cho lớp thật · 'suy-bien' = mô hình KHÔNG tìm thấy bằng "
-            "chứng nào cho lớp thật ở bất kỳ đâu (là phát hiện, không phải lỗi) · "
-            "'khong-can' = mô hình đoán đúng nên không cần bản đồ thứ hai."
-        ),
-    )
+    phase_tokens: list[str] = Field(default_factory=list, max_length=8)
+    n_slices: int = Field(ge=0)
+    pred_class_index: int | None = Field(default=None, ge=0, le=6)
+    lesion_slices: dict[str, list[int]] = Field(default_factory=dict)
     note: str = ""
 
 
@@ -280,7 +244,7 @@ class CaseDetail(BaseModel):
     volumes: list[CaseVolumeInfo]
     reference_phase: str
     provenance: Provenance
-    gradcam: GradCamInfo | None = None
+    model_heatmap: ModelHeatmapInfo | None = None
 
 
 class HealthResponse(BaseModel):
