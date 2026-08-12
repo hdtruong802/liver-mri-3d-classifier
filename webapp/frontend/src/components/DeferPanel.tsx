@@ -11,7 +11,6 @@ export function DeferPanel({ result }: { result: PredictResult }) {
         icon: <AlertTriangle className="h-6 w-6 text-warn" aria-hidden="true" />,
         shell: 'border-warn/50 bg-warn/10',
         text: 'text-warn-soft',
-        iconShell: 'bg-warn/20',
       }
     : {
         title: 'Mô hình nhận quyết ca này',
@@ -19,18 +18,15 @@ export function DeferPanel({ result }: { result: PredictResult }) {
         icon: <ShieldCheck className="h-6 w-6 text-ok" aria-hidden="true" />,
         shell: 'border-ok/40 bg-ok/5',
         text: 'text-ok-soft',
-        iconShell: 'bg-ok/20',
       };
 
   return (
     <section
       aria-labelledby="defer-heading"
-      className={`flex flex-col justify-between gap-4 rounded-panel border p-5 lg:col-span-5 ${state.shell}`}
+      className={`mt-4 rounded-frame border p-4 ${state.shell}`}
     >
       <div className="flex items-start gap-3">
-        <span className={`grid h-11 w-11 shrink-0 place-items-center rounded-control ${state.iconShell}`}>
-          {state.icon}
-        </span>
+        <div className="mt-0.5 shrink-0">{state.icon}</div>
         <div>
           <h3 id="defer-heading" className={`text-base font-bold ${state.text}`}>{state.title}</h3>
           <p className="mt-2 max-w-measure text-sm text-slate-300">{state.copy}</p>

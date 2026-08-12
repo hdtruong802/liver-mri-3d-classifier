@@ -52,8 +52,9 @@ typography:
     fontFeature: "tnum"
 rounded:
   chip: "9999px"
-  control: "0.75rem"
-  panel: "1rem"
+  control: "0.25rem"
+  panel: "0.375rem"
+  frame: "0.375rem"
 spacing:
   xs: "4px"
   sm: "8px"
@@ -63,11 +64,11 @@ spacing:
   xxl: "40px"
 components:
   panel:
-    backgroundColor: "{colors.pacs-850}"
+    backgroundColor: "transparent"
     textColor: "{colors.text-secondary}"
     typography: "{typography.body}"
-    rounded: "{rounded.panel}"
-    padding: "20px"
+    rounded: "0"
+    padding: "0"
   ruo-bar:
     backgroundColor: "{colors.pacs-900}"
     textColor: "{colors.text-muted}"
@@ -98,9 +99,9 @@ components:
 
 **Bàn đọc tối — trạm chẩn đoán hình ảnh.**
 
-Nền mực xanh đen, panel nổi nhẹ, một sắc cyan làm accent. Đây là ngôn ngữ của phòng đọc phim: màn hình tối để mắt không loá khi nhìn ảnh xám, và **ảnh MRI là thứ sáng nhất trên màn hình**.
+Nền mực xanh đen, các dải dữ liệu phẳng ngăn bằng hairline, một sắc cyan làm accent. Đây là ngôn ngữ của phòng đọc phim: màn hình tối để mắt không loá khi nhìn ảnh xám, và **ảnh MRI là thứ sáng nhất trên màn hình**.
 
-Tính cách: gọn, có nhịp, dày thông tin nhưng không chật. Panel bo góc, chiều sâu nhẹ. Chuyển động ít và chỉ để giải thích trạng thái.
+Tính cách: gọn, có nhịp, dày thông tin nhưng không chật. Dữ liệu có cấu trúc như một worklist, không như dashboard SaaS; chuyển động ít và chỉ để giải thích trạng thái.
 
 **Điều hệ này phải làm được, ngoài chuyện trông ổn:** người review nhìn màn hình phải phân biệt ngay **cái gì là dữ liệu thật, cái gì là số minh hoạ**. Chưa có checkpoint, nên mọi con số suy luận hiện tại đều là giả lập. Hệ thị giác nào làm mờ ranh giới đó là đang phản bác chính nghiên cứu.
 
@@ -181,9 +182,9 @@ Nhóm ác dùng dải ấm, nhóm lành dùng dải lạnh. Đây là tuyến m�
 
 ## Shapes & Depth
 
-Panel bo `1rem`, control bo `0.75rem`, chip bo tròn hoàn toàn. Viền `1px` màu `pacs-700` hoặc `white/10`.
+Dùng dải nền phẳng ngăn bằng hairline `1px` `pacs-700` cho worklist, kết quả và điều khiển. Không bọc từng cụm dữ liệu vào card. Control bo `0.25rem`; khung MRI và cảnh báo trạng thái bo `0.375rem`; chip bo tròn hoàn toàn chỉ dành cho trạng thái ngắn.
 
-Chiều sâu đến từ hai cấp nền cộng viền mảnh. `shadow-glow` (`0 0 24px -4px rgba(34,211,238,.45)`) chỉ dùng cho **hành động chính lúc hover** và vùng thả file đang active — không rải lên panel tĩnh.
+Khung MRI là enclosure mạnh duy nhất: nền đen, viền `pacs-600`, ảnh luôn là thứ sáng nhất. Cảnh báo `defer` là ngoại lệ được phép có nền trạng thái nhẹ. `shadow-glow` (`0 0 24px -4px rgba(34,211,238,.45)`) chỉ dùng cho **hành động chính lúc hover** và vùng thả file đang active — không rải lên nội dung tĩnh.
 
 ## Nguồn prediction và ZIP validation
 

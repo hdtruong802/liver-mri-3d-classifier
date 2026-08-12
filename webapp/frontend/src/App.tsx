@@ -6,7 +6,7 @@ import type { CaseDetail, CaseSummary, MetaResponse, PredictResult } from '@/api
 import { CaseStrip } from '@/components/CaseStrip';
 import { DeferPanel } from '@/components/DeferPanel';
 import { ProvenanceBadge } from '@/components/Provenance';
-import { MalignancyGauge, PredictionCard } from '@/components/ResultCards';
+import { ResultSummary } from '@/components/ResultCards';
 import { ResultDetailsTabs } from '@/components/ResultDetailsTabs';
 import { SliceViewer } from '@/components/SliceViewer';
 import { ZipUpload } from '@/components/ZipUpload';
@@ -44,11 +44,9 @@ export default function App() {
 
   return (
     <div className="min-h-full">
-      <header className="sticky top-0 z-30 border-b border-pacs-700 bg-pacs-900/95 backdrop-blur">
-        <div className="mx-auto flex max-w-shell items-center gap-3 px-6 py-3">
-          <span className="grid h-10 w-10 place-items-center rounded-control border border-accent/40 bg-accent/10">
-            <Stethoscope className="h-5 w-5 text-accent" aria-hidden="true" />
-          </span>
+      <header className="sticky top-0 z-30 border-b border-pacs-700 bg-pacs-900">
+        <div className="mx-auto flex max-w-shell items-center gap-2 px-6 py-3">
+          <Stethoscope className="h-5 w-5 shrink-0 text-accent" aria-hidden="true" />
           <div>
             <h1 className="text-base font-bold leading-tight text-white">
               Phân loại tổn thương gan trên MRI đa thì
@@ -68,7 +66,7 @@ export default function App() {
         {error ? (
           <div
             role="alert"
-            className="mb-6 flex items-start gap-3 rounded-panel border border-danger/50 bg-danger/10 p-4"
+            className="mb-6 flex items-start gap-3 rounded-frame border border-danger/50 bg-danger/10 p-4"
           >
             <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-danger" aria-hidden="true" />
             <p className="max-w-measure text-sm text-slate-300">{error}</p>
@@ -91,11 +89,8 @@ export default function App() {
               <ProvenanceBadge provenance={result.provenance} />
             </div>
 
-            <div className="grid grid-cols-1 gap-4 lg:grid-cols-12">
-              <PredictionCard result={result} />
-              <MalignancyGauge result={result} />
-              <DeferPanel result={result} />
-            </div>
+            <ResultSummary result={result} />
+            <DeferPanel result={result} />
 
             {detail && meta ? (
               <ResultDetailsTabs

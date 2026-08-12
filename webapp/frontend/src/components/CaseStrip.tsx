@@ -30,7 +30,7 @@ export function CaseStrip({ cases, selected, busy, onSelect }: Props) {
         </h2>
       </div>
 
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+      <div className="border-y border-pacs-700">
         {cases.map((item) => {
           const active = item.case_id === selected;
           return (
@@ -41,15 +41,17 @@ export function CaseStrip({ cases, selected, busy, onSelect }: Props) {
               aria-current={active ? 'true' : undefined}
               onClick={() => onSelect(item.case_id)}
               className={[
-                'flex flex-col items-start gap-2 rounded-panel border p-4 text-left transition',
+                'grid w-full gap-2 border-b border-pacs-700 px-4 py-3 text-left transition last:border-b-0 sm:grid-cols-[minmax(7rem,0.65fr)_minmax(0,1.5fr)_auto] sm:items-center sm:gap-4',
                 active
-                  ? 'border-accent bg-accent/10'
-                  : 'border-pacs-700 bg-pacs-850 hover:border-pacs-600',
+                  ? 'bg-pacs-900'
+                  : 'hover:bg-pacs-900/60',
                 item.available && !busy ? '' : 'cursor-not-allowed opacity-70',
               ].join(' ')}
             >
-              <span className="flex w-full flex-wrap items-center justify-between gap-2">
-                <span className="font-mono text-sm font-semibold text-white">{item.case_id}</span>
+              <span className={`font-mono text-sm font-semibold ${active ? 'text-accent-glow' : 'text-white'}`}>{item.case_id}</span>
+              <span className="text-data text-slate-300">{item.label_vi}</span>
+              <span className="flex flex-wrap items-center justify-between gap-2 sm:justify-end">
+                <span className="text-data text-slate-400">{item.source_note}</span>
                 <span
                   className={
                     active
@@ -69,15 +71,13 @@ export function CaseStrip({ cases, selected, busy, onSelect }: Props) {
                   )}
                 </span>
               </span>
-              <span className="text-data text-slate-300">{item.label_vi}</span>
-              <span className="text-data text-slate-400">{item.source_note}</span>
             </button>
           );
         })}
       </div>
 
       {noneAvailable ? (
-        <p className="mt-3 max-w-measure rounded-control border border-dashed border-pacs-600 bg-pacs-900 p-4 text-data text-slate-400">
+        <p className="workstation-inset mt-3 max-w-measure border-dashed p-4 text-data text-slate-400">
           Không ca nào có dữ liệu trên máy này. Thư mục <code className="font-mono">data/</code> nằm
           ngoài git vì chứa ảnh MRI của bệnh nhân thật. Đặt biến{' '}
           <code className="font-mono">LLDMMRI_SAMPLE_DIR</code> trỏ tới thư mục chứa 8 file{' '}

@@ -41,7 +41,7 @@ export function ResultDetailsTabs({
           className="mt-4"
         >
           {tab === 'probabilities' ? (
-            <Suspense fallback={<p className="panel p-5 text-sm text-slate-400">Đang tải biểu đồ…</p>}>
+            <Suspense fallback={<p className="workstation-section py-5 text-sm text-slate-400">Đang tải biểu đồ…</p>}>
               <ClassProbabilityChart probs={probs} />
             </Suspense>
           ) : active === 'images' ? imageExplorer : null}

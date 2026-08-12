@@ -72,7 +72,8 @@ export default {
         data: ['0.75rem', { lineHeight: '1.4' }],
         metric: ['1.875rem', { lineHeight: '1.1' }],
       },
-      borderRadius: { panel: '1rem', control: '0.75rem' },
+      // Workstation: controls remain easy to target but no longer read as soft cards.
+      borderRadius: { panel: '0.375rem', control: '0.25rem', frame: '0.375rem' },
       boxShadow: {
         // Chỉ cho hành động chính lúc hover và vùng thả file đang active.
         // Không rải lên panel tĩnh (`webapp/DESIGN.md`, mục Shapes & Depth).

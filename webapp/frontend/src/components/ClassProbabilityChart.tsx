@@ -42,7 +42,7 @@ export function ClassProbabilityChart({ probs }: { probs: ClassProbability[] }) 
     }));
 
   return (
-    <section aria-labelledby="probs-heading" className="panel p-5">
+    <section aria-labelledby="probs-heading" className="workstation-section py-5">
       <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
         <div className="flex items-center gap-2">
           <BarChart3 className="h-4 w-4 text-accent" aria-hidden="true" />
@@ -72,7 +72,7 @@ export function ClassProbabilityChart({ probs }: { probs: ClassProbability[] }) 
               axisLine={false}
               tickLine={false}
             />
-            <Bar dataKey="value" radius={[6, 6, 0, 0]} maxBarSize={56} isAnimationActive={false}>
+            <Bar dataKey="value" radius={[4, 4, 0, 0]} maxBarSize={56} isAnimationActive={false}>
               {rows.map((row) => (
                 <Cell key={row.name} fill={row.color} />
               ))}

@@ -41,7 +41,7 @@ export function ZipUpload() {
   };
 
   return (
-    <section aria-labelledby="upload-heading" className="mt-8 panel p-5">
+    <section aria-labelledby="upload-heading" className="workstation-section mt-8 py-5">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <div className="flex items-center gap-2">
@@ -67,7 +67,7 @@ export function ZipUpload() {
         aria-label="Chọn file ZIP bộ MRI"
       />
 
-      <div className="mt-5 flex flex-wrap items-center gap-3 rounded-control border border-dashed border-pacs-600 bg-pacs-950/50 p-4">
+      <div className="workstation-inset mt-5 flex flex-wrap items-center gap-3 border-dashed p-4">
         <FileUp className="h-5 w-5 shrink-0 text-accent" aria-hidden="true" />
         <div className="min-w-0 flex-1">
           <p className="truncate font-mono text-sm font-semibold text-white">

@@ -6029,3 +6029,25 @@ Không train mới. Test giữ **610 passed**, 73 skipped. Gate PASS.
 ### Kiểm chứng
 
 - `npm run typecheck`, `npm run build` và Impeccable detector: pass.
+
+---
+
+## S-145 · 2026-08-12 · codex
+
+**Mục tiêu phiên:** chuyển web app từ card dashboard sang ngôn ngữ MRI workstation.
+
+**Nhánh / commit:** `main` · *(commit theo sau entry này)*
+
+### Đã làm
+
+- Thay các panel bo lớn bằng dải dữ liệu nền phẳng, ngăn bằng hairline; control còn 4 px, khung MRI/cảnh báo 6 px, pill chỉ dùng cho trạng thái ngắn.
+- Chuyển dải ca demo thành worklist theo hàng; upload ZIP, biểu đồ xác suất và MRI viewer không còn card bọc ngoài.
+- Gộp lớp dự đoán, xác suất dự đoán và xác suất nhóm ác tính thành một docket ngang; thay donut bằng số liệu cùng thanh 2 px có semantics `progressbar`.
+- Chỉ MRI viewer giữ enclosure mạnh; các control, thì MRI, navigation lát và lesion track được phân tầng bằng hairline. `defer` vẫn là cảnh báo trạng thái nền nhẹ.
+- Cập nhật `webapp/DESIGN.md` để thiết kế bền vững với hướng workstation; giữ nguyên API, data contract và hành vi viewer.
+- Giữ nguyên các thay đổi chưa commit có sẵn trong `reports/W3_REPORT.md`, `App.tsx`, `ClassProbabilityChart.tsx`, `ResultCards.tsx` và `SliceViewer.tsx`.
+
+### Kiểm chứng
+
+- `npm run typecheck`, `npm run build`, Impeccable detector và quality gate: pass.
+- Frontend không có script hay dependency test runner; `npm test -- --run` báo thiếu script, không phải lỗi kiểm thử.

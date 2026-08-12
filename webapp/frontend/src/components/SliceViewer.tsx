@@ -173,7 +173,7 @@ export function SliceViewer({ caseId, phases, modelHeatmap, volumes }: Props) {
 
   if (available.length === 0 || !token || total <= 0) {
     return (
-      <section className="panel p-5">
+      <section className="workstation-section py-5">
         <EmptyState
           label="Chưa có ảnh MRI cho ca này"
           detail="Backend chưa tìm thấy đủ volume MRI. Kiểm tra LLDMMRI_SAMPLE_DIR trước khi xem ảnh."
@@ -193,8 +193,8 @@ export function SliceViewer({ caseId, phases, modelHeatmap, volumes }: Props) {
   const annotationAvailable = hasModelHeatmap || activeVolume?.has_mask === true;
 
   return (
-    <section aria-label="Khám phá ảnh MRI" className="panel p-5">
-      <div className="mb-4 flex flex-wrap items-center gap-2">
+    <section aria-label="Khám phá ảnh MRI" className="workstation-section">
+      <div className="flex flex-wrap items-center gap-2 border-b border-pacs-700 py-3">
         <div className="flex flex-wrap items-center gap-2">
           <Toggle
             active={showAnnotation}
@@ -230,7 +230,7 @@ export function SliceViewer({ caseId, phases, modelHeatmap, volumes }: Props) {
         </div>
       </div>
 
-      <div role="group" aria-label="Chọn thì MRI" className="mb-4 flex flex-wrap gap-2">
+      <div role="group" aria-label="Chọn thì MRI" className="flex flex-wrap gap-2 border-b border-pacs-700 py-3">
         {available.map((phase) => {
           const active = phase.file_token === token;
           return (
@@ -259,7 +259,7 @@ export function SliceViewer({ caseId, phases, modelHeatmap, volumes }: Props) {
         onPointerUp={onPointerUp}
         onPointerCancel={onPointerUp}
         style={{ aspectRatio: '1 / 1', width: 'min(100%, 72vh)' }}
-        className={`relative mx-auto touch-none select-none overflow-hidden rounded-control border border-pacs-700 bg-black ${
+        className={`workstation-frame relative mx-auto mt-4 touch-none select-none overflow-hidden bg-black ${
           zoomed ? 'cursor-grab active:cursor-grabbing' : 'cursor-default'
         }`}
       >
@@ -284,33 +284,35 @@ export function SliceViewer({ caseId, phases, modelHeatmap, volumes }: Props) {
         </p>
       )}
 
-      <div className="mt-4 flex items-center gap-3">
-        <span className="h-1.5 flex-1 overflow-hidden rounded-full bg-pacs-700" aria-hidden="true">
-          <span className="ml-auto block h-full bg-accent" style={{ width: `${total > 1 ? (before / (total - 1)) * 100 : 0}%` }} />
-        </span>
-        <div className="flex shrink-0 items-center gap-1">
-          <StepButton direction="prev" disabled={z <= 0} onClick={() => step(-1)} label="Lát trước" />
-          <span className="min-w-[4.5rem] text-center font-mono text-data font-semibold text-white">{z + 1} / {total}</span>
-          <StepButton direction="next" disabled={z >= total - 1} onClick={() => step(1)} label="Lát sau" />
+      <div className="mt-4 border-t border-pacs-700 pt-3">
+        <div className="flex items-center gap-3">
+          <span className="h-1.5 flex-1 overflow-hidden rounded-full bg-pacs-700" aria-hidden="true">
+            <span className="ml-auto block h-full bg-accent" style={{ width: `${total > 1 ? (before / (total - 1)) * 100 : 0}%` }} />
+          </span>
+          <div className="flex shrink-0 items-center gap-1">
+            <StepButton direction="prev" disabled={z <= 0} onClick={() => step(-1)} label="Lát trước" />
+            <span className="min-w-[4.5rem] text-center font-mono text-data font-semibold text-white">{z + 1} / {total}</span>
+            <StepButton direction="next" disabled={z >= total - 1} onClick={() => step(1)} label="Lát sau" />
+          </div>
+          <span className="h-1.5 flex-1 overflow-hidden rounded-full bg-pacs-700" aria-hidden="true">
+            <span className="block h-full bg-accent" style={{ width: `${total > 1 ? (after / (total - 1)) * 100 : 0}%` }} />
+          </span>
         </div>
-        <span className="h-1.5 flex-1 overflow-hidden rounded-full bg-pacs-700" aria-hidden="true">
-          <span className="block h-full bg-accent" style={{ width: `${total > 1 ? (after / (total - 1)) * 100 : 0}%` }} />
-        </span>
-      </div>
 
-      <label className="mt-3 block">
-        <span className="text-sm font-semibold text-annotation-soft">Vị trí lát</span>
-        <span className="text-data text-slate-400">. Lăn chuột để đổi lát · Ctrl + lăn để phóng to · kéo để di chuyển ảnh.</span>
-        <input
-          type="range"
-          min={0}
-          max={Math.max(total - 1, 0)}
-          value={z}
-          onChange={(event) => setZ(clamp(Number(event.target.value)))}
-          aria-label={`Lát ${z + 1} trên ${total}`}
-          className="mt-2 h-1.5 w-full appearance-none rounded-full bg-pacs-700 accent-accent"
-        />
-      </label>
+        <label className="mt-3 block">
+          <span className="text-sm font-semibold text-annotation-soft">Vị trí lát</span>
+          <span className="text-data text-slate-400">. Lăn chuột để đổi lát · Ctrl + lăn để phóng to · kéo để di chuyển ảnh.</span>
+          <input
+            type="range"
+            min={0}
+            max={Math.max(total - 1, 0)}
+            value={z}
+            onChange={(event) => setZ(clamp(Number(event.target.value)))}
+            aria-label={`Lát ${z + 1} trên ${total}`}
+            className="mt-2 h-1.5 w-full appearance-none rounded-full bg-pacs-700 accent-accent"
+          />
+        </label>
+      </div>
 
       {segments.length > 0 && (
         <LesionTrack
@@ -380,7 +382,7 @@ function LesionTrack({
   const first = segments[0][0];
   const last = segments[segments.length - 1][1];
   return (
-    <div className="mt-3">
+    <div className="mt-3 border-t border-pacs-700 pt-3">
       <div className="relative h-1.5 w-full overflow-hidden rounded-full bg-pacs-800" aria-hidden="true">
         {segments.map(([start, end]) => (
           <span

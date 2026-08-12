@@ -16,6 +16,10 @@
 @tailwind utilities;
 
 :root {
+  --surface-canvas: #070a13;
+  --surface-raised: #0b1020;
+  --surface-working: #0f1525;
+  --divider: #1c2540;
   --chart-grid: #1c2540;
   --chart-label: #94a3b8;
   --chart-value: #ffffff;
@@ -45,14 +49,16 @@
 }
 
 @layer components {
-  .panel {
-    @apply rounded-panel border border-pacs-700 bg-pacs-850;
+  .workstation-section {
+    @apply border-y border-pacs-700;
   }
-  .panel-elevated {
-    @apply rounded-panel border border-pacs-600 bg-pacs-800;
-  }
-  .inset-box {
+
+  .workstation-inset {
     @apply rounded-control border border-pacs-700 bg-pacs-900;
+  }
+
+  .workstation-frame {
+    @apply rounded-frame border border-pacs-600 bg-pacs-900;
   }
 
   .chip {
