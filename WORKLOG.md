@@ -5999,3 +5999,19 @@ Không train mới. Test giữ **610 passed**, 73 skipped. Gate PASS.
 ## S-142 · 2026-08-12 · codex
 
 **Bàn giao:** các hạng mục Impeccable audit ghi ở S-141 đã được kiểm chứng, commit và push tại `f0c5ffb` (`fix(webapp): address UI audit findings`). Worktree chỉ còn các thay đổi cục bộ có sẵn của người dùng.
+
+---
+
+## S-143 · 2026-08-12 · codex
+
+**Mục tiêu phiên:** không dùng phím điều hướng để chuyển giữa phần Dự đoán và Ảnh MRI.
+
+### Đã làm
+
+- Bỏ toàn bộ handler `Arrow`, `Home` và `End` khỏi nút đổi nội dung; các phím này không còn bị phần tab chiếm.
+- Đổi phần điều khiển này về các nút toggle chuẩn (`aria-pressed`), vẫn dùng được bằng Tab rồi Enter hoặc Space.
+- Phím điều hướng vì vậy được dành riêng cho thao tác lát MRI.
+
+### Kiểm chứng
+
+- `npm run typecheck`, `npm run build` và Impeccable detector: pass.
