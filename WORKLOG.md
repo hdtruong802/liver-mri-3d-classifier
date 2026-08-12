@@ -5993,3 +5993,9 @@ Không train mới. Test giữ **610 passed**, 73 skipped. Gate PASS.
 - Xác nhận callback dùng `firstLesionSlice` và clamp trong phạm vi lát hợp lệ.
 - Impeccable type scan: không có phát hiện.
 - `npm run typecheck`, `npm run build` và quality gate: pass (build chỉ có cảnh báo bundle đã có).
+
+---
+
+## S-142 · 2026-08-12 · codex
+
+**Bàn giao:** các hạng mục Impeccable audit ghi ở S-141 đã được kiểm chứng, commit và push tại `f0c5ffb` (`fix(webapp): address UI audit findings`). Worktree chỉ còn các thay đổi cục bộ có sẵn của người dùng.
