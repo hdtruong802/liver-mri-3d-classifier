@@ -76,11 +76,7 @@ export function SliceViewer({ caseId, phases, modelHeatmap, volumes }: Props) {
     ? modelHeatmap?.lesion_slices[token] ?? []
     : activeVolume?.mask_slices ?? [];
   const segments = useMemo(() => toSegments(lesionSlices), [lesionSlices]);
-  const lesionAnchor = useMemo(() => {
-    if (segments.length === 0) return null;
-    const longest = segments.reduce((a, b) => (b[1] - b[0] > a[1] - a[0] ? b : a));
-    return Math.round((longest[0] + longest[1]) / 2);
-  }, [segments]);
+  const firstLesionSlice = lesionSlices[0] ?? null;
 
   // The first usable view opens at the longest C-pre annotation span. Switching
   // phase preserves z: all eight artefact crops use the same E4 dimensions.
@@ -322,7 +318,7 @@ export function SliceViewer({ caseId, phases, modelHeatmap, volumes }: Props) {
           total={total}
           count={lesionSlices.length}
           onLesionSlice={onLesionSlice}
-          onJump={() => lesionAnchor !== null && setZ(clamp(lesionAnchor))}
+          onJump={() => firstLesionSlice !== null && setZ(clamp(firstLesionSlice))}
         />
       )}
     </section>
@@ -405,7 +401,7 @@ function LesionTrack({
           className="inline-flex shrink-0 items-center gap-1.5 rounded-control border border-pacs-600 bg-pacs-800 px-2.5 py-1 text-data font-semibold text-slate-300 transition hover:border-annotation hover:text-annotation-soft"
         >
           <Target className="h-3.5 w-3.5" aria-hidden="true" />
-          Đi tới tổn thương
+          Đến lát tổn thương đầu tiên
         </button>
       </div>
     </div>

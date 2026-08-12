@@ -5912,3 +5912,23 @@ Không train mới. Test giữ **610 passed**, 73 skipped. Gate PASS.
 
 - Impeccable type scan: không có phát hiện.
 - `npm run typecheck`, `npm run build` và quality gate: pass (build chỉ có cảnh báo bundle đã có).
+
+---
+
+## S-138 · 2026-08-12 · codex
+
+**Mục tiêu phiên:** làm điều hướng vùng tổn thương trong MRI viewer đúng với nhãn nút.
+
+**Nhánh / commit:** `main` · *(commit theo sau entry này)*
+
+### Đã làm
+
+- Nút điều hướng giờ nhảy đến **lát đầu tiên có tổn thương** của thì MRI đang xem, thay vì lát giữa của đoạn tổn thương dài nhất.
+- Đổi nhãn nút thành **“Đến lát tổn thương đầu tiên”** để nêu đúng điểm đến.
+- Giữ nguyên cách chọn lát ban đầu khi mở viewer và các thay đổi chưa commit có sẵn của người dùng trong `SliceViewer.tsx`.
+
+### Kiểm chứng
+
+- Xác nhận callback dùng `firstLesionSlice` và clamp trong phạm vi lát hợp lệ.
+- Impeccable type scan: không có phát hiện.
+- `npm run typecheck`, `npm run build` và quality gate: pass (build chỉ có cảnh báo bundle đã có).
