@@ -1,6 +1,7 @@
 # E6b — GIỮ augmentation hình học của E6, TẮT nhiễu cường độ.
 #
-#   notebooks/09_cv_runner.ipynb  với  SCOPE = "data.augment."
+#   python -m src.train.run --config configs/e6b_geom_only.yaml --fold 1
+#   (runner chung 09_cv_runner đã xoá ở S-168)
 #
 # ---------------------------------------------------------------------------
 # VÌ SAO CÓ THÍ NGHIỆM NÀY: E6 gộp hai thứ, và số liệu nói chúng đi ngược nhau

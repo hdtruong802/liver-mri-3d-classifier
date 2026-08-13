@@ -1,6 +1,7 @@
 # CGHNET — TÁI LẬP TỪ BÀI BÁO. Mục tiêu đối chiếu: macro-F1 0.818 trên test-104.
 #
-#   notebooks/19_cghnet.ipynb   (cần cache của configs/preprocess_cghnet.yaml)
+#   python -m src.train.run --config configs/cghnet.yaml --fold 1
+#   (cần cache của configs/preprocess_cghnet.yaml; notebook riêng đã xoá ở S-168)
 #
 # Nguồn: Li và cs., "CGHNet: Cross-Guided 2D-3D Hybrid Network with attention mechanism
 # for focal liver lesion classification", Comput Med Imaging Graph 132 (2026) 102780,

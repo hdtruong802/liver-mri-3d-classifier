@@ -47,7 +47,7 @@ model:
   #
   # Chi phí: (2,2,1) giảm voxel 4 lần, không phải 8. Với 8 lượt forward, E2 tốn
   # khoảng 2× E1, tức ~8h/fold. Vẫn lọt session 12h, nhưng vượt ngân sách 6h/fold
-  # của notebook 03 — notebook 04 đặt lại ngưỡng 9h kèm lý do.
+  # của baseline; E2 nâng ngưỡng lên 9h kèm lý do (hai notebook đó đã xoá ở S-167).
   #
   # ⚠️ BIẾN GÂY NHIỄU: E2 là "Siamese ở nửa độ phân giải trong mặt phẳng" so với E1
   # là "early-concat ở đủ độ phân giải". E2 thắng => kết luận mạnh (thắng dù bị

@@ -2,7 +2,8 @@
 # Sinh từ baseline_3dpatch.yaml. Khác ĐÚNG BA KHOÁ: data.mixup_alpha,
 # loss.label_smoothing, output_dir.
 #
-#   notebooks/09_cv_runner.ipynb  với  CONFIG_NAME = "e14_mixup.yaml", SCOPE = ""
+#   python -m src.train.run --config configs/e14_mixup.yaml --fold 1
+#   (runner chung 09_cv_runner đã xoá ở S-168)
 #   (config này đổi cả `data.` và `loss.` nên không dùng SCOPE một khối được)
 #
 # ---------------------------------------------------------------------------

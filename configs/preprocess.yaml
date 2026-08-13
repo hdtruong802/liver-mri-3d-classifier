@@ -13,7 +13,8 @@ kaggle_dataset_version: 1
 #   độ tán trong mặt phẳng, trung vị: xy 12.4mm · yx 17.8mm
 # Phân rã theo trục cho thấy X là chỗ khác biệt (7.4mm với 'xy' so với 13.9mm với
 # 'yx'), còn Z giống hệt nhau (23.3mm — chuyển động hô hấp, không liên quan trục).
-# Vẫn nên xác nhận bằng overlay (notebook 02 mục 2) trước khi build cả mẻ.
+# Vẫn nên xác nhận bằng overlay trước khi build cả mẻ — `notebooks/01_eda.ipynb` mục 5
+# (tầng 3 chồng bbox lên lát giữa) là chỗ làm việc đó bằng mắt.
 axis_order: xy
 
 # --- Pha tham chiếu: định hướng + tâm của lưới đích ---

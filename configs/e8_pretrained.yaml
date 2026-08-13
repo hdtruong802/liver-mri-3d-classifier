@@ -1,7 +1,9 @@
 # E8 — ResNet-3D nạp trọng số MedicalNet. Đổi KIẾN TRÚC nên khác baseline nhiều
 # hơn một khối; đây là ngoại lệ có chủ ý, không phải sơ suất.
 #
-#   notebooks/09_cv_runner.ipynb  với  SCOPE = "model."
+#   python -m src.train.run --config configs/e8_pretrained.yaml --fold 1
+#   (notebook riêng 16_e8_pretrained đã xoá ở S-168; nó tự tải trọng số MedicalNet,
+#    đường CLI thì cần env LLDMMRI_PRETRAINED_PATH trỏ tới file đã tải)
 #
 # ---------------------------------------------------------------------------
 # VÌ SAO: 316 ca train là rất ít để train một mạng 3D từ đầu

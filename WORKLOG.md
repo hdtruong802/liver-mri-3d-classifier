@@ -6729,3 +6729,81 @@ Không notebook nào trong 5 cái được `AGENTS.md §6`, `configs/` hay `src/
 **Điểm vào phiên sau:** không có việc treo. 15 notebook còn lại đều được `AGENTS.md §6` trỏ tới, trừ `01_eda` (docs trỏ) và `06` (giữ có lý do ở trên).
 
 **Cảnh báo cho tool sau:** đừng dùng số lần xuất hiện trong `WORKLOG.md` để đánh giá notebook còn dùng hay không — WORKLOG là append-only nên nó nhắc **mọi** notebook từng tồn tại. Chỉ `AGENTS.md §6`, `configs/` và `src/` mới nói được cái gì còn sống.
+
+---
+
+## S-168 · 2026-08-13 · claude-code
+
+**Mục tiêu phiên:** notebook 20 (UniFormer + Kinetics) đã cho kết quả tốt, nên xoá hết notebook train theo phương pháp cũ. Quyết định của người dùng.
+
+**Nhánh / commit:** `main` · `a2f08c0` → *(commit của phiên này)*
+
+**Đã đụng file:** xoá 7 notebook; `AGENTS.md` §6 (bỏ 5 dòng, thêm 1 dòng); 13 file `configs/*.yaml`; `src/eval/run.py`; `src/models/densenet3d.py`; 4 notebook còn lại (sửa tham chiếu chéo).
+
+### Đã xoá 7 — mọi notebook TRAIN trừ 20 và 21
+
+| notebook | train gì |
+|---|---|
+| `06_e4_per_phase_align` | E4 DenseNet, và dựng cache E4 |
+| `09_cv_runner` | runner chung cho cả họ DenseNet |
+| `14_e12_randomcrop` | E12, chưa từng chạy |
+| `15_build_cache_e12` | cache E12 — chết theo 14, không ai khác dùng |
+| `16_e8_pretrained` | E8 MedicalNet, chưa từng chạy |
+| `17_e13_siamese` | E13 Siamese, chưa từng chạy |
+| `19_cghnet` | CGHNet — đã bị bác (P=0.46) và số của nó là của bản CÓ LỖI `pos_embed` |
+
+### Còn 8, và vì sao từng cái ở lại
+
+| | vai trò |
+|---|---|
+| `20_uniformer` · `21_intra_mixup` | hướng đang theo |
+| **`18_build_cache_cghnet`** | ⚠️ **notebook 20 và 21 MOUNT đúng cache này.** Xoá nó là phá chính thứ đang giữ |
+| `08_mc_dropout` · `11_tta_e4` · `12_test104` | **inference thuần**, không train. Cả ba đã sinh ra kết quả có trong báo cáo |
+| `11_model_heatmaps` | inference cho web app |
+| `01_eda` | nguồn duy nhất của biểu đồ mô tả dữ liệu cho report |
+
+### ⚠️ Cái thật sự mất: đường dựng lại cache E4
+
+`06` và `09` là hai notebook duy nhất dựng được cache E4. **Bốn** notebook còn lại (`08`, `11_tta_e4`, `11_model_heatmaps`, `12_test104`) và **web app** đều dùng cache đó — nhưng chúng chỉ **mount**, không build. Nên:
+
+- Kaggle Dataset chứa cache E4 còn sống ⇒ cả bốn vẫn chạy bình thường.
+- Dataset đó mất ⇒ phải dựng lại bằng `python -m src.preprocess.build_cache --config configs/preprocess_e4.yaml`. Đã thêm hẳn một dòng vào `AGENTS.md §6` cho việc này, kèm cách nhanh nhất trên Kaggle: sao `18_build_cache_cghnet` (wrapper mỏng, Accelerator = None) rồi đổi config.
+
+Cũng mất **cổng A2** của `06` — phép đo `max_shift_mm` xác nhận phép căn từng pha *thật sự dịch*. Phép căn đã được xác nhận một lần và số nằm ở S-031, nên cổng đó chỉ còn giá trị nếu ai đó làm một cấu hình căn **mới**.
+
+### 21 tham chiếu treo, đã sửa hết — thay bằng lệnh CLI, không xoá dòng
+
+Xoá dòng thì mất luôn thông tin "chạy cái này bằng gì". Nên mỗi chỗ được thay bằng đường CLI tương đương, thứ vẫn chạy thật và không phụ thuộc notebook nào:
+
+- 8 config (`cghnet`, `cghnet_mixup`, `e13_siamese_pretrained`, `e14_mixup`, `e6b_geom_only`, `e7_ema`, `e8_pretrained`, `e9_e6b_ema`) → `python -m src.train.run --config <cfg> --fold N`
+- 4 config `preprocess*` → trỏ overlay xác nhận sang `01_eda` mục 5 (đúng chỗ còn làm việc đó)
+- `preprocess_cghnet.yaml` "cổng cache của notebook 19" → notebook **18**
+- `src/eval/run.py` bỏ tham chiếu cell TTA của 09; `src/models/densenet3d.py` trỏ sang `src/train/sanity.py`
+- `08`, `11_tta_e4`, `12_test104` bỏ câu "Giống notebook 07"
+- **`18_build_cache_cghnet` đang bảo người dùng "sau khi có Dataset thì mở `19_cghnet`"** — đã đổi sang `20_uniformer`, tức chỗ thật sự dùng cache này
+
+Đã quét lại toàn repo (`AGENTS.md`, `docs/`, `configs/`, `src/`, `scripts/`, `tests/`, `notebooks/`): **không còn tham chiếu treo nào.**
+
+### ⚠️ Hệ quả chưa xử lý: 13 config không còn notebook runner
+
+`baseline_3dpatch`, `e5_focal`, `e6_aug`, `e6b_geom_only`, `e7_ema`, `e8_pretrained`, `e9_e6b_ema`, `e12_randomcrop`, `e2_siamese`, `e13_siamese_pretrained`, `e14_mixup`, `cghnet`, `cghnet_mixup` giờ chỉ chạy được qua CLI. **Không xoá config** — người dùng chỉ yêu cầu xoá notebook, và các config này là hồ sơ recipe của những kết quả đã báo (`baseline_3dpatch` còn bị `tests/test_protocol_conformance.py` khoá).
+
+⚠️ Nhưng mấy notebook bị xoá mang theo những **cổng chặn** mà đường CLI **không có**: cổng đo hình dạng thật đi vào encoder (`17`), cổng phân biệt cache E4 với cache E12 (`16`), cổng diff config so với baseline và cổng ngân sách (`09`), cổng đo tỉ lệ voxel 0 ở rìa (`14`). Ai chạy lại các config đó bằng CLI thì **không có gì chặn** những lỗi im lặng ấy.
+
+### Kết quả / số liệu
+
+**586 passed, 81 skipped** (trước 607/81). Mất đúng **21** test và đã truy ra nguồn: `tests/test_notebook_contract.py` 47 → 26, tức 3 test/notebook × 7. Không test nào đỏ. `ruff check` sạch. Gate PASS.
+
+### Dang dở
+
+- [ ] Fold 4 của `uniformer_s` (6.5h) để đủ 5 fold.
+- [ ] Fold 1 của `21_intra_mixup` (6.5h).
+- [ ] Trustworthiness trên UniFormer; bảng ablation + Holm; README, report, slide.
+
+**Điểm vào phiên sau:** không có việc treo.
+
+**Cảnh báo cho tool sau:**
+
+- **`18_build_cache_cghnet` là bắt buộc**, đừng xoá theo quán tính "CGHNet đã bị bác" — cache của nó là cache mà notebook 20 và 21 dùng.
+- **Cache E4 không còn notebook nào dựng được.** Xem dòng "Build LẠI cache E4" ở `AGENTS.md §6` trước khi kết luận là mất.
+- Mọi file đã xoá vẫn lấy lại được từ git history (`git show a2f08c0:notebooks/09_cv_runner.ipynb`).

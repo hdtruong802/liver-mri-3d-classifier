@@ -1,7 +1,9 @@
 # E13 — SIAMESE đa pha + encoder ResNet18-3D nạp MedicalNet, ở ĐỦ độ phân giải.
 # Sinh từ baseline_3dpatch.yaml. Khác duy nhất trong khối `model:` (+ output_dir).
 #
-#   notebooks/17_e13_siamese.ipynb   với  SCOPE = "model."
+#   python -m src.train.run --config configs/e13_siamese_pretrained.yaml --fold 1
+#   (notebook riêng đã xoá ở S-168 — nó có cổng đo hình dạng thật đi vào encoder,
+#    phép kiểm đó KHÔNG có trong đường CLI; xem WORKLOG S-168)
 #
 # ---------------------------------------------------------------------------
 # VÌ SAO: cách hợp nhất 8 thì là đòn bẩy lớn duy nhất còn lại

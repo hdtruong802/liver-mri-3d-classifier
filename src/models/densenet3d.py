@@ -63,7 +63,7 @@ def build_densenet3d(
     - ``group`` — không có nhược điểm đó (chuẩn hoá theo *nhóm* kênh nên mean từng
       kênh vẫn khác nhau), nhưng **chưa có số**.
 
-    Đo bằng mục 1b của notebook 03 (~30 giây/phương án) thay vì suy luận tiếp.
+    Đo bằng `src/train/sanity.py` (~30 giây/phương án) thay vì suy luận tiếp.
     """
     from monai.networks.nets import DenseNet121
 

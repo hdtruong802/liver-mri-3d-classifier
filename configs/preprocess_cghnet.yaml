@@ -47,7 +47,7 @@
 # AvgPool3d(kernel=2) (WORKLOG S-063). CGHNet dùng ViT + CNN nên không vướng."
 #
 # Cache này CHỈ dùng cho configs/cghnet.yaml. Nạp nó vào một config DenseNet121 sẽ nổ
-# ở giữa mạng với thông báo không nói gì về nguyên nhân. Cổng cache của notebook 19
+# ở giữa mạng với thông báo không nói gì về nguyên nhân. Cổng cache của notebook 18
 # phân biệt ba cache bằng target_size + crop_margin_voxels:
 #
 #     cache E4       target_size [112,112,32]  lề none        mảng (8,112,112,32)

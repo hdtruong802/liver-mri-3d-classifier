@@ -1,7 +1,8 @@
 # E7 — EMA (trung bình trượt trọng số). Chép từ baseline_3dpatch.yaml, chỉ đổi
 # `train.ema_decay` và `output_dir`.
 #
-#   notebooks/09_cv_runner.ipynb  với  SCOPE = "train.ema_decay"
+#   python -m src.train.run --config configs/e7_ema.yaml --fold 1
+#   (runner chung 09_cv_runner đã xoá ở S-168)
 #
 # ---------------------------------------------------------------------------
 # VÌ SAO: không phải "EMA thường tốt hơn", mà vì MỘT CON SỐ ĐÃ ĐO

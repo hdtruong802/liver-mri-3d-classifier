@@ -35,7 +35,7 @@ from src.utils.io import resolve_repo_path
 BEST = "val_probs_best.npz"
 LAST = "val_probs_last.npz"
 # Sinh bởi `notebooks/11_tta_e4.ipynb` (chạy trên checkpoint đã có) hoặc cell TTA của
-# `notebooks/09_cv_runner.ipynb` (ngay sau khi train). Vắng mặt là bình thường —
+# một cell TTA chạy ngay sau khi train. Vắng mặt là bình thường —
 # `report` bỏ qua nhãn nào không có file, không nổ.
 TTA = "val_probs_best_tta.npz"
 

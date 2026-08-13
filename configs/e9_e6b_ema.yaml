@@ -1,6 +1,7 @@
 # E9 — E6b + EMA. Bước MỘT BIẾN tiếp theo trong chuỗi, không phải nhảy cóc.
 #
-#   notebooks/09_cv_runner.ipynb  với  SCOPE = "train.ema_decay"
+#   python -m src.train.run --config configs/e9_e6b_ema.yaml --fold 1
+#   (runner chung 09_cv_runner đã xoá ở S-168)
 #
 # ---------------------------------------------------------------------------
 # CHUỖI ABLATION — mỗi bước đổi đúng một thứ so với bước trước
@@ -39,7 +40,7 @@
 
 # (kế thừa từ E6b — augmentation hình học, không nhiễu cường độ)
 #
-#   notebooks/09_cv_runner.ipynb  với  SCOPE = "data.augment."
+#   python -m src.train.run --config configs/e9_e6b_ema.yaml --fold 1
 #
 # ---------------------------------------------------------------------------
 # VÌ SAO CÓ THÍ NGHIỆM NÀY: E6 gộp hai thứ, và số liệu nói chúng đi ngược nhau
