@@ -1,98 +1,194 @@
-import { useCallback, useEffect, useState } from 'react';
-import { AlertTriangle, Stethoscope } from 'lucide-react';
+import { useCallback, useEffect, useRef, useState, type ChangeEvent } from 'react';
+import { AlertTriangle, FilePlus2, PanelLeftClose, PanelLeftOpen, Stethoscope } from 'lucide-react';
 
-import { ApiError, getMeta } from '@/api/client';
-import type { MetaResponse, PredictResult, UploadViewInfo } from '@/api/types';
+import { ApiError, getMeta, predictUpload } from '@/api/client';
+import type { MetaResponse, PredictResult, UploadPredictionResult, UploadViewInfo } from '@/api/types';
+import { ClassProbabilityChart } from '@/components/ClassProbabilityChart';
 import { DeferPanel } from '@/components/DeferPanel';
-import { ProvenanceBadge } from '@/components/Provenance';
+import { EmptyState, ProvenanceBadge } from '@/components/Provenance';
 import { ResultSummary } from '@/components/ResultCards';
-import { ResultDetailsTabs } from '@/components/ResultDetailsTabs';
 import { SliceViewer } from '@/components/SliceViewer';
-import { ZipUpload } from '@/components/ZipUpload';
+import { ThemeToggle } from '@/components/ThemeToggle';
+import { UploadDropzone, UploadPanel } from '@/components/UploadWorkspace';
+
+type MobileView = 'data' | 'images' | 'results';
+
+function toMessage(cause: unknown): string {
+  return cause instanceof ApiError ? cause.message : 'Không thể xử lý bộ MRI này. Hãy kiểm tra lại file ZIP rồi thử lại.';
+}
 
 export default function App() {
+  const archiveInputRef = useRef<HTMLInputElement>(null);
   const [meta, setMeta] = useState<MetaResponse | null>(null);
+  const [metaError, setMetaError] = useState<string | null>(null);
+  const [archive, setArchive] = useState<File | null>(null);
+  const [uploadResult, setUploadResult] = useState<UploadPredictionResult | null>(null);
   const [uploadView, setUploadView] = useState<UploadViewInfo | null>(null);
-  const [result, setResult] = useState<PredictResult | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const [prediction, setPrediction] = useState<PredictResult | null>(null);
+  const [uploadError, setUploadError] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [leftCollapsed, setLeftCollapsed] = useState(false);
+  const [mobileView, setMobileView] = useState<MobileView>('images');
 
   useEffect(() => {
-    getMeta()
-      .then(setMeta)
-      .catch((cause: ApiError) => setError(cause.message));
+    getMeta().then(setMeta).catch((cause: unknown) => setMetaError(toMessage(cause)));
   }, []);
 
-  const showUploadPrediction = useCallback((prediction: PredictResult, view: UploadViewInfo) => {
-    setUploadView(view);
-    setResult(prediction);
-    setError(null);
-  }, []);
+  const chooseArchive = useCallback(() => archiveInputRef.current?.click(), []);
+
+  const selectArchive = (event: ChangeEvent<HTMLInputElement>) => {
+    const selected = event.target.files?.[0] ?? null;
+    if (!selected) return;
+    setArchive(selected);
+    setUploadResult(null);
+    setUploadView(null);
+    setPrediction(null);
+    setUploadError(null);
+    setMobileView('data');
+    event.target.value = '';
+  };
+
+  const runInference = async () => {
+    if (!archive || busy) return;
+    setBusy(true);
+    setUploadError(null);
+    setPrediction(null);
+    setUploadView(null);
+    try {
+      const response = await predictUpload(archive);
+      setUploadResult(response);
+      if (response.prediction && response.upload_view) {
+        setPrediction(response.prediction);
+        setUploadView(response.upload_view);
+        setMobileView('images');
+      } else {
+        setMobileView('data');
+      }
+    } catch (cause) {
+      setUploadResult(null);
+      setUploadError(toMessage(cause));
+      setMobileView('data');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const sessionName = prediction?.case_id ?? archive?.name ?? 'Chưa có bộ MRI';
 
   return (
-    <div className="min-h-full">
-      <header className="sticky top-0 z-30 border-b border-pacs-700 bg-pacs-900">
-        <div className="mx-auto flex max-w-shell items-center gap-2 px-6 py-3">
-          <Stethoscope className="h-5 w-5 shrink-0 text-accent" aria-hidden="true" />
+    <div className="app-shell">
+      <header className="topbar">
+        <div className="topbar__brand">
+          <span className="brand-mark"><Stethoscope aria-hidden="true" /></span>
           <div>
-            <h1 className="text-base font-bold leading-tight text-white">
-              Phân loại tổn thương gan trên MRI đa thì
-            </h1>
-            <p className="text-data text-slate-400">Bản demo nghiên cứu</p>
+            <h1>Phân loại tổn thương gan trên MRI đa thì</h1>
+            <p>Bản demo nghiên cứu</p>
           </div>
         </div>
-        <div className="border-t border-pacs-700 bg-pacs-950">
-          <p className="mx-auto flex max-w-shell items-center gap-2 px-6 py-2 label text-slate-400">
-            {/* <span className="inline-block h-2 w-2 border border-slate-400" aria-hidden="true" /> */}
-            {meta?.ruo_notice ?? 'Research Use Only: chưa kiểm định lâm sàng'}, không dùng để chẩn đoán
-          </p>
+        <p className="topbar__session" title={sessionName}>{sessionName}</p>
+        <div className="topbar__actions">
+          <ThemeToggle />
+          <button type="button" className="primary-button topbar__new-upload" onClick={chooseArchive} disabled={busy} aria-label="Tải bộ MRI mới">
+            <FilePlus2 aria-hidden="true" />
+            <span>Tải bộ MRI mới</span>
+          </button>
         </div>
       </header>
+      <div className="ruo-bar">
+        {meta?.ruo_notice ?? 'Research Use Only: chưa kiểm định lâm sàng'}, không dùng để chẩn đoán
+      </div>
 
-      <main className="mx-auto max-w-shell px-6 py-6">
-        {error ? (
-          <div
-            role="alert"
-            className="mb-6 flex items-start gap-3 rounded-[6px] border border-danger/50 bg-danger/10 p-4"
+      <input
+        ref={archiveInputRef}
+        className="sr-only"
+        type="file"
+        accept=".zip,application/zip"
+        onChange={selectArchive}
+        aria-label="Chọn file ZIP bộ MRI"
+      />
+
+      <nav className="workspace-tabs" aria-label="Điều hướng workspace">
+        <WorkspaceTab active={mobileView === 'data'} onClick={() => setMobileView('data')}>Dữ liệu</WorkspaceTab>
+        <WorkspaceTab active={mobileView === 'images'} onClick={() => setMobileView('images')}>Ảnh MRI</WorkspaceTab>
+        <WorkspaceTab active={mobileView === 'results'} onClick={() => setMobileView('results')}>Kết quả</WorkspaceTab>
+      </nav>
+
+      <main className="workspace">
+        <aside className={`workspace-data ${leftCollapsed ? 'workspace-data--collapsed' : ''} ${mobileView === 'data' ? 'is-mobile-active' : ''}`}>
+          <button
+            type="button"
+            className="panel-collapse-control"
+            onClick={() => setLeftCollapsed((value) => !value)}
+            aria-label={leftCollapsed ? 'Hiện panel dữ liệu' : 'Thu gọn panel dữ liệu'}
+            title={leftCollapsed ? 'Hiện panel dữ liệu' : 'Thu gọn panel dữ liệu'}
           >
-            <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-danger" aria-hidden="true" />
-            <p className="max-w-measure text-sm text-slate-300">{error}</p>
+            {leftCollapsed ? <PanelLeftOpen aria-hidden="true" /> : <PanelLeftClose aria-hidden="true" />}
+          </button>
+          <div className="workspace-data__content">
+            {metaError ? <StatusError message={metaError} /> : null}
+            <UploadPanel
+              archive={archive}
+              result={uploadResult}
+              busy={busy}
+              error={uploadError}
+              onChoose={chooseArchive}
+              onRun={runInference}
+            />
           </div>
-        ) : null}
+        </aside>
 
-        {meta ? <ZipUpload onPrediction={showUploadPrediction} /> : null}
+        <section className={`workspace-viewer ${mobileView === 'images' ? 'is-mobile-active' : ''}`} aria-label="Không gian xem ảnh MRI">
+          {uploadView && meta ? (
+            <SliceViewer
+              caseId={uploadView.upload_id}
+              phases={meta.phases}
+              modelHeatmap={null}
+              volumes={uploadView.volumes}
+              source="upload"
+            />
+          ) : (
+            <UploadDropzone archive={archive} busy={busy} onChoose={chooseArchive} onRun={runInference} />
+          )}
+        </section>
 
-        {result ? (
-          <section aria-labelledby="results-heading" className="mt-8 animate-fade-in">
-            <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-              <div>
-                <p className="label">Bộ MRI đã tải lên</p>
-                <h2 id="results-heading" className="font-mono text-lg font-bold text-white">
-                  {result.case_id}
-                </h2>
+        <aside className={`workspace-results ${mobileView === 'results' ? 'is-mobile-active' : ''}`}>
+          {prediction ? (
+            <div className="results-panel animate-fade-in">
+              <div className="results-panel__heading">
+                <div>
+                  <h2>Kết quả AI</h2>
+                  <p>{prediction.case_id}</p>
+                </div>
+                <ProvenanceBadge provenance={prediction.provenance} />
               </div>
-              <ProvenanceBadge provenance={result.provenance} />
+              <ResultSummary result={prediction} />
+              <ClassProbabilityChart probs={prediction.probs} />
+              <DeferPanel result={prediction} />
             </div>
-
-            <ResultSummary result={result} />
-            <DeferPanel result={result} />
-
-            {uploadView && meta ? (
-              <ResultDetailsTabs
-                probs={result.probs}
-                imageExplorer={
-                  <SliceViewer
-                    caseId={uploadView.upload_id}
-                    phases={meta.phases}
-                    modelHeatmap={null}
-                    volumes={uploadView.volumes}
-                    source="upload"
-                  />
-                }
-              />
-            ) : null}
-          </section>
-        ) : null}
+          ) : (
+            <div className="results-empty">
+              <EmptyState label={busy ? 'AI đang xử lý bộ MRI' : 'Chưa có kết quả'} detail={busy ? 'Ảnh sẽ xuất hiện ngay khi suy luận hoàn tất.' : 'Tải bộ MRI để xem dự đoán và xác suất từng lớp.'} />
+            </div>
+          )}
+        </aside>
       </main>
+    </div>
+  );
+}
+
+function WorkspaceTab({ active, onClick, children }: { active: boolean; onClick: () => void; children: string }) {
+  return (
+    <button type="button" aria-pressed={active} onClick={onClick} className={active ? 'is-active' : ''}>
+      {children}
+    </button>
+  );
+}
+
+function StatusError({ message }: { message: string }) {
+  return (
+    <div className="status-message status-message--danger" role="alert">
+      <AlertTriangle aria-hidden="true" />
+      <p>{message}</p>
     </div>
   );
 }

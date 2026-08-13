@@ -6221,3 +6221,41 @@ Không train mới. Test giữ **610 passed**, 73 skipped. Gate PASS.
 **Điểm vào phiên sau:** Không có việc treo. Bước kế tiếp đề xuất: kiểm thử một ZIP MRI+mask thật qua luồng UI duy nhất.
 
 **Cảnh báo cho tool sau:** Component và API demo có thể vẫn tồn tại làm compatibility/backend fixture, nhưng không được gắn lại vào frontend nếu chưa có yêu cầu rõ ràng.
+
+---
+
+## S-153 · 2026-08-13 15:47 · codex
+
+**Mục tiêu phiên:** chuyển UI upload trực tiếp sang MRI workstation 3 cột, học bố cục và dual theme của C2-App-061.
+
+**Nhánh / commit:** `main` · `200e61c` → *(commit theo sau entry này)*
+
+**Đã đụng file:**
+
+- `webapp/frontend/src/App.tsx`, `components/UploadWorkspace.tsx`, `components/ThemeToggle.tsx` — dựng shell 3 cột, một trạng thái ZIP dùng chung cho header/panel/dropzone, theme switch và tab mobile.
+- `webapp/frontend/src/components/{SliceViewer,ResultCards,ClassProbabilityChart,DeferPanel,Provenance}.tsx` — viewer là vùng chính, điều hướng lát bằng phím khi focus, xác suất là danh sách thanh ngang và copy live inference trung tính.
+- `webapp/frontend/src/index.css`, `index.html`, `tailwind.config.js`, `webapp/DESIGN.md` — token semantic dual theme, bootstrap chống flash theme và mô tả design system mới.
+- `webapp/frontend/package*.json`, `vite.config.ts` — bỏ `recharts` và `@fontsource/inter`; biểu đồ cũ/chunk cũ không còn cần thiết.
+- `webapp/frontend/src/components/{ZipUpload,CaseStrip,ResultDetailsTabs}.tsx` — xoá các component UI không còn được render sau refactor upload-only.
+
+**Quyết định & lý do:**
+
+- Viewer MRI nguồn luôn ở cột giữa và dùng dark scope cố định — người xem cần ảnh là vùng sáng/trọng tâm kể cả với light theme.
+- Chỉ panel trái được thu gọn ở desktop; panel kết quả giữ cố định để prediction không bị mất trong lúc đọc ảnh.
+- Default mobile là tab Ảnh MRI; lựa chọn/tải ZIP và lỗi chuyển sang Dữ liệu. Phím mũi tên chỉ điều hướng lát khi khung ảnh focus.
+- Dùng system medical sans `Segoe UI Variable` thay Inter — detector Impeccable báo Inter quá phổ biến; JetBrains Mono giữ cho số liệu và tên file.
+
+**Kết quả / số liệu:**
+
+- Kiểm tra trực quan 1920×1080 và 390×844: desktop ba cột, light/dark switch, RUO không tràn và mobile tabs hoạt động.
+- `npm run typecheck`, `npm run build`: pass.
+- `tests/test_webapp_api.py tests/test_webapp_volumes.py`: 47 passed (một cảnh báo quyền ghi `.pytest_cache` đã có).
+- Impeccable v4.0.4 detector và `quality-gate.ps1`: pass.
+
+**Dang dở:**
+
+- [ ] Không có việc treo.
+
+**Điểm vào phiên sau:** Không có việc treo. Bước kế tiếp đề xuất: tải một ZIP MRI+mask thật để kiểm trực quan ảnh nguồn, phase switch và annotation trong layout mới.
+
+**Cảnh báo cho tool sau:** Ảnh upload phụ thuộc cache RAM backend tối đa 30 phút; nếu viewer trả 404 phải hướng dẫn tải ZIP lại, không persist NIfTI hoặc đổi viewer thành crop UniFormer.

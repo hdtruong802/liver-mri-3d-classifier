@@ -9,6 +9,16 @@
       content="Research Use Only. Demo phân loại tổn thương gan trên MRI 3D đa thì, chưa kiểm định lâm sàng."
     />
     <title>Phân loại tổn thương gan trên MRI đa thì — bản demo research</title>
+    <script>
+      (() => {
+        const key = 'liver-mri-ui-theme';
+        const stored = localStorage.getItem(key);
+        const theme = stored === 'light' || stored === 'dark'
+          ? stored
+          : window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+        document.documentElement.classList.add(`theme-${theme}`);
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>

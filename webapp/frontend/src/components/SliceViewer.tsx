@@ -174,7 +174,7 @@ export function SliceViewer({ caseId, phases, modelHeatmap, volumes, source = 'd
 
   if (available.length === 0 || !token || total <= 0) {
     return (
-      <section className="workstation-section py-5">
+      <section className="mri-viewer mri-viewer--empty">
         <EmptyState
           label="Chưa có ảnh MRI cho ca này"
           detail="Backend chưa tìm thấy đủ volume MRI. Kiểm tra LLDMMRI_SAMPLE_DIR trước khi xem ảnh."
@@ -196,16 +196,16 @@ export function SliceViewer({ caseId, phases, modelHeatmap, volumes, source = 'd
   const annotationAvailable = hasModelHeatmap || activeVolume?.has_mask === true;
 
   return (
-    <section aria-label="Khám phá ảnh MRI" className="workstation-section">
-      <div className="flex flex-wrap items-center gap-2 border-b border-pacs-700 py-3">
-        <div className="flex flex-wrap items-center gap-2">
+    <section aria-label="Khám phá ảnh MRI" className="mri-viewer">
+      <div className="viewer-toolbar">
+        <div className="viewer-toolbar__controls">
           <Toggle
             active={showAnnotation}
             onClick={() => setShowAnnotation((value) => !value)}
             icon={Scan}
             activeLabel="Đang hiện vùng tổn thương"
             inactiveLabel="Hiện vùng tổn thương"
-            activeClass="border-annotation bg-annotation/15 text-annotation-soft"
+            tone="annotation"
             title="Nhãn dataset do người chú giải khoanh, không phải output segmentation của model"
             disabled={!annotationAvailable}
           />
@@ -216,7 +216,7 @@ export function SliceViewer({ caseId, phases, modelHeatmap, volumes, source = 'd
               icon={Flame}
               activeLabel="Đang hiện heatmap"
               inactiveLabel="Hiện heatmap"
-              activeClass="border-attention bg-attention/15 text-attention-soft"
+              tone="attention"
               title="Độ nhạy cục bộ của model với lớp đã dự đoán"
             />
           )}
@@ -224,7 +224,7 @@ export function SliceViewer({ caseId, phases, modelHeatmap, volumes, source = 'd
             <button
               type="button"
               onClick={resetView}
-              className="inline-flex min-h-11 items-center gap-1.5 rounded-control border border-pacs-600 bg-pacs-800 px-2.5 py-1 text-data font-semibold text-slate-300 transition hover:border-accent hover:text-accent-glow"
+              className="viewer-control"
             >
               <Maximize2 className="h-3.5 w-3.5" aria-hidden="true" />
               Vừa khung ({scale.toFixed(1)}×)
@@ -233,7 +233,7 @@ export function SliceViewer({ caseId, phases, modelHeatmap, volumes, source = 'd
         </div>
       </div>
 
-      <div role="group" aria-label="Chọn thì MRI" className="flex flex-wrap gap-2 border-b border-pacs-700 py-3">
+      <div role="group" aria-label="Chọn thì MRI" className="viewer-phase-strip">
         {available.map((phase) => {
           const active = phase.file_token === token;
           return (
@@ -243,11 +243,7 @@ export function SliceViewer({ caseId, phases, modelHeatmap, volumes, source = 'd
               aria-pressed={active}
               title={phase.description_vi}
               onClick={() => setToken(phase.file_token)}
-              className={`min-h-11 rounded-control border px-3 py-1.5 text-data font-semibold transition ${
-                active
-                  ? 'border-accent bg-accent/15 text-accent-glow'
-                  : 'border-pacs-700 bg-pacs-800 text-slate-400 hover:text-white'
-              }`}
+              className={`viewer-phase ${active ? 'viewer-phase--active' : ''}`}
             >
               {phase.label_vi}
             </button>
@@ -257,12 +253,22 @@ export function SliceViewer({ caseId, phases, modelHeatmap, volumes, source = 'd
 
       <div
         ref={frameRef}
+        tabIndex={0}
+        onKeyDown={(event) => {
+          if (event.key === 'ArrowLeft') {
+            event.preventDefault();
+            step(-1);
+          }
+          if (event.key === 'ArrowRight') {
+            event.preventDefault();
+            step(1);
+          }
+        }}
         onPointerDown={onPointerDown}
         onPointerMove={onPointerMove}
         onPointerUp={onPointerUp}
         onPointerCancel={onPointerUp}
-        style={{ aspectRatio: '1 / 1', width: 'min(100%, 72vh)' }}
-        className={`workstation-frame relative mx-auto mt-4 touch-none select-none overflow-hidden bg-black ${
+        className={`mri-frame ${
           zoomed ? 'cursor-grab active:cursor-grabbing' : 'cursor-default'
         }`}
       >
@@ -282,34 +288,34 @@ export function SliceViewer({ caseId, phases, modelHeatmap, volumes, source = 'd
       </div>
 
       {hasModelHeatmap && (
-        <p className="mt-3 max-w-measure text-data text-slate-400">
+        <p className="viewer-note">
           Heatmap thể hiện độ nhạy cục bộ của model với lớp đã dự đoán; không phải vùng tổn thương do model khoanh và không mang ý nghĩa chẩn đoán.
         </p>
       )}
       {source === 'upload' && (
-        <p className="mt-3 max-w-measure text-data text-slate-400">
+        <p className="viewer-note">
           Đây là ảnh MRI gốc của bộ vừa tải lên, chưa crop. Vùng tô fuchsia là nhãn tổn thương do người tải lên cung cấp, không phải vùng model tự khoanh.
         </p>
       )}
 
-      <div className="mt-4 border-t border-pacs-700 pt-3">
-        <div className="flex items-center gap-3">
-          <span className="h-1.5 flex-1 overflow-hidden rounded-full bg-pacs-700" aria-hidden="true">
-            <span className="ml-auto block h-full bg-accent" style={{ width: `${total > 1 ? (before / (total - 1)) * 100 : 0}%` }} />
+      <div className="viewer-navigation">
+        <div className="viewer-navigation__stepper">
+          <span className="slice-progress" aria-hidden="true">
+            <span className="slice-progress__before" style={{ width: `${total > 1 ? (before / (total - 1)) * 100 : 0}%` }} />
           </span>
-          <div className="flex shrink-0 items-center gap-1">
+          <div className="slice-stepper">
             <StepButton direction="prev" disabled={z <= 0} onClick={() => step(-1)} label="Lát trước" />
-            <span className="min-w-[4.5rem] text-center font-mono text-data font-semibold text-white">{z + 1} / {total}</span>
+            <span>{z + 1} / {total}</span>
             <StepButton direction="next" disabled={z >= total - 1} onClick={() => step(1)} label="Lát sau" />
           </div>
-          <span className="h-1.5 flex-1 overflow-hidden rounded-full bg-pacs-700" aria-hidden="true">
-            <span className="block h-full bg-accent" style={{ width: `${total > 1 ? (after / (total - 1)) * 100 : 0}%` }} />
+          <span className="slice-progress" aria-hidden="true">
+            <span className="slice-progress__after" style={{ width: `${total > 1 ? (after / (total - 1)) * 100 : 0}%` }} />
           </span>
         </div>
 
-        <label className="mt-3 block">
-          <span className="text-sm font-semibold text-annotation-soft">Vị trí lát</span>
-          <span className="text-data text-slate-400"> (Lăn chuột để đổi lát | Ctrl + lăn chuột để phóng to | Kéo để di chuyển ảnh)</span>
+        <label className="slice-position">
+          <span>Vị trí lát</span>
+          <small>Lăn chuột để đổi lát · Ctrl + lăn chuột để phóng to · Kéo để di chuyển ảnh</small>
           <input
             type="range"
             min={0}
@@ -317,7 +323,7 @@ export function SliceViewer({ caseId, phases, modelHeatmap, volumes, source = 'd
             value={z}
             onChange={(event) => setZ(clamp(Number(event.target.value)))}
             aria-label={`Lát ${z + 1} trên ${total}`}
-            className="mt-2 h-1.5 w-full appearance-none rounded-full bg-pacs-700 accent-accent"
+            className="slice-range"
           />
         </label>
       </div>
@@ -341,7 +347,7 @@ function Toggle({
   icon: Icon,
   activeLabel,
   inactiveLabel,
-  activeClass,
+  tone,
   title,
   disabled = false,
 }: {
@@ -350,7 +356,7 @@ function Toggle({
   icon: typeof Scan;
   activeLabel: string;
   inactiveLabel: string;
-  activeClass: string;
+  tone: 'annotation' | 'attention';
   title: string;
   disabled?: boolean;
 }) {
@@ -361,11 +367,7 @@ function Toggle({
       onClick={onClick}
       title={title}
       disabled={disabled}
-      className={`inline-flex min-h-11 items-center gap-1.5 rounded-control border px-2.5 py-1 text-data font-semibold transition ${
-        active ? activeClass : 'border-pacs-700 bg-pacs-800 text-slate-400 hover:text-white'
-      } ${
-        disabled ? 'cursor-not-allowed opacity-45 hover:text-slate-400' : ''
-      }`}
+      className={`viewer-control viewer-control--${tone} ${active ? 'viewer-control--active' : ''} ${disabled ? 'is-disabled' : ''}`}
     >
       <Icon className="h-3.5 w-3.5" aria-hidden="true" />
       {active ? activeLabel : inactiveLabel}
@@ -390,25 +392,25 @@ function LesionTrack({
   const first = segments[0][0];
   const last = segments[segments.length - 1][1];
   return (
-    <div className="mt-3 border-t border-pacs-700 pt-3">
-      <div className="relative h-1.5 w-full overflow-hidden rounded-full bg-pacs-800" aria-hidden="true">
+    <div className="lesion-track">
+      <div className="lesion-track__bar" aria-hidden="true">
         {segments.map(([start, end]) => (
           <span
             key={start}
-            className="absolute top-0 h-full bg-annotation"
+            className="lesion-track__segment"
             style={{ left: `${(start / span) * 100}%`, width: `${Math.max(((end - start) / span) * 100, 0.6)}%` }}
           />
         ))}
       </div>
-      <div className="mt-2 flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
-        <p className="text-data text-slate-400">
-          <span className="text-annotation-soft">Vùng tổn thương</span> ở {count}/{total} lát ({first + 1}–{last + 1})
-          {onLesionSlice && <span className="ml-2 text-annotation-soft">▸ lát đang xem có tổn thương</span>}
+      <div className="lesion-track__summary">
+        <p>
+          <span>Vùng tổn thương</span> ở {count}/{total} lát ({first + 1}–{last + 1})
+          {onLesionSlice && <span> · lát đang xem có tổn thương</span>}
         </p>
         <button
           type="button"
           onClick={onJump}
-          className="inline-flex min-h-11 shrink-0 items-center gap-1.5 rounded-control border border-pacs-600 bg-pacs-800 px-2.5 py-1 text-data font-semibold text-slate-300 transition hover:border-annotation hover:text-annotation-soft"
+          className="viewer-control lesion-track__jump"
         >
           <Target className="h-3.5 w-3.5" aria-hidden="true" />
           Đến lát tổn thương
@@ -437,11 +439,7 @@ function StepButton({
       disabled={disabled}
       aria-label={label}
       title={label}
-      className={`grid h-11 w-11 place-items-center rounded-control border transition ${
-        disabled
-          ? 'border-pacs-700 bg-pacs-800 text-slate-400 opacity-40'
-          : 'border-pacs-600 bg-pacs-800 text-slate-300 hover:border-accent hover:text-accent-glow'
-      }`}
+      className={`slice-step-button ${disabled ? 'is-disabled' : ''}`}
     >
       <Icon className="h-4 w-4" aria-hidden="true" />
     </button>

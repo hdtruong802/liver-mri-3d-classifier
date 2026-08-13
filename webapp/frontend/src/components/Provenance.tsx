@@ -21,7 +21,7 @@ export function ProvenanceBadge({
 }) {
   return (
     <span
-      className={`chip border border-ok/40 bg-ok/10 text-ok-soft ${className}`}
+      className={`provenance-badge ${className}`}
       title={provenance.source === 'oof' ? 'Model chưa học ca này trong lượt huấn luyện tương ứng.' : provenance.note}
     >
       {provenance.source === 'oof' ? 'Kết quả đánh giá độc lập' : 'Suy luận trực tiếp'}
@@ -46,10 +46,10 @@ export function EmptyState({
   icon?: typeof ImageOff;
 }) {
   return (
-    <div className="flex min-h-[8rem] flex-col items-center justify-center gap-2 rounded-control border border-dashed border-pacs-600 bg-pacs-900 p-5 text-center">
-      <Icon className="h-6 w-6 text-slate-400" aria-hidden="true" />
-      <p className="text-sm font-medium text-slate-300">{label}</p>
-      {detail ? <p className="max-w-measure text-data text-slate-400">{detail}</p> : null}
+    <div className="empty-state">
+      <Icon aria-hidden="true" />
+      <p>{label}</p>
+      {detail ? <p>{detail}</p> : null}
     </div>
   );
 }

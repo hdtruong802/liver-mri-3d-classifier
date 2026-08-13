@@ -1,223 +1,97 @@
 ---
-name: Liver MRI Classifier — Web App
-description: Hệ thị giác riêng cho web app demo, bàn đọc tối kiểu trạm chẩn đoán hình ảnh
+name: Liver MRI Classifier — Workstation
+description: Bàn đọc MRI 3 cột, kế thừa mật độ và hệ màu của C2-App-061
 scope: webapp/
+mode: operate
+themes:
+  dark:
+    background: "oklch(0.18 0.02 240)"
+    panel: "oklch(0.22 0.025 245)"
+    panel-raised: "oklch(0.24 0.03 245)"
+    foreground: "oklch(0.95 0.01 240)"
+    muted: "oklch(0.65 0.02 240)"
+    border: "oklch(0.32 0.03 245)"
+    cyan: "oklch(0.78 0.14 220)"
+  light:
+    background: "oklch(0.96 0.015 240)"
+    panel: "oklch(0.99 0.005 240)"
+    secondary: "oklch(0.92 0.015 240)"
+    foreground: "oklch(0.22 0.02 240)"
+    muted: "oklch(0.50 0.02 240)"
+    border: "oklch(0.86 0.015 240)"
+    cyan: "oklch(0.53 0.16 220)"
 colors:
-  pacs-950: "#070A13"
-  pacs-900: "#0B1020"
-  pacs-850: "#0F1525"
-  pacs-800: "#141B2E"
-  pacs-700: "#1C2540"
-  accent: "#22D3EE"
-  accent-glow: "#67E8F9"
-  text-primary: "#FFFFFF"
-  text-secondary: "#CBD5E1"
-  text-muted: "#94A3B8"
-  state-ok: "#34D399"
-  state-warn: "#FBBF24"
-  state-danger: "#FB7185"
+  annotation: "#E879F9"
+  attention: "#F59E0B"
+  success: "semantic"
+  warning: "semantic"
+  danger: "semantic"
 typography:
-  headline:
-    fontFamily: "Inter, system-ui, Segoe UI, sans-serif"
-    fontSize: "1.5rem"
-    fontWeight: 700
-    lineHeight: 1.2
-  metric:
-    fontFamily: "Inter, system-ui, Segoe UI, sans-serif"
-    fontSize: "1.875rem"
-    fontWeight: 700
-    lineHeight: 1.1
-    fontFeature: "tnum"
-  title:
-    fontFamily: "Inter, system-ui, Segoe UI, sans-serif"
-    fontSize: "1.125rem"
-    fontWeight: 700
-    lineHeight: 1.3
-  body:
-    fontFamily: "Inter, system-ui, Segoe UI, sans-serif"
-    fontSize: "0.875rem"
-    fontWeight: 400
-    lineHeight: 1.55
-  label:
-    fontFamily: "Inter, system-ui, Segoe UI, sans-serif"
-    fontSize: "0.6875rem"
-    fontWeight: 600
-    lineHeight: 1.35
-    letterSpacing: "0.05em"
-  data:
-    fontFamily: "JetBrains Mono, ui-monospace, Consolas, monospace"
-    fontSize: "0.75rem"
-    fontWeight: 400
-    lineHeight: 1.4
-    fontFeature: "tnum"
+  ui: "Segoe UI Variable, Segoe UI, system-ui, sans-serif"
+  data: "JetBrains Mono, ui-monospace, Consolas, monospace"
 rounded:
-  chip: "9999px"
-  control: "0.25rem"
-  panel: "0.375rem"
-  frame: "0.375rem"
-spacing:
-  xs: "4px"
-  sm: "8px"
-  md: "12px"
-  lg: "16px"
-  xl: "24px"
-  xxl: "40px"
-components:
-  panel:
-    backgroundColor: "transparent"
-    textColor: "{colors.text-secondary}"
-    typography: "{typography.body}"
-    rounded: "0"
-    padding: "0"
-  ruo-bar:
-    backgroundColor: "{colors.pacs-900}"
-    textColor: "{colors.text-muted}"
-    typography: "{typography.label}"
-    rounded: "0"
-    padding: "8px 24px"
-  chip:
-    backgroundColor: "{colors.pacs-800}"
-    textColor: "{colors.text-muted}"
-    typography: "{typography.label}"
-    rounded: "{rounded.chip}"
-    padding: "4px 10px"
-  btn-primary:
-    backgroundColor: "{colors.accent}"
-    textColor: "{colors.pacs-950}"
-    typography: "{typography.body}"
-    rounded: "{rounded.control}"
-    padding: "10px 16px"
+  control: "6px"
+  panel: "8px"
+  viewer: "8px"
 ---
 
 # Design System: Liver MRI Classifier — Web App
 
-> **Phạm vi: chỉ `webapp/`.** `DESIGN.md` ở gốc repo ("bản khắc atlas") chi phối `slides/` và `reports/`, và `slides/overview_v2.html` đang dùng nó. Hai hệ cố ý khác nhau. Cái phải khớp giữa các bề mặt là **con số, thuật ngữ và giọng** (`PRODUCT.md` Product Principle 4), không phải lớp nhìn.
->
-> **Lịch sử:** hệ này thay hướng "hải đồ đo sâu" nền sáng dựng ở WORKLOG S-076. Người dùng xem bản dựng rồi chọn quay về bố cục bản bolt.new gốc với theme tối (S-077). Hướng cũ không còn hiệu lực ở đâu cả; đừng khôi phục từng mảnh của nó.
-
 ## Overview
 
-**Bàn đọc tối — trạm chẩn đoán hình ảnh.**
+**MRI workstation, không phải dashboard AI.** App dùng bố cục ba cột: dữ liệu đầu vào ở trái, ảnh MRI ở trung tâm, kết quả AI ở phải. Bố cục và mức phân lớp bề mặt tham khảo `C2-App-061`; chỉ giữ các affordance phục vụ MRI đa thì, không sao chép nghiệp vụ X-quang hoặc hồ sơ bệnh nhân.
 
-Nền mực xanh đen, các dải dữ liệu phẳng ngăn bằng hairline, một sắc cyan làm accent. Đây là ngôn ngữ của phòng đọc phim: màn hình tối để mắt không loá khi nhìn ảnh xám, và **ảnh MRI là thứ sáng nhất trên màn hình**.
+Ảnh MRI luôn là vùng đọc chính và luôn dùng nền đen, kể cả khi giao diện đang ở light theme. Các panel khác chỉ tổ chức công việc: không cạnh tranh về thị giác với ảnh.
 
-Tính cách: gọn, có nhịp, dày thông tin nhưng không chật. Dữ liệu có cấu trúc như một worklist, không như dashboard SaaS; chuyển động ít và chỉ để giải thích trạng thái.
+## Theme
 
-**Điều hệ này phải làm được, ngoài chuyện trông ổn:** người review nhìn màn hình phải phân biệt ngay **cái gì là dữ liệu thật, cái gì là số minh hoạ**. Chưa có checkpoint, nên mọi con số suy luận hiện tại đều là giả lập. Hệ thị giác nào làm mờ ranh giới đó là đang phản bác chính nghiên cứu.
+App hỗ trợ `light` và `dark` với token semantic `background`, `foreground`, `panel`, `panel-raised`, `secondary`, `muted-foreground`, `border`, `cyan`, `success`, `warning` và `danger`.
 
-## Colors
+- Lần đầu mở app theo `prefers-color-scheme`.
+- Lựa chọn thủ công được lưu localStorage và thay thế lựa chọn hệ điều hành.
+- Theme được gắn trên `html` trước khi React render để không chớp sai màu.
+- Cyan trên light theme được tối hoá đủ tương phản AA; không dùng cyan sáng của dark theme cho chữ trên nền sáng.
 
-### Nền
+Không hard-code màu nền/chữ trong component đang render. Component dùng token semantic để light/dark luôn đồng bộ.
 
-| Token | Hex | Việc |
-|---|---|---|
-| `pacs-950` | `#070A13` | nền trang |
-| `pacs-900` | `#0B1020` | header, dải RUO, chân trang |
-| `pacs-850` | `#0F1525` | panel |
-| `pacs-800` | `#141B2E` | panel nổi, ô số liệu bên trong panel |
-| `pacs-700` | `#1C2540` | viền, đường phân cách |
+## Layout
 
-### Accent
+- Header 56 px, dải RUO 32 px, workspace chiếm phần chiều cao còn lại của `100dvh`.
+- Từ 1280 px: panel dữ liệu 272 px có thể thu gọn, viewer `minmax(0, 1fr)`, panel kết quả 384 px luôn hiện; mỗi sidebar cuộn độc lập.
+- Dưới 1280 px: dùng ba tab Dữ liệu / Ảnh MRI / Kết quả. Ảnh MRI là tab mặc định. Tab không nhận phím mũi tên; chúng chỉ đổi bằng click/touch hoặc focus + Enter/Space.
+- Mobile giữ tối thiểu vùng chạm 44 px. Phase strip cuộn ngang, không ép xuống hai hàng.
 
-**Cyan** `#22D3EE` — hành động chính, tiêu đề mục, chỉ báo đang hoạt động. `#67E8F9` cho hover.
+Panel dùng nền riêng, viền 1 px và bo 8 px. Không dùng shadow tĩnh, card lồng nhau, hero metric hay bo góc lớn. Chip pill chỉ dành cho provenance/trạng thái ngắn.
 
-### Chữ
+## MRI viewer
 
-| Token | Hex | Tương phản trên `pacs-850` | Việc |
-|---|---|---|---|
-| trắng | `#FFFFFF` | 17,4:1 | tiêu đề, số chính |
-| `slate-300` | `#CBD5E1` | 12,3:1 | chữ chạy |
-| `slate-400` | `#94A3B8` | 7,1:1 | **sàn — chữ nhỏ nhất được phép** |
+Viewer hiển thị **ảnh NIfTI nguồn** của ZIP vừa tải lên; crop UniFormer chỉ là input nội bộ, không phải ảnh đọc chính.
 
-### Trạng thái
+- Phase mặc định là `C-pre`.
+- Dùng chung zoom, pan, slider, nút `←`/`→` và thanh lát cho mọi thì.
+- Phím `←`/`→` chỉ đổi lát khi khung ảnh đang focus, không đổi tab hoặc panel.
+- Toggle fuchsia biểu thị mask tổn thương do người tải lên cung cấp; phải gọi rõ là nhãn người chú giải, không phải segmentation của model.
+- Upload trực tiếp không có heatmap. Không tạo màu giả để lấp khoảng trống.
+- Viewer hết cache hiển thị hướng dẫn tải lại ZIP, không để ảnh lỗi trống.
 
-`#34D399` đủ / xong · `#FBBF24` cần chú ý, `defer` · `#FB7185` nhóm ác
+## Ý nghĩa màu
 
-### Vùng chú giải trên ảnh
+- Cyan: hành động chính, trạng thái chọn và focus.
+- Fuchsia `annotation`: mask tổn thương của người chú giải.
+- Hổ phách `attention`: heatmap độ nhạy model khi có artefact hợp lệ; không dùng cho upload live.
+- Bảy màu lớp chỉ nằm trong xác suất từng lớp; mọi màu luôn có nhãn chữ đi kèm.
+- Success/warning/danger chỉ biểu thị trạng thái, không biểu thị chẩn đoán.
 
-`#E879F9` mask tổn thương · `#F5D0FE` bản nhạt (chữ trên nền tối)
+## Nội dung và an toàn
 
-Cố ý nằm **ngoài** cả bảng bảy lớp lẫn bảng trạng thái. Mask không phải một lớp và không phải một trạng thái — nó là một vùng do **người chú giải** khoanh, có sẵn trong bộ dữ liệu LLD-MMRI. Dùng màu lớp cho nó (ví dụ `#38BDF8` của "nang") sẽ khiến người xem đọc vùng khoanh thành một chẩn đoán; dùng màu trạng thái sẽ đọc thành một cảnh báo.
+Dải "Research Use Only: chưa kiểm định lâm sàng, không dùng để chẩn đoán" luôn thấy dưới header. Không bịa danh tính bệnh nhân, ngày khám, phiên bản model hoặc khuyến nghị lâm sàng.
 
-Vẽ **viền đặc + ruột nhuộm 25%**, không tô kín: bác sĩ cần nhìn thấy pixel bên dưới để tự đánh giá, và một mảng màu kín che đúng chỗ đang cần đọc.
+Kết quả upload trực tiếp phải ghi rõ provenance. Không hiển thị `defer`, calibration OOF hoặc heatmap không tồn tại như thể chúng áp dụng cho suy luận live. Thay vào đó, dùng mô tả trung tính rằng kết quả cần người có chuyên môn đối chiếu.
 
-⚠️ Mọi chỗ hiển thị mask phải nói rõ đây **không phải đầu ra của model** — dự án không làm segmentation (`AGENTS.md` §3.9).
+## Accessibility
 
-### Bản đồ chú ý của mô hình
-
-`#F59E0B` heatmap độ nhạy model · `#FCD34D` bản nhạt
-
-Phải khác hẳn màu vùng chú giải ở trên. Hai thứ trông giống nhau nhưng **ngược nhau về bản chất**: `annotation` là vùng **người** khoanh — ground truth; `attention` là chỗ **mô hình** nhạy — phỏng đoán, và với ca mô hình đoán sai thì nó *nên* trông sai. Lẫn hai thứ này là hiểu nhầm tệ nhất app có thể gây ra, nên chúng nằm ở hai phía đối diện của vòng màu và không bao giờ xuất hiện trong cùng một ảnh.
-
-Phủ theo **alpha trên nền xám**, không thay màu nền: cường độ mô bên dưới phải còn đọc được, nếu không thì bản đồ che mất chính thứ nó đang chỉ vào. Dưới ngưỡng 0.15 thì không tô gì — một lớp mờ phủ khắp ảnh không thêm thông tin nào.
-
-⚠️ Chỗ hiển thị bản đồ **bắt buộc** nói rõ hai điều: (1) đây là khối crop mô hình thực sự nhìn, không phải lát gốc; (2) độ phân giải **gốc** của bản đồ trước khi nội suy. Một bản đồ 7×7×2 phóng lên 112×112×32 trông mịn tới từng voxel nhưng không hề mịn.
-
-### Bảy màu lớp
-
-- **ác:** HCC `#EF4444` · di căn `#F97316` · ICC `#FB7185`
-- **lành:** FNH `#22C55E` · u máu `#14B8A6` · nang `#38BDF8` · áp-xe `#A3E635`
-
-Nhóm ác dùng dải ấm, nhóm lành dùng dải lạnh. Đây là tuyến mã hoá **thứ hai**, không phải tuyến duy nhất. Nang dùng `#38BDF8` chứ không phải `#06B6D4` để không đụng accent cyan.
-
-### Named Rules
-
-**The 4.5 Rule.** Chữ nhỏ nhất được phép là `slate-400` `#94A3B8`. `slate-500` (`#64748B`, **3,82:1**) và `slate-600` (`#475569`, **2,40:1**) trượt WCAG AA và **không được dùng cho chữ** — chỉ cho viền và nền. Bản bolt gốc dùng đúng hai màu đó cho chữ metadata và dòng disclaimer; đây là chỗ duy nhất hệ này cố ý lệch khỏi bản tham chiếu.
-
-**The Never-Colour-Alone Rule.** Không thông tin nào chỉ mã hoá bằng màu. Lớp tổn thương luôn kèm nhãn chữ và nhãn nhóm "ác"/"lành"; `defer` luôn kèm nhãn chữ và icon; trạng thái thì luôn kèm chữ "đủ"/"thiếu". Bài kiểm: khử màu ảnh chụp màn hình — mất thông tin là thiết kế sai. (`PRODUCT.md` Accessibility & Inclusion; mục này **không** nằm trong phần ràng buộc đã được gỡ.)
-
-**The Accent Budget.** Cyan là accent duy nhất. Bảy màu lớp chỉ sống trong biểu đồ xác suất và dải chú giải, không tràn ra chrome. Ba màu trạng thái chỉ mang nghĩa trạng thái.
-
-## Typography
-
-**`Inter`** cho toàn bộ giao diện. **`JetBrains Mono`** cho định danh và giá trị đo: `case_id`, tên file, entropy, spacing mm. Cả hai tự host qua `@fontsource`, không CDN.
-
-**Cả hai phải phủ đủ dấu tiếng Việt** — ràng buộc cứng. Kiểm bằng cách xác nhận subset `vietnamese` có mặt trong `dist/` sau build, không phải bằng cách nhìn.
-
-### Named Rules
-
-**The No-Uppercase Rule.** `text-transform: uppercase` **không dùng cho chữ tiếng Việt**. Lý do là kỹ thuật, không phải khẩu vị: dấu thanh chồng dấu phụ vỡ trên chữ hoa ở cỡ nhỏ (Ế, Ữ, Ậ, Ổ). Bản bolt dùng `uppercase tracking-wider` cho mọi nhãn; ở đây bỏ `uppercase`, giữ `tracking-wider` cộng cỡ chữ và màu để tạo cảm giác nhãn. Viết tắt vốn đã là chữ hoa không dấu (`HCC`, `ICC`, `FNH`, `ECE`, `AURC`, `OOD`, `DWI`, `T2WI`) giữ nguyên — đó không phải `text-transform`.
-
-**The Tabular Rule.** Mọi con số dùng `font-variant-numeric: tabular-nums`. Số nhảy cột khi cập nhật là lỗi đọc.
-
-## Shapes & Depth
-
-Dùng dải nền phẳng ngăn bằng hairline `1px` `pacs-700` cho worklist, kết quả và điều khiển. Không bọc từng cụm dữ liệu vào card. Control bo `0.25rem`; khung MRI và cảnh báo trạng thái bo `0.375rem`; chip bo tròn hoàn toàn chỉ dành cho trạng thái ngắn.
-
-Khung MRI là enclosure mạnh duy nhất: nền đen, viền `pacs-600`, ảnh luôn là thứ sáng nhất. Cảnh báo `defer` là ngoại lệ được phép có nền trạng thái nhẹ. `shadow-glow` (`0 0 24px -4px rgba(34,211,238,.45)`) chỉ dùng cho **hành động chính lúc hover** và vùng thả file đang active — không rải lên nội dung tĩnh.
-
-## Nguồn prediction và ZIP validation
-
-Ca demo hiển thị badge `prediction out-of-fold` hoặc `suy luận trực tiếp` ngay cạnh kết quả. Không có nhánh số mô phỏng trong giao diện.
-
-Upload là một ZIP NIfTI có `images/` và `masks/`: UI hiển thị bảng kiểm 8 ảnh + 8 mask. Chỉ khi đủ cả 16 file và mask khớp MRI, app mới chạy UniFormer trực tiếp. Kết quả `live` phải có provenance rõ ràng, không gắn `defer` hoặc calibration OOF và không có số mô phỏng.
-
-## Dải RUO
-
-Full-width, ngay dưới header, **dính trên cùng, không bao giờ cuộn khuất**. Nội dung: "Research Use Only: chưa kiểm định lâm sàng".
-
-Bản bolt gốc không có khối này. Nó bắt buộc (`AGENTS.md` §3.1, `PRODUCT.md` Brand Commitment 1) và không phải một lựa chọn thiết kế.
-
-## Motion
-
-Ngân sách nhỏ. **Được phép:** `fade-in` khi khối kết quả xuất hiện, `pulse-soft` cho chỉ báo đang chạy, đổi lát khi kéo. **Không:** hiệu ứng quét, số đếm lên, panel trượt vào, hover nảy.
-
-`prefers-reduced-motion: reduce` → mọi chuyển động về 0.
-
-## Do's and Don'ts
-
-### Do
-- **Do** cho mọi thứ mã hoá bằng màu một nhãn chữ hoặc icon đi kèm.
-- **Do** hiển thị nguồn prediction của ca demo bằng badge chữ; giữ bảng kiểm ZIP tách khỏi kết quả.
-- **Do** giữ `slate-400` làm sàn cho chữ.
-- **Do** để ảnh MRI là thứ sáng nhất màn hình.
-- **Do** kiểm tương phản bằng số. Nền tối đánh lừa mắt rất giỏi.
-
-### Don't
-- **Don't** dùng `slate-500` hay `slate-600` cho chữ (The 4.5 Rule).
-- **Don't** dùng `text-transform: uppercase` cho chữ tiếng Việt.
-- **Don't** hiển thị chỉ số pipeline không tính: **không có** epistemic/aleatoric tách đôi, chỉ có `entropy` và `ensemble_std`.
-- **Don't** viết câu chỉ định lâm sàng ("cần sinh thiết", "nên theo dõi sát"). Ràng buộc RUO, không phải lựa chọn giọng.
-- **Don't** bịa định danh bệnh nhân, ngày khám, hay phiên bản model.
-- **Don't** rải `shadow-glow` lên panel tĩnh.
-- **Don't** sinh ảnh MRI giả. Chưa có dữ liệu thì hiện trạng thái rỗng có nhãn.
+- Chữ nội dung và control phải đạt WCAG AA ở cả hai theme.
+- Focus ring cyan luôn thấy rõ.
+- Thông tin không chỉ được mã hoá bằng màu.
+- Không dùng `text-transform: uppercase` với tiếng Việt.
+- Tôn trọng `prefers-reduced-motion`.

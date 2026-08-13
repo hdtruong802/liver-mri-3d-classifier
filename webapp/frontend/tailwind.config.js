@@ -62,7 +62,7 @@ export default {
     },
 
     fontFamily: {
-      sans: ['Inter', 'system-ui', 'Segoe UI', 'sans-serif'],
+      sans: ['Segoe UI Variable', 'Segoe UI', 'system-ui', 'sans-serif'],
       mono: ['JetBrains Mono', 'ui-monospace', 'Consolas', 'monospace'],
     },
 
