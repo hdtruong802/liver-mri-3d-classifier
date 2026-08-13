@@ -6554,3 +6554,31 @@ Không train mới. Test giữ **610 passed**, 73 skipped. Gate PASS.
 **Điểm vào phiên sau:** không có việc treo.
 
 **Cảnh báo cho tool sau:** duy trì scroll ở `.workspace-data__content` trên desktop để control thu gọn luôn thấy được.
+
+---
+
+## S-164 · 2026-08-13 · codex
+
+**Mục tiêu phiên:** thay ngôn ngữ kỹ thuật ở panel bộ MRI bằng cách gọi phù hợp với người dùng và bác sĩ.
+
+**Nhánh / commit:** `main` · `2497a8d` → *(commit theo sau entry này)*
+
+**Đã động file:**
+
+- `webapp/frontend/src/components/UploadWorkspace.tsx` — dùng “Bộ ảnh MRI”, “nhãn vùng tổn thương”, “sẵn sàng dự đoán”; bỏ tên model nội bộ khỏi trạng thái thành công; đổi các trạng thái hàng thành “Ảnh/Nhãn: sẵn sàng|thiếu|trùng”.
+
+**Quyết định & lý do:**
+
+- Giữ tên file NIfTI để truy lỗi thực tế, nhưng không bắt người đọc phải hiểu thư mục `images/`, `masks/`, hay tên ensemble để biết bộ ảnh đã đầy đủ.
+
+**Kết quả / số liệu:**
+
+- `npm run typecheck`, `npm run build`, Impeccable detector và `quality-gate.ps1`: pass.
+
+**Dang dở:**
+
+- [ ] Không có việc treo.
+
+**Điểm vào phiên sau:** không có việc treo.
+
+**Cảnh báo cho tool sau:** trong UI gọi mask là “nhãn vùng tổn thương”; chỉ giữ tên file kỹ thuật để đối chiếu.

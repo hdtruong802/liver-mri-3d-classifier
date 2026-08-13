@@ -3,7 +3,7 @@ import { Archive, CheckCircle2, CircleAlert, FileUp, LoaderCircle, Play, XCircle
 import type { UploadPhaseState, UploadValidationResult } from '@/api/types';
 
 const stateLabel: Record<UploadPhaseState, string> = {
-  ready: 'đủ',
+  ready: 'sẵn sàng',
   missing: 'thiếu',
   duplicate: 'trùng',
 };
@@ -43,10 +43,10 @@ export function UploadPanel({ archive, result, stage, error }: UploadProps) {
     <section className="side-section" aria-labelledby="upload-panel-heading">
       <div className="side-section__heading">
         <Archive aria-hidden="true" />
-        <h2 id="upload-panel-heading">Bộ MRI</h2>
+        <h2 id="upload-panel-heading">Bộ ảnh MRI</h2>
       </div>
       <p className="side-section__copy">
-        ZIP gồm 8 ảnh trong <code>images/</code> và 8 mask tương ứng trong <code>masks/</code>. Mỗi file là <code>.nii</code> hoặc <code>.nii.gz</code>.
+        Tệp ZIP cần có 8 thì MRI và 8 nhãn vùng tổn thương tương ứng. Mỗi tệp có định dạng <code>.nii</code> hoặc <code>.nii.gz</code>.
       </p>
 
       <div className="upload-file-row">
@@ -64,10 +64,10 @@ export function UploadDropzone({ archive, stage, error, onChoose, onRun, onRetry
   const predictionFailed = stage === 'prediction_error';
   const title = stage === 'checking' ? 'Đang kiểm tra bộ MRI' : stage === 'predicting' ? 'AI đang dự đoán' : validationFailed ? 'Bộ MRI cần được kiểm tra lại' : predictionFailed ? 'Chưa thể dự đoán AI' : archive ? 'Bộ MRI đã sẵn sàng' : 'Tải bộ MRI (.zip)';
   const detail = working
-    ? stage === 'checking' ? 'Đang kiểm tra đủ 8 ảnh MRI và 8 mask.' : 'Bộ MRI hợp lệ. AI đang phân tích ảnh.'
+    ? stage === 'checking' ? 'Đang kiểm tra đủ 8 ảnh MRI và 8 nhãn vùng tổn thương.' : 'Bộ MRI hợp lệ. AI đang phân tích ảnh.'
     : validationFailed ? 'Xem lỗi kiểm tra ở cột Dữ liệu, rồi chọn một ZIP khác.'
       : predictionFailed ? 'Bộ MRI đã hợp lệ. Bạn có thể thử chạy dự đoán lại.'
-        : archive ? archive.name : 'Chọn một ZIP gồm 8 ảnh MRI và 8 mask tổn thương tương ứng để xem ảnh nguồn và chạy suy luận.';
+        : archive ? archive.name : 'Chọn một ZIP gồm 8 ảnh MRI và 8 nhãn vùng tổn thương tương ứng để xem ảnh và chạy dự đoán.';
 
   return (
     <div className={`viewer-dropzone ${archive ? 'viewer-dropzone--selected' : ''}`}>
@@ -77,7 +77,7 @@ export function UploadDropzone({ archive, stage, error, onChoose, onRun, onRetry
       {error ? <p className="upload-error" role="alert">{error}</p> : null}
       <div className="viewer-dropzone__actions">
         <button type="button" className="control-button" onClick={onChoose} disabled={working}>
-          {archive ? 'Đổi file ZIP' : 'Tải bộ MRI (.zip)'}
+          {archive ? 'Đổi bộ MRI' : 'Tải bộ MRI (.zip)'}
         </button>
         {archive && stage === 'idle' ? (
           <button type="button" className="primary-button" onClick={onRun}>
@@ -101,6 +101,7 @@ function UploadStatus({ result, error }: Pick<UploadProps, 'result' | 'error'>) 
 
   const tone = result?.inference_ready ? 'success' : result?.valid ? 'warning' : 'danger';
   const Icon = result?.inference_ready ? CheckCircle2 : result?.valid ? CircleAlert : XCircle;
+  const message = result?.inference_ready ? 'Bộ MRI và nhãn tổn thương đã đầy đủ. Sẵn sàng dự đoán.' : result?.message;
   return (
     <div className="upload-status">
       {error ? <p className="upload-error" role="alert">{error}</p> : null}
@@ -109,18 +110,18 @@ function UploadStatus({ result, error }: Pick<UploadProps, 'result' | 'error'>) 
           <div className={`status-message status-message--${tone}`}>
             <Icon aria-hidden="true" />
             <div>
-              <p>{result.message}</p>
+              <p>{message}</p>
               {result.errors.map((item) => <p key={item}>{item}</p>)}
             </div>
           </div>
-          <ul className="phase-checklist" aria-label="Bảng kiểm ảnh MRI và mask của 8 thì">
+          <ul className="phase-checklist" aria-label="Bảng kiểm ảnh MRI và nhãn tổn thương của 8 thì">
             {result.phases.map((phase) => (
               <li key={phase.file_token}>
                 <strong>{phase.label_vi}</strong>
                 <span title={phase.filename ?? undefined}>{phase.filename ?? 'Chưa nhận diện ảnh'}</span>
-                <b className={phase.state === 'ready' ? 'is-success' : 'is-danger'}>Ảnh {stateLabel[phase.state]}</b>
-                <span title={phase.mask_filename ?? undefined}>{phase.mask_filename ?? 'Chưa nhận diện mask'}</span>
-                <b className={phase.mask_state === 'ready' ? 'is-success' : 'is-danger'}>Mask {stateLabel[phase.mask_state]}</b>
+                <b className={phase.state === 'ready' ? 'is-success' : 'is-danger'}>Ảnh: {stateLabel[phase.state]}</b>
+                <span title={phase.mask_filename ?? undefined}>{phase.mask_filename ?? 'Chưa nhận diện nhãn'}</span>
+                <b className={phase.mask_state === 'ready' ? 'is-success' : 'is-danger'}>Nhãn: {stateLabel[phase.mask_state]}</b>
               </li>
             ))}
           </ul>
