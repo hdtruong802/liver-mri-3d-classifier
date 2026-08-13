@@ -28,37 +28,13 @@ function isWorking(stage: UploadStage) {
 }
 
 export function UploadProgress({ stage, compact = false }: { stage: UploadStage; compact?: boolean }) {
-  if (stage === 'idle') return null;
-  if (stage === 'complete') return null;
-
-  const validationState = stage === 'checking'
-    ? 'active'
-    : stage === 'validation_error'
-      ? 'error'
-      : 'complete';
-  const predictionState = stage === 'predicting'
-    ? 'active'
-    : stage === 'prediction_error'
-      ? 'error'
-      : 'pending';
-
+  if (stage !== 'checking' && stage !== 'predicting') return null;
+  const label = stage === 'checking' ? 'Đang kiểm tra bộ MRI' : 'Đang dự đoán AI';
   return (
-    <ol className={`upload-progress ${compact ? 'upload-progress--compact' : ''}`} aria-label="Tiến trình xử lý bộ MRI">
-      <UploadProgressStep state={validationState} label="Kiểm tra bộ MRI" />
-      <UploadProgressStep state={predictionState} label="Dự đoán AI" />
-    </ol>
-  );
-}
-
-function UploadProgressStep({ state, label }: { state: 'active' | 'complete' | 'error' | 'pending'; label: string }) {
-  const Icon = state === 'active' ? LoaderCircle : state === 'complete' ? CheckCircle2 : state === 'error' ? CircleAlert : Archive;
-  const active = state === 'active';
-  return (
-    <li className={`upload-progress__step is-${state}`} aria-current={active ? 'step' : undefined}>
-      <Icon className={active ? 'upload-spinner' : ''} aria-hidden="true" />
+    <p className={`upload-progress ${compact ? 'upload-progress--compact' : ''}`} role="status" aria-live="polite">
+      <LoaderCircle className="upload-spinner" aria-hidden="true" />
       <span>{label}</span>
-      {active ? <span className="sr-only">đang thực hiện</span> : null}
-    </li>
+    </p>
   );
 }
 
@@ -86,7 +62,7 @@ export function UploadDropzone({ archive, stage, error, onChoose, onRun, onRetry
   const working = isWorking(stage);
   const validationFailed = stage === 'validation_error';
   const predictionFailed = stage === 'prediction_error';
-  const title = working ? 'Đang xử lý bộ MRI' : validationFailed ? 'Bộ MRI cần được kiểm tra lại' : predictionFailed ? 'Chưa thể dự đoán AI' : archive ? 'Bộ MRI đã sẵn sàng' : 'Tải bộ MRI (.zip)';
+  const title = stage === 'checking' ? 'Đang kiểm tra bộ MRI' : stage === 'predicting' ? 'Đang dự đoán AI' : validationFailed ? 'Bộ MRI cần được kiểm tra lại' : predictionFailed ? 'Chưa thể dự đoán AI' : archive ? 'Bộ MRI đã sẵn sàng' : 'Tải bộ MRI (.zip)';
   const detail = working
     ? stage === 'checking' ? 'Đang kiểm tra đủ 8 ảnh MRI và 8 mask.' : 'Bộ MRI hợp lệ. AI đang phân tích ảnh.'
     : validationFailed ? 'Xem lỗi kiểm tra ở cột Dữ liệu, rồi chọn một ZIP khác.'
@@ -98,7 +74,6 @@ export function UploadDropzone({ archive, stage, error, onChoose, onRun, onRetry
       {working ? <LoaderCircle className="upload-spinner" aria-hidden="true" /> : validationFailed || predictionFailed ? <CircleAlert aria-hidden="true" /> : <FileUp aria-hidden="true" />}
       <h2>{title}</h2>
       <p>{detail}</p>
-      {archive && stage !== 'idle' && stage !== 'complete' ? <UploadProgress stage={stage} /> : null}
       {error ? <p className="upload-error" role="alert">{error}</p> : null}
       <div className="viewer-dropzone__actions">
         <button type="button" className="control-button" onClick={onChoose} disabled={working}>

@@ -6415,3 +6415,32 @@ Không train mới. Test giữ **610 passed**, 73 skipped. Gate PASS.
 **Điểm vào phiên sau:** kiểm tra trực quan bằng ZIP MRI+mask thật nếu cần tinh chỉnh thêm copy ở panel kết quả.
 
 **Cảnh báo cho tool sau:** không đưa dải RUO riêng trở lại; dòng phụ header là vị trí duy nhất hiện tại cho thông điệp nghiên cứu/không chẩn đoán.
+
+---
+
+## S-159 · 2026-08-13 · codex
+
+**Mục tiêu phiên:** đơn giản hoá tiến trình ZIP thành một trạng thái đang chạy thay vì hai ô stepper.
+
+**Nhánh / commit:** `main` · `2ba662f` → *(commit theo sau entry này)*
+
+**Đã động file:**
+
+- `webapp/frontend/src/components/UploadWorkspace.tsx` — vùng trung tâm tự đổi tiêu đề từ “Đang kiểm tra bộ MRI” sang “Đang dự đoán AI”; chỉ giữ một dòng trạng thái có spinner tại panel dữ liệu, bỏ hoàn toàn hai ô trạng thái/kết quả song song.
+- `webapp/frontend/src/index.css` — đổi style stepper cũ thành dòng trạng thái nhỏ, không còn các khung trạng thái lồng nhau.
+
+**Quyết định & lý do:**
+
+- Không hiển thị tiến trình đã hoàn tất trong lúc người dùng chỉ cần biết thao tác hiện tại; lỗi validation/prediction tiếp tục có tiêu đề và hướng dẫn khắc phục riêng.
+
+**Kết quả / số liệu:**
+
+- `npm run typecheck`, `npm run build`, Impeccable detector và `quality-gate.ps1`: pass.
+
+**Dang dở:**
+
+- [ ] Không có việc treo.
+
+**Điểm vào phiên sau:** không có việc treo.
+
+**Cảnh báo cho tool sau:** giữ một trạng thái tải duy nhất; không tái tạo stepper hai ô trong vùng trung tâm.
