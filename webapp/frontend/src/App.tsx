@@ -1,15 +1,15 @@
 import { useCallback, useEffect, useRef, useState, type ChangeEvent } from 'react';
-import { AlertTriangle, PanelLeftClose, PanelLeftOpen, Stethoscope } from 'lucide-react';
+import { AlertTriangle, LoaderCircle, PanelLeftClose, PanelLeftOpen, Stethoscope } from 'lucide-react';
 
-import { ApiError, getMeta, predictUpload } from '@/api/client';
-import type { MetaResponse, PredictResult, UploadPredictionResult, UploadViewInfo } from '@/api/types';
+import { ApiError, getMeta, predictUpload, validateUpload } from '@/api/client';
+import type { MetaResponse, PredictResult, UploadValidationResult, UploadViewInfo } from '@/api/types';
 import { ClassProbabilityChart } from '@/components/ClassProbabilityChart';
 import { DeferPanel } from '@/components/DeferPanel';
 import { EmptyState, ProvenanceBadge } from '@/components/Provenance';
 import { ResultSummary } from '@/components/ResultCards';
 import { SliceViewer } from '@/components/SliceViewer';
 import { ThemeToggle } from '@/components/ThemeToggle';
-import { UploadDropzone, UploadPanel } from '@/components/UploadWorkspace';
+import { UploadDropzone, UploadPanel, type UploadStage } from '@/components/UploadWorkspace';
 
 type MobileView = 'data' | 'images' | 'results';
 
@@ -19,14 +19,15 @@ function toMessage(cause: unknown): string {
 
 export default function App() {
   const archiveInputRef = useRef<HTMLInputElement>(null);
+  const uploadRunRef = useRef(0);
   const [meta, setMeta] = useState<MetaResponse | null>(null);
   const [metaError, setMetaError] = useState<string | null>(null);
   const [archive, setArchive] = useState<File | null>(null);
-  const [uploadResult, setUploadResult] = useState<UploadPredictionResult | null>(null);
+  const [uploadResult, setUploadResult] = useState<UploadValidationResult | null>(null);
   const [uploadView, setUploadView] = useState<UploadViewInfo | null>(null);
   const [prediction, setPrediction] = useState<PredictResult | null>(null);
   const [uploadError, setUploadError] = useState<string | null>(null);
-  const [busy, setBusy] = useState(false);
+  const [uploadStage, setUploadStage] = useState<UploadStage>('idle');
   const [leftCollapsed, setLeftCollapsed] = useState(false);
   const [mobileView, setMobileView] = useState<MobileView>('images');
 
@@ -39,39 +40,82 @@ export default function App() {
   const selectArchive = (event: ChangeEvent<HTMLInputElement>) => {
     const selected = event.target.files?.[0] ?? null;
     if (!selected) return;
+    uploadRunRef.current += 1;
     setArchive(selected);
     setUploadResult(null);
     setUploadView(null);
     setPrediction(null);
     setUploadError(null);
+    setUploadStage('idle');
     setMobileView('data');
     event.target.value = '';
   };
 
-  const runInference = async () => {
-    if (!archive || busy) return;
-    setBusy(true);
+  const runPrediction = async (runId: number) => {
+    if (!archive) return;
+    setUploadStage('predicting');
     setUploadError(null);
     setPrediction(null);
     setUploadView(null);
     try {
       const response = await predictUpload(archive);
+      if (runId !== uploadRunRef.current) return;
       setUploadResult(response);
       if (response.prediction && response.upload_view) {
         setPrediction(response.prediction);
         setUploadView(response.upload_view);
+        setUploadStage('complete');
         setMobileView('images');
       } else {
+        setUploadStage('prediction_error');
+        setUploadError(response.message);
         setMobileView('data');
       }
     } catch (cause) {
-      setUploadResult(null);
+      if (runId !== uploadRunRef.current) return;
       setUploadError(toMessage(cause));
+      setUploadStage('prediction_error');
       setMobileView('data');
-    } finally {
-      setBusy(false);
     }
   };
+
+  const runInference = async () => {
+    if (!archive || uploadStage === 'checking' || uploadStage === 'predicting') return;
+    const runId = uploadRunRef.current + 1;
+    uploadRunRef.current = runId;
+    setUploadStage('checking');
+    setUploadError(null);
+    setUploadResult(null);
+    setPrediction(null);
+    setUploadView(null);
+    try {
+      const validation = await validateUpload(archive);
+      if (runId !== uploadRunRef.current) return;
+      setUploadResult(validation);
+      if (!validation.inference_ready) {
+        setUploadStage('validation_error');
+        setMobileView('data');
+        return;
+      }
+    } catch (cause) {
+      if (runId !== uploadRunRef.current) return;
+      setUploadError(toMessage(cause));
+      setUploadStage('validation_error');
+      setMobileView('data');
+      return;
+    }
+
+    await runPrediction(runId);
+  };
+
+  const retryPrediction = () => {
+    if (!archive || busy) return;
+    const runId = uploadRunRef.current + 1;
+    uploadRunRef.current = runId;
+    void runPrediction(runId);
+  };
+
+  const busy = uploadStage === 'checking' || uploadStage === 'predicting';
 
   const sessionName = prediction?.case_id ?? archive?.name ?? 'Chưa có bộ MRI';
 
@@ -125,7 +169,7 @@ export default function App() {
             <UploadPanel
               archive={archive}
               result={uploadResult}
-              busy={busy}
+              stage={uploadStage}
               error={uploadError}
             />
           </div>
@@ -141,7 +185,14 @@ export default function App() {
               source="upload"
             />
           ) : (
-            <UploadDropzone archive={archive} busy={busy} onChoose={chooseArchive} onRun={runInference} />
+            <UploadDropzone
+              archive={archive}
+              stage={uploadStage}
+              error={uploadError}
+              onChoose={chooseArchive}
+              onRun={runInference}
+              onRetryPrediction={retryPrediction}
+            />
           )}
         </section>
 
@@ -161,13 +212,37 @@ export default function App() {
             </div>
           ) : (
             <div className="results-empty">
-              <EmptyState label={busy ? 'AI đang xử lý bộ MRI' : 'Chưa có kết quả'} detail={busy ? 'Ảnh sẽ xuất hiện ngay khi suy luận hoàn tất.' : 'Tải bộ MRI để xem dự đoán và xác suất từng lớp.'} />
+              <ProcessingEmptyState stage={uploadStage} />
             </div>
           )}
         </aside>
       </main>
     </div>
   );
+}
+
+function ProcessingEmptyState({ stage }: { stage: UploadStage }) {
+  if (stage === 'checking' || stage === 'predicting') {
+    const label = stage === 'checking' ? 'Đang kiểm tra bộ MRI' : 'Đang chạy dự đoán AI';
+    const detail = stage === 'checking'
+      ? 'Đang kiểm tra đủ 8 ảnh MRI và 8 mask.'
+      : 'Bộ MRI hợp lệ. Kết quả sẽ xuất hiện khi suy luận hoàn tất.';
+    return (
+      <div className="processing-empty-state" role="status" aria-live="polite">
+        <LoaderCircle className="upload-spinner" aria-hidden="true" />
+        <p>{label}</p>
+        <p>{detail}</p>
+      </div>
+    );
+  }
+
+  if (stage === 'validation_error') {
+    return <EmptyState label="Bộ MRI chưa hợp lệ" detail="Xem các mục cần chỉnh ở cột Dữ liệu, rồi chọn ZIP khác." />;
+  }
+  if (stage === 'prediction_error') {
+    return <EmptyState label="Chưa thể dự đoán AI" detail="Bộ MRI đã được kiểm tra. Hãy thử lại dự đoán hoặc chọn ZIP khác." />;
+  }
+  return <EmptyState label="Chưa có kết quả" detail="Tải bộ MRI để xem dự đoán và xác suất từng lớp." />;
 }
 
 function WorkspaceTab({ active, onClick, children }: { active: boolean; onClick: () => void; children: string }) {

@@ -6349,3 +6349,36 @@ Không train mới. Test giữ **610 passed**, 73 skipped. Gate PASS.
 **Điểm vào phiên sau:** kiểm tra trực quan với ZIP MRI+mask thật nếu cần tinh chỉnh thêm mật độ canvas.
 
 **Cảnh báo cho tool sau:** wheel trên ảnh đã dành riêng cho zoom; không trả lại cơ chế đổi lát bằng wheel hoặc nút “Vừa khung”.
+
+---
+
+## S-157 · 2026-08-13 · codex
+
+**Mục tiêu phiên:** tách xử lý ZIP MRI thành hai giai đoạn kiểm tra và dự đoán AI có trạng thái rõ ràng.
+
+**Nhánh / commit:** `main` · `fe483b5` → *(commit theo sau entry này)*
+
+**Đã động file:**
+
+- `webapp/frontend/src/App.tsx` — thêm state upload tường minh (`idle`, `checking`, `predicting`, `complete`, `validation_error`, `prediction_error`); gọi `validate-upload` trước rồi mới `predict-upload`; đổi ZIP vô hiệu hoá an toàn mọi phản hồi cũ; retry chỉ gọi inference.
+- `webapp/frontend/src/components/UploadWorkspace.tsx` — thêm stepper tái sử dụng cho vùng giữa và panel dữ liệu: spinner cyan ở bước đang chạy, tick khi hoàn tất, cảnh báo khi lỗi; giữ bảng kiểm ảnh/mask sau validation.
+- `webapp/frontend/src/index.css` — thêm style stepper/spinner và reduced-motion static; bỏ accent border dọc để detector UI pass.
+
+**Quyết định & lý do:**
+
+- Validation lỗi không tạo `uploadError` chung nên bảng kiểm 8 phase và lỗi manifest cùng còn nguyên; inference lỗi giữ validation result và chỉ mở thao tác “Thử lại dự đoán”.
+- Cả hai request có run id; nếu người dùng đổi ZIP trong lúc request chạy, response cũ bị bỏ qua thay vì ghi đè bộ mới.
+
+**Kết quả / số liệu:**
+
+- `npm run typecheck`, `npm run build`: pass.
+- `tests/test_webapp_api.py tests/test_webapp_volumes.py`: 47 passed (một cảnh báo quyền ghi `.pytest_cache` đã có).
+- Impeccable detector và `quality-gate.ps1`: pass.
+
+**Dang dở:**
+
+- [ ] Không có việc treo.
+
+**Điểm vào phiên sau:** kiểm tra trực quan bằng ZIP MRI+mask thật, bao gồm validation lỗi và inference retry.
+
+**Cảnh báo cho tool sau:** Không gộp lại validation với prediction thành một request UI; phải giữ bảng kiểm sau bước 1 và không cho retry inference gọi lại validation.
