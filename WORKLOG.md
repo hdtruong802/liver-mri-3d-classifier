@@ -6526,3 +6526,31 @@ Không train mới. Test giữ **610 passed**, 73 skipped. Gate PASS.
 **Điểm vào phiên sau:** không có việc treo.
 
 **Cảnh báo cho tool sau:** dùng nhất quán nhãn “AI đang dự đoán” và “Thời gian xử lý”.
+
+---
+
+## S-163 · 2026-08-13 · codex
+
+**Mục tiêu phiên:** sửa nút thu gọn panel dữ liệu bị scrollbar che.
+
+**Nhánh / commit:** `main` · `9baed2b` → *(commit theo sau entry này)*
+
+**Đã động file:**
+
+- `webapp/frontend/src/index.css` — desktop tách scroll sang `.workspace-data__content`, để container panel cho phép nút thu gọn tràn qua cạnh; nâng z-index của nút.
+
+**Quyết định & lý do:**
+
+- Scrollbar chỉ thuộc vùng nội dung cuộn, còn control thu gọn là một thao tác cố định của panel nên phải nằm ngoài vùng clipping/scrollbar.
+
+**Kết quả / số liệu:**
+
+- `npm run typecheck`, `npm run build`, Impeccable detector và `quality-gate.ps1`: pass.
+
+**Dang dở:**
+
+- [ ] Không có việc treo.
+
+**Điểm vào phiên sau:** không có việc treo.
+
+**Cảnh báo cho tool sau:** duy trì scroll ở `.workspace-data__content` trên desktop để control thu gọn luôn thấy được.
