@@ -199,18 +199,6 @@ export function SliceViewer({ caseId, phases, modelHeatmap, volumes, source = 'd
               Tải bộ MRI khác
             </button>
           ) : null}
-          <Toggle
-            active={showAnnotation}
-            onClick={() => setShowAnnotation((value) => !value)}
-            icon={Scan}
-            activeLabel="Đang hiện vùng tổn thương"
-            inactiveLabel="Hiện vùng tổn thương"
-            tone="annotation"
-            title={source === 'upload'
-              ? 'Ảnh MRI gốc của bộ vừa tải lên. Vùng fuchsia là nhãn tổn thương do người tải lên cung cấp, không phải output segmentation của model.'
-              : 'Nhãn dataset do người chú giải khoanh, không phải output segmentation của model'}
-            disabled={!annotationAvailable}
-          />
           {hasModelHeatmap && (
             <Toggle
               active={showHeatmap}
@@ -239,6 +227,18 @@ export function SliceViewer({ caseId, phases, modelHeatmap, volumes, source = 'd
               );
             })}
           </div>
+          <Toggle
+            active={showAnnotation}
+            onClick={() => setShowAnnotation((value) => !value)}
+            icon={Scan}
+            activeLabel="Đang hiện vùng tổn thương"
+            inactiveLabel="Hiện vùng tổn thương"
+            tone="annotation"
+            title={source === 'upload'
+              ? 'Ảnh MRI gốc của bộ vừa tải lên. Vùng fuchsia là nhãn tổn thương do người tải lên cung cấp, không phải output segmentation của model.'
+              : 'Nhãn dataset do người chú giải khoanh, không phải output segmentation của model'}
+            disabled={!annotationAvailable}
+          />
         </div>
       </div>
 

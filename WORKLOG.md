@@ -6473,3 +6473,31 @@ Không train mới. Test giữ **610 passed**, 73 skipped. Gate PASS.
 **Điểm vào phiên sau:** không có việc treo.
 
 **Cảnh báo cho tool sau:** giữ nút thay ZIP trong toolbar MRI; không nhân bản upload action ở header/sidebar.
+
+---
+
+## S-161 · 2026-08-13 · codex
+
+**Mục tiêu phiên:** đặt toggle vùng tổn thương ở cuối toolbar MRI.
+
+**Nhánh / commit:** `main` · `7a9a881` → *(commit theo sau entry này)*
+
+**Đã động file:**
+
+- `webapp/frontend/src/components/SliceViewer.tsx` — chuyển toggle “Hiện vùng tổn thương” xuống sau toàn bộ phase selector trong cùng một hàng.
+
+**Quyết định & lý do:**
+
+- Chọn phase trước, rồi mới bật/tắt overlay là thứ tự đọc ảnh tự nhiên hơn; toggle fuchsia cũng được tách khỏi thao tác tải bộ MRI.
+
+**Kết quả / số liệu:**
+
+- `npm run typecheck`, `npm run build`, Impeccable detector và `quality-gate.ps1`: pass.
+
+**Dang dở:**
+
+- [ ] Không có việc treo.
+
+**Điểm vào phiên sau:** không có việc treo.
+
+**Cảnh báo cho tool sau:** giữ overlay toggle là control cuối của toolbar.
