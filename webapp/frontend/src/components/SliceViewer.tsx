@@ -5,7 +5,7 @@
  */
 
 import { useCallback, useEffect, useMemo, useRef, useState, type PointerEvent } from 'react';
-import { ArrowLeft, ArrowRight, Flame, Scan } from 'lucide-react';
+import { ArrowLeft, ArrowRight, FileUp, Flame, Scan } from 'lucide-react';
 
 import { modelViewUrl, sliceUrl, uploadSliceUrl } from '@/api/client';
 import type { CaseVolumeInfo, ModelHeatmapInfo, PhaseInfo } from '@/api/types';
@@ -17,6 +17,7 @@ interface Props {
   modelHeatmap: ModelHeatmapInfo | null;
   volumes: CaseVolumeInfo[];
   source?: 'demo' | 'upload';
+  onChooseUpload?: () => void;
 }
 
 const MIN_SCALE = 1;
@@ -33,7 +34,7 @@ function toSegments(indices: number[]): Array<[number, number]> {
   return segments;
 }
 
-export function SliceViewer({ caseId, phases, modelHeatmap, volumes, source = 'demo' }: Props) {
+export function SliceViewer({ caseId, phases, modelHeatmap, volumes, source = 'demo', onChooseUpload }: Props) {
   const hasModelHeatmap = modelHeatmap?.available === true;
   const volumeByToken = useMemo(
     () => new Map(volumes.map((volume) => [volume.file_token, volume])),
@@ -187,6 +188,17 @@ export function SliceViewer({ caseId, phases, modelHeatmap, volumes, source = 'd
     <section aria-label="Khám phá ảnh MRI" className="mri-viewer">
       <div className="viewer-toolbar">
         <div className="viewer-toolbar__controls">
+          {source === 'upload' && onChooseUpload ? (
+            <button
+              type="button"
+              onClick={onChooseUpload}
+              className="viewer-control viewer-control--upload"
+              title="Chọn một bộ MRI ZIP khác. Kết quả và ảnh hiện tại sẽ được thay thế."
+            >
+              <FileUp aria-hidden="true" />
+              Tải bộ MRI khác
+            </button>
+          ) : null}
           <Toggle
             active={showAnnotation}
             onClick={() => setShowAnnotation((value) => !value)}

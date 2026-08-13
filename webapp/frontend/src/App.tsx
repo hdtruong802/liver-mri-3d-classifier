@@ -189,6 +189,7 @@ export default function App() {
               modelHeatmap={null}
               volumes={uploadView.volumes}
               source="upload"
+              onChooseUpload={chooseArchive}
             />
           ) : (
             <UploadDropzone

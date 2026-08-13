@@ -6444,3 +6444,32 @@ Không train mới. Test giữ **610 passed**, 73 skipped. Gate PASS.
 **Điểm vào phiên sau:** không có việc treo.
 
 **Cảnh báo cho tool sau:** giữ một trạng thái tải duy nhất; không tái tạo stepper hai ô trong vùng trung tâm.
+
+---
+
+## S-160 · 2026-08-13 · codex
+
+**Mục tiêu phiên:** cho phép thay bộ MRI khi đang xem kết quả và lát ảnh hiện tại.
+
+**Nhánh / commit:** `main` · `b2e9b1a` → *(commit theo sau entry này)*
+
+**Đã động file:**
+
+- `webapp/frontend/src/components/SliceViewer.tsx` — thêm nút “Tải bộ MRI khác” vào toolbar viewer chỉ cho nguồn ZIP upload.
+- `webapp/frontend/src/App.tsx` — nối nút với file picker dùng chung; chọn ZIP mới tiếp tục dùng cơ chế reset an toàn ảnh, kết quả và trạng thái cũ.
+
+**Quyết định & lý do:**
+
+- Đặt một thao tác thay ZIP duy nhất ngay trong context ảnh đang xem, thay vì đưa lại nút upload vào header hoặc sidebar và làm lặp luồng thao tác.
+
+**Kết quả / số liệu:**
+
+- `npm run typecheck`, `npm run build`, Impeccable detector và `quality-gate.ps1`: pass.
+
+**Dang dở:**
+
+- [ ] Không có việc treo.
+
+**Điểm vào phiên sau:** không có việc treo.
+
+**Cảnh báo cho tool sau:** giữ nút thay ZIP trong toolbar MRI; không nhân bản upload action ở header/sidebar.
