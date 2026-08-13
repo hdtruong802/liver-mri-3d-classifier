@@ -6192,3 +6192,32 @@ Không train mới. Test giữ **610 passed**, 73 skipped. Gate PASS.
 **Điểm vào phiên sau:** Không có việc treo. Bước kế tiếp đề xuất: tải ZIP thật và kiểm trực quan cường độ/định hướng lát của ảnh nguồn.
 
 **Cảnh báo cho tool sau:** Không đổi lại viewer upload sang crop UniFormer. Dữ liệu NIfTI nguồn tạm thời nằm ngoài repo và không được commit; endpoint phải trả 404 có hướng dẫn nếu viewer đã hết hạn.
+
+---
+
+## S-152 · 2026-08-13 15:25 · codex
+
+**Mục tiêu phiên:** bỏ toàn bộ ca demo khỏi giao diện web app.
+
+**Nhánh / commit:** `main` · `1a1cff4` → *(commit theo sau entry này)*
+
+**Đã đụng file:**
+
+- `webapp/frontend/src/App.tsx` — gỡ worklist/chọn/predict ca demo và chỉ còn luồng tải ZIP, suy luận trực tiếp, kết quả và viewer MRI upload.
+- `webapp/frontend/src/components/ResultDetailsTabs.tsx` — đổi aria-label tổng quát, không còn gọi đây là kết quả ca demo.
+
+**Quyết định & lý do:**
+
+- Giữ endpoint và dữ liệu ca demo ở backend nhưng không gọi chúng từ UI — đáp ứng thay đổi sản phẩm mà không phá contract API hoặc test hiện hữu.
+
+**Kết quả / số liệu:**
+
+- `npm run typecheck`, `npm run build`, Impeccable detector và quality gate: pass.
+
+**Dang dở:**
+
+- [ ] Không có việc treo.
+
+**Điểm vào phiên sau:** Không có việc treo. Bước kế tiếp đề xuất: kiểm thử một ZIP MRI+mask thật qua luồng UI duy nhất.
+
+**Cảnh báo cho tool sau:** Component và API demo có thể vẫn tồn tại làm compatibility/backend fixture, nhưng không được gắn lại vào frontend nếu chưa có yêu cầu rõ ràng.

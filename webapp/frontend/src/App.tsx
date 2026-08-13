@@ -1,9 +1,8 @@
 import { useCallback, useEffect, useState } from 'react';
 import { AlertTriangle, Stethoscope } from 'lucide-react';
 
-import { ApiError, getCase, getMeta, listCases, predictCase } from '@/api/client';
-import type { CaseDetail, CaseSummary, MetaResponse, PredictResult, UploadViewInfo } from '@/api/types';
-import { CaseStrip } from '@/components/CaseStrip';
+import { ApiError, getMeta } from '@/api/client';
+import type { MetaResponse, PredictResult, UploadViewInfo } from '@/api/types';
 import { DeferPanel } from '@/components/DeferPanel';
 import { ProvenanceBadge } from '@/components/Provenance';
 import { ResultSummary } from '@/components/ResultCards';
@@ -13,39 +12,17 @@ import { ZipUpload } from '@/components/ZipUpload';
 
 export default function App() {
   const [meta, setMeta] = useState<MetaResponse | null>(null);
-  const [cases, setCases] = useState<CaseSummary[]>([]);
-  const [detail, setDetail] = useState<CaseDetail | null>(null);
   const [uploadView, setUploadView] = useState<UploadViewInfo | null>(null);
   const [result, setResult] = useState<PredictResult | null>(null);
-  const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    Promise.all([getMeta(), listCases()])
-      .then(([metaResponse, caseList]) => {
-        setMeta(metaResponse);
-        setCases(caseList);
-      })
+    getMeta()
+      .then(setMeta)
       .catch((cause: ApiError) => setError(cause.message));
   }, []);
 
-  const openCase = useCallback(async (caseId: string) => {
-    setBusy(true);
-    setError(null);
-    try {
-      const [caseDetail, prediction] = await Promise.all([getCase(caseId), predictCase(caseId)]);
-      setDetail(caseDetail);
-      setUploadView(null);
-      setResult(prediction);
-    } catch (cause) {
-      setError(cause instanceof ApiError ? cause.message : String(cause));
-    } finally {
-      setBusy(false);
-    }
-  }, []);
-
   const showUploadPrediction = useCallback((prediction: PredictResult, view: UploadViewInfo) => {
-    setDetail(null);
     setUploadView(view);
     setResult(prediction);
     setError(null);
@@ -82,17 +59,13 @@ export default function App() {
           </div>
         ) : null}
 
-        <CaseStrip cases={cases} selected={detail?.case_id ?? null} busy={busy} onSelect={openCase} />
-
         {meta ? <ZipUpload onPrediction={showUploadPrediction} /> : null}
 
         {result ? (
           <section aria-labelledby="results-heading" className="mt-8 animate-fade-in">
             <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
               <div>
-                <p className="label">
-                  {result.provenance.source === 'live' ? 'Bộ MRI đã tải lên' : 'Ca demo đã chọn'}
-                </p>
+                <p className="label">Bộ MRI đã tải lên</p>
                 <h2 id="results-heading" className="font-mono text-lg font-bold text-white">
                   {result.case_id}
                 </h2>
@@ -103,19 +76,7 @@ export default function App() {
             <ResultSummary result={result} />
             <DeferPanel result={result} />
 
-            {detail && meta ? (
-              <ResultDetailsTabs
-                probs={result.probs}
-                imageExplorer={
-                  <SliceViewer
-                    caseId={detail.case_id}
-                    phases={meta.phases}
-                    modelHeatmap={detail.model_heatmap}
-                    volumes={detail.volumes}
-                  />
-                }
-              />
-            ) : uploadView && meta ? (
+            {uploadView && meta ? (
               <ResultDetailsTabs
                 probs={result.probs}
                 imageExplorer={
