@@ -56,7 +56,7 @@ Không hard-code màu nền/chữ trong component đang render. Component dùng 
 
 ## Layout
 
-- Header 56 px, dải RUO 32 px, workspace chiếm phần chiều cao còn lại của `100dvh`.
+- Header 56 px, workspace chiếm phần chiều cao còn lại của `100dvh`. Dòng phụ dưới tên app mang RUO ngắn gọn để không chiếm thêm một dải ngang.
 - Từ 1280 px: panel dữ liệu 272 px có thể thu gọn, viewer `minmax(0, 1fr)`, panel kết quả 384 px luôn hiện; mỗi sidebar cuộn độc lập.
 - Dưới 1280 px: dùng ba tab Dữ liệu / Ảnh MRI / Kết quả. Ảnh MRI là tab mặc định. Tab không nhận phím mũi tên; chúng chỉ đổi bằng click/touch hoặc focus + Enter/Space.
 - Mobile giữ tối thiểu vùng chạm 44 px. Phase strip cuộn ngang, không ép xuống hai hàng.
@@ -84,7 +84,7 @@ Viewer hiển thị **ảnh NIfTI nguồn** của ZIP vừa tải lên; crop Uni
 
 ## Nội dung và an toàn
 
-Dải "Research Use Only: chưa kiểm định lâm sàng, không dùng để chẩn đoán" luôn thấy dưới header. Không bịa danh tính bệnh nhân, ngày khám, phiên bản model hoặc khuyến nghị lâm sàng.
+Dòng phụ của header luôn nêu rõ "Chỉ dùng cho nghiên cứu · Không dùng để chẩn đoán". Không bịa danh tính bệnh nhân, ngày khám, phiên bản model hoặc khuyến nghị lâm sàng.
 
 Kết quả upload trực tiếp phải ghi rõ provenance. Không hiển thị `defer`, calibration OOF hoặc heatmap không tồn tại như thể chúng áp dụng cho suy luận live. Thay vào đó, dùng mô tả trung tính rằng kết quả cần người có chuyên môn đối chiếu.
 

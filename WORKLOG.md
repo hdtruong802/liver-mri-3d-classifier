@@ -6382,3 +6382,36 @@ Không train mới. Test giữ **610 passed**, 73 skipped. Gate PASS.
 **Điểm vào phiên sau:** kiểm tra trực quan bằng ZIP MRI+mask thật, bao gồm validation lỗi và inference retry.
 
 **Cảnh báo cho tool sau:** Không gộp lại validation với prediction thành một request UI; phải giữ bảng kiểm sau bước 1 và không cho retry inference gọi lại validation.
+
+---
+
+## S-158 · 2026-08-13 · codex
+
+**Mục tiêu phiên:** làm gọn nhãn nghiên cứu/kết quả và hiển thị thời gian tải-xử lý một bộ MRI.
+
+**Nhánh / commit:** `main` · `9a48499` → *(commit theo sau entry này)*
+
+**Đã động file:**
+
+- `webapp/frontend/src/App.tsx` — bỏ dải RUO riêng; đưa nhãn ngắn “Chỉ dùng cho nghiên cứu · Không dùng để chẩn đoán” vào subtitle header; đổi heading thành “Kết quả AI dự đoán”; đo thời gian từ khi POST ZIP bắt đầu đến khi prediction/viewer thành công và hiển thị “Tải & xử lý”.
+- `webapp/frontend/src/components/DeferPanel.tsx`, `components/UploadWorkspace.tsx` — gỡ badge “Suy luận trực tiếp” và không hiển thị hai bước đã hoàn tất sau khi AI trả kết quả.
+- `webapp/DESIGN.md` — cập nhật vị trí nhãn RUO trong hệ thiết kế.
+
+**Quyết định & lý do:**
+
+- Không xoá ý nghĩa RUO vì đây là ràng buộc an toàn bất biến; chỉ chuyển nó vào dòng phụ của header để nhường 32 px cho workspace.
+- Đồng hồ bao gồm thời gian upload request, kiểm tra, tiền xử lý và inference của lượt chạy; không chỉ dùng `inference_ms` vì số đó không phản ánh thời gian người dùng chờ.
+
+**Kết quả / số liệu:**
+
+- `npm run typecheck`, `npm run build`: pass.
+- `tests/test_webapp_api.py tests/test_webapp_volumes.py`: 47 passed (một cảnh báo quyền ghi `.pytest_cache` đã có).
+- Impeccable detector và `quality-gate.ps1`: pass.
+
+**Dang dở:**
+
+- [ ] Không có việc treo.
+
+**Điểm vào phiên sau:** kiểm tra trực quan bằng ZIP MRI+mask thật nếu cần tinh chỉnh thêm copy ở panel kết quả.
+
+**Cảnh báo cho tool sau:** không đưa dải RUO riêng trở lại; dòng phụ header là vị trí duy nhất hiện tại cho thông điệp nghiên cứu/không chẩn đoán.

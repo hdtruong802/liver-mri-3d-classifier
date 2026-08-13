@@ -5,7 +5,7 @@ import { ApiError, getMeta, predictUpload, validateUpload } from '@/api/client';
 import type { MetaResponse, PredictResult, UploadValidationResult, UploadViewInfo } from '@/api/types';
 import { ClassProbabilityChart } from '@/components/ClassProbabilityChart';
 import { DeferPanel } from '@/components/DeferPanel';
-import { EmptyState, ProvenanceBadge } from '@/components/Provenance';
+import { EmptyState } from '@/components/Provenance';
 import { ResultSummary } from '@/components/ResultCards';
 import { SliceViewer } from '@/components/SliceViewer';
 import { ThemeToggle } from '@/components/ThemeToggle';
@@ -20,6 +20,7 @@ function toMessage(cause: unknown): string {
 export default function App() {
   const archiveInputRef = useRef<HTMLInputElement>(null);
   const uploadRunRef = useRef(0);
+  const processingStartedAtRef = useRef<number | null>(null);
   const [meta, setMeta] = useState<MetaResponse | null>(null);
   const [metaError, setMetaError] = useState<string | null>(null);
   const [archive, setArchive] = useState<File | null>(null);
@@ -27,6 +28,7 @@ export default function App() {
   const [uploadView, setUploadView] = useState<UploadViewInfo | null>(null);
   const [prediction, setPrediction] = useState<PredictResult | null>(null);
   const [uploadError, setUploadError] = useState<string | null>(null);
+  const [processingElapsedMs, setProcessingElapsedMs] = useState<number | null>(null);
   const [uploadStage, setUploadStage] = useState<UploadStage>('idle');
   const [leftCollapsed, setLeftCollapsed] = useState(false);
   const [mobileView, setMobileView] = useState<MobileView>('images');
@@ -46,6 +48,8 @@ export default function App() {
     setUploadView(null);
     setPrediction(null);
     setUploadError(null);
+    setProcessingElapsedMs(null);
+    processingStartedAtRef.current = null;
     setUploadStage('idle');
     setMobileView('data');
     event.target.value = '';
@@ -64,6 +68,9 @@ export default function App() {
       if (response.prediction && response.upload_view) {
         setPrediction(response.prediction);
         setUploadView(response.upload_view);
+        if (processingStartedAtRef.current !== null) {
+          setProcessingElapsedMs(performance.now() - processingStartedAtRef.current);
+        }
         setUploadStage('complete');
         setMobileView('images');
       } else {
@@ -88,6 +95,8 @@ export default function App() {
     setUploadResult(null);
     setPrediction(null);
     setUploadView(null);
+    setProcessingElapsedMs(null);
+    processingStartedAtRef.current = performance.now();
     try {
       const validation = await validateUpload(archive);
       if (runId !== uploadRunRef.current) return;
@@ -112,6 +121,7 @@ export default function App() {
     if (!archive || busy) return;
     const runId = uploadRunRef.current + 1;
     uploadRunRef.current = runId;
+    processingStartedAtRef.current = performance.now();
     void runPrediction(runId);
   };
 
@@ -126,7 +136,7 @@ export default function App() {
           <span className="brand-mark"><Stethoscope aria-hidden="true" /></span>
           <div>
             <h1>Phân loại tổn thương gan trên MRI đa thì</h1>
-            <p>Bản demo nghiên cứu</p>
+            <p>Chỉ dùng cho nghiên cứu · Không dùng để chẩn đoán</p>
           </div>
         </div>
         <p className="topbar__session" title={sessionName}>{sessionName}</p>
@@ -134,10 +144,6 @@ export default function App() {
           <ThemeToggle />
         </div>
       </header>
-      <div className="ruo-bar">
-        {meta?.ruo_notice ?? 'Research Use Only: chưa kiểm định lâm sàng'}, không dùng để chẩn đoán
-      </div>
-
       <input
         ref={archiveInputRef}
         className="sr-only"
@@ -201,10 +207,10 @@ export default function App() {
             <div className="results-panel animate-fade-in">
               <div className="results-panel__heading">
                 <div>
-                  <h2>Kết quả AI</h2>
+                  <h2>Kết quả AI dự đoán</h2>
                   <p>{prediction.case_id}</p>
+                  {processingElapsedMs !== null ? <p>Tải & xử lý: {formatElapsedTime(processingElapsedMs)}</p> : null}
                 </div>
-                <ProvenanceBadge provenance={prediction.provenance} />
               </div>
               <ResultSummary result={prediction} />
               <ClassProbabilityChart probs={prediction.probs} />
@@ -219,6 +225,14 @@ export default function App() {
       </main>
     </div>
   );
+}
+
+function formatElapsedTime(elapsedMs: number): string {
+  const seconds = elapsedMs / 1000;
+  if (seconds < 60) return `${new Intl.NumberFormat('vi-VN', { maximumFractionDigits: 1 }).format(seconds)} giây`;
+  const minutes = Math.floor(seconds / 60);
+  const remainingSeconds = Math.round(seconds % 60);
+  return `${minutes} phút ${remainingSeconds} giây`;
 }
 
 function ProcessingEmptyState({ stage }: { stage: UploadStage }) {

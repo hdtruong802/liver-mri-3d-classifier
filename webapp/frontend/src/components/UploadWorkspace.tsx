@@ -29,6 +29,7 @@ function isWorking(stage: UploadStage) {
 
 export function UploadProgress({ stage, compact = false }: { stage: UploadStage; compact?: boolean }) {
   if (stage === 'idle') return null;
+  if (stage === 'complete') return null;
 
   const validationState = stage === 'checking'
     ? 'active'
@@ -37,11 +38,9 @@ export function UploadProgress({ stage, compact = false }: { stage: UploadStage;
       : 'complete';
   const predictionState = stage === 'predicting'
     ? 'active'
-    : stage === 'complete'
-      ? 'complete'
-      : stage === 'prediction_error'
-        ? 'error'
-        : 'pending';
+    : stage === 'prediction_error'
+      ? 'error'
+      : 'pending';
 
   return (
     <ol className={`upload-progress ${compact ? 'upload-progress--compact' : ''}`} aria-label="Tiến trình xử lý bộ MRI">

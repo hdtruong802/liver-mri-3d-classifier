@@ -1,13 +1,12 @@
 import { AlertTriangle, CircleAlert, ShieldCheck } from 'lucide-react';
 
 import type { PredictResult } from '@/api/types';
-import { ProvenanceBadge } from '@/components/Provenance';
 
 export function DeferPanel({ result }: { result: PredictResult }) {
   const state = result.defer === null
     ? {
         title: 'Chưa áp dụng cơ chế từ chối ca',
-        copy: 'Đây là suy luận trực tiếp từ bộ MRI vừa tải lên. Kết quả chưa có trạng thái nhận hoặc từ chối ca; cần được người có chuyên môn đối chiếu.',
+        copy: 'Kết quả được tạo từ bộ MRI vừa tải lên. Hệ thống chưa áp dụng trạng thái nhận hoặc từ chối ca; cần được người có chuyên môn đối chiếu.',
         icon: <CircleAlert aria-hidden="true" />,
         tone: 'neutral',
       }
@@ -36,9 +35,6 @@ export function DeferPanel({ result }: { result: PredictResult }) {
           <h3 id="defer-heading">{state.title}</h3>
           <p>{state.copy}</p>
         </div>
-      </div>
-      <div className="defer-panel__provenance">
-        <ProvenanceBadge provenance={result.provenance} />
       </div>
     </section>
   );
