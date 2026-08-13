@@ -6158,3 +6158,37 @@ Không train mới. Test giữ **610 passed**, 73 skipped. Gate PASS.
 **Điểm vào phiên sau:** Không có việc treo. Bước kế tiếp đề xuất: tải một ZIP MRI+mask thật để kiểm trực quan crop/annotation trên dữ liệu mới.
 
 **Cảnh báo cho tool sau:** Viewer upload phụ thuộc cache RAM; restart backend hoặc quá TTL sẽ trả 404 có hướng dẫn tải ZIP lại. Không biến crop này thành dữ liệu persist hoặc commit NIfTI/checkpoint.
+
+---
+
+## S-151 · 2026-08-13 15:16 · codex
+
+**Mục tiêu phiên:** sửa viewer của bộ MRI tải lên để hiển thị ảnh nguồn thay vì crop UniFormer.
+
+**Nhánh / commit:** `main` · `588f8c9` → *(commit theo sau entry này)*
+
+**Đã đụng file:**
+
+- `webapp/backend/upload_views.py`, `main.py`, `config.py` — viewer upload giữ tạm NIfTI gốc của bộ mới nhất, render lát từ ảnh nguồn và xoá thư mục tạm khi hết hạn/thay thế.
+- `webapp/frontend/src/components/SliceViewer.tsx`, `webapp/README.md` — copy nêu rõ ảnh gốc chưa crop; crop vẫn chỉ là input nội bộ cho UniFormer.
+- `src/preprocess/build_cache.py`, `live_inference.py`, `volumes.py` — bỏ phần crop-overlay không còn được dùng.
+- `tests/test_webapp_api.py` — kiểm chứng response viewer trả geometry nguồn 12×13×6 trong fixture, không phải crop 112×112×14.
+
+**Quyết định & lý do:**
+
+- Hiển thị NIfTI nguồn theo từng thì — người xem cần bối cảnh giải phẫu; crop ROI chỉ phù hợp cho inference, không phù hợp làm ảnh đọc chính.
+- Chỉ giữ **một** bộ MRI nguồn mới nhất trong thư mục tạm tối đa 30 phút — tránh giữ nhiều dữ liệu bệnh nhân; bộ mới, hết TTL hoặc restart backend sẽ xoá bộ cũ.
+
+**Kết quả / số liệu:**
+
+- `tests/test_webapp_api.py tests/test_webapp_volumes.py`: 47 passed.
+- `npm run typecheck`, `npm run build`, ruff, Impeccable detector và quality gate: pass.
+- Backend đã khởi động lại tại `127.0.0.1:8000`; health endpoint trả OK.
+
+**Dang dở:**
+
+- [ ] Không có việc treo.
+
+**Điểm vào phiên sau:** Không có việc treo. Bước kế tiếp đề xuất: tải ZIP thật và kiểm trực quan cường độ/định hướng lát của ảnh nguồn.
+
+**Cảnh báo cho tool sau:** Không đổi lại viewer upload sang crop UniFormer. Dữ liệu NIfTI nguồn tạm thời nằm ngoài repo và không được commit; endpoint phải trả 404 có hướng dẫn nếu viewer đã hết hạn.

@@ -7,6 +7,7 @@ Chạy local. Kaggle không phải server và không bao giờ host API ở đó
 
 from __future__ import annotations
 
+import shutil
 import tempfile
 from pathlib import Path, PurePosixPath
 from zipfile import BadZipFile, ZipFile, ZipInfo
@@ -158,11 +159,11 @@ def case_slice(case_id: str, phase: str, z: int, mask: bool = False) -> Response
     response_class=Response,
 )
 def upload_slice(upload_id: str, phase: str, z: int, mask: bool = False) -> Response:
-    """Render the short-lived ROI crop retained for a completed upload.
+    """Render the original MRI retained briefly for a completed upload.
 
-    The crop is the exact 112×112×14 input seen by UniFormer. It is not the
-    raw NIfTI and the optional overlay is the user's supplied annotation, not
-    a segmentation output from this classifier.
+    The image is the source NIfTI, not the UniFormer crop. The optional overlay
+    is the user's supplied annotation, not a segmentation output from this
+    classifier.
     """
     try:
         payload = upload_studies.render(upload_id, phase, z, annotation=mask)
@@ -412,6 +413,8 @@ async def predict_upload(archive: UploadFile) -> UploadPredictionResult:
     if not archive_name.lower().endswith(".zip"):
         raise HTTPException(status_code=422, detail="Chỉ nhận một file .zip.")
 
+    temporary_directory: Path | None = None
+    retained_by_viewer = False
     try:
         with ZipFile(archive.file) as bundle:
             infos = _safe_zip_infos(bundle)
@@ -420,33 +423,30 @@ async def predict_upload(archive: UploadFile) -> UploadPredictionResult:
             )
             if not manifest.inference_ready:
                 return UploadPredictionResult(**manifest.model_dump(), prediction=None)
-            with tempfile.TemporaryDirectory(prefix="liver-mri-upload-") as temp_dir:
-                image_paths, mask_paths = _extract_for_inference(
-                    bundle, infos, image_names, mask_names, Path(temp_dir)
-                )
-                from webapp.backend import live_inference
+            temporary_directory = Path(tempfile.mkdtemp(prefix="liver-mri-upload-"))
+            image_paths, mask_paths = _extract_for_inference(
+                bundle, infos, image_names, mask_names, temporary_directory
+            )
+            from webapp.backend import live_inference
 
-                if not live_inference.is_available():
-                    raise HTTPException(
-                        status_code=503,
-                        detail=(
-                            "Máy chủ chưa có đủ weights UniFormer hoặc runtime PyTorch "
-                            "để chạy suy luận."
-                        ),
-                    )
-                inference_result = live_inference.predict_uploaded(
-                    archive_name, image_paths, mask_paths
+            if not live_inference.is_available():
+                raise HTTPException(
+                    status_code=503,
+                    detail=(
+                        "Máy chủ chưa có đủ weights UniFormer hoặc runtime PyTorch "
+                        "để chạy suy luận."
+                    ),
                 )
+            prediction = live_inference.predict_uploaded(archive_name, image_paths, mask_paths)
+            upload_view = upload_studies.create(image_paths, mask_paths, temporary_directory)
+            retained_by_viewer = True
     except BadZipFile as exc:
         raise HTTPException(status_code=422, detail="File tải lên không phải ZIP hợp lệ.") from exc
     except (OSError, ValueError, RuntimeError) as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
-
-    upload_view = upload_studies.create(
-        inference_result.crop_volume,
-        inference_result.annotation_masks,
-        inference_result.spacing_mm,
-    )
+    finally:
+        if temporary_directory is not None and not retained_by_viewer:
+            shutil.rmtree(temporary_directory, ignore_errors=True)
     return UploadPredictionResult(
-        **manifest.model_dump(), prediction=inference_result.prediction, upload_view=upload_view
+        **manifest.model_dump(), prediction=prediction, upload_view=upload_view
     )

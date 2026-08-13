@@ -398,7 +398,6 @@ def process_uploaded_with_masks(
     ref_center_world = voxel_to_world(ref_affine, ref_center_voxel)
 
     channels: list[np.ndarray] = []
-    annotation_masks: list[np.ndarray] = []
     shifts: list[np.ndarray] = []
     for phase in phase_config:
         token = phase["file"]
@@ -412,13 +411,8 @@ def process_uploaded_with_masks(
         phase_center_world = voxel_to_world(phase_affine, phase_center_voxel)
         grid = make_reference_image(phase_center_world, ref_direction, spacing, grid_size)
         patch = to_numpy(resample_to_grid(image, grid, interpolator))
-        # Keep the annotation on exactly the same per-phase crop grid as the MRI.
-        # The serving layer uses this only for an optional viewer overlay; it is
-        # never an output produced by the classifier.
-        annotation_patch = to_numpy(resample_to_grid(mask, grid, "nearest"))
         stats_source = to_numpy(image) if scope == "volume" else None
         channels.append(clip_and_zscore(patch, stats_source, clip))
-        annotation_masks.append((annotation_patch > 0).astype(np.uint8))
         shifts.append(np.asarray(phase_center_world, dtype=float) - ref_center_world)
 
     shift_array = np.asarray(shifts, dtype=np.float32)
@@ -434,10 +428,6 @@ def process_uploaded_with_masks(
         "phase_shift_mm": shift_array,
         "max_phase_shift_mm": np.float32(np.abs(shift_array).max(initial=0.0)),
         "phase_center_source": np.asarray(["mask"] * len(phase_config)),
-        # This is intentionally kept alongside the in-memory upload result only.
-        # It lets the web viewer render the exact UniFormer crop without retaining
-        # the original NIfTI files after inference.
-        "annotation_masks": np.stack(annotation_masks, axis=0),
     }
 
 

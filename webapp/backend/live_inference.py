@@ -11,7 +11,6 @@ import functools
 import json
 import time
 from collections.abc import Mapping
-from dataclasses import dataclass
 from importlib.util import find_spec
 from pathlib import Path
 from typing import Any
@@ -41,16 +40,6 @@ _EXPECTED_MODEL = {
     "require_pretrained": True,
     "pretrained_path": None,
 }
-
-
-@dataclass(frozen=True)
-class UploadInference:
-    """Prediction plus the exact cropped arrays used for the forward pass."""
-
-    prediction: PredictResult
-    crop_volume: np.ndarray
-    annotation_masks: np.ndarray
-    spacing_mm: np.ndarray
 
 
 def weight_paths() -> tuple[Path, ...]:
@@ -157,7 +146,7 @@ def predict_uploaded(
     archive_name: str,
     image_paths: Mapping[str, Path],
     mask_paths: Mapping[str, Path],
-) -> UploadInference:
+) -> PredictResult:
     """Run raw UniFormer ensemble probabilities for one newly uploaded case.
 
     No temperature or defer rule is applied: those serving rules were validated
@@ -165,23 +154,13 @@ def predict_uploaded(
     """
     started = time.perf_counter()
     phases, preprocess_config, _ = _load_runtime_config()
-    volume, crop_meta = process_uploaded_with_masks(
-        image_paths, mask_paths, phases, preprocess_config
-    )
-    annotation_masks = np.asarray(crop_meta["annotation_masks"], dtype=np.uint8)
-    if volume.shape != (8, 128, 128, 16) or annotation_masks.shape != volume.shape:
-        raise RuntimeError(
-            "crop ROI UniFormer cho shape bất ngờ: "
-            f"MRI {volume.shape}, mask {annotation_masks.shape}"
-        )
+    volume, _ = process_uploaded_with_masks(image_paths, mask_paths, phases, preprocess_config)
+    if volume.shape != (8, 128, 128, 16):
+        raise RuntimeError(f"crop ROI UniFormer cho shape bất ngờ {volume.shape}")
     # Validation/inference uses the deterministic centre crop 128×128×16 -> 112×112×14.
     model_volume = volume[:, 8:120, 8:120, 1:15]
-    model_masks = annotation_masks[:, 8:120, 8:120, 1:15]
-    if model_volume.shape != (8, 112, 112, 14) or model_masks.shape != model_volume.shape:
-        raise RuntimeError(
-            "center crop UniFormer cho shape bất ngờ: "
-            f"MRI {model_volume.shape}, mask {model_masks.shape}"
-        )
+    if model_volume.shape != (8, 112, 112, 14):
+        raise RuntimeError(f"center crop UniFormer cho shape bất ngờ {model_volume.shape}")
 
     models, device = _load_models()
     import torch
@@ -199,7 +178,7 @@ def predict_uploaded(
     probs /= probs.sum()
     elapsed_ms = int((time.perf_counter() - started) * 1000)
 
-    prediction = assemble_result(
+    return assemble_result(
         case_id=Path(archive_name).stem,
         probs=probs,
         provenance=Provenance(
@@ -215,10 +194,4 @@ def predict_uploaded(
         ensemble_std=float(stacked.std(axis=0).mean()),
         inference_ms=elapsed_ms,
         defer_available=False,
-    )
-    return UploadInference(
-        prediction=prediction,
-        crop_volume=model_volume,
-        annotation_masks=model_masks,
-        spacing_mm=np.asarray(crop_meta["spacing"], dtype=np.float32),
     )

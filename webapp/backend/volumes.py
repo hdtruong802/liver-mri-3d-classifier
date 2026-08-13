@@ -206,33 +206,6 @@ def render_slice_png(path: Path, z: int, mask_path: Path | None = None) -> bytes
     return payload
 
 
-def render_array_slice_png(volume: np.ndarray, z: int, mask: np.ndarray | None = None) -> bytes:
-    """Render one in-memory ROI crop, optionally with its human annotation.
-
-    Uploads are deleted after preprocessing. This function intentionally accepts
-    only the already-normalised crop used by UniFormer, never a path to a
-    persisted uploaded NIfTI. Axis orientation and annotation styling match
-    :func:`render_slice_png` so the upload and demo viewers behave alike.
-    """
-    if volume.ndim != 3:
-        raise ValueError(f"volume crop phải có 3 chiều, nhận {volume.shape}")
-    total = int(volume.shape[2])
-    if not 0 <= z < total:
-        raise IndexError(f"lát {z} ngoài khoảng [0, {total - 1}]")
-    if mask is not None and mask.shape != volume.shape:
-        raise ValueError(f"mask crop {mask.shape} khác ảnh crop {volume.shape}")
-
-    oriented = _normalize(np.asarray(volume[:, :, z], dtype=np.float32)).T[::-1]
-    if mask is None:
-        picture = Image.fromarray(oriented, mode="L")
-    else:
-        mask_slab = np.asarray(mask[:, :, z]).T[::-1]
-        picture = Image.fromarray(overlay_annotation(oriented, mask_slab), mode="RGB")
-    buffer = io.BytesIO()
-    picture.save(buffer, format="PNG", optimize=True)
-    return buffer.getvalue()
-
-
 def phase_of_token(token: str) -> Phase | None:
     for phase in PHASES:
         if phase.file_token == token:

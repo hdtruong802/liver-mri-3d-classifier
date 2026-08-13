@@ -288,7 +288,7 @@ export function SliceViewer({ caseId, phases, modelHeatmap, volumes, source = 'd
       )}
       {source === 'upload' && (
         <p className="mt-3 max-w-measure text-data text-slate-400">
-          Đây là crop ROI đã tiền xử lý đúng như UniFormer nhận. Vùng tô fuchsia là nhãn tổn thương do người tải lên cung cấp, không phải vùng model tự khoanh.
+          Đây là ảnh MRI gốc của bộ vừa tải lên, chưa crop. Vùng tô fuchsia là nhãn tổn thương do người tải lên cung cấp, không phải vùng model tự khoanh.
         </p>
       )}
 

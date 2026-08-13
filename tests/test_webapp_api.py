@@ -16,7 +16,7 @@ from src.data.taxonomy import CLASS_NAMES, MALIGNANT_INDICES, NUM_CLASSES
 fastapi = pytest.importorskip(
     "fastapi", reason="lớp serve chưa cài; xem webapp/backend/requirements.txt"
 )
-pytest.importorskip("nibabel", reason="lớp serve chưa cài")
+nib = pytest.importorskip("nibabel", reason="lớp serve chưa cài")
 pytest.importorskip("PIL", reason="lớp serve chưa cài")
 
 from fastapi.testclient import TestClient  # noqa: E402
@@ -189,11 +189,20 @@ def test_predict_khong_con_heatmap_slices(client: TestClient) -> None:
 # ------------------------------------------------------------------------- upload
 
 
-def _zip_upload(names: list[str]) -> dict[str, tuple[str, bytes, str]]:
+def _zip_upload(
+    names: list[str], *, with_source_nifti: bool = False
+) -> dict[str, tuple[str, bytes, str]]:
     payload = BytesIO()
     with ZipFile(payload, "w") as archive:
-        for name in names:
-            archive.writestr(name, b"nifti-placeholder")
+        for index, name in enumerate(names):
+            content = b"nifti-placeholder"
+            if with_source_nifti and name.lower().endswith((".nii", ".nii.gz")):
+                data = np.full((12, 13, 6), index + 1, dtype=np.float32)
+                if "/masks/" in name:
+                    data.fill(0)
+                    data[4:9, 5:10, 2:4] = 1
+                content = nib.Nifti1Image(data, np.eye(4)).to_bytes()
+            archive.writestr(name, content)
     return {"archive": ("MR-1.zip", payload.getvalue(), "application/zip")}
 
 
@@ -278,7 +287,7 @@ def test_predict_upload_uses_complete_mri_and_mask_contract(
         called["archive_name"] = archive_name
         called["images"] = image_paths
         called["masks"] = mask_paths
-        prediction = inference.assemble_result(
+        return inference.assemble_result(
             case_id="MR-1",
             probs=np.full(7, 1 / 7),
             provenance=Provenance(
@@ -286,29 +295,22 @@ def test_predict_upload_uses_complete_mri_and_mask_contract(
             ),
             defer_available=False,
         )
-        crop = np.zeros((8, 112, 112, 14), dtype=np.float32)
-        crop[:, 35:72, 35:72, :] = 1.0
-        masks = np.zeros_like(crop, dtype=np.uint8)
-        masks[:, 48:60, 48:60, 4:9] = 1
-        return live_inference.UploadInference(
-            prediction=prediction,
-            crop_volume=crop,
-            annotation_masks=masks,
-            spacing_mm=np.array([1.0, 1.0, 3.0], dtype=np.float32),
-        )
 
     monkeypatch.setattr(live_inference, "predict_uploaded", fake_predict)
-    response = client.post("/api/predict-upload", files=_zip_upload(names))
+    response = client.post(
+        "/api/predict-upload", files=_zip_upload(names, with_source_nifti=True)
+    )
     assert response.status_code == 200
     body = response.json()
     assert body["inference_ready"] is True
     assert body["prediction"]["provenance"]["source"] == "live"
     assert len(called["images"]) == len(called["masks"]) == 8
-    assert body["upload_view"]["volumes"][0]["n_slices"] == 14
+    assert body["upload_view"]["volumes"][0]["shape"] == [12, 13, 6]
+    assert body["upload_view"]["volumes"][0]["n_slices"] == 6
     upload_id = body["upload_view"]["upload_id"]
-    plain = client.get(f"/api/uploads/{upload_id}/slice", params={"phase": "C-pre", "z": 4})
+    plain = client.get(f"/api/uploads/{upload_id}/slice", params={"phase": "C-pre", "z": 2})
     overlay = client.get(
-        f"/api/uploads/{upload_id}/slice", params={"phase": "C-pre", "z": 4, "mask": "true"}
+        f"/api/uploads/{upload_id}/slice", params={"phase": "C-pre", "z": 2, "mask": "true"}
     )
     assert plain.status_code == overlay.status_code == 200
     assert plain.headers["cache-control"] == "no-store"

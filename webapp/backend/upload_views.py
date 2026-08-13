@@ -1,37 +1,37 @@
-"""Short-lived in-memory MRI crops for uploaded studies.
+"""Short-lived source-MRI viewer for a completed upload.
 
-The original ZIP and NIfTI files are deleted as soon as inference completes.
-This store retains only the normalized, deterministic ROI crop passed to
-UniFormer and its paired human annotation mask, long enough for the user to
-inspect the result in the same server session.
+The classifier receives a lesion-tight UniFormer crop, but the reader needs
+the original MRI volume for anatomical context. This cache owns one private
+temporary extraction directory and deletes it on expiry or replacement.
 """
 
 from __future__ import annotations
 
+import shutil
 import threading
 import time
 from dataclasses import dataclass
+from pathlib import Path
 from uuid import uuid4
-
-import numpy as np
 
 from webapp.backend.config import UPLOAD_VIEW_MAX_STUDIES, UPLOAD_VIEW_TTL_SECONDS
 from webapp.backend.phases import PHASE_BY_TOKEN, PHASES
 from webapp.backend.schemas import CaseVolumeInfo, UploadViewInfo
-from webapp.backend.volumes import render_array_slice_png
+from webapp.backend.volumes import mask_slice_flags, read_geometry, render_slice_png
 
 
 @dataclass(frozen=True)
 class UploadStudy:
-    """One retained ROI study; no raw patient file paths or uploads are stored."""
+    """One temporary source study. Paths are owned by ``directory``."""
 
-    volumes: dict[str, np.ndarray]
-    masks: dict[str, np.ndarray]
+    images: dict[str, Path]
+    masks: dict[str, Path]
+    directory: Path
     expires_at: float
 
 
 class UploadStudyStore:
-    """Thread-safe bounded cache for the upload image viewer."""
+    """Thread-safe bounded owner for temporary source MRI files."""
 
     def __init__(
         self,
@@ -46,49 +46,53 @@ class UploadStudyStore:
         self._studies: dict[str, UploadStudy] = {}
         self._lock = threading.RLock()
 
+    @staticmethod
+    def _delete(study: UploadStudy) -> None:
+        shutil.rmtree(study.directory, ignore_errors=True)
+
+    def _drop(self, upload_id: str) -> None:
+        study = self._studies.pop(upload_id, None)
+        if study is not None:
+            self._delete(study)
+
     def _prune(self, now: float) -> None:
-        expired = [key for key, study in self._studies.items() if study.expires_at <= now]
-        for key in expired:
-            del self._studies[key]
+        for upload_id, study in list(self._studies.items()):
+            if study.expires_at <= now:
+                self._drop(upload_id)
         overflow = len(self._studies) - self._max_studies
         if overflow > 0:
             oldest = sorted(self._studies.items(), key=lambda item: item[1].expires_at)
-            for key, _ in oldest[:overflow]:
-                del self._studies[key]
+            for upload_id, _ in oldest[:overflow]:
+                self._drop(upload_id)
 
     def create(
-        self, volume: np.ndarray, masks: np.ndarray, spacing_mm: np.ndarray
+        self,
+        images: dict[str, Path],
+        masks: dict[str, Path],
+        directory: Path,
     ) -> UploadViewInfo:
-        """Retain the exact model crop and return safe viewer metadata."""
-        if volume.ndim != 4 or volume.shape[0] != len(PHASES):
-            raise ValueError(f"MRI crop upload phải có shape (8, X, Y, Z), nhận {volume.shape}")
-        if masks.shape != volume.shape:
-            raise ValueError(f"mask crop upload {masks.shape} khác MRI crop {volume.shape}")
-        if len(spacing_mm) != 3:
-            raise ValueError("spacing crop upload phải có đúng 3 giá trị")
-
-        shape = [int(value) for value in volume.shape[1:]]
-        spacing = [float(value) for value in spacing_mm]
-        volumes: dict[str, np.ndarray] = {}
-        annotations: dict[str, np.ndarray] = {}
+        """Transfer ownership of extracted source NIfTI files to this cache."""
+        if not directory.is_dir():
+            raise ValueError("thư mục tạm chứa MRI tải lên không còn tồn tại")
         infos: list[CaseVolumeInfo] = []
-        for index, phase in enumerate(PHASES):
-            image = np.ascontiguousarray(volume[index], dtype=np.float32).copy()
-            mask = np.ascontiguousarray(masks[index] > 0, dtype=np.uint8).copy()
-            image.setflags(write=False)
-            mask.setflags(write=False)
-            volumes[phase.file_token] = image
-            annotations[phase.file_token] = mask
-            mask_slices = np.flatnonzero(mask.any(axis=(0, 1))).astype(int).tolist()
+        for phase in PHASES:
+            image_path = images.get(phase.file_token)
+            mask_path = masks.get(phase.file_token)
+            if image_path is None or mask_path is None:
+                raise ValueError(f"thiếu ảnh hoặc mask thì {phase.label_vi} cho viewer")
+            shape, spacing = read_geometry(image_path)
+            flags = mask_slice_flags(mask_path)
+            if len(flags) != shape[2]:
+                raise ValueError(f"mask thì {phase.label_vi} không khớp số lát ảnh MRI")
             infos.append(
                 CaseVolumeInfo(
                     phase_name=phase.name,
                     file_token=phase.file_token,
-                    shape=shape,
-                    spacing_mm=spacing,
+                    shape=list(shape),
+                    spacing_mm=list(spacing),
                     n_slices=shape[2],
                     has_mask=True,
-                    mask_slices=mask_slices,
+                    mask_slices=[index for index, present in enumerate(flags) if present],
                 )
             )
 
@@ -97,8 +101,9 @@ class UploadStudyStore:
         with self._lock:
             self._prune(now)
             self._studies[upload_id] = UploadStudy(
-                volumes=volumes,
-                masks=annotations,
+                images=dict(images),
+                masks=dict(masks),
+                directory=directory,
                 expires_at=now + self._ttl_seconds,
             )
             self._prune(now)
@@ -107,24 +112,25 @@ class UploadStudyStore:
             volumes=infos,
             expires_in_seconds=self._ttl_seconds,
             note=(
-                "Ảnh là crop ROI đã tiền xử lý đúng như UniFormer nhận. "
-                "Bản xem chỉ tồn tại tạm thời trong bộ nhớ phiên này; ZIP và NIfTI gốc đã được xoá."
+                "Ảnh MRI gốc của bộ vừa tải lên, chưa crop. "
+                "Bản xem tạm thời bị xoá khi hết hạn hoặc khi bạn tải bộ MRI mới."
             ),
         )
 
     def render(self, upload_id: str, phase_token: str, z: int, *, annotation: bool) -> bytes | None:
-        """Render an upload crop, or return ``None`` when it has expired."""
+        """Render a source slice, or return ``None`` after the cache expires."""
         if phase_token not in PHASE_BY_TOKEN:
             raise ValueError(f"không có thì MRI {phase_token!r}")
-        now = time.monotonic()
         with self._lock:
-            self._prune(now)
+            self._prune(time.monotonic())
             study = self._studies.get(upload_id)
             if study is None:
                 return None
-            volume = study.volumes[phase_token]
-            mask = study.masks[phase_token] if annotation else None
-        return render_array_slice_png(volume, z, mask)
+            return render_slice_png(
+                study.images[phase_token],
+                z,
+                study.masks[phase_token] if annotation else None,
+            )
 
 
 upload_studies = UploadStudyStore()

@@ -49,7 +49,7 @@ App đọc ảnh lúc chạy từ `LLDMMRI_SAMPLE_DIR`, mặc định `data/samp
 | `LLDMMRI_CHECKPOINT` | *(chưa đặt)* | Đường dẫn checkpoint. Đặt vào khi nhánh suy luận thật đã viết |
 | `LLDMMRI_LIVE_WEIGHTS_DIR` | `runs/Uniformer3D` | Thư mục các checkpoint `uniformer3D_best_<fold>.pt` hoàn tất |
 | `LLDMMRI_LIVE_PREPROCESS_CONFIG` | `configs/preprocess_cghnet.yaml` | Crop ROI `128×128×16` rồi cắt giữa thành `112×112×14` cho UniFormer |
-| `LLDMMRI_UPLOAD_VIEW_TTL_SECONDS` | `1800` | Số giây giữ crop ROI upload trong RAM để xem ảnh sau khi suy luận |
+| `LLDMMRI_UPLOAD_VIEW_TTL_SECONDS` | `1800` | Số giây giữ MRI gốc của upload mới nhất trong thư mục tạm để xem ảnh |
 | `LLDMMRI_DEFER_THRESHOLD` | `0.55` | Ngưỡng confidence dưới đó thì `defer`. Giá trị thật sẽ khoá trên validation từ đường risk-coverage, không chọn tay |
 
 ## Upload ZIP và suy luận trực tiếp
@@ -58,7 +58,7 @@ Chỉ nhận **một ZIP**. ZIP cần có hai thư mục: `images/` chứa 8 MRI
 
 `POST /api/validate-upload` chỉ đọc manifest. `POST /api/predict-upload` chỉ giải nén tạm đúng 16 NIfTI đã được nhận diện, tái tạo crop UniFormer và chạy các checkpoint fold đã hoàn tất (hiện là 1, 2, 3, 5). Khi fold 4 xuất hiện, backend tự nhận ở lần khởi động tiếp theo. Xác suất là trung bình softmax thô, không áp dụng temperature/defer từ tập OOF và không dùng để chẩn đoán.
 
-Sau một lần suy luận thành công, app cho xem đủ 8 thì của **crop ROI `112×112×14` mà UniFormer thực sự nhận** và bật/tắt nhãn tổn thương do người dùng cung cấp. Chỉ crop đã tiền xử lý và mask trên cùng crop được giữ trong RAM tối đa 30 phút (mặc định); ZIP cùng NIfTI gốc vẫn bị xoá ngay sau suy luận. Upload không có heatmap vì app không tạo heatmap mô phỏng.
+Sau một lần suy luận thành công, app cho xem đủ 8 thì của **ảnh MRI gốc, chưa crop** và bật/tắt nhãn tổn thương do người dùng cung cấp. Để đọc lát, app chỉ giữ tạm NIfTI của bộ tải lên mới nhất trong thư mục tạm tối đa 30 phút (mặc định); hết hạn, khởi động lại server hoặc tải bộ mới thì chúng bị xoá. Crop ROI `112×112×14` vẫn chỉ dùng nội bộ cho UniFormer. Upload không có heatmap vì app không tạo heatmap mô phỏng.
 
 Không dùng folder picker: hành vi khác nhau giữa các trình duyệt. DICOM-folder là mở rộng riêng khi app có contract DICOM, không trộn với NIfTI ZIP V1.
 
