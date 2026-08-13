@@ -6582,3 +6582,31 @@ Không train mới. Test giữ **610 passed**, 73 skipped. Gate PASS.
 **Điểm vào phiên sau:** không có việc treo.
 
 **Cảnh báo cho tool sau:** trong UI gọi mask là “nhãn vùng tổn thương”; chỉ giữ tên file kỹ thuật để đối chiếu.
+
+---
+
+## S-165 · 2026-08-13 · codex
+
+**Mục tiêu phiên:** bỏ đường dẫn/tên file rút gọn khỏi bảng kiểm các thì MRI.
+
+**Nhánh / commit:** `main` · `40a80fa` → *(commit theo sau entry này)*
+
+**Đã động file:**
+
+- `webapp/frontend/src/components/UploadWorkspace.tsx`, `src/index.css` — mỗi hàng phase chỉ hiển thị “Ảnh MRI” và “Nhãn tổn thương” với trạng thái sẵn sàng/thiếu/trùng; bỏ hoàn toàn `images/...` và `masks/...` khỏi UI.
+
+**Quyết định & lý do:**
+
+- Tên đường dẫn không giúp bác sĩ xác nhận bộ ảnh, lại làm bảng khó quét; trạng thái từng thành phần là thông tin cần để quyết định có thể dự đoán hay phải thay ZIP.
+
+**Kết quả / số liệu:**
+
+- `npm run typecheck`, `npm run build`, Impeccable detector và `quality-gate.ps1`: pass.
+
+**Dang dở:**
+
+- [ ] Không có việc treo.
+
+**Điểm vào phiên sau:** không có việc treo.
+
+**Cảnh báo cho tool sau:** không hiển thị lại đường dẫn `images/` hoặc `masks/` trong bảng checklist.

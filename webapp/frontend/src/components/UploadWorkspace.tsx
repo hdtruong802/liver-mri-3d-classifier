@@ -118,10 +118,10 @@ function UploadStatus({ result, error }: Pick<UploadProps, 'result' | 'error'>) 
             {result.phases.map((phase) => (
               <li key={phase.file_token}>
                 <strong>{phase.label_vi}</strong>
-                <span title={phase.filename ?? undefined}>{phase.filename ?? 'Chưa nhận diện ảnh'}</span>
-                <b className={phase.state === 'ready' ? 'is-success' : 'is-danger'}>Ảnh: {stateLabel[phase.state]}</b>
-                <span title={phase.mask_filename ?? undefined}>{phase.mask_filename ?? 'Chưa nhận diện nhãn'}</span>
-                <b className={phase.mask_state === 'ready' ? 'is-success' : 'is-danger'}>Nhãn: {stateLabel[phase.mask_state]}</b>
+                <span className="phase-checklist__states">
+                  <b className={phase.state === 'ready' ? 'is-success' : 'is-danger'}>Ảnh MRI: {stateLabel[phase.state]}</b>
+                  <b className={phase.mask_state === 'ready' ? 'is-success' : 'is-danger'}>Nhãn tổn thương: {stateLabel[phase.mask_state]}</b>
+                </span>
               </li>
             ))}
           </ul>
