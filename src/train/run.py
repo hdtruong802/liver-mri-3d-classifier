@@ -194,13 +194,25 @@ def build_loaders(config: dict[str, Any], fold: int) -> tuple[Any, Any, list[int
     # `crop_size` chỉ có khi cache được build với lề dư (`crop_margin_voxels`). Vắng
     # mặt thì cả hai transform xuống thang về hành vi cũ, nên config cũ không đổi gì.
     crop_size = data_config.get("crop_size")
+    intra_mixup = float(data_config.get("intra_class_mixup", 0.0))
     train_ds, val_ds = build_fold_datasets(
         cache_dir,
         fold,
         splits_dir=resolve_repo_path(config.get("splits_dir", "splits")),
         train_transform=build_train_transform(data_config.get("augment"), crop_size),
         val_transform=build_val_transform(crop_size),
+        intra_class_mixup=intra_mixup,
+        intra_class_mixup_exclude_majority=bool(
+            data_config.get("intra_class_mixup_exclude_majority", True)
+        ),
     )
+    if intra_mixup > 0:
+        logger.info(
+            "intra-class mixup BẬT: alpha=%s · lớp bị loại=%s · lớp được trộn=%s",
+            intra_mixup,
+            train_ds.mixup_excluded_class,
+            train_ds.mixup_classes,
+        )
 
     batch_size = int(data_config.get("batch_size", 2))
     num_workers = int(data_config.get("num_workers", 2))

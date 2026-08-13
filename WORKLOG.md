@@ -6610,3 +6610,74 @@ Không train mới. Test giữ **610 passed**, 73 skipped. Gate PASS.
 **Điểm vào phiên sau:** không có việc treo.
 
 **Cảnh báo cho tool sau:** không hiển thị lại đường dẫn `images/` hoặc `masks/` trong bảng checklist.
+
+---
+
+## S-166 · 2026-08-13 · claude-code
+
+**Mục tiêu phiên:** cài **intra-class mixup** — mảnh cuối còn thiếu của recipe đội hạng 2 (S-128) — và dựng notebook train 1 fold để chạy **song song** với việc hoàn thành trustworthiness/ablation/report. Người dùng nói rõ đây là việc thêm, **không thay thế** các deliverable đang nợ.
+
+**Nhánh / commit:** `main` · `8126284` → *(commit của phiên này)*
+
+**Đã đụng file:** `src/data/dataset.py`, `src/train/run.py`, `configs/uniformer_s_intra_mixup.yaml` (mới), `tests/test_intra_class_mixup.py` (mới), `tests/test_sampler.py` (allowlist), `notebooks/21_intra_mixup.ipynb` (mới), `AGENTS.md` (§5 đính chính + §6 bảng lệnh).
+
+### Cài ở tầng dataset, không phải vòng train
+
+`data.intra_class_mixup` trong `CachedLesionDataset`. Nó **buộc** phải ở đây: phép này bốc một ca cùng lớp từ **toàn tập train**, mà batch chỉ có 4 mẫu nên phần lớn batch không chứa hai ca cùng một lớp hiếm. `data.mixup_alpha` ở `run_epoch` là phép khác hẳn (chéo lớp, trộn nhãn, bốc trong batch) và không thay thế được — test chốt hai khoá không được bật cùng lúc.
+
+Lớp bị loại **suy từ nhãn train của chính fold**, không ghi cứng. Đã kiểm trên `splits/`: cả 5 fold có lớp đa số là HCC với đúng 100 ca train, lớp kế tiếp 50 ⇒ phép suy tất định, không có chỗ hoà.
+
+### Hai lỗi tôi tự tạo rồi tự bắt, đáng ghi vì cả hai đều nổ MUỘN
+
+1. **Khoá `mixup_lambda` thêm CÓ ĐIỀU KIỆN.** Bản đầu chỉ thêm khoá khi mẫu thật sự được trộn. `default_collate` gom batch theo khoá của phần tử đầu và nổ nếu phần tử khác thiếu khoá đó — mà một batch train bình thường chứa **cả** ca thuộc lớp bị loại (không trộn) **và** ca thuộc lớp hiếm (có trộn). Tức nó nổ theo thành phần batch, sau vài chục bước ngẫu nhiên, không phải ở bước đầu. Sửa: luôn thêm khoá khi bật, không trộn thì λ = 1 và đối tác là chính nó.
+2. **`np.random` trong worker.** Đã dùng `torch.randint`/`torch.distributions.Beta` ngay từ đầu, đúng quy ước §8, nhưng lý do thì mạnh hơn quy ước: PyTorch gieo lại RNG của `torch` riêng cho từng worker còn `numpy` thì **không**, nên `np.random` ở đây sẽ cho 4 worker sinh cùng một dãy λ và cùng một dãy ca đối tác.
+
+### Cổng F — chỗ xác nhận thật
+
+⚠️ **Máy phát triển không có torch**, nên 8/13 test của phép này **skip**, gồm cả phép kiểm số học của tổ hợp lồi. Không được đọc "622 passed" thành "phép trộn đã được kiểm".
+
+Chỗ kiểm thật là **cổng F** trong notebook 21, chạy trên Kaggle trước khi cam kết 6.5h:
+
+- **F1** lớp bị loại có đúng là lớp đa số (tất định)
+- **F2** `ds_val.intra_class_mixup == 0` và mẫu val không mang khoá mixup
+- **F3** giải **ngược λ từ voxel**, đọc file gốc bằng `np.load` **độc lập** với dataset — nên nó không thể cùng sai theo dataset; và đối tác phải cùng lớp
+- **F4** mẫu thuộc lớp bị loại giữ **nguyên** ảnh, λ = 1
+- **F5** phân bố λ: trung bình trong **4σ** của 0.5, và sd > 0.05 để bắt RNG không chạy
+
+Ngưỡng F5 đặt ở 4σ chứ không 2σ là **có chủ ý**: một cổng báo động sai sẽ chặn session 6.5h vì một mẻ số hơi lệch, và phiên trước đã mất hai lần vì đúng loại lỗi đó (cổng D 8.5%/fold, cổng E 12%). Cái giá của báo động sai ở đây cao hơn cái giá bỏ sót một sai lệch nhỏ ở phân bố λ.
+
+### Notebook 21 sinh TỪ notebook 20
+
+Không chép tay. Script sinh `assert` mỗi phép thay thế tìm thấy **đúng 1 lần**, nên notebook 20 đổi thì script nổ thay vì sinh ra bản 21 lệch âm thầm. Năm cổng A–E giống hệt byte-for-byte; chỉ thêm cổng F, đổi `CONFIG_NAME`, và trỏ ba đường dẫn về run của chính nó.
+
+⚠️ **Script sinh nằm ở scratchpad của phiên, KHÔNG commit** — theo đúng cách notebook 20 đã làm (`scripts/` không có generator nào). Nghĩa là notebook 21 từ đây trở đi là **nguồn duy nhất**; sửa nó thì sửa trực tiếp, đừng đi tìm generator.
+
+Máy quét từ cấm của notebook 20 được mang sang, và **đã bắt hai báo động sai của chính nó** — cả hai đều là bài học về máy quét:
+
+- `# noqa: E402` chứa chuỗi `"E4"` ⇒ phải quét có **biên từ**
+- cổng E dùng chính nhãn `E1a`/`E1b`/`E2` cho các tầng con của nó ⇒ whitelist đúng hai cell của cổng E, không nới lỏng máy quét toàn cục
+
+**Một máy quét báo động sai là một máy quét sẽ bị bỏ qua** — nên thu hẹp chính xác, không nới lỏng.
+
+### Kết quả / số liệu
+
+Không train. **622 passed, 81 skipped** (trước 609/73; +13 test, 8 skip vì thiếu torch). `ruff check` sạch. Config kiểm bằng YAML diff phẳng: lệch base **đúng 3 khoá** (`data.intra_class_mixup`, `data.intra_class_mixup_exclude_majority`, `output_dir`).
+
+⚠️ 6 file `ruff format --check` báo cần định dạng lại — **đều là file có trước**, không phải file phiên này sửa (`src/eval/tta.py`, `src/preprocess/build_cache.py`, `tests/test_preprocess_pipeline.py`, 3 file `tests/test_webapp_*.py`). Cố ý **không** định dạng chúng: sẽ tạo diff nhiễu vào việc của tool khác.
+
+### Dang dở
+
+- [ ] **Chạy fold 1 của notebook 21** (6.5h). So **ghép cặp** với fold 1 của `uniformer_s` bằng `python -m src.eval.compare` — cùng bệnh nhân cùng fold nên triệt tiêu phương sai chung.
+- [ ] **Fold 4 của `uniformer_s`** (6.5h) để đủ 5 fold. Việc này ưu tiên cao hơn mixup: nó hoàn thành cấu hình gốc.
+- [ ] Trustworthiness trên UniFormer — mọi số hiện có là của cấu hình cũ. ⚠️ `head_dropout: 0.0` ⇒ **không có lớp Dropout nào**, MC-dropout vô nghĩa trên nó.
+- [ ] Bảng ablation lõi + kiểm định Holm (CPU).
+- [ ] `README.md` (chưa tồn tại), report, slide.
+
+**Điểm vào phiên sau:** notebook 21 sẵn sàng chạy, chưa chạy fold nào.
+
+**Cảnh báo cho tool sau:**
+
+- **Đừng bỏ cổng F vì thấy "đã có test".** 8/13 test skip trên máy không có torch, và phần bị skip đúng là phần kiểm số học.
+- **Một fold không kết luận được gì.** Fold 1 đã lừa dự án **ba** lần (E6b +0.066, ensemble E4⊕CGHNet +0.065, và cả hai đều sập ở 5 fold). Bar hợp lý cho mixup: 1 fold chỉ để **loại**, và chỉ khi thấp hẳn.
+- **Chi tiết không xác định được, phải vào báo cáo:** thứ tự trộn so với augment. Bản của ta trộn ảnh **thô** rồi augment một lần cho ảnh đã trộn. Nếu họ làm ngược thì chỗ lệch là một lượt augment độc lập nữa.
+- `tests/test_sampler.py::test_moi_config_cu_van_o_che_do_instance` là **allowlist khoá cứng**, không phải bộ lọc. Thêm config rời khỏi `sampling: instance` thì nó đỏ — đó là điều muốn.

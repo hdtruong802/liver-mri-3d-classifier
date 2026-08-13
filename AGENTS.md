@@ -602,9 +602,35 @@ bỏ sót — và nó là mảnh làm cho phép lấy mẫu lại **thêm thông
 biểu diễn. Nội suy trong cùng lớp sinh biến thiên mới **đúng cho các lớp hiếm**, mà không tạo
 ra nhãn mềm chéo lớp — thứ mà §3 (0/117 lỗi sát sao) nói là không cứu được gì.
 
-⚠️ **Ta CHƯA cài được phép này.** `data.mixup_alpha` là mixup chéo lớp có trộn nhãn, không
-thay thế được. Cần một khoá riêng (`data.intra_class_mixup`) ở tầng **dataset**, không phải
-`run_epoch`, vì nó phải bốc một ca cùng lớp từ toàn tập train chứ không phải từ batch.
+✅ **ĐÃ CÀI (2026-08-13, WORKLOG S-166).** `data.intra_class_mixup` ở tầng **dataset**
+(`src/data/dataset.py::CachedLesionDataset`), không phải `run_epoch` — vì nó phải bốc một ca
+cùng lớp từ **toàn tập train**, mà batch chỉ có 4 mẫu nên phần lớn batch không chứa hai ca
+cùng một lớp hiếm. `data.mixup_alpha` là mixup chéo lớp có trộn nhãn, **không** thay thế được;
+`tests/test_intra_class_mixup.py` chốt rằng hai khoá không được bật cùng lúc.
+
+Chạy bằng `notebooks/21_intra_mixup.ipynb` + `configs/uniformer_s_intra_mixup.yaml` (khác
+`uniformer_s.yaml` đúng hai khoá khoa học). **Chưa chạy fold nào.**
+
+Ba tính chất của bản cài, cần biết khi đọc kết quả:
+
+1. **Lớp bị loại được suy từ nhãn train của chính fold**, không ghi cứng số lớp. Trên cả 5
+   fold của split này lớp đa số là HCC với đúng 100 ca train (lớp kế tiếp 50) nên phép suy là
+   tất định — đã kiểm trực tiếp trên `splits/`.
+2. **Ca đối tác có thể là chính nó** (pool gồm cả mẫu đang xét), khi đó phép trộn là đồng nhất
+   bất kể λ. Xác suất `1/n_c`, tức 2–3% ở các lớp hiếm. Giữ như vậy để phân bố đúng nghĩa
+   "bốc đều trong lớp".
+3. **Đọc đĩa gấp đôi** cho mọi mẫu đủ điều kiện (6/7 số lớp). Cổng C của notebook đo `s/epoch`
+   bằng chính loader của config nên con số nó in ra **đã bao gồm** chi phí này.
+
+⚠️ **Phần cài đặt chưa xác nhận được trên máy local:** máy phát triển không có torch nên 8/13
+test của phép này **skip**, gồm cả phép kiểm số học của tổ hợp lồi. Chỗ xác nhận thật là **cổng
+F** trên Kaggle — nó giải ngược λ từ voxel và đọc file gốc bằng `np.load` độc lập với dataset.
+Đừng bỏ cổng F vì thấy "đã có test".
+
+⚠️ **Một chi tiết của họ ta không đọc được: thứ tự trộn so với augment.** Bản của ta trộn ảnh
+**thô** rồi mới augment (một lần, cho ảnh đã trộn). Hai crop đều bám tổn thương nên nội suy
+còn nghĩa giải phẫu, và cách này rẻ hơn. Nếu họ làm ngược thì chỗ lệch là một lượt augment
+độc lập nữa — phải ghi vào báo cáo là chi tiết không xác định được.
 
 #### Cây quyết định của ba augment lọc — 60% mẫu KHÔNG bị phép nào
 
@@ -1045,6 +1071,7 @@ Bootstrap **ghép cặp** trên hiệu (2000 lần, phân tầng, mức bệnh n
 | **Build cache CGHNet** (một lần, ~20 phút, **CPU**) | `notebooks/18_build_cache_cghnet.ipynb` trên Kaggle, **Accelerator = None** | sẵn sàng (2026-08-10), **chưa chạy**. Lưới **128×128×16** (`configs/preprocess_cghnet.yaml`: `target_size [112,112,14]` + lề `[8,8,1]`), đúng hình học của bài CGHNet. ~2,0 GB, nhỏ hơn cache E4. ⚠️ **z=14 nên KHÔNG dùng được cho config DenseNet121** (cần ≥32 mọi chiều, S-063); `tests/test_models.py` chặn cả hai chiều |
 | **CGHNet — tái lập bài báo 0.818** | `notebooks/19_cghnet.ipynb` trên Kaggle | fold 1 đã chạy → 0.6935, **nhưng bằng bản CÓ LỖI** (`pos_embed` không bao giờ được học, S-126) ⇒ **phải train lại**. Tái lập **từ văn bản**, bài không có code; mọi khoá trong `configs/cghnet.yaml` có nhãn `[BÀI]` hoặc `[SUY]`, **không được lẫn khi viết báo cáo**. ⚠️ Việc tổng tham số khớp 59.37M **không chứng minh gì** — các khoá `[SUY]` đã được chọn *để* khớp con số đó (lập luận vòng tròn). Deep supervision cho **ba** đầu ra nên một lần chạy đối chiếu được ba mốc công bố: nhánh 3D **0.724** · nhánh 2D **0.742** · hợp nhất **0.818** — nhánh 3D thấp thì sai **protocol/dữ liệu**, không phải sai fusion |
 | **E13 — Siamese đa pha + encoder pretrained** | `notebooks/17_e13_siamese.ipynb` trên Kaggle | sẵn sàng (2026-08-10), **chưa chạy**. Tự tải trọng số như notebook 16, dùng **cache E4**. Khác baseline đúng khối `model:`. **Cổng B đo hình dạng thật đi vào encoder** — E2 chết vì chạy ở 48 in-plane và không có gì báo (S-065). **Cổng D** kiểm trọng số phase-attention có suy biến về 1/8 hay không: suy biến thì Siamese chỉ là một cách lấy trung bình đắt gấp 8. Bar chốt trước: fold 1+2 gộp ≥ 0.79 thì mục tiêu 0.75 trên test-104 còn khả thi, 0.69–0.72 là ngang E4 và nên dừng |
+| **⭐ Intra-class mixup trên UniFormer** | `notebooks/21_intra_mixup.ipynb` trên Kaggle, **bật Internet** | sẵn sàng (2026-08-13), **chưa chạy**. `configs/uniformer_s_intra_mixup.yaml` khác `uniformer_s.yaml` **đúng hai khoá khoa học** (`data.intra_class_mixup: 1.0`, `data.intra_class_mixup_exclude_majority: true`) — khoá bởi `tests/test_intra_class_mixup.py`. Đây là **mảnh cuối còn thiếu** của recipe hạng 2 (S-128). Notebook sinh **từ** notebook 20 nên năm cổng A–E giống hệt, cộng **cổng F** kiểm phép trộn: giải ngược λ từ voxel và đọc file gốc bằng `np.load` độc lập với dataset, kiểm đối tác cùng lớp, kiểm tập val **không** bị trộn. ⚠️ Chạy **1 fold trước** (fold 1, để so ghép cặp với fold 1 của `uniformer_s`); 6.5h/fold, đọc đĩa gấp đôi đã nằm trong số của cổng C |
 | **⭐ UniFormer-S + Kinetics — tái lập đội hạng 2** | `notebooks/20_uniformer.ipynb` trên Kaggle, **bật Internet** | sẵn sàng (2026-08-11), **chưa chạy**. Dùng **lại cache CGHNet** (`--img_size 16 128 128 --crop_size 14 112 112` của họ khớp chính xác), không build cache mới. Tự tải `uniformer_small_k400_16x8.pth` (~200 MB) từ `Sense-X/uniformer_video`. **Năm cổng A–E chạy trước khi cam kết fold nào** — xem §5. ⚠️ Cổng C bắt buộc: `patch_embed1` stride `(1,2,2)` không hạ mẫu trục lát nên stage 3 có 2744 token so với 1568 của bản pretrained, **đắt hơn** CGHNet. Quá 60 s/epoch thì đặt `patch_embed1_stride: [2,2,2]` |
 | **Chạy CV trên Kaggle** | mở `notebooks/09_cv_runner.ipynb`, đặt `CONFIG_NAME` + `FOLDS` | sẵn sàng (W4); **thay cho notebook 07** (07 khoá cứng vào baseline và còn logic dò đường dẫn cũ đã sai) |
 | Đánh giá (CPU, không cần GPU) | `python -m src.eval.run --run-dir artifacts/runs/baseline_3dpatch` | sẵn sàng (W3); đọc `val_probs_*.npz` đã lưu → bảng metric ± CI bootstrap + gộp out-of-fold |

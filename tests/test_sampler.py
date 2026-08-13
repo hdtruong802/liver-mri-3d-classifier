@@ -144,8 +144,14 @@ def test_sampler_that_su_keo_lop_hiem_len():
 
 
 def test_moi_config_cu_van_o_che_do_instance():
-    """Thêm `data.sampling` không được đổi hành vi của bất kỳ config đã chạy nào. `uniformer_s`
-    là config DUY NHẤT được phép khác."""
+    """Thêm `data.sampling` không được đổi hành vi của bất kỳ config đã chạy nào.
+
+    Danh sách dưới đây là **allowlist khoá cứng**, không phải bộ lọc: thêm một config rời
+    khỏi `instance` thì test này đỏ, và đó là điều muốn — nó buộc người thêm phải nói ra ở
+    đây rằng việc rời khỏi mặc định là có chủ ý. `uniformer_s_intra_mixup` thừa hưởng `sqrt`
+    từ `uniformer_s`, và đó chính là lý do phép trộn trong cùng lớp có tác dụng: lấy mẫu lại
+    *có hoàn lại* chỉ nhân bản ảnh cũ, phép trộn biến mỗi bản sao thành một điểm mới.
+    """
     lech = {}
     for path in sorted((repo_root() / "configs").glob("*.yaml")):
         if path.name.startswith("preprocess") or path.name == "data.yaml":
@@ -154,7 +160,10 @@ def test_moi_config_cu_van_o_che_do_instance():
         mode = str((cfg.get("data") or {}).get("sampling", "instance"))
         if mode != "instance":
             lech[path.name] = mode
-    assert lech == {"uniformer_s.yaml": "sqrt"}, lech
+    assert lech == {
+        "uniformer_s.yaml": "sqrt",
+        "uniformer_s_intra_mixup.yaml": "sqrt",
+    }, lech
 
 
 def test_build_loaders_doc_sampling_tu_khoi_data():
