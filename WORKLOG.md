@@ -6501,3 +6501,28 @@ Không train mới. Test giữ **610 passed**, 73 skipped. Gate PASS.
 **Điểm vào phiên sau:** không có việc treo.
 
 **Cảnh báo cho tool sau:** giữ overlay toggle là control cuối của toolbar.
+
+---
+
+## S-162 · 2026-08-13 · codex
+
+**Mục tiêu phiên:** chuẩn hoá hai nhãn hiển thị cho tiến trình AI và thời lượng xử lý.
+
+**Nhánh / commit:** `main` · `9102d3d` → *(commit theo sau entry này)*
+
+**Đã động file:**
+
+- `webapp/frontend/src/components/UploadWorkspace.tsx` — đổi “Đang dự đoán AI” thành “AI đang dự đoán” ở cả vùng trung tâm và panel dữ liệu.
+- `webapp/frontend/src/App.tsx` — đổi “Tải & xử lý” thành “Thời gian xử lý”.
+
+**Kết quả / số liệu:**
+
+- `npm run typecheck`, `npm run build`, Impeccable detector và `quality-gate.ps1`: pass.
+
+**Dang dở:**
+
+- [ ] Không có việc treo.
+
+**Điểm vào phiên sau:** không có việc treo.
+
+**Cảnh báo cho tool sau:** dùng nhất quán nhãn “AI đang dự đoán” và “Thời gian xử lý”.

@@ -210,7 +210,7 @@ export default function App() {
                 <div>
                   <h2>Kết quả AI dự đoán</h2>
                   <p>{prediction.case_id}</p>
-                  {processingElapsedMs !== null ? <p>Tải & xử lý: {formatElapsedTime(processingElapsedMs)}</p> : null}
+                  {processingElapsedMs !== null ? <p>Thời gian xử lý: {formatElapsedTime(processingElapsedMs)}</p> : null}
                 </div>
               </div>
               <ResultSummary result={prediction} />

@@ -29,7 +29,7 @@ function isWorking(stage: UploadStage) {
 
 export function UploadProgress({ stage, compact = false }: { stage: UploadStage; compact?: boolean }) {
   if (stage !== 'checking' && stage !== 'predicting') return null;
-  const label = stage === 'checking' ? 'Đang kiểm tra bộ MRI' : 'Đang dự đoán AI';
+  const label = stage === 'checking' ? 'Đang kiểm tra bộ MRI' : 'AI đang dự đoán';
   return (
     <p className={`upload-progress ${compact ? 'upload-progress--compact' : ''}`} role="status" aria-live="polite">
       <LoaderCircle className="upload-spinner" aria-hidden="true" />
@@ -62,7 +62,7 @@ export function UploadDropzone({ archive, stage, error, onChoose, onRun, onRetry
   const working = isWorking(stage);
   const validationFailed = stage === 'validation_error';
   const predictionFailed = stage === 'prediction_error';
-  const title = stage === 'checking' ? 'Đang kiểm tra bộ MRI' : stage === 'predicting' ? 'Đang dự đoán AI' : validationFailed ? 'Bộ MRI cần được kiểm tra lại' : predictionFailed ? 'Chưa thể dự đoán AI' : archive ? 'Bộ MRI đã sẵn sàng' : 'Tải bộ MRI (.zip)';
+  const title = stage === 'checking' ? 'Đang kiểm tra bộ MRI' : stage === 'predicting' ? 'AI đang dự đoán' : validationFailed ? 'Bộ MRI cần được kiểm tra lại' : predictionFailed ? 'Chưa thể dự đoán AI' : archive ? 'Bộ MRI đã sẵn sàng' : 'Tải bộ MRI (.zip)';
   const detail = working
     ? stage === 'checking' ? 'Đang kiểm tra đủ 8 ảnh MRI và 8 mask.' : 'Bộ MRI hợp lệ. AI đang phân tích ảnh.'
     : validationFailed ? 'Xem lỗi kiểm tra ở cột Dữ liệu, rồi chọn một ZIP khác.'
