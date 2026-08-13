@@ -13,11 +13,14 @@ interface UploadProps {
   result: UploadValidationResult | null;
   busy: boolean;
   error: string | null;
+}
+
+interface UploadActions {
   onChoose: () => void;
   onRun: () => void;
 }
 
-export function UploadPanel({ archive, result, busy, error, onChoose, onRun }: UploadProps) {
+export function UploadPanel({ archive, result, busy, error }: UploadProps) {
   return (
     <section className="side-section" aria-labelledby="upload-panel-heading">
       <div className="side-section__heading">
@@ -30,21 +33,14 @@ export function UploadPanel({ archive, result, busy, error, onChoose, onRun }: U
 
       <div className="upload-file-row">
         <span className="upload-file-row__name">{archive ? archive.name : 'Chưa chọn file ZIP'}</span>
-        <button type="button" className="control-button" onClick={onChoose} disabled={busy}>
-          {archive ? 'Đổi file' : 'Chọn ZIP'}
-        </button>
       </div>
-      <button type="button" className="primary-button upload-run" onClick={onRun} disabled={!archive || busy}>
-        <Play aria-hidden="true" />
-        {busy ? 'Đang chạy AI…' : 'Kiểm tra và chạy AI'}
-      </button>
-
+      {busy ? <p className="upload-processing" role="status">Đang kiểm tra bộ MRI và chạy AI…</p> : null}
       <UploadStatus result={result} error={error} />
     </section>
   );
 }
 
-export function UploadDropzone({ archive, busy, onChoose, onRun }: Pick<UploadProps, 'archive' | 'busy' | 'onChoose' | 'onRun'>) {
+export function UploadDropzone({ archive, busy, onChoose, onRun }: Pick<UploadProps, 'archive' | 'busy'> & UploadActions) {
   return (
     <div className={`viewer-dropzone ${archive ? 'viewer-dropzone--selected' : ''}`}>
       <FileUp aria-hidden="true" />
@@ -56,12 +52,12 @@ export function UploadDropzone({ archive, busy, onChoose, onRun }: Pick<UploadPr
       </p>
       <div className="viewer-dropzone__actions">
         <button type="button" className="control-button" onClick={onChoose} disabled={busy}>
-          {archive ? 'Đổi file ZIP' : 'Chọn file ZIP'}
+          {archive ? 'Đổi file ZIP' : 'Tải bộ MRI (.zip)'}
         </button>
         {archive ? (
           <button type="button" className="primary-button" onClick={onRun} disabled={busy}>
             <Play aria-hidden="true" />
-            {busy ? 'Đang chạy AI…' : 'Chạy AI'}
+            {busy ? 'Đang chạy AI…' : 'Kiểm tra và chạy AI'}
           </button>
         ) : null}
       </div>

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState, type ChangeEvent } from 'react';
-import { AlertTriangle, FilePlus2, PanelLeftClose, PanelLeftOpen, Stethoscope } from 'lucide-react';
+import { AlertTriangle, PanelLeftClose, PanelLeftOpen, Stethoscope } from 'lucide-react';
 
 import { ApiError, getMeta, predictUpload } from '@/api/client';
 import type { MetaResponse, PredictResult, UploadPredictionResult, UploadViewInfo } from '@/api/types';
@@ -88,10 +88,6 @@ export default function App() {
         <p className="topbar__session" title={sessionName}>{sessionName}</p>
         <div className="topbar__actions">
           <ThemeToggle />
-          <button type="button" className="primary-button topbar__new-upload" onClick={chooseArchive} disabled={busy} aria-label="Tải bộ MRI mới">
-            <FilePlus2 aria-hidden="true" />
-            <span>Tải bộ MRI mới</span>
-          </button>
         </div>
       </header>
       <div className="ruo-bar">
@@ -131,8 +127,6 @@ export default function App() {
               result={uploadResult}
               busy={busy}
               error={uploadError}
-              onChoose={chooseArchive}
-              onRun={runInference}
             />
           </div>
         </aside>

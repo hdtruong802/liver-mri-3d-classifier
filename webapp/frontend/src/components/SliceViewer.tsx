@@ -251,10 +251,11 @@ export function SliceViewer({ caseId, phases, modelHeatmap, volumes, source = 'd
         })}
       </div>
 
-      <div
-        ref={frameRef}
-        tabIndex={0}
-        onKeyDown={(event) => {
+      <div className="mri-canvas-slot">
+        <div
+          ref={frameRef}
+          tabIndex={0}
+          onKeyDown={(event) => {
           if (event.key === 'ArrowLeft') {
             event.preventDefault();
             step(-1);
@@ -263,15 +264,15 @@ export function SliceViewer({ caseId, phases, modelHeatmap, volumes, source = 'd
             event.preventDefault();
             step(1);
           }
-        }}
-        onPointerDown={onPointerDown}
-        onPointerMove={onPointerMove}
-        onPointerUp={onPointerUp}
-        onPointerCancel={onPointerUp}
-        className={`mri-frame ${
+          }}
+          onPointerDown={onPointerDown}
+          onPointerMove={onPointerMove}
+          onPointerUp={onPointerUp}
+          onPointerCancel={onPointerUp}
+          className={`mri-frame ${
           zoomed ? 'cursor-grab active:cursor-grabbing' : 'cursor-default'
-        }`}
-      >
+          }`}
+        >
         {failed ? (
           <EmptyState label="Không đọc được lát này" detail={`Thì ${token}, lát ${z + 1}.`} />
         ) : (
@@ -285,6 +286,7 @@ export function SliceViewer({ caseId, phases, modelHeatmap, volumes, source = 'd
             className="h-full w-full object-contain"
           />
         )}
+        </div>
       </div>
 
       {hasModelHeatmap && (

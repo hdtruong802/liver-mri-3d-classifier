@@ -77,7 +77,7 @@ button:disabled { cursor: not-allowed; }
 :focus-visible { outline: 2px solid var(--cyan); outline-offset: 2px; }
 ::selection { background: color-mix(in oklab, var(--cyan) 30%, transparent); }
 
-.app-shell { display: flex; min-height: 100dvh; flex-direction: column; background: var(--background); }
+.app-shell { display: flex; height: 100dvh; min-height: 0; flex-direction: column; overflow: hidden; background: var(--background); }
 .topbar { display: grid; height: 56px; flex: 0 0 56px; grid-template-columns: minmax(0, 1fr) minmax(0, 28rem) minmax(0, 1fr); align-items: center; gap: 16px; border-bottom: 1px solid var(--border); background: var(--panel); padding: 0 20px; }
 .topbar__brand, .topbar__actions { display: flex; align-items: center; gap: 12px; min-width: 0; }
 .topbar__actions { justify-content: flex-end; }
@@ -101,10 +101,8 @@ button:disabled { cursor: not-allowed; }
 .control-button { border: 1px solid var(--border); background: var(--panel-raised); color: var(--foreground); }
 .control-button:hover:not(:disabled) { border-color: var(--cyan); color: var(--cyan); }
 .primary-button svg, .control-button svg { width: 16px; height: 16px; }
-.topbar__new-upload { min-height: 40px; white-space: nowrap; }
-
 .workspace-tabs { display: none; }
-.workspace { display: grid; min-height: 0; flex: 1; grid-template-columns: 272px minmax(0, 1fr) 384px; gap: 12px; overflow: hidden; padding: 12px; }
+.workspace { display: grid; min-height: 0; flex: 1 1 0; grid-template-columns: 272px minmax(0, 1fr) 384px; gap: 12px; overflow: hidden; padding: 12px; }
 .workspace-data, .workspace-results { position: relative; min-height: 0; overflow: auto; border: 1px solid var(--border); border-radius: 8px; background: var(--panel); }
 .workspace-data { transition: none; }
 .workspace-data--collapsed { width: 48px; overflow: visible; }
@@ -112,6 +110,7 @@ button:disabled { cursor: not-allowed; }
 .workspace-data--collapsed + .workspace-viewer { margin-left: -224px; }
 .workspace-data__content, .results-panel, .results-empty { padding: 16px; }
 .workspace-viewer { display: flex; min-width: 0; min-height: 0; overflow: hidden; border: 1px solid var(--viewer-border); border-radius: 8px; background: var(--viewer-panel); }
+.workspace-viewer > .mri-viewer { height: 100%; min-height: 0; }
 .panel-collapse-control { position: absolute; top: 50%; right: -16px; z-index: 2; display: grid; width: 32px; height: 42px; place-items: center; transform: translateY(-50%); border: 1px solid var(--border); border-radius: 0 6px 6px 0; background: var(--panel-raised); color: var(--muted-foreground); }
 .panel-collapse-control:hover { color: var(--cyan); }
 .panel-collapse-control svg { width: 16px; height: 16px; }
@@ -122,9 +121,9 @@ button:disabled { cursor: not-allowed; }
 .side-section__heading h2, .results-panel__heading h2, .probability-list h3 { margin: 0; font-size: 15px; font-weight: 700; }
 .side-section__copy { margin: 10px 0 0; color: var(--muted-foreground); font-size: 12px; line-height: 1.55; }
 code { color: var(--foreground); font-family: 'JetBrains Mono', monospace; font-size: 11px; }
-.upload-file-row { display: grid; margin-top: 14px; grid-template-columns: minmax(0, 1fr) auto; gap: 8px; align-items: center; }
+.upload-file-row { margin-top: 14px; border-left: 2px solid var(--cyan); padding: 8px 10px; background: var(--muted); }
 .upload-file-row__name { overflow: hidden; color: var(--foreground); font-family: 'JetBrains Mono', monospace; font-size: 12px; font-weight: 600; text-overflow: ellipsis; white-space: nowrap; }
-.upload-run { width: 100%; margin-top: 10px; }
+.upload-processing { margin: 12px 0 0; color: var(--cyan); font-size: 12px; font-weight: 600; }
 .upload-status { margin-top: 14px; }
 .status-message { display: flex; gap: 10px; align-items: flex-start; border: 1px solid var(--border); border-radius: 6px; padding: 10px; background: color-mix(in oklab, var(--panel-raised) 72%, transparent); color: var(--foreground); font-size: 12px; line-height: 1.5; }
 .status-message svg { width: 17px; height: 17px; flex: 0 0 auto; margin-top: 1px; }
@@ -148,9 +147,9 @@ code { color: var(--foreground); font-family: 'JetBrains Mono', monospace; font-
 .viewer-dropzone__actions { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; margin-top: 4px; }
 .viewer-dropzone .control-button { border-color: var(--viewer-border); background: var(--viewer-control); color: var(--viewer-text); }
 
-.mri-viewer { display: flex; width: 100%; min-height: 0; flex-direction: column; overflow: auto; color: var(--viewer-text); background: var(--viewer-panel); }
+.mri-viewer { display: flex; width: 100%; min-height: 0; flex-direction: column; overflow-x: hidden; overflow-y: auto; color: var(--viewer-text); background: var(--viewer-panel); }
 .mri-viewer--empty { padding: 20px; }.mri-viewer--empty .empty-state { margin: auto; }
-.viewer-toolbar, .viewer-phase-strip, .viewer-navigation, .lesion-track { flex: 0 0 auto; border-bottom: 1px solid var(--viewer-border); padding: 10px 12px; }
+.viewer-toolbar, .viewer-phase-strip, .viewer-navigation, .lesion-track, .viewer-note { flex: 0 0 auto; border-bottom: 1px solid var(--viewer-border); padding: 10px 12px; }
 .viewer-toolbar__controls, .viewer-phase-strip { display: flex; gap: 8px; align-items: center; }
 .viewer-phase-strip { overflow-x: auto; border-bottom: 1px solid var(--viewer-border); scrollbar-width: thin; }
 .viewer-control, .viewer-phase, .slice-step-button { display: inline-flex; min-height: 40px; align-items: center; justify-content: center; gap: 6px; flex: 0 0 auto; border: 1px solid var(--viewer-border); border-radius: 6px; background: var(--viewer-control); color: var(--viewer-muted); padding: 7px 10px; font-size: 12px; font-weight: 600; }
@@ -159,9 +158,10 @@ code { color: var(--foreground); font-family: 'JetBrains Mono', monospace; font-
 .viewer-control--annotation.viewer-control--active { border-color: var(--annotation); background: color-mix(in oklab, var(--annotation) 16%, var(--viewer-control)); color: color-mix(in oklab, var(--annotation) 70%, white); }
 .viewer-control--attention.viewer-control--active { border-color: var(--attention); background: color-mix(in oklab, var(--attention) 16%, var(--viewer-control)); color: color-mix(in oklab, var(--attention) 70%, white); }
 .viewer-control.is-disabled, .slice-step-button.is-disabled { opacity: .45; }.viewer-phase--active { border-color: var(--cyan); background: color-mix(in oklab, var(--cyan) 15%, var(--viewer-control)); color: var(--cyan-bright); }
-.mri-frame { position: relative; width: min(100% - 24px, 72vh); aspect-ratio: 1; min-height: 0; margin: 12px auto; flex: 1 0 auto; overflow: hidden; border: 1px solid var(--viewer-border); border-radius: 8px; background: var(--viewer-bg); touch-action: none; user-select: none; }
+.mri-canvas-slot { display: grid; min-height: 0; flex: 1 1 0; place-items: center; container-type: size; }
+.mri-frame { position: relative; width: min(calc(100cqw - 24px), calc(100cqh - 24px)); height: min(calc(100cqw - 24px), calc(100cqh - 24px)); min-width: 0; min-height: 0; overflow: hidden; border: 1px solid var(--viewer-border); border-radius: 8px; background: var(--viewer-bg); touch-action: none; user-select: none; }
 .mri-frame img { width: 100%; height: 100%; object-fit: contain; }.mri-frame.cursor-grab { cursor: grab; }.mri-frame.cursor-grab:active { cursor: grabbing; }
-.viewer-note { margin: 0 12px 10px; color: var(--viewer-muted); font-size: 11px; line-height: 1.5; }
+.viewer-note { margin: 0; color: var(--viewer-muted); font-size: 11px; line-height: 1.5; }
 .viewer-navigation { border-top: 1px solid var(--viewer-border); border-bottom: 0; }.viewer-navigation__stepper { display: flex; align-items: center; gap: 10px; }
 .slice-progress { height: 4px; flex: 1; overflow: hidden; border-radius: 999px; background: var(--viewer-border); }.slice-progress span { display: block; height: 100%; background: var(--cyan); }.slice-progress__before { margin-left: auto; }.slice-stepper { display: flex; align-items: center; gap: 6px; font-family: 'JetBrains Mono', monospace; font-size: 12px; font-weight: 600; }.slice-step-button { width: 40px; padding: 0; }.slice-position { display: block; margin-top: 10px; }.slice-position > span { color: color-mix(in oklab, var(--annotation) 65%, white); font-size: 14px; font-weight: 700; }.slice-position small { margin-left: 5px; color: var(--viewer-muted); font-size: 11px; }.slice-range { display: block; width: 100%; margin-top: 7px; accent-color: var(--cyan); }
 .lesion-track { border-top: 1px solid var(--viewer-border); border-bottom: 0; }.lesion-track__bar { position: relative; width: 100%; height: 5px; overflow: hidden; border-radius: 999px; background: var(--viewer-control); }.lesion-track__segment { position: absolute; top: 0; height: 100%; background: var(--annotation); }.lesion-track__summary { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; margin-top: 9px; }.lesion-track__summary p { margin: 0; color: var(--viewer-muted); font-size: 11px; }.lesion-track__summary p span { color: color-mix(in oklab, var(--annotation) 65%, white); }.lesion-track__jump { border-color: color-mix(in oklab, var(--annotation) 60%, var(--viewer-border)); color: color-mix(in oklab, var(--annotation) 65%, white); }
@@ -175,11 +175,11 @@ code { color: var(--foreground); font-family: 'JetBrains Mono', monospace; font-
 ::-webkit-scrollbar { width: 7px; height: 7px; }::-webkit-scrollbar-track { background: transparent; }::-webkit-scrollbar-thumb { border-radius: 999px; background: var(--border); }::-webkit-scrollbar-thumb:hover { background: var(--secondary); }* { scrollbar-color: var(--border) transparent; scrollbar-width: thin; }
 
 @media (max-width: 1279px) {
-  body { overflow: hidden; }.topbar { grid-template-columns: minmax(0, 1fr) auto; }.topbar__session { display: none; }.workspace-tabs { display: grid; grid-template-columns: repeat(3, 1fr); height: 44px; flex: 0 0 44px; border-bottom: 1px solid var(--border); background: var(--panel); }.workspace-tabs button { border: 0; border-bottom: 2px solid transparent; background: transparent; color: var(--muted-foreground); font-size: 13px; font-weight: 700; }.workspace-tabs button.is-active { border-bottom-color: var(--cyan); color: var(--cyan); }.workspace { display: block; padding: 0; overflow: hidden; }.workspace-data, .workspace-viewer, .workspace-results { display: none; height: 100%; border: 0; border-radius: 0; }.workspace-data.is-mobile-active, .workspace-results.is-mobile-active { display: block; }.workspace-viewer.is-mobile-active { display: flex; }.workspace-data__content, .results-panel, .results-empty { padding: 16px; }.workspace-data--collapsed { width: auto; }.workspace-data--collapsed .workspace-data__content { display: block; }.workspace-data--collapsed + .workspace-viewer { margin-left: 0; }.panel-collapse-control { display: none; }.workspace-viewer { overflow: hidden; }.mri-viewer { height: 100%; }.mri-frame { width: min(100% - 24px, 72vh); }.results-empty { height: 100%; }
+  body { overflow: hidden; }.topbar { grid-template-columns: minmax(0, 1fr) auto; }.topbar__session { display: none; }.workspace-tabs { display: grid; grid-template-columns: repeat(3, 1fr); height: 44px; flex: 0 0 44px; border-bottom: 1px solid var(--border); background: var(--panel); }.workspace-tabs button { border: 0; border-bottom: 2px solid transparent; background: transparent; color: var(--muted-foreground); font-size: 13px; font-weight: 700; }.workspace-tabs button.is-active { border-bottom-color: var(--cyan); color: var(--cyan); }.workspace { display: block; padding: 0; overflow: hidden; }.workspace-data, .workspace-viewer, .workspace-results { display: none; height: 100%; border: 0; border-radius: 0; }.workspace-data.is-mobile-active, .workspace-results.is-mobile-active { display: block; }.workspace-viewer.is-mobile-active { display: flex; }.workspace-data__content, .results-panel, .results-empty { padding: 16px; }.workspace-data--collapsed { width: auto; }.workspace-data--collapsed .workspace-data__content { display: block; }.workspace-data--collapsed + .workspace-viewer { margin-left: 0; }.panel-collapse-control { display: none; }.workspace-viewer { overflow: hidden; }.mri-viewer { height: 100%; }.results-empty { height: 100%; }
 }
 
 @media (max-width: 640px) {
-  .topbar { height: 56px; padding: 0 12px; }.brand-mark { width: 30px; height: 30px; }.topbar h1 { font-size: 13px; }.topbar__brand p { display: none; }.theme-toggle { width: 44px; min-width: 44px; padding: 0; }.theme-toggle__track, .theme-toggle svg:first-child { display: none; }.theme-toggle svg:last-child { display: block; }.theme-light .theme-toggle svg:last-child { display: none; }.theme-light .theme-toggle svg:first-child { display: block; }.topbar__new-upload { width: 40px; padding: 0; }.topbar__new-upload span { display: none; }.ruo-bar { padding: 8px 12px; font-size: 10px; }.viewer-dropzone { width: calc(100% - 32px); padding: 24px 16px; }.viewer-dropzone__actions { width: 100%; }.viewer-dropzone__actions button { flex: 1; }.viewer-toolbar, .viewer-phase-strip, .viewer-navigation, .lesion-track { padding-right: 10px; padding-left: 10px; }.viewer-toolbar__controls { overflow-x: auto; }.mri-frame { width: calc(100% - 20px); margin: 10px auto; }.slice-position small { display: block; margin: 4px 0 0; }.lesion-track__jump { width: 100%; }.phase-checklist li { grid-template-columns: 58px minmax(0, 1fr) auto; }.topbar__actions { gap: 6px; }
+  .topbar { height: 56px; padding: 0 12px; }.brand-mark { width: 30px; height: 30px; }.topbar h1 { font-size: 13px; }.topbar__brand p { display: none; }.theme-toggle { width: 44px; min-width: 44px; padding: 0; }.theme-toggle__track, .theme-toggle svg:first-child { display: none; }.theme-toggle svg:last-child { display: block; }.theme-light .theme-toggle svg:last-child { display: none; }.theme-light .theme-toggle svg:first-child { display: block; }.ruo-bar { padding: 8px 12px; font-size: 10px; }.viewer-dropzone { width: calc(100% - 32px); padding: 24px 16px; }.viewer-dropzone__actions { width: 100%; }.viewer-dropzone__actions button { flex: 1; }.viewer-toolbar, .viewer-phase-strip, .viewer-navigation, .lesion-track, .viewer-note { padding-right: 10px; padding-left: 10px; }.viewer-toolbar__controls { overflow-x: auto; }.mri-frame { width: min(calc(100cqw - 20px), calc(100cqh - 20px)); height: min(calc(100cqw - 20px), calc(100cqh - 20px)); }.slice-position small { display: block; margin: 4px 0 0; }.lesion-track__jump { width: 100%; }.phase-checklist li { grid-template-columns: 58px minmax(0, 1fr) auto; }.topbar__actions { gap: 6px; }
 }
 
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { scroll-behavior: auto !important; transition-duration: .01ms !important; animation-duration: .01ms !important; animation-iteration-count: 1 !important; } }

@@ -6259,3 +6259,35 @@ Không train mới. Test giữ **610 passed**, 73 skipped. Gate PASS.
 **Điểm vào phiên sau:** Không có việc treo. Bước kế tiếp đề xuất: tải một ZIP MRI+mask thật để kiểm trực quan ảnh nguồn, phase switch và annotation trong layout mới.
 
 **Cảnh báo cho tool sau:** Ảnh upload phụ thuộc cache RAM backend tối đa 30 phút; nếu viewer trả 404 phải hướng dẫn tải ZIP lại, không persist NIfTI hoặc đổi viewer thành crop UniFormer.
+
+---
+
+## S-154 · 2026-08-13 · codex
+
+**Mục tiêu phiên:** sửa viewport của MRI viewer và gom thao tác tải ZIP về vùng giữa.
+
+**Nhánh / commit:** `main` · `6d8d1b6` → *(commit theo sau entry này)*
+
+**Đã đụng file:**
+
+- `webapp/frontend/src/App.tsx`, `components/UploadWorkspace.tsx` — bỏ thao tác tải/chạy AI ở header và panel trái; vùng giữa là điểm tải ZIP duy nhất, rồi hiển thị nút đổi ZIP và kiểm tra/chạy AI.
+- `webapp/frontend/src/components/SliceViewer.tsx`, `src/index.css` — khóa shell theo `100dvh`, để workspace/sidebar co và cuộn đúng; dành phần co giãn duy nhất cho canvas MRI để thanh phase, điều khiển lát, slider và dải tổn thương không bị đẩy ra dưới viewport.
+
+**Quyết định & lý do:**
+
+- Dùng một canvas slot có container query units để giữ ảnh vuông theo cả chiều rộng lẫn chiều cao còn lại của viewer, thay vì ràng buộc `72vh`; ảnh không còn làm layout tràn ở viewport thấp.
+
+**Kết quả / số liệu:**
+
+- Kiểm tra trực quan desktop 1920×1080, 1366×768 và mobile 390×844: một nút tải duy nhất ở vùng giữa; shell giữ đúng chiều cao viewport.
+- `npm run typecheck`, `npm run build`: pass.
+- `tests/test_webapp_api.py tests/test_webapp_volumes.py`: 47 passed (một cảnh báo quyền ghi `.pytest_cache` đã có).
+- Impeccable detector và `quality-gate.ps1`: pass.
+
+**Dang dở:**
+
+- [ ] Không có việc treo.
+
+**Điểm vào phiên sau:** kiểm tra trực quan viewer với một ZIP MRI+mask thật ở viewport thấp, đặc biệt chiều/quy ước lát của NIfTI nguồn.
+
+**Cảnh báo cho tool sau:** không đưa lại nút upload vào header/panel trái. Dữ liệu NIfTI upload vẫn chỉ sống trong cache RAM backend; không commit hoặc persist dữ liệu bệnh nhân.
