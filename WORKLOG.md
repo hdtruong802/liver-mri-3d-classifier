@@ -6291,3 +6291,32 @@ Không train mới. Test giữ **610 passed**, 73 skipped. Gate PASS.
 **Điểm vào phiên sau:** kiểm tra trực quan viewer với một ZIP MRI+mask thật ở viewport thấp, đặc biệt chiều/quy ước lát của NIfTI nguồn.
 
 **Cảnh báo cho tool sau:** không đưa lại nút upload vào header/panel trái. Dữ liệu NIfTI upload vẫn chỉ sống trong cache RAM backend; không commit hoặc persist dữ liệu bệnh nhân.
+
+---
+
+## S-155 · 2026-08-13 · codex
+
+**Mục tiêu phiên:** tinh gọn điều hướng lát MRI thành một thanh duy nhất.
+
+**Nhánh / commit:** `main` · `27241d7` → *(commit theo sau entry này)*
+
+**Đã đụng file:**
+
+- `webapp/frontend/src/components/SliceViewer.tsx` — gỡ hoàn toàn thao tác “Đến lát tổn thương”; đưa điều hướng, slider và thông tin tổn thương vào một component chung.
+- `webapp/frontend/src/index.css` — tạo một thanh điều hướng duy nhất với slider cyan và vệt fuchsia chỉ lát có tổn thương; giữ vùng chạm của nút mũi tên và thu gọn an toàn ở mobile.
+
+**Quyết định & lý do:**
+
+- Vệt fuchsia được đặt sát ngay dưới slider trong cùng control, nên người xem vẫn thấy phân bố tổn thương mà không phải quét sang một thanh hoặc nút thứ hai.
+
+**Kết quả / số liệu:**
+
+- `npm run typecheck`, `npm run build`, Impeccable detector và `quality-gate.ps1`: pass.
+
+**Dang dở:**
+
+- [ ] Không có việc treo.
+
+**Điểm vào phiên sau:** kiểm tra trực quan với ZIP MRI+mask thật ở viewport thấp.
+
+**Cảnh báo cho tool sau:** giữ thanh điều hướng ở một hàng; không đưa lại nút nhảy đến tổn thương hoặc dải tổn thương thứ hai.

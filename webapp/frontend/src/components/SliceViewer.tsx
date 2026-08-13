@@ -5,7 +5,7 @@
  */
 
 import { useCallback, useEffect, useMemo, useRef, useState, type PointerEvent } from 'react';
-import { ArrowLeft, ArrowRight, Flame, Maximize2, Scan, Target } from 'lucide-react';
+import { ArrowLeft, ArrowRight, Flame, Maximize2, Scan } from 'lucide-react';
 
 import { modelViewUrl, sliceUrl, uploadSliceUrl } from '@/api/client';
 import type { CaseVolumeInfo, ModelHeatmapInfo, PhaseInfo } from '@/api/types';
@@ -77,7 +77,6 @@ export function SliceViewer({ caseId, phases, modelHeatmap, volumes, source = 'd
     ? modelHeatmap?.lesion_slices[token] ?? []
     : activeVolume?.mask_slices ?? [];
   const segments = useMemo(() => toSegments(lesionSlices), [lesionSlices]);
-  const firstLesionSlice = lesionSlices[0] ?? null;
 
   // The first usable view opens at the longest C-pre annotation span. Switching
   // phase preserves z: all eight artefact crops use the same E4 dimensions.
@@ -185,8 +184,6 @@ export function SliceViewer({ caseId, phases, modelHeatmap, volumes, source = 'd
   }
 
   const onLesionSlice = lesionSlices.includes(z);
-  const before = z;
-  const after = total - 1 - z;
   const zoomed = scale > 1.001;
   const imageUrl = hasModelHeatmap
     ? modelViewUrl(caseId, token, z, showAnnotation, showHeatmap)
@@ -300,46 +297,72 @@ export function SliceViewer({ caseId, phases, modelHeatmap, volumes, source = 'd
         </p>
       )}
 
-      <div className="viewer-navigation">
-        <div className="viewer-navigation__stepper">
-          <span className="slice-progress" aria-hidden="true">
-            <span className="slice-progress__before" style={{ width: `${total > 1 ? (before / (total - 1)) * 100 : 0}%` }} />
-          </span>
-          <div className="slice-stepper">
-            <StepButton direction="prev" disabled={z <= 0} onClick={() => step(-1)} label="Lát trước" />
-            <span>{z + 1} / {total}</span>
-            <StepButton direction="next" disabled={z >= total - 1} onClick={() => step(1)} label="Lát sau" />
-          </div>
-          <span className="slice-progress" aria-hidden="true">
-            <span className="slice-progress__after" style={{ width: `${total > 1 ? (after / (total - 1)) * 100 : 0}%` }} />
-          </span>
-        </div>
-
-        <label className="slice-position">
-          <span>Vị trí lát</span>
-          <small>Lăn chuột để đổi lát · Ctrl + lăn chuột để phóng to · Kéo để di chuyển ảnh</small>
-          <input
-            type="range"
-            min={0}
-            max={Math.max(total - 1, 0)}
-            value={z}
-            onChange={(event) => setZ(clamp(Number(event.target.value)))}
-            aria-label={`Lát ${z + 1} trên ${total}`}
-            className="slice-range"
-          />
-        </label>
-      </div>
-
-      {segments.length > 0 && (
-        <LesionTrack
-          segments={segments}
-          total={total}
-          count={lesionSlices.length}
-          onLesionSlice={onLesionSlice}
-          onJump={() => firstLesionSlice !== null && setZ(clamp(firstLesionSlice))}
-        />
-      )}
+      <UnifiedSliceNavigation
+        total={total}
+        z={z}
+        segments={segments}
+        lesionCount={lesionSlices.length}
+        onLesionSlice={onLesionSlice}
+        onChange={(next) => setZ(clamp(next))}
+        onStep={step}
+      />
     </section>
+  );
+}
+
+function UnifiedSliceNavigation({
+  total,
+  z,
+  segments,
+  lesionCount,
+  onLesionSlice,
+  onChange,
+  onStep,
+}: {
+  total: number;
+  z: number;
+  segments: Array<[number, number]>;
+  lesionCount: number;
+  onLesionSlice: boolean;
+  onChange: (next: number) => void;
+  onStep: (delta: number) => void;
+}) {
+  const span = Math.max(total - 1, 1);
+  const summary = lesionCount > 0
+    ? `${lesionCount}/${total} lát có tổn thương${onLesionSlice ? ' · đang xem' : ''}`
+    : 'Không có vùng tổn thương';
+
+  return (
+    <div className="viewer-navigation viewer-navigation--unified" title="Lăn chuột để đổi lát · Ctrl + lăn chuột để phóng to · Kéo để di chuyển ảnh">
+      <span className="slice-position__label">Vị trí lát</span>
+      <StepButton direction="prev" disabled={z <= 0} onClick={() => onStep(-1)} label="Lát trước" />
+      <label className="slice-range-wrap">
+        <span className="sr-only">Vị trí lát. {summary}</span>
+        <span className="slice-lesion-track" aria-hidden="true">
+          {segments.map(([start, end]) => (
+            <span
+              key={start}
+              style={{
+                left: `${(start / span) * 100}%`,
+                width: `${Math.max(((end - start) / span) * 100, 0.6)}%`,
+              }}
+            />
+          ))}
+        </span>
+        <input
+          type="range"
+          min={0}
+          max={Math.max(total - 1, 0)}
+          value={z}
+          onChange={(event) => onChange(Number(event.target.value))}
+          aria-label={`Vị trí lát ${z + 1} trên ${total}`}
+          className="slice-range"
+        />
+      </label>
+      <span className="slice-counter" aria-live="polite">{z + 1} / {total}</span>
+      <StepButton direction="next" disabled={z >= total - 1} onClick={() => onStep(1)} label="Lát sau" />
+      {lesionCount > 0 && <span className={`slice-lesion-summary ${onLesionSlice ? 'is-current' : ''}`}>{summary}</span>}
+    </div>
   );
 }
 
@@ -374,51 +397,6 @@ function Toggle({
       <Icon className="h-3.5 w-3.5" aria-hidden="true" />
       {active ? activeLabel : inactiveLabel}
     </button>
-  );
-}
-
-function LesionTrack({
-  segments,
-  total,
-  count,
-  onLesionSlice,
-  onJump,
-}: {
-  segments: Array<[number, number]>;
-  total: number;
-  count: number;
-  onLesionSlice: boolean;
-  onJump: () => void;
-}) {
-  const span = Math.max(total - 1, 1);
-  const first = segments[0][0];
-  const last = segments[segments.length - 1][1];
-  return (
-    <div className="lesion-track">
-      <div className="lesion-track__bar" aria-hidden="true">
-        {segments.map(([start, end]) => (
-          <span
-            key={start}
-            className="lesion-track__segment"
-            style={{ left: `${(start / span) * 100}%`, width: `${Math.max(((end - start) / span) * 100, 0.6)}%` }}
-          />
-        ))}
-      </div>
-      <div className="lesion-track__summary">
-        <p>
-          <span>Vùng tổn thương</span> ở {count}/{total} lát ({first + 1}–{last + 1})
-          {onLesionSlice && <span> · lát đang xem có tổn thương</span>}
-        </p>
-        <button
-          type="button"
-          onClick={onJump}
-          className="viewer-control lesion-track__jump"
-        >
-          <Target className="h-3.5 w-3.5" aria-hidden="true" />
-          Đến lát tổn thương
-        </button>
-      </div>
-    </div>
   );
 }
 
