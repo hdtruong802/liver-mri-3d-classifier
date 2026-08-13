@@ -6320,3 +6320,32 @@ Không train mới. Test giữ **610 passed**, 73 skipped. Gate PASS.
 **Điểm vào phiên sau:** kiểm tra trực quan với ZIP MRI+mask thật ở viewport thấp.
 
 **Cảnh báo cho tool sau:** giữ thanh điều hướng ở một hàng; không đưa lại nút nhảy đến tổn thương hoặc dải tổn thương thứ hai.
+
+---
+
+## S-156 · 2026-08-13 · codex
+
+**Mục tiêu phiên:** tối đa diện tích đọc MRI và chuẩn hóa điều khiển zoom/lát.
+
+**Nhánh / commit:** `main` · `3a1ae8c` → *(commit theo sau entry này)*
+
+**Đã đụng file:**
+
+- `webapp/frontend/src/components/SliceViewer.tsx` — gộp phase vào toolbar cùng toggle overlay, bỏ reset zoom và ghi chú thường trực; wheel chỉ zoom, phím mũi tên trong canvas chỉ đổi lát.
+- `webapp/frontend/src/index.css` — nén toolbar/thanh lát, bỏ viền/bo góc/kích thước vuông áp lên canvas để ảnh dùng toàn bộ vùng đọc với `object-fit: contain`.
+
+**Quyết định & lý do:**
+
+- Không còn nút reset zoom; lăn ngược chiều sẽ về 1×. Thông tin ảnh nguồn và mask vẫn có trong tooltip của toggle để giải phóng không gian đọc ảnh.
+
+**Kết quả / số liệu:**
+
+- `npm run typecheck`, `npm run build`, `tests/test_webapp_api.py tests/test_webapp_volumes.py` (47 passed), Impeccable detector và `quality-gate.ps1`: pass.
+
+**Dang dở:**
+
+- [ ] Không có việc treo.
+
+**Điểm vào phiên sau:** kiểm tra trực quan với ZIP MRI+mask thật nếu cần tinh chỉnh thêm mật độ canvas.
+
+**Cảnh báo cho tool sau:** wheel trên ảnh đã dành riêng cho zoom; không trả lại cơ chế đổi lát bằng wheel hoặc nút “Vừa khung”.

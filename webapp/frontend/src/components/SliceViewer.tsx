@@ -5,7 +5,7 @@
  */
 
 import { useCallback, useEffect, useMemo, useRef, useState, type PointerEvent } from 'react';
-import { ArrowLeft, ArrowRight, Flame, Maximize2, Scan } from 'lucide-react';
+import { ArrowLeft, ArrowRight, Flame, Scan } from 'lucide-react';
 
 import { modelViewUrl, sliceUrl, uploadSliceUrl } from '@/api/client';
 import type { CaseVolumeInfo, ModelHeatmapInfo, PhaseInfo } from '@/api/types';
@@ -113,20 +113,11 @@ export function SliceViewer({ caseId, phases, modelHeatmap, volumes, source = 'd
       y: Math.max(-maxY, Math.min(maxY, next.y)),
     };
   }, []);
-  const resetView = useCallback(() => {
-    setScale(1);
-    setOffset({ x: 0, y: 0 });
-  }, []);
-
   useEffect(() => {
     const frame = frameRef.current;
     if (!frame) return;
     const onWheel = (event: WheelEvent) => {
       event.preventDefault();
-      if (!event.ctrlKey) {
-        step(event.deltaY > 0 ? 1 : -1);
-        return;
-      }
       const rect = frame.getBoundingClientRect();
       const cursorX = event.clientX - rect.left - rect.width / 2;
       const cursorY = event.clientY - rect.top - rect.height / 2;
@@ -147,7 +138,7 @@ export function SliceViewer({ caseId, phases, modelHeatmap, volumes, source = 'd
     };
     frame.addEventListener('wheel', onWheel, { passive: false });
     return () => frame.removeEventListener('wheel', onWheel);
-  }, [clampOffset, step]);
+  }, [clampOffset]);
 
   const onPointerDown = (event: PointerEvent<HTMLDivElement>) => {
     dragging.current = true;
@@ -203,7 +194,9 @@ export function SliceViewer({ caseId, phases, modelHeatmap, volumes, source = 'd
             activeLabel="Đang hiện vùng tổn thương"
             inactiveLabel="Hiện vùng tổn thương"
             tone="annotation"
-            title="Nhãn dataset do người chú giải khoanh, không phải output segmentation của model"
+            title={source === 'upload'
+              ? 'Ảnh MRI gốc của bộ vừa tải lên. Vùng fuchsia là nhãn tổn thương do người tải lên cung cấp, không phải output segmentation của model.'
+              : 'Nhãn dataset do người chú giải khoanh, không phải output segmentation của model'}
             disabled={!annotationAvailable}
           />
           {hasModelHeatmap && (
@@ -217,35 +210,24 @@ export function SliceViewer({ caseId, phases, modelHeatmap, volumes, source = 'd
               title="Độ nhạy cục bộ của model với lớp đã dự đoán"
             />
           )}
-          {zoomed && (
-            <button
-              type="button"
-              onClick={resetView}
-              className="viewer-control"
-            >
-              <Maximize2 className="h-3.5 w-3.5" aria-hidden="true" />
-              Vừa khung ({scale.toFixed(1)}×)
-            </button>
-          )}
+          <div role="group" aria-label="Chọn thì MRI" className="viewer-phase-group">
+            {available.map((phase) => {
+              const active = phase.file_token === token;
+              return (
+                <button
+                  key={phase.file_token}
+                  type="button"
+                  aria-pressed={active}
+                  title={phase.description_vi}
+                  onClick={() => setToken(phase.file_token)}
+                  className={`viewer-phase ${active ? 'viewer-phase--active' : ''}`}
+                >
+                  {phase.label_vi}
+                </button>
+              );
+            })}
+          </div>
         </div>
-      </div>
-
-      <div role="group" aria-label="Chọn thì MRI" className="viewer-phase-strip">
-        {available.map((phase) => {
-          const active = phase.file_token === token;
-          return (
-            <button
-              key={phase.file_token}
-              type="button"
-              aria-pressed={active}
-              title={phase.description_vi}
-              onClick={() => setToken(phase.file_token)}
-              className={`viewer-phase ${active ? 'viewer-phase--active' : ''}`}
-            >
-              {phase.label_vi}
-            </button>
-          );
-        })}
       </div>
 
       <div className="mri-canvas-slot">
@@ -286,17 +268,6 @@ export function SliceViewer({ caseId, phases, modelHeatmap, volumes, source = 'd
         </div>
       </div>
 
-      {hasModelHeatmap && (
-        <p className="viewer-note">
-          Heatmap thể hiện độ nhạy cục bộ của model với lớp đã dự đoán; không phải vùng tổn thương do model khoanh và không mang ý nghĩa chẩn đoán.
-        </p>
-      )}
-      {source === 'upload' && (
-        <p className="viewer-note">
-          Đây là ảnh MRI gốc của bộ vừa tải lên, chưa crop. Vùng tô fuchsia là nhãn tổn thương do người tải lên cung cấp, không phải vùng model tự khoanh.
-        </p>
-      )}
-
       <UnifiedSliceNavigation
         total={total}
         z={z}
@@ -333,7 +304,7 @@ function UnifiedSliceNavigation({
     : 'Không có vùng tổn thương';
 
   return (
-    <div className="viewer-navigation viewer-navigation--unified" title="Lăn chuột để đổi lát · Ctrl + lăn chuột để phóng to · Kéo để di chuyển ảnh">
+    <div className="viewer-navigation viewer-navigation--unified" title="Lăn chuột để phóng to hoặc thu nhỏ · Kéo để di chuyển ảnh">
       <span className="slice-position__label">Vị trí lát</span>
       <StepButton direction="prev" disabled={z <= 0} onClick={() => onStep(-1)} label="Lát trước" />
       <label className="slice-range-wrap">
