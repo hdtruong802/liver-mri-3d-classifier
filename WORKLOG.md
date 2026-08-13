@@ -6103,3 +6103,24 @@ Không train mới. Test giữ **610 passed**, 73 skipped. Gate PASS.
 ### Kiểm chứng
 
 - `npm run typecheck`, `npm run build`, Impeccable detector và quality gate: pass.
+
+---
+
+## S-149 · 2026-08-13 · codex
+
+**Mục tiêu phiên:** cho phép ZIP MRI chạy suy luận trực tiếp bằng các checkpoint UniFormer-S đã hoàn tất, không làm sai crop ROI đã train.
+
+### Đã làm
+
+- Thay đường suy luận upload sang `runs/Uniformer3D`: hiện ensemble 4 fold hoàn tất (1, 2, 3, 5). Backend tự nhận `uniformer3D_best_4.pt` sau khi checkpoint xuất hiện và server được khởi động lại.
+- Bắt buộc ZIP có `images/` và `masks/`, mỗi thư mục đủ 8 NIfTI theo phase. Mỗi mask phải cùng shape, spacing, origin và direction với MRI ghép cặp; ZIP chỉ có MRI vẫn được kiểm tra nhưng không được tạo prediction.
+- Tái tạo đúng crop ROI UniFormer bằng `configs/preprocess_cghnet.yaml`: cache lesion-tight/per-phase `128×128×16`, sau đó center-crop tất định `112×112×14` trước forward. Không dùng crop E4 hay crop giữa ảnh thô.
+- Thêm `POST /api/predict-upload`; file được giải nén tạm có giới hạn an toàn, forward xong bị xoá. Kết quả ghi provenance `live`, là trung bình softmax thô, không gắn calibration/defer OOF.
+- Cập nhật upload UI, API types, docs sản phẩm/kỹ thuật và requirements. Runtime đã được cài trong `.venv`, không cài vào Python hệ thống.
+
+### Kiểm chứng
+
+- `.venv\Scripts\python.exe -m pytest tests\test_webapp_api.py tests\test_webapp_phases.py -q -p no:cacheprovider`: 49 passed.
+- Nạp strict 4 checkpoint UniFormer-S trên CPU: pass.
+- ZIP NIfTI tổng hợp đủ 8 MRI + 8 mask qua `/api/predict-upload`: HTTP 200, `inference_ready=true`, prediction đủ 7 lớp, provenance `UniFormer-S · ensemble 4 fold`.
+- `npm run typecheck`, `npm run build`, Impeccable detector và quality gate: pass.

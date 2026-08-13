@@ -37,7 +37,7 @@ Hệ quả trực tiếp lên sản phẩm: **mức bất định là nội dung
 
 - **Ràng buộc dự án:** 1 người, 6 tuần, 3 sprint. Web app thuộc Sprint 3 — sau khi đã có model và kết quả.
 - **Huấn luyện:** Kaggle Notebook, session ≤ 12h, VRAM ~16GB, có thể bị ngắt bất kỳ lúc nào. Kaggle không phải server, không host API ở đó.
-- **Luồng dùng demo:** người review chọn ca demo dựng sẵn để xem prediction OOF. Họ cũng có thể tải một ZIP NIfTI để kiểm tra đủ 8 thì; ZIP không tạo prediction ở V1. Phase được nhận diện từ tên file, không dựa vào thứ tự chọn.
+- **Luồng dùng demo:** người review chọn ca demo dựng sẵn để xem prediction OOF. Họ cũng có thể tải ZIP NIfTI có đủ 8 MRI và 8 mask tổn thương tương ứng để chạy suy luận trực tiếp UniFormer. Phase được nhận diện từ tên file, không dựa vào thứ tự chọn.
 - **Ca demo dựng sẵn (3–5 ca) là đường đi chính**, không phải phương án dự phòng: dùng prediction OOF từ validation, không dùng Test-104; dữ liệu và artefact thô luôn ở storage private, ngoài Git.
 - **Latency:** nút thắt là registration/tiền xử lý, không phải forward pass. Demo chạy trên lesion-crop, rigid-only, bỏ N4 → vài giây trên CPU.
 - **Triển khai:** local + ngrok, hoặc Docker trên Hugging Face Spaces / Render free tier. **Chưa chốt.**
@@ -47,9 +47,9 @@ Hệ quả trực tiếp lên sản phẩm: **mức bất định là nội dung
 
 **Model làm gì:** phân loại 7 lớp tổn thương gan (HCC, ICC, di căn, nang, u máu, FNH, áp-xe — 3 ác, 4 lành) ở mức ROI, trên volume 3D đa pha 8 thì MRI.
 
-**Web app trả về cho ca demo OOF:** lớp dự đoán · xác suất từng lớp · xác suất ác tính · trạng thái `defer` · MRI crop E4 với heatmap độ nhạy đa thì. ZIP người dùng tải chỉ nhận bảng kiểm cấu trúc.
+**Web app trả về cho ca demo OOF:** lớp dự đoán · xác suất từng lớp · xác suất ác tính · trạng thái `defer` · MRI crop E4 với heatmap độ nhạy đa thì. ZIP đầy đủ trả prediction `live` từ ensemble UniFormer-S, có provenance rõ ràng và không áp dụng `defer`/calibration OOF.
 
-**Contract upload V1:** nhận một ZIP chứa đúng một `.nii` hoặc `.nii.gz` cho mỗi thì C-pre, C+A, C+V, C+Delay, T2WI, DWI, In Phase và Out Phase. Thư mục trong ZIP không quan trọng. Backend chỉ kiểm tra manifest; DICOM-folder là mở rộng riêng, không thuộc V1.
+**Contract upload V1:** ZIP có `images/` và `masks/`, mỗi thư mục chứa đúng một `.nii` hoặc `.nii.gz` cho mỗi thì C-pre, C+A, C+V, C+Delay, T2WI, DWI, In Phase và Out Phase. Mỗi mask phải cùng lưới vật lý với MRI ghép cặp. Backend giải nén tạm và xoá ngay sau khi chạy crop ROI UniFormer; DICOM-folder là mở rộng riêng, không thuộc V1.
 
 **Ràng buộc kỹ thuật đã khoá:**
 - Backend FastAPI, web app **tự code full-stack**. **Không Streamlit, không Gradio, không framework demo dựng sẵn** — app tự code là bản thân deliverable, không phải lựa chọn kỹ thuật. Thư viện frontend thì tự do (hiện dùng React + Vite + Tailwind); ràng buộc "frontend HTML/CSS/JS thuần" đã gỡ ngày 2026-07-31, xem WORKLOG S-076.

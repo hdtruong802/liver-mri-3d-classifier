@@ -5,8 +5,14 @@ fastapi==0.115.6
 uvicorn[standard]==0.34.0
 pydantic==2.10.4
 python-multipart==0.0.20
+httpx==0.28.1
 numpy==2.2.1
 nibabel==5.3.2
 # Pillow >= 12.2 là ràng buộc từ môi trường chung (pdfplumber trên máy dev cần mức
 # này). Hạ xuống 11.x sẽ cài được nhưng làm hỏng công cụ khác trong cùng interpreter.
 pillow==12.3.0
+PyYAML==6.0.2
+SimpleITK==2.4.0
+# Backend is tested on the repository's Python 3.13 runtime; PyTorch 2.3.1
+# has no cp313 wheel. State-dict serving is compatible with this newer runtime.
+torch==2.6.0

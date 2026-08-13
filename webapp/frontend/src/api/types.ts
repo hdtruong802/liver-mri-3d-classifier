@@ -44,17 +44,17 @@ export interface PredictResult {
   probs: ClassProbability[];
   malignant_prob: number;
   uncertainty: Uncertainty;
-  defer: boolean;
+  defer: boolean | null;
   /**
    * Đại lượng nào được so với ngưỡng. Chiều so sánh NGƯỢC NHAU giữa hai giá trị:
    * `confidence` thấp thì từ chối, `epistemic` cao thì từ chối. Đừng giả định một
    * chiều — một ca có thể bị từ chối dù confidence 0,94 (WORKLOG S-087).
    */
-  defer_basis: 'confidence' | 'epistemic';
+  defer_basis: 'confidence' | 'epistemic' | null;
   /** Giá trị của chính đại lượng nêu ở `defer_basis`. KHÔNG phải lúc nào cũng bằng `confidence`. */
-  defer_score: number;
+  defer_score: number | null;
   /** Ngưỡng khoá trên validation, cùng đơn vị với `defer_score`. */
-  defer_threshold: number;
+  defer_threshold: number | null;
   confidence: number;
   inference_ms: number | null;
   provenance: Provenance;
@@ -76,15 +76,22 @@ export interface UploadPhaseValidation {
   label_vi: string;
   filename: string | null;
   state: UploadPhaseState;
+  mask_filename: string | null;
+  mask_state: UploadPhaseState;
 }
 
 /** Chỉ là kiểm tra manifest ZIP; cố ý không chứa prediction hoặc uncertainty. */
 export interface UploadValidationResult {
   archive_name: string;
   valid: boolean;
+  inference_ready: boolean;
   message: string;
   errors: string[];
   phases: UploadPhaseValidation[];
+}
+
+export interface UploadPredictionResult extends UploadValidationResult {
+  prediction: PredictResult | null;
 }
 
 export interface ClassInfo {

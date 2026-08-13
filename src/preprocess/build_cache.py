@@ -19,6 +19,7 @@ import argparse
 import json
 import subprocess
 import time
+from collections.abc import Mapping
 from pathlib import Path
 from typing import Any
 
@@ -44,6 +45,7 @@ LESION_SOURCES = ("bbox", "mask")
 
 __all__ = [
     "build_cache",
+    "process_uploaded_with_masks",
     "process_patient",
     "process_patient_with_meta",
     "resample_annotation_masks",
@@ -296,6 +298,137 @@ def process_patient(
         patient_id, annotation, image_index, phase_config, config, mask_index
     )
     return volume
+
+
+def _same_image_grid(image, mask) -> bool:
+    """Return whether an uploaded mask occupies its paired image grid.
+
+    A lesion mask on a different physical grid would produce a plausible crop
+    at the wrong location.  Reject it rather than silently resampling a label
+    whose origin/direction is unknown.
+    """
+    return (
+        image.GetSize() == mask.GetSize()
+        and np.allclose(image.GetSpacing(), mask.GetSpacing(), rtol=0.0, atol=1e-6)
+        and np.allclose(image.GetOrigin(), mask.GetOrigin(), rtol=0.0, atol=1e-6)
+        and np.allclose(image.GetDirection(), mask.GetDirection(), rtol=0.0, atol=1e-6)
+    )
+
+
+def _image_affine(image) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+    """Build the voxel-to-world affine used by the E4 preprocessing path."""
+    direction = np.array(image.GetDirection(), dtype=float).reshape(3, 3)
+    spacing = np.array(image.GetSpacing(), dtype=float)
+    affine = np.eye(4)
+    affine[:3, :3] = direction @ np.diag(spacing)
+    affine[:3, 3] = image.GetOrigin()
+    return affine, direction, spacing
+
+
+def process_uploaded_with_masks(
+    image_paths: Mapping[str, Path],
+    mask_paths: Mapping[str, Path],
+    phase_config: list[dict[str, str]],
+    config: Mapping[str, Any],
+) -> tuple[np.ndarray, dict[str, Any]]:
+    """Create a lesion-aligned model tensor from an uploaded MRI + mask set.
+
+    The ROI recipes used by E4 and UniFormer are lesion-tight and align every
+    phase using that phase's lesion centre. Eight MRI volumes alone therefore
+    cannot reproduce either training input. This helper deliberately requires
+    a paired annotation mask on the *same physical grid* for every phase, then mirrors
+    :func:`process_patient_with_meta` without needing a dataset annotation.
+
+    It is intentionally a preprocessing helper rather than serve-only code so
+    offline notebooks and the web app share one geometry implementation.
+    """
+    expected_tokens = [phase["file"] for phase in phase_config]
+    if len(expected_tokens) != 8 or len(set(expected_tokens)) != 8:
+        raise ValueError("phase_config phải có đúng 8 file token khác nhau")
+    missing_images = [token for token in expected_tokens if token not in image_paths]
+    missing_masks = [token for token in expected_tokens if token not in mask_paths]
+    if missing_images or missing_masks:
+        details = []
+        if missing_images:
+            details.append(f"thiếu ảnh cho {missing_images}")
+        if missing_masks:
+            details.append(f"thiếu mask cho {missing_masks}")
+        raise FileNotFoundError("; ".join(details))
+
+    crop_mode = config.get("crop_mode", "fixed_mm")
+    lesion_cfg = config.get("lesion_tight") or {}
+    source = lesion_cfg.get("source", "bbox")
+    align = config.get("align_phases", "reference")
+    if crop_mode != "lesion_tight" or source != "mask" or align != "per_phase":
+        raise ValueError(
+            "suy luận upload chỉ hỗ trợ contract E4: lesion_tight + mask + per_phase"
+        )
+
+    ref_phase = str(config["reference_phase"])
+    ref_token = next((phase["file"] for phase in phase_config if phase["name"] == ref_phase), None)
+    if ref_token is None:
+        raise ValueError(f"không tìm thấy pha tham chiếu {ref_phase!r} trong phase_config")
+
+    size = tuple(int(value) for value in config["target_size"])
+    if len(size) != 3 or any(value <= 0 for value in size):
+        raise ValueError(f"target_size không hợp lệ: {size!r}")
+    margin = tuple(int(value) for value in (config.get("crop_margin_voxels") or (0, 0, 0)))
+    if len(margin) != 3 or any(value < 0 for value in margin):
+        raise ValueError(f"crop_margin_voxels không hợp lệ: {margin!r}")
+    grid_size = tuple(value + 2 * extra for value, extra in zip(size, margin, strict=True))
+    interpolator = str(config.get("interpolator", "linear"))
+    norm_cfg = config.get("normalize") or {}
+    clip = tuple(norm_cfg.get("clip_percentile", (0.5, 99.5)))
+    scope = norm_cfg.get("scope", "volume")
+
+    ref_image = read_image(image_paths[ref_token])
+    ref_mask = read_image(mask_paths[ref_token])
+    if not _same_image_grid(ref_image, ref_mask):
+        raise ValueError(f"mask {ref_token} không cùng lưới vật lý với ảnh MRI tương ứng")
+    ref_affine, ref_direction, ref_spacing = _image_affine(ref_image)
+    ref_center_voxel, extent_voxel = mask_center_extent_voxel(to_numpy(ref_mask))
+    extent_mm = extent_voxel * ref_spacing
+    spacing, fov_mm = adaptive_spacing(
+        extent_mm,
+        size,
+        margin_factor=float(lesion_cfg.get("margin_factor", 1.6)),
+        min_fov_mm=tuple(lesion_cfg.get("min_fov_mm", (40.0, 40.0, 40.0))),
+        max_fov_mm=tuple(lesion_cfg.get("max_fov_mm", (200.0, 200.0, 200.0))),
+    )
+    ref_center_world = voxel_to_world(ref_affine, ref_center_voxel)
+
+    channels: list[np.ndarray] = []
+    shifts: list[np.ndarray] = []
+    for phase in phase_config:
+        token = phase["file"]
+        image = ref_image if token == ref_token else read_image(image_paths[token])
+        mask = ref_mask if token == ref_token else read_image(mask_paths[token])
+        if not _same_image_grid(image, mask):
+            raise ValueError(f"mask {token} không cùng lưới vật lý với ảnh MRI tương ứng")
+
+        phase_affine, _, _ = _image_affine(image)
+        phase_center_voxel, _ = mask_center_extent_voxel(to_numpy(mask))
+        phase_center_world = voxel_to_world(phase_affine, phase_center_voxel)
+        grid = make_reference_image(phase_center_world, ref_direction, spacing, grid_size)
+        patch = to_numpy(resample_to_grid(image, grid, interpolator))
+        stats_source = to_numpy(image) if scope == "volume" else None
+        channels.append(clip_and_zscore(patch, stats_source, clip))
+        shifts.append(np.asarray(phase_center_world, dtype=float) - ref_center_world)
+
+    shift_array = np.asarray(shifts, dtype=np.float32)
+    return np.stack(channels, axis=0), {
+        "lesion_extent_mm": extent_mm.astype(np.float32),
+        "fov_mm": np.asarray(fov_mm, dtype=np.float32),
+        "spacing": np.asarray(spacing, dtype=np.float32),
+        "crop_margin_voxels": np.asarray(margin, dtype=np.int32),
+        "inner_size": np.asarray(size, dtype=np.int32),
+        "crop_source": "mask",
+        "crop_mode": crop_mode,
+        "align_phases": align,
+        "phase_shift_mm": shift_array,
+        "max_phase_shift_mm": np.float32(np.abs(shift_array).max(initial=0.0)),
+        "phase_center_source": np.asarray(["mask"] * len(phase_config)),
+    }
 
 
 def resample_annotation_masks(

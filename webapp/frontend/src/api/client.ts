@@ -5,6 +5,7 @@ import type {
   CaseSummary,
   MetaResponse,
   PredictResult,
+  UploadPredictionResult,
   UploadValidationResult,
 } from '@/api/types';
 
@@ -50,6 +51,12 @@ export function validateUpload(archive: File): Promise<UploadValidationResult> {
   const form = new FormData();
   form.append('archive', archive, archive.name);
   return request<UploadValidationResult>('/api/validate-upload', { method: 'POST', body: form });
+}
+
+export function predictUpload(archive: File): Promise<UploadPredictionResult> {
+  const form = new FormData();
+  form.append('archive', archive, archive.name);
+  return request<UploadPredictionResult>('/api/predict-upload', { method: 'POST', body: form });
 }
 
 /** URL ảnh hợp nhất trên lưới crop E4: MRI → heatmap → nhãn người chú giải. */

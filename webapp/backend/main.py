@@ -7,14 +7,22 @@ Chạy local. Kaggle không phải server và không bao giờ host API ở đó
 
 from __future__ import annotations
 
-from zipfile import BadZipFile, ZipFile
+import tempfile
+from pathlib import Path, PurePosixPath
+from zipfile import BadZipFile, ZipFile, ZipInfo
 
 from fastapi import FastAPI, HTTPException, UploadFile
 from fastapi.responses import Response
 from src.data.taxonomy import CLASS_NAMES, MALIGNANT_INDICES, NUM_CLASSES, SHORT_NAMES
 
 from webapp.backend import demo_cases, inference
-from webapp.backend.config import DEFAULT_DEFER_THRESHOLD, RUO_NOTICE, SAMPLE_DIR
+from webapp.backend.config import (
+    DEFAULT_DEFER_THRESHOLD,
+    RUO_NOTICE,
+    SAMPLE_DIR,
+    UPLOAD_MAX_ENTRIES,
+    UPLOAD_MAX_UNCOMPRESSED_BYTES,
+)
 from webapp.backend.phases import PHASES, PhaseDetectionError, detect_phase
 from webapp.backend.schemas import (
     CaseDetail,
@@ -26,6 +34,7 @@ from webapp.backend.schemas import (
     PredictResult,
     UploadPhaseState,
     UploadPhaseValidation,
+    UploadPredictionResult,
     UploadValidationResult,
 )
 from webapp.backend.volumes import render_slice_png
@@ -184,64 +193,170 @@ def predict_case(case_id: str) -> PredictResult:
         raise HTTPException(status_code=503, detail=str(exc)) from exc
 
 
-def _upload_manifest(archive_name: str, names: list[str]) -> UploadValidationResult:
-    """Suy luận trên bộ 8 file người dùng tải lên — đường phụ.
+def _is_nifti(name: str) -> bool:
+    return name.lower().endswith((".nii", ".nii.gz"))
 
-    Chỉ đọc manifest: không giải nén bền vững, không chạy model và không tạo prediction.
-    """
-    nifti_names = [name for name in names if name.lower().endswith((".nii", ".nii.gz"))]
-    errors: list[str] = []
+
+def _archive_role(name: str) -> str | None:
+    """Classify a NIfTI by its directory, never by upload order."""
+    parts = [part.lower() for part in PurePosixPath(name.replace("\\", "/")).parts[:-1]]
+    if "images" in parts:
+        return "image"
+    if "masks" in parts:
+        return "mask"
+    return None
+
+
+def _inspect_upload(
+    archive_name: str, names: list[str]
+) -> tuple[UploadValidationResult, dict[str, str], dict[str, str]]:
+    """Validate ZIP layout and return accepted image/mask paths by phase token."""
+    image_found: dict[str, list[str]] = {phase.file_token: [] for phase in PHASES}
+    mask_found: dict[str, list[str]] = {phase.file_token: [] for phase in PHASES}
+    image_errors: list[str] = []
+    mask_errors: list[str] = []
+    nifti_names = [name for name in names if _is_nifti(name)]
     if not nifti_names:
-        errors.append("ZIP không chứa file NIfTI .nii hoặc .nii.gz.")
-    found: dict[str, list[str]] = {phase.file_token: [] for phase in PHASES}
+        image_errors.append("ZIP không chứa file NIfTI .nii hoặc .nii.gz.")
+
     for name in nifti_names:
+        role = _archive_role(name)
+        if role is None:
+            image_errors.append(
+                f"{name!r} phải nằm trong thư mục images/ hoặc masks/ của ZIP."
+            )
+            continue
         leaf_name = name.replace("\\", "/").rsplit("/", 1)[-1]
         try:
             phase = detect_phase(leaf_name)
         except PhaseDetectionError as exc:
-            errors.append(str(exc))
+            (image_errors if role == "image" else mask_errors).append(str(exc))
             continue
-        found[phase.file_token].append(name)
+        target = image_found if role == "image" else mask_found
+        target[phase.file_token].append(name)
 
     rows: list[UploadPhaseValidation] = []
+    images: dict[str, str] = {}
+    masks: dict[str, str] = {}
     for phase in PHASES:
-        files = found[phase.file_token]
-        filename = " · ".join(files) if files else None
-        if len(files) > 1:
-            state = UploadPhaseState.DUPLICATE
-            errors.append(f"trùng thì {phase.label_vi}: {filename}")
-        elif files:
-            state = UploadPhaseState.READY
-        else:
-            state = UploadPhaseState.MISSING
+        image_files = image_found[phase.file_token]
+        mask_files = mask_found[phase.file_token]
+        image_filename = " · ".join(image_files) if image_files else None
+        mask_filename = " · ".join(mask_files) if mask_files else None
+        image_state = (
+            UploadPhaseState.DUPLICATE
+            if len(image_files) > 1
+            else UploadPhaseState.READY
+            if image_files
+            else UploadPhaseState.MISSING
+        )
+        mask_state = (
+            UploadPhaseState.DUPLICATE
+            if len(mask_files) > 1
+            else UploadPhaseState.READY
+            if mask_files
+            else UploadPhaseState.MISSING
+        )
+        if image_state is UploadPhaseState.DUPLICATE:
+            image_errors.append(f"trùng ảnh thì {phase.label_vi}: {image_filename}")
+        elif image_state is UploadPhaseState.READY:
+            images[phase.file_token] = image_files[0]
+        if mask_state is UploadPhaseState.DUPLICATE:
+            mask_errors.append(f"trùng mask thì {phase.label_vi}: {mask_filename}")
+        elif mask_state is UploadPhaseState.READY:
+            masks[phase.file_token] = mask_files[0]
         rows.append(
             UploadPhaseValidation(
                 index=phase.index,
                 file_token=phase.file_token,
                 label_vi=phase.label_vi,
-                filename=filename,
-                state=state,
+                filename=image_filename,
+                state=image_state,
+                mask_filename=mask_filename,
+                mask_state=mask_state,
             )
         )
 
-    valid = not errors and all(len(files) == 1 for files in found.values())
-    return UploadValidationResult(
-        archive_name=archive_name,
-        valid=valid,
-        message=(
-            (
-                "Bộ MRI có đủ 8 thì hợp lệ. App chỉ kiểm tra cấu trúc; "
-                "hãy chọn ca demo để xem dự đoán OOF."
-            )
-            if valid
-            else (
-                "Bộ MRI chưa đúng contract 8 thì. "
-                "Hãy kiểm tra tên và số lượng file NIfTI trong ZIP."
-            )
+    valid = not image_errors and len(images) == len(PHASES)
+    inference_ready = valid and not mask_errors and len(masks) == len(PHASES)
+    errors = [*image_errors, *mask_errors]
+    if inference_ready:
+        message = "Bộ MRI và 8 mask hợp lệ. Sẵn sàng chạy ensemble UniFormer."
+    elif valid:
+        message = (
+            "Đủ 8 ảnh MRI. Cần thêm đúng 8 mask tổn thương trong masks/ "
+            "để dựng crop ROI UniFormer và chạy AI."
+        )
+    else:
+        message = (
+            "Bộ MRI chưa đúng cấu trúc. Hãy đặt 8 ảnh vào images/ và đặt tên file có token thì MRI."
+        )
+    return (
+        UploadValidationResult(
+            archive_name=archive_name,
+            valid=valid,
+            inference_ready=inference_ready,
+            message=message,
+            errors=errors,
+            phases=rows,
         ),
-        errors=errors,
-        phases=rows,
+        images,
+        masks,
     )
+
+
+def _safe_zip_infos(bundle: ZipFile) -> list[ZipInfo]:
+    infos = [entry for entry in bundle.infolist() if not entry.is_dir()]
+    if len(infos) > UPLOAD_MAX_ENTRIES:
+        raise HTTPException(status_code=422, detail="ZIP có quá nhiều file.")
+    total_size = 0
+    for entry in infos:
+        pure_path = PurePosixPath(entry.filename.replace("\\", "/"))
+        if pure_path.is_absolute() or any(part in {"", ".", ".."} for part in pure_path.parts):
+            raise HTTPException(status_code=422, detail="ZIP chứa đường dẫn file không an toàn.")
+        total_size += entry.file_size
+        if total_size > UPLOAD_MAX_UNCOMPRESSED_BYTES:
+            raise HTTPException(status_code=422, detail="ZIP vượt dung lượng giải nén cho phép.")
+    return infos
+
+
+def _copy_zip_entry(bundle: ZipFile, entry: ZipInfo, destination: Path) -> None:
+    written = 0
+    with bundle.open(entry) as source, destination.open("wb") as target:
+        while chunk := source.read(1024 * 1024):
+            written += len(chunk)
+            if written > UPLOAD_MAX_UNCOMPRESSED_BYTES:
+                raise ValueError("NIfTI trong ZIP vượt dung lượng giải nén cho phép")
+            target.write(chunk)
+
+
+def _extract_for_inference(
+    bundle: ZipFile,
+    infos: list[ZipInfo],
+    image_names: dict[str, str],
+    mask_names: dict[str, str],
+    directory: Path,
+) -> tuple[dict[str, Path], dict[str, Path]]:
+    by_name = {entry.filename: entry for entry in infos}
+
+    def extract_group(names: dict[str, str], prefix: str) -> dict[str, Path]:
+        paths: dict[str, Path] = {}
+        for token, source_name in names.items():
+            entry = by_name.get(source_name)
+            if entry is None:
+                raise ValueError(f"không tìm thấy {source_name!r} trong ZIP")
+            suffix = ".nii.gz" if source_name.lower().endswith(".nii.gz") else ".nii"
+            target = directory / f"{prefix}_{token}{suffix}"
+            _copy_zip_entry(bundle, entry, target)
+            paths[token] = target
+        return paths
+
+    return extract_group(image_names, "image"), extract_group(mask_names, "mask")
+
+
+def _upload_manifest(archive_name: str, names: list[str]) -> UploadValidationResult:
+    """Compatibility wrapper for callers that need only the upload manifest."""
+    return _inspect_upload(archive_name, names)[0]
 
 
 @app.post("/api/validate-upload", response_model=UploadValidationResult)
@@ -253,8 +368,46 @@ async def validate_upload(archive: UploadFile) -> UploadValidationResult:
 
     try:
         with ZipFile(archive.file) as bundle:
-            names = [entry.filename for entry in bundle.infolist() if not entry.is_dir()]
+            names = [entry.filename for entry in _safe_zip_infos(bundle)]
     except BadZipFile as exc:
         raise HTTPException(status_code=422, detail="File tải lên không phải ZIP hợp lệ.") from exc
 
     return _upload_manifest(archive_name, names)
+
+
+@app.post("/api/predict-upload", response_model=UploadPredictionResult)
+async def predict_upload(archive: UploadFile) -> UploadPredictionResult:
+    """Run UniFormer only when ZIP contains the complete MRI + mask contract."""
+    archive_name = archive.filename or "upload.zip"
+    if not archive_name.lower().endswith(".zip"):
+        raise HTTPException(status_code=422, detail="Chỉ nhận một file .zip.")
+
+    try:
+        with ZipFile(archive.file) as bundle:
+            infos = _safe_zip_infos(bundle)
+            manifest, image_names, mask_names = _inspect_upload(
+                archive_name, [entry.filename for entry in infos]
+            )
+            if not manifest.inference_ready:
+                return UploadPredictionResult(**manifest.model_dump(), prediction=None)
+            with tempfile.TemporaryDirectory(prefix="liver-mri-upload-") as temp_dir:
+                image_paths, mask_paths = _extract_for_inference(
+                    bundle, infos, image_names, mask_names, Path(temp_dir)
+                )
+                from webapp.backend import live_inference
+
+                if not live_inference.is_available():
+                    raise HTTPException(
+                        status_code=503,
+                        detail=(
+                            "Máy chủ chưa có đủ weights UniFormer hoặc runtime PyTorch "
+                            "để chạy suy luận."
+                        ),
+                    )
+                prediction = live_inference.predict_uploaded(archive_name, image_paths, mask_paths)
+    except BadZipFile as exc:
+        raise HTTPException(status_code=422, detail="File tải lên không phải ZIP hợp lệ.") from exc
+    except (OSError, ValueError, RuntimeError) as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+
+    return UploadPredictionResult(**manifest.model_dump(), prediction=prediction)

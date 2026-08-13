@@ -36,6 +36,23 @@ CHECKPOINT_PATH: Path | None = (
     Path(os.environ["LLDMMRI_CHECKPOINT"]) if os.environ.get("LLDMMRI_CHECKPOINT") else None
 )
 
+# Completed local UniFormer folds for direct upload inference. Checkpoints are ignored
+# artifacts and are never used to recreate out-of-fold results.
+LIVE_WEIGHTS_DIR: Path = _env_path(
+    "LLDMMRI_LIVE_WEIGHTS_DIR", REPO_ROOT / "runs" / "Uniformer3D"
+)
+LIVE_PREPROCESS_CONFIG: Path = _env_path(
+    "LLDMMRI_LIVE_PREPROCESS_CONFIG", REPO_ROOT / "configs" / "preprocess_cghnet.yaml"
+)
+LIVE_DEVICE: str = os.environ.get("LLDMMRI_LIVE_DEVICE", "auto").strip().lower()
+
+# Only recognised NIfTI entries are copied to a request-scoped temporary
+# directory. Limits are checked before extraction to prevent ZIP bombs.
+UPLOAD_MAX_ENTRIES: int = int(os.environ.get("LLDMMRI_UPLOAD_MAX_ENTRIES", "64"))
+UPLOAD_MAX_UNCOMPRESSED_BYTES: int = int(
+    os.environ.get("LLDMMRI_UPLOAD_MAX_UNCOMPRESSED_BYTES", str(2 * 1024 * 1024 * 1024))
+)
+
 # Ngưỡng mặc định cho utility thuần. Quy tắc defer của prediction OOF được nạp cùng store,
 # đã khóa trên validation; UI không dùng giá trị này để dựng kết quả tải lên.
 DEFAULT_DEFER_THRESHOLD: float = float(os.environ.get("LLDMMRI_DEFER_THRESHOLD", "0.55"))

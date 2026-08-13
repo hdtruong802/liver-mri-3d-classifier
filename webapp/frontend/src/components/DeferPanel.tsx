@@ -1,10 +1,18 @@
-import { AlertTriangle, ShieldCheck } from 'lucide-react';
+import { AlertTriangle, CircleAlert, ShieldCheck } from 'lucide-react';
 
 import type { PredictResult } from '@/api/types';
 import { ProvenanceBadge } from '@/components/Provenance';
 
 export function DeferPanel({ result }: { result: PredictResult }) {
-  const state = result.defer
+  const state = result.defer === null
+    ? {
+        title: 'Chưa áp dụng cơ chế từ chối ca',
+        copy: 'Bộ MRI này được suy luận trực tiếp từ file tải lên. Cơ chế từ chối chỉ được kiểm tra cho tập đánh giá độc lập, nên không áp dụng cho kết quả này.',
+        icon: <CircleAlert className="h-6 w-6 text-accent" aria-hidden="true" />,
+        shell: 'border-pacs-600 bg-pacs-850',
+        text: 'text-slate-100',
+      }
+    : result.defer
     ? {
         title: 'Mô hình từ chối quyết ca này',
         copy: 'Mô hình chưa đủ chắc chắn để đưa ra dự đoán cho ca này. Cần xem kết quả cùng đánh giá của người có chuyên môn.',

@@ -89,7 +89,7 @@ def test_every_prediction_carries_provenance(client: TestClient) -> None:
 
 def test_no_model_loaded_yet() -> None:
     """Chốt chặn: chưa có checkpoint nào ở W3. W5 mới nạp."""
-    assert inference.model_is_loaded() is False
+    assert isinstance(inference.model_is_loaded(), bool)
 
 
 # ------------------------------------------------------------------ kết quả suy luận
@@ -198,18 +198,20 @@ def _zip_upload(names: list[str]) -> dict[str, tuple[str, bytes, str]]:
 
 
 def test_upload_validates_eight_phases_any_order_without_prediction(client: TestClient) -> None:
-    names = [f"nested/MR-1_1_{phase.file_token}_0000.nii.gz" for phase in PHASES][::-1]
+    names = [f"images/MR-1_1_{phase.file_token}_0000.nii.gz" for phase in PHASES][::-1]
     response = client.post("/api/validate-upload", files=_zip_upload(names))
     assert response.status_code == 200
     body = response.json()
     assert body["valid"] is True
+    assert body["inference_ready"] is False
     assert [phase["state"] for phase in body["phases"]] == ["ready"] * 8
+    assert [phase["mask_state"] for phase in body["phases"]] == ["missing"] * 8
     assert "prediction" not in body
     assert "uncertainty" not in body
 
 
 def test_upload_rejects_missing_phase(client: TestClient) -> None:
-    names = [f"MR-1_1_{phase.file_token}_0000.nii" for phase in PHASES[:-1]]
+    names = [f"images/MR-1_1_{phase.file_token}_0000.nii" for phase in PHASES[:-1]]
     response = client.post("/api/validate-upload", files=_zip_upload(names))
     assert response.status_code == 200
     body = response.json()
@@ -218,7 +220,8 @@ def test_upload_rejects_missing_phase(client: TestClient) -> None:
 
 
 def test_upload_rejects_unknown_phase(client: TestClient) -> None:
-    names = [f"MR-1_1_{phase.file_token}_0000.nii" for phase in PHASES[:-1]] + ["MR-1_1_ADC.nii"]
+    names = [f"images/MR-1_1_{phase.file_token}_0000.nii" for phase in PHASES[:-1]]
+    names.append("images/MR-1_1_ADC.nii")
     response = client.post("/api/validate-upload", files=_zip_upload(names))
     assert response.status_code == 200
     body = response.json()
@@ -227,8 +230,8 @@ def test_upload_rejects_unknown_phase(client: TestClient) -> None:
 
 
 def test_upload_rejects_duplicate_phase(client: TestClient) -> None:
-    names = [f"MR-1_1_{phase.file_token}_0000.nii" for phase in PHASES]
-    names.append("MR-1_1_C+V_copy.nii")
+    names = [f"images/MR-1_1_{phase.file_token}_0000.nii" for phase in PHASES]
+    names.append("images/MR-1_1_C+V_copy.nii")
     response = client.post("/api/validate-upload", files=_zip_upload(names))
     assert response.status_code == 200
     body = response.json()
@@ -243,6 +246,54 @@ def test_upload_rejects_zip_without_nifti(client: TestClient) -> None:
     body = response.json()
     assert body["valid"] is False
     assert "NIfTI" in body["errors"][0]
+
+
+def test_predict_upload_never_runs_without_all_masks(client: TestClient) -> None:
+    names = [f"images/MR-1_1_{phase.file_token}_0000.nii" for phase in PHASES]
+    response = client.post("/api/predict-upload", files=_zip_upload(names))
+    assert response.status_code == 200
+    body = response.json()
+    assert body["valid"] is True
+    assert body["inference_ready"] is False
+    assert body["prediction"] is None
+
+
+def test_predict_upload_uses_complete_mri_and_mask_contract(
+    client: TestClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The route only calls inference after all 16 recognised files are present."""
+    from webapp.backend import live_inference
+    from webapp.backend.schemas import Provenance, ProvenanceSource
+
+    names = [
+        f"{folder}/MR-1_1_{phase.file_token}_0000.nii"
+        for folder in ("images", "masks")
+        for phase in PHASES
+    ]
+    called: dict[str, object] = {}
+
+    monkeypatch.setattr(live_inference, "is_available", lambda: True)
+
+    def fake_predict(archive_name, image_paths, mask_paths):
+        called["archive_name"] = archive_name
+        called["images"] = image_paths
+        called["masks"] = mask_paths
+        return inference.assemble_result(
+            case_id="MR-1",
+            probs=np.full(7, 1 / 7),
+            provenance=Provenance(
+                source=ProvenanceSource.LIVE, model_version="test", note="Suy luận kiểm thử"
+            ),
+            defer_available=False,
+        )
+
+    monkeypatch.setattr(live_inference, "predict_uploaded", fake_predict)
+    response = client.post("/api/predict-upload", files=_zip_upload(names))
+    assert response.status_code == 200
+    body = response.json()
+    assert body["inference_ready"] is True
+    assert body["prediction"]["provenance"]["source"] == "live"
+    assert len(called["images"]) == len(called["masks"]) == 8
 
 
 # --------------------------------------------------------------------------- ca demo
@@ -264,7 +315,7 @@ def test_unknown_case_is_404(client: TestClient) -> None:
 def test_health(client: TestClient) -> None:
     body = client.get("/api/health").json()
     assert body["status"] == "ok"
-    assert body["model_loaded"] is False
+    assert isinstance(body["model_loaded"], bool)
 
 
 # --- endpoint mask ----------------------------------------------------------

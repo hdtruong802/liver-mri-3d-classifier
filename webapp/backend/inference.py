@@ -24,7 +24,11 @@ from webapp.backend.schemas import (
 
 def model_is_loaded() -> bool:
     """Cho biết checkpoint local có mặt; web demo không nạp checkpoint vào FastAPI."""
-    return CHECKPOINT_PATH is not None and CHECKPOINT_PATH.exists()
+    from webapp.backend import live_inference
+
+    return live_inference.is_available() or (
+        CHECKPOINT_PATH is not None and CHECKPOINT_PATH.exists()
+    )
 
 
 def shannon_entropy(probs: np.ndarray) -> float:
@@ -62,6 +66,7 @@ def assemble_result(
     defer_override: bool | None = None,
     defer_basis: DeferBasis = DeferBasis.CONFIDENCE,
     defer_score: float | None = None,
+    defer_available: bool = True,
 ) -> PredictResult:
     """Dựng một ``PredictResult`` từ vector đã có; không đọc file hoặc chạy model."""
     total = float(probs.sum())
@@ -70,6 +75,19 @@ def assemble_result(
 
     confidence = float(probs.max())
     pred_index = int(probs.argmax())
+    if defer_available:
+        defer_value: bool | None = (
+            (confidence < defer_threshold) if defer_override is None else defer_override
+        )
+        basis_value: DeferBasis | None = defer_basis
+        score_value: float | None = confidence if defer_score is None else defer_score
+        threshold_value: float | None = defer_threshold
+    else:
+        defer_value = None
+        basis_value = None
+        score_value = None
+        threshold_value = None
+
     return PredictResult(
         case_id=case_id,
         pred_class_index=pred_index,
@@ -81,10 +99,10 @@ def assemble_result(
             epistemic=epistemic,
             ensemble_std=ensemble_std,
         ),
-        defer=(confidence < defer_threshold) if defer_override is None else defer_override,
-        defer_basis=defer_basis,
-        defer_score=confidence if defer_score is None else defer_score,
-        defer_threshold=defer_threshold,
+        defer=defer_value,
+        defer_basis=basis_value,
+        defer_score=score_value,
+        defer_threshold=threshold_value,
         confidence=confidence,
         inference_ms=inference_ms,
         provenance=provenance,

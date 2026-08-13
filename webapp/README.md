@@ -11,16 +11,16 @@ Demo cho người review nghiên cứu thấy hành vi của mô hình phân lo�
 | Contract API, nhận diện thì, đọc NIfTI, render lát | **chạy được** |
 | Ảnh MRI hiển thị | **thật**, đọc trực tiếp từ file gốc |
 | Kết quả ca demo | **prediction out-of-fold thật**, chỉ hiển thị cho ca demo có dữ liệu OOF |
-| ZIP người dùng tải | chỉ kiểm tra manifest đủ 8 thì; không giải nén bền vững, không chạy model, không trả prediction |
+| ZIP người dùng tải | kiểm tra 8 MRI trong `images/` và 8 mask trong `masks/`; khi đủ contract, chạy ensemble UniFormer-S trực tiếp trong thư mục tạm |
 | Heatmap đa thì | artefact offline E4; thiếu hoặc sai shape thì viewer chỉ hiện MRI nguồn, không dựng heatmap thay thế |
 
-Khi có pipeline ROI tương đương lúc train ở giai đoạn sau, có thể bổ sung suy luận `live` như một contract riêng. V1 không suy luận từ dữ liệu tải lên.
+Suy luận `live` chỉ mở khi ZIP có mask tổn thương cùng lưới vật lý với từng MRI. Đó là dữ liệu cần thiết để tái tạo crop ROI của UniFormer, không phải output segmentation do app tạo ra.
 
 ## Chạy
 
 ```powershell
-pip install -r webapp/backend/requirements.txt
-python -m uvicorn webapp.backend.main:app --reload      # cổng 8000
+.\.venv\Scripts\python.exe -m pip install -r webapp/backend/requirements.txt
+.\.venv\Scripts\python.exe -m uvicorn webapp.backend.main:app --reload      # cổng 8000
 
 cd webapp/frontend
 npm install
@@ -47,11 +47,15 @@ App đọc ảnh lúc chạy từ `LLDMMRI_SAMPLE_DIR`, mặc định `data/samp
 | `LLDMMRI_SAMPLE_DIR` | `data/sample` | Thư mục chứa 8 file `.nii` của ca demo |
 | `LLDMMRI_MODEL_HEATMAP_DIR` | `runs/E4_per_phase_results/model_heatmaps` | Thư mục artefact heatmap đa thì E4 đã xuất offline |
 | `LLDMMRI_CHECKPOINT` | *(chưa đặt)* | Đường dẫn checkpoint. Đặt vào khi nhánh suy luận thật đã viết |
+| `LLDMMRI_LIVE_WEIGHTS_DIR` | `runs/Uniformer3D` | Thư mục các checkpoint `uniformer3D_best_<fold>.pt` hoàn tất |
+| `LLDMMRI_LIVE_PREPROCESS_CONFIG` | `configs/preprocess_cghnet.yaml` | Crop ROI `128×128×16` rồi cắt giữa thành `112×112×14` cho UniFormer |
 | `LLDMMRI_DEFER_THRESHOLD` | `0.55` | Ngưỡng confidence dưới đó thì `defer`. Giá trị thật sẽ khoá trên validation từ đường risk-coverage, không chọn tay |
 
-## Upload ZIP V1
+## Upload ZIP và suy luận trực tiếp
 
-Chỉ nhận **một ZIP**. ZIP có thể chứa thư mục con bất kỳ, nhưng phải có đúng một file `.nii` hoặc `.nii.gz` nhận diện được cho từng thì: C-pre, C+A, C+V, C+Delay, T2WI, DWI, In Phase và Out Phase. API `POST /api/validate-upload` chỉ đọc tên file trong ZIP và trả bảng kiểm 8 thì.
+Chỉ nhận **một ZIP**. ZIP cần có hai thư mục: `images/` chứa 8 MRI và `masks/` chứa 8 mask tổn thương tương ứng. Mỗi phần phải có đúng một `.nii` hoặc `.nii.gz` nhận diện được cho từng thì: C-pre, C+A, C+V, C+Delay, T2WI, DWI, In Phase và Out Phase. Mask phải cùng shape, spacing, origin và direction với ảnh của chính thì đó.
+
+`POST /api/validate-upload` chỉ đọc manifest. `POST /api/predict-upload` chỉ giải nén tạm đúng 16 NIfTI đã được nhận diện, tái tạo crop UniFormer và chạy các checkpoint fold đã hoàn tất (hiện là 1, 2, 3, 5). Khi fold 4 xuất hiện, backend tự nhận ở lần khởi động tiếp theo. Xác suất là trung bình softmax thô, không áp dụng temperature/defer từ tập OOF và không dùng để chẩn đoán.
 
 Không dùng folder picker: hành vi khác nhau giữa các trình duyệt. DICOM-folder là mở rộng riêng khi app có contract DICOM, không trộn với NIfTI ZIP V1.
 
@@ -68,7 +72,7 @@ Thế giới thị giác ở [`DESIGN.md`](DESIGN.md) trong thư mục này — 
 Bốn luật dễ phá nhất khi sửa tiếp:
 
 1. **Sàn màu chữ là `slate-400` `#94A3B8`.** `slate-500` và `slate-600` trượt WCAG AA trên nền này (3,82:1 và 2,40:1) nên chúng **không có mặt trong bảng token** như màu chữ. Bản bolt gốc dùng đúng hai màu đó cho chữ nhỏ; đây là chỗ duy nhất bản dựng này cố ý lệch khỏi nó.
-2. **Nguồn prediction phải đọc được ngay.** Ca demo luôn mang badge `prediction out-of-fold`; dữ liệu ZIP V1 không bao giờ tạo số mô phỏng.
+2. **Nguồn prediction phải đọc được ngay.** Ca demo mang badge đánh giá độc lập; ZIP đủ MRI + mask mang badge suy luận trực tiếp. Không có số mô phỏng.
 3. **Không `text-transform: uppercase` cho chữ tiếng Việt.** Dấu thanh chồng dấu phụ vỡ trên chữ hoa ở cỡ nhỏ (Ế, Ữ, Ậ, Ổ). Class `.label` cố ý bỏ `uppercase` so với bản bolt.
 4. **Không hiển thị chỉ số pipeline không tính.** Không có epistemic/aleatoric tách đôi — chỉ có `entropy` và `ensemble_std`. Và không viết câu chỉ định lâm sàng ("cần sinh thiết"): ràng buộc RUO, không phải lựa chọn giọng.
 

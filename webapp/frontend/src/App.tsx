@@ -42,6 +42,12 @@ export default function App() {
     }
   }, []);
 
+  const showUploadPrediction = useCallback((prediction: PredictResult) => {
+    setDetail(null);
+    setResult(prediction);
+    setError(null);
+  }, []);
+
   return (
     <div className="min-h-full">
       <header className="sticky top-0 z-30 border-b border-pacs-700 bg-pacs-900">
@@ -75,13 +81,15 @@ export default function App() {
 
         <CaseStrip cases={cases} selected={detail?.case_id ?? null} busy={busy} onSelect={openCase} />
 
-        {meta ? <ZipUpload /> : null}
+        {meta ? <ZipUpload onPrediction={showUploadPrediction} /> : null}
 
         {result ? (
           <section aria-labelledby="results-heading" className="mt-8 animate-fade-in">
             <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
               <div>
-                <p className="label">Ca demo đã chọn</p>
+                <p className="label">
+                  {result.provenance.source === 'live' ? 'Bộ MRI đã tải lên' : 'Ca demo đã chọn'}
+                </p>
                 <h2 id="results-heading" className="font-mono text-lg font-bold text-white">
                   {result.case_id}
                 </h2>
@@ -104,6 +112,11 @@ export default function App() {
                   />
                 }
               />
+            ) : result.provenance.source === 'live' ? (
+              <p className="mt-6 max-w-measure border-t border-pacs-700 pt-4 text-sm text-slate-400">
+                Ảnh MRI và heatmap chỉ có cho các ca demo đã xuất artefact offline; bộ ảnh tải lên
+                không được lưu lại sau khi chạy.
+              </p>
             ) : null}
           </section>
         ) : null}

@@ -190,7 +190,7 @@ Khung MRI là enclosure mạnh duy nhất: nền đen, viền `pacs-600`, ảnh 
 
 Ca demo hiển thị badge `prediction out-of-fold` hoặc `suy luận trực tiếp` ngay cạnh kết quả. Không có nhánh số mô phỏng trong giao diện.
 
-Upload V1 là một ZIP NIfTI: UI chỉ hiển thị bảng kiểm tám thì sau khi backend đọc manifest. Dù ZIP hợp lệ, nó không được tạo prediction, uncertainty hay `defer`; copy phải hướng người xem về ca demo OOF để xem kết quả.
+Upload là một ZIP NIfTI có `images/` và `masks/`: UI hiển thị bảng kiểm 8 ảnh + 8 mask. Chỉ khi đủ cả 16 file và mask khớp MRI, app mới chạy UniFormer trực tiếp. Kết quả `live` phải có provenance rõ ràng, không gắn `defer` hoặc calibration OOF và không có số mô phỏng.
 
 ## Dải RUO
 

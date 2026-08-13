@@ -1,8 +1,8 @@
 import { useRef, useState, type ChangeEvent } from 'react';
-import { Archive, CheckCircle2, FileUp, XCircle } from 'lucide-react';
+import { Archive, CheckCircle2, CircleAlert, FileUp, Play, XCircle } from 'lucide-react';
 
-import { ApiError, validateUpload } from '@/api/client';
-import type { UploadPhaseState, UploadValidationResult } from '@/api/types';
+import { ApiError, predictUpload } from '@/api/client';
+import type { PredictResult, UploadPhaseState, UploadValidationResult } from '@/api/types';
 
 const stateLabel: Record<UploadPhaseState, string> = {
   ready: 'đủ',
@@ -10,7 +10,7 @@ const stateLabel: Record<UploadPhaseState, string> = {
   duplicate: 'trùng',
 };
 
-export function ZipUpload() {
+export function ZipUpload({ onPrediction }: { onPrediction: (result: PredictResult) => void }) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [archive, setArchive] = useState<File | null>(null);
   const [result, setResult] = useState<UploadValidationResult | null>(null);
@@ -26,12 +26,14 @@ export function ZipUpload() {
     setError(null);
   };
 
-  const validate = async () => {
+  const run = async () => {
     if (!archive) return;
     setBusy(true);
     setError(null);
     try {
-      setResult(await validateUpload(archive));
+      const response = await predictUpload(archive);
+      setResult(response);
+      if (response.prediction) onPrediction(response.prediction);
     } catch (cause) {
       setResult(null);
       setError(cause instanceof ApiError ? cause.message : String(cause));
@@ -51,11 +53,12 @@ export function ZipUpload() {
             </h2>
           </div>
           <p className="mt-2 max-w-measure text-sm text-slate-300">
-            Chọn một file ZIP có đủ 8 thì MRI. Mỗi thì cần một ảnh <span className="font-mono">.nii</span> hoặc{' '}
-            <span className="font-mono">.nii.gz</span> với tên file thể hiện thì tương ứng.
+            ZIP cần 8 ảnh MRI trong <span className="font-mono">images/</span> và 8 mask tổn thương cùng thì trong{' '}
+            <span className="font-mono">masks/</span>. Mỗi file là <span className="font-mono">.nii</span> hoặc{' '}
+            <span className="font-mono">.nii.gz</span>, tên file phải có token thì MRI.
           </p>
         </div>
-        <span className="chip border border-pacs-700 bg-pacs-800 text-slate-300">Đủ 8 thì</span>
+        <span className="chip border border-pacs-700 bg-pacs-800 text-slate-300">8 ảnh + 8 mask</span>
       </div>
 
       <input
@@ -74,14 +77,15 @@ export function ZipUpload() {
             {archive ? archive.name : 'Chưa chọn bộ MRI'}
           </p>
           <p className="text-data text-slate-400">
-            {archive ? 'Sẵn sàng kiểm tra đủ 8 thì MRI.' : 'Chọn file ZIP để bắt đầu.'}
+            {archive ? 'Sẵn sàng kiểm tra cấu trúc và chạy AI nếu bộ file đủ.' : 'Chọn một file ZIP để bắt đầu.'}
           </p>
         </div>
         <button type="button" onClick={chooseArchive} className="btn-ghost">
           {archive ? 'Đổi file ZIP' : 'Chọn file ZIP'}
         </button>
-        <button type="button" onClick={validate} disabled={!archive || busy} className="btn-primary">
-          {busy ? 'Đang kiểm tra…' : 'Kiểm tra bộ MRI'}
+        <button type="button" onClick={run} disabled={!archive || busy} className="btn-primary">
+          <Play className="h-4 w-4" aria-hidden="true" />
+          {busy ? 'Đang kiểm tra và chạy AI…' : 'Kiểm tra và chạy AI'}
         </button>
       </div>
 
@@ -91,13 +95,17 @@ export function ZipUpload() {
         <div className="mt-5">
           <div
             className={`mb-3 flex items-start gap-2 rounded-control border px-3 py-2 text-sm ${
-              result.valid
+              result.inference_ready
                 ? 'border-ok/40 bg-ok/10 text-ok-soft'
+                : result.valid
+                ? 'border-warn/40 bg-warn/10 text-warn-soft'
                 : 'border-danger/40 bg-danger/10 text-slate-200'
             }`}
           >
-            {result.valid ? (
+            {result.inference_ready ? (
               <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
+            ) : result.valid ? (
+              <CircleAlert className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
             ) : (
               <XCircle className="mt-0.5 h-4 w-4 shrink-0 text-danger" aria-hidden="true" />
             )}
@@ -109,15 +117,21 @@ export function ZipUpload() {
             </div>
           </div>
 
-          <ul aria-label="Bảng kiểm 8 thì MRI" className="divide-y divide-pacs-700 overflow-hidden rounded-control border border-pacs-700">
+          <ul aria-label="Bảng kiểm ảnh MRI và mask của 8 thì" className="divide-y divide-pacs-700 overflow-hidden rounded-control border border-pacs-700">
             {result.phases.map((phase) => (
-              <li key={phase.file_token} className="grid grid-cols-[minmax(5rem,0.8fr)_minmax(0,2fr)_auto] items-center gap-3 px-3 py-2 text-sm">
+              <li key={phase.file_token} className="grid grid-cols-[minmax(4.5rem,0.7fr)_minmax(0,1fr)_auto] items-center gap-3 px-3 py-2 text-sm sm:grid-cols-[minmax(5rem,0.7fr)_minmax(0,1.5fr)_auto_minmax(0,1.5fr)_auto]">
                 <span className="font-semibold text-slate-200">{phase.label_vi}</span>
                 <span className="truncate font-mono text-data text-slate-400">
                   {phase.filename ?? 'chưa nhận diện'}
                 </span>
                 <span className={phase.state === 'ready' ? 'text-ok-soft' : 'text-danger'}>
-                  {stateLabel[phase.state]}
+                  ảnh {stateLabel[phase.state]}
+                </span>
+                <span className="col-start-2 truncate font-mono text-data text-slate-400 sm:col-start-auto">
+                  {phase.mask_filename ?? 'chưa nhận diện'}
+                </span>
+                <span className={phase.mask_state === 'ready' ? 'text-ok-soft' : 'text-danger'}>
+                  mask {stateLabel[phase.mask_state]}
                 </span>
               </li>
             ))}

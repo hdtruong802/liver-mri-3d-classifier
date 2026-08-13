@@ -110,19 +110,24 @@ class PredictResult(BaseModel):
         ge=0.0, le=1.0, description="Tổng xác suất của ba lớp ác: ICC, di căn, HCC."
     )
     uncertainty: Uncertainty
-    defer: bool
-    defer_basis: DeferBasis = Field(
+    # Live uploads are a different population from the validation cohort used
+    # to lock the selective-prediction rule.  `None` means that rule was not
+    # applied; it must never be represented as a reassuring false value.
+    defer: bool | None
+    defer_basis: DeferBasis | None = Field(
         default=DeferBasis.CONFIDENCE,
         description="Đại lượng nào được so với ngưỡng để ra quyết định từ chối.",
     )
-    defer_score: float = Field(
+    defer_score: float | None = Field(
+        default=None,
         ge=0.0,
         description=(
             "Giá trị của chính đại lượng nêu ở `defer_basis`, cho ca này. So nó với "
             "`defer_threshold`. KHÔNG phải lúc nào cũng bằng `confidence`."
         ),
     )
-    defer_threshold: float = Field(
+    defer_threshold: float | None = Field(
+        default=None,
         ge=0.0,
         description=(
             "Ngưỡng khoá trên validation, cùng đơn vị với `defer_score`. Chiều so sánh "
@@ -160,16 +165,25 @@ class UploadPhaseValidation(BaseModel):
     label_vi: str
     filename: str | None = None
     state: UploadPhaseState
+    mask_filename: str | None = None
+    mask_state: UploadPhaseState
 
 
 class UploadValidationResult(BaseModel):
-    """Kết quả kiểm tra cấu trúc ZIP; không chứa prediction hay uncertainty."""
+    """Kết quả kiểm tra cấu trúc ZIP trước khi suy luận trực tiếp."""
 
     archive_name: str
     valid: bool
+    inference_ready: bool
     message: str
     errors: list[str] = Field(default_factory=list)
     phases: list[UploadPhaseValidation] = Field(min_length=8, max_length=8)
+
+
+class UploadPredictionResult(UploadValidationResult):
+    """Manifest cùng kết quả chỉ khi bộ MRI đủ contract ROI có mask."""
+
+    prediction: PredictResult | None = None
 
 
 class ClassInfo(BaseModel):

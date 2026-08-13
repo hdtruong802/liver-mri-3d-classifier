@@ -187,8 +187,8 @@ Headline = **RQ-B**; RQ-A là model; RQ-C là ablation.
 
 ### 8.1 Backend (FastAPI)
 - Phục vụ prediction OOF thật cho ca demo qua `POST /api/cases/{id}/predict`; không sinh số mô phỏng.
-- `POST /api/validate-upload` nhận một ZIP NIfTI và chỉ trả `valid`, lỗi cùng bảng kiểm 8 phase. Không giải nén bền vững, không chạy model và không trả `PredictResult`.
-- Suy luận từ upload chỉ được mở khi có pipeline ROI tương đương lúc train; đó là contract riêng, không giả lập bằng tên file.
+- `POST /api/validate-upload` nhận ZIP NIfTI và trả `valid`, lỗi cùng bảng kiểm 8 MRI + 8 mask. `POST /api/predict-upload` chỉ giải nén tạm các file đã nhận diện, không lưu dữ liệu bệnh nhân bền vững.
+- Suy luận từ upload dùng đúng crop ROI UniFormer: 8 mask cùng lưới vật lý với MRI tạo cache `128×128×16`, sau đó center-crop tất định `112×112×14`. Ensemble chỉ gồm checkpoint fold đã hoàn tất; provenance ghi rõ `live`, không giả lập bằng tên file.
 - Heatmap độ nhạy của ca demo trả qua `/api/cases/{id}/model-view`, trực tiếp trên crop E4 và chỉ giải thích lớp dự đoán.
 - `defer` của ca demo dùng quy tắc bất định đã khóa trước trên validation; phần so sánh tín hiệu thuộc report.
 
