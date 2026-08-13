@@ -92,6 +92,7 @@ export interface UploadValidationResult {
 
 export interface UploadPredictionResult extends UploadValidationResult {
   prediction: PredictResult | null;
+  upload_view: UploadViewInfo | null;
 }
 
 export interface ClassInfo {
@@ -137,6 +138,14 @@ export interface CaseVolumeInfo {
    * `has_mask`: nhãn của người chú giải, KHÔNG phải vùng model tìm ra.
    */
   mask_slices: number[];
+}
+
+/** Crop ROI UniFormer chỉ giữ trong bộ nhớ tạm sau một lần upload thành công. */
+export interface UploadViewInfo {
+  upload_id: string;
+  volumes: CaseVolumeInfo[];
+  expires_in_seconds: number;
+  note: string;
 }
 
 export interface CaseSummary {

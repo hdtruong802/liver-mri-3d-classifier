@@ -2,7 +2,7 @@ import { useRef, useState, type ChangeEvent } from 'react';
 import { Archive, CheckCircle2, CircleAlert, FileUp, Play, XCircle } from 'lucide-react';
 
 import { ApiError, predictUpload } from '@/api/client';
-import type { PredictResult, UploadPhaseState, UploadValidationResult } from '@/api/types';
+import type { PredictResult, UploadPhaseState, UploadValidationResult, UploadViewInfo } from '@/api/types';
 
 const stateLabel: Record<UploadPhaseState, string> = {
   ready: 'đủ',
@@ -10,7 +10,7 @@ const stateLabel: Record<UploadPhaseState, string> = {
   duplicate: 'trùng',
 };
 
-export function ZipUpload({ onPrediction }: { onPrediction: (result: PredictResult) => void }) {
+export function ZipUpload({ onPrediction }: { onPrediction: (result: PredictResult, view: UploadViewInfo) => void }) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [archive, setArchive] = useState<File | null>(null);
   const [result, setResult] = useState<UploadValidationResult | null>(null);
@@ -33,7 +33,7 @@ export function ZipUpload({ onPrediction }: { onPrediction: (result: PredictResu
     try {
       const response = await predictUpload(archive);
       setResult(response);
-      if (response.prediction) onPrediction(response.prediction);
+      if (response.prediction && response.upload_view) onPrediction(response.prediction, response.upload_view);
     } catch (cause) {
       setResult(null);
       setError(cause instanceof ApiError ? cause.message : String(cause));

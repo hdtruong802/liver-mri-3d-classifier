@@ -278,13 +278,23 @@ def test_predict_upload_uses_complete_mri_and_mask_contract(
         called["archive_name"] = archive_name
         called["images"] = image_paths
         called["masks"] = mask_paths
-        return inference.assemble_result(
+        prediction = inference.assemble_result(
             case_id="MR-1",
             probs=np.full(7, 1 / 7),
             provenance=Provenance(
                 source=ProvenanceSource.LIVE, model_version="test", note="Suy luận kiểm thử"
             ),
             defer_available=False,
+        )
+        crop = np.zeros((8, 112, 112, 14), dtype=np.float32)
+        crop[:, 35:72, 35:72, :] = 1.0
+        masks = np.zeros_like(crop, dtype=np.uint8)
+        masks[:, 48:60, 48:60, 4:9] = 1
+        return live_inference.UploadInference(
+            prediction=prediction,
+            crop_volume=crop,
+            annotation_masks=masks,
+            spacing_mm=np.array([1.0, 1.0, 3.0], dtype=np.float32),
         )
 
     monkeypatch.setattr(live_inference, "predict_uploaded", fake_predict)
@@ -294,6 +304,17 @@ def test_predict_upload_uses_complete_mri_and_mask_contract(
     assert body["inference_ready"] is True
     assert body["prediction"]["provenance"]["source"] == "live"
     assert len(called["images"]) == len(called["masks"]) == 8
+    assert body["upload_view"]["volumes"][0]["n_slices"] == 14
+    upload_id = body["upload_view"]["upload_id"]
+    plain = client.get(f"/api/uploads/{upload_id}/slice", params={"phase": "C-pre", "z": 4})
+    overlay = client.get(
+        f"/api/uploads/{upload_id}/slice", params={"phase": "C-pre", "z": 4, "mask": "true"}
+    )
+    assert plain.status_code == overlay.status_code == 200
+    assert plain.headers["cache-control"] == "no-store"
+    assert plain.content != overlay.content
+    expired = client.get("/api/uploads/khong-co/slice", params={"phase": "C-pre", "z": 0})
+    assert expired.status_code == 404
 
 
 # --------------------------------------------------------------------------- ca demo

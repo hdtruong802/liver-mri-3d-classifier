@@ -85,3 +85,13 @@ export function sliceUrl(caseId: string, phaseToken: string, z: number, annotati
   });
   return `/api/cases/${encodeURIComponent(caseId)}/slice?${params}`;
 }
+
+/** MRI crop UniFormer tạm thời của một bộ ZIP vừa suy luận xong. */
+export function uploadSliceUrl(uploadId: string, phaseToken: string, z: number, annotation: boolean): string {
+  const params = new URLSearchParams({
+    phase: phaseToken,
+    z: String(z),
+    mask: String(annotation),
+  });
+  return `/api/uploads/${encodeURIComponent(uploadId)}/slice?${params}`;
+}

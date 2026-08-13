@@ -184,6 +184,7 @@ class UploadPredictionResult(UploadValidationResult):
     """Manifest cùng kết quả chỉ khi bộ MRI đủ contract ROI có mask."""
 
     prediction: PredictResult | None = None
+    upload_view: UploadViewInfo | None = None
 
 
 class ClassInfo(BaseModel):
@@ -231,6 +232,15 @@ class CaseVolumeInfo(BaseModel):
             "phải vùng model tìm ra. Rỗng khi thì này không có mask."
         ),
     )
+
+
+class UploadViewInfo(BaseModel):
+    """A short-lived, in-memory UniFormer crop made available after upload."""
+
+    upload_id: str
+    volumes: list[CaseVolumeInfo] = Field(min_length=8, max_length=8)
+    expires_in_seconds: int = Field(gt=0)
+    note: str
 
 
 class ModelHeatmapInfo(BaseModel):

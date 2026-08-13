@@ -52,6 +52,11 @@ UPLOAD_MAX_ENTRIES: int = int(os.environ.get("LLDMMRI_UPLOAD_MAX_ENTRIES", "64")
 UPLOAD_MAX_UNCOMPRESSED_BYTES: int = int(
     os.environ.get("LLDMMRI_UPLOAD_MAX_UNCOMPRESSED_BYTES", str(2 * 1024 * 1024 * 1024))
 )
+# Only the preprocessed UniFormer ROI crop is kept in RAM so a user can inspect
+# the upload immediately after inference. Original ZIP/NIfTI files are removed
+# with the request-scoped temporary directory.
+UPLOAD_VIEW_TTL_SECONDS: int = int(os.environ.get("LLDMMRI_UPLOAD_VIEW_TTL_SECONDS", "1800"))
+UPLOAD_VIEW_MAX_STUDIES: int = int(os.environ.get("LLDMMRI_UPLOAD_VIEW_MAX_STUDIES", "8"))
 
 # Ngưỡng mặc định cho utility thuần. Quy tắc defer của prediction OOF được nạp cùng store,
 # đã khóa trên validation; UI không dùng giá trị này để dựng kết quả tải lên.

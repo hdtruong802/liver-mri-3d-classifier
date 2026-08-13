@@ -6124,3 +6124,37 @@ Không train mới. Test giữ **610 passed**, 73 skipped. Gate PASS.
 - Nạp strict 4 checkpoint UniFormer-S trên CPU: pass.
 - ZIP NIfTI tổng hợp đủ 8 MRI + 8 mask qua `/api/predict-upload`: HTTP 200, `inference_ready=true`, prediction đủ 7 lớp, provenance `UniFormer-S · ensemble 4 fold`.
 - `npm run typecheck`, `npm run build`, Impeccable detector và quality gate: pass.
+
+---
+
+## S-150 · 2026-08-13 15:04 · codex
+
+**Mục tiêu phiên:** cho phép xem ảnh MRI của bộ ZIP vừa tải lên, với trải nghiệm đọc lát tương đương ca demo.
+
+**Nhánh / commit:** `main` · `94d4083` → *(commit theo sau entry này)*
+
+**Đã đụng file:**
+
+- `src/preprocess/build_cache.py` — resample mask người dùng lên đúng lưới crop per-phase đã dùng cho MRI upload.
+- `webapp/backend/live_inference.py`, `upload_views.py`, `main.py`, `schemas.py`, `volumes.py`, `config.py` — trả metadata viewer, giữ crop UniFormer 112×112×14 và mask trong RAM có TTL, rồi render PNG cho 8 thì.
+- `webapp/frontend/src/*` — dùng lại SliceViewer cho live upload; bật/tắt được vùng tổn thương, không dựng heatmap giả.
+- `tests/test_webapp_api.py`, `webapp/README.md` — test endpoint/overlay và mô tả retention tạm thời.
+
+**Quyết định & lý do:**
+
+- Chỉ giữ crop ROI đã tiền xử lý cùng mask trong RAM tối đa 30 phút (mặc định), không giữ ZIP/NIfTI gốc — người dùng xem được đúng dữ liệu model nhận mà vẫn không persist dữ liệu ảnh tải lên.
+- Upload không có heatmap — artefact heatmap không được tạo trong live inference; không hiển thị màu giả để lấp chỗ trống.
+
+**Kết quả / số liệu:**
+
+- `tests/test_webapp_api.py tests/test_webapp_volumes.py`: 47 passed (chạy với `--basetemp` trong workspace do thư mục temp hệ thống bị từ chối quyền).
+- `npm run typecheck`, `npm run build`, Impeccable detector, ruff cho file chạm và quality gate: pass.
+- Backend đã khởi động lại tại `127.0.0.1:8000`; health endpoint trả OK.
+
+**Dang dở:**
+
+- [ ] Không có việc treo.
+
+**Điểm vào phiên sau:** Không có việc treo. Bước kế tiếp đề xuất: tải một ZIP MRI+mask thật để kiểm trực quan crop/annotation trên dữ liệu mới.
+
+**Cảnh báo cho tool sau:** Viewer upload phụ thuộc cache RAM; restart backend hoặc quá TTL sẽ trả 404 có hướng dẫn tải ZIP lại. Không biến crop này thành dữ liệu persist hoặc commit NIfTI/checkpoint.

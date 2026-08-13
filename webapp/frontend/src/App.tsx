@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { AlertTriangle, Stethoscope } from 'lucide-react';
 
 import { ApiError, getCase, getMeta, listCases, predictCase } from '@/api/client';
-import type { CaseDetail, CaseSummary, MetaResponse, PredictResult } from '@/api/types';
+import type { CaseDetail, CaseSummary, MetaResponse, PredictResult, UploadViewInfo } from '@/api/types';
 import { CaseStrip } from '@/components/CaseStrip';
 import { DeferPanel } from '@/components/DeferPanel';
 import { ProvenanceBadge } from '@/components/Provenance';
@@ -15,6 +15,7 @@ export default function App() {
   const [meta, setMeta] = useState<MetaResponse | null>(null);
   const [cases, setCases] = useState<CaseSummary[]>([]);
   const [detail, setDetail] = useState<CaseDetail | null>(null);
+  const [uploadView, setUploadView] = useState<UploadViewInfo | null>(null);
   const [result, setResult] = useState<PredictResult | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -34,6 +35,7 @@ export default function App() {
     try {
       const [caseDetail, prediction] = await Promise.all([getCase(caseId), predictCase(caseId)]);
       setDetail(caseDetail);
+      setUploadView(null);
       setResult(prediction);
     } catch (cause) {
       setError(cause instanceof ApiError ? cause.message : String(cause));
@@ -42,8 +44,9 @@ export default function App() {
     }
   }, []);
 
-  const showUploadPrediction = useCallback((prediction: PredictResult) => {
+  const showUploadPrediction = useCallback((prediction: PredictResult, view: UploadViewInfo) => {
     setDetail(null);
+    setUploadView(view);
     setResult(prediction);
     setError(null);
   }, []);
@@ -112,11 +115,19 @@ export default function App() {
                   />
                 }
               />
-            ) : result.provenance.source === 'live' ? (
-              <p className="mt-6 max-w-measure border-t border-pacs-700 pt-4 text-sm text-slate-400">
-                Ảnh MRI và heatmap chỉ có cho các ca demo đã xuất artefact offline; bộ ảnh tải lên
-                không được lưu lại sau khi chạy.
-              </p>
+            ) : uploadView && meta ? (
+              <ResultDetailsTabs
+                probs={result.probs}
+                imageExplorer={
+                  <SliceViewer
+                    caseId={uploadView.upload_id}
+                    phases={meta.phases}
+                    modelHeatmap={null}
+                    volumes={uploadView.volumes}
+                    source="upload"
+                  />
+                }
+              />
             ) : null}
           </section>
         ) : null}

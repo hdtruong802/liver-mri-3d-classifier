@@ -37,6 +37,7 @@ from webapp.backend.schemas import (
     UploadPredictionResult,
     UploadValidationResult,
 )
+from webapp.backend.upload_views import upload_studies
 from webapp.backend.volumes import render_slice_png
 
 app = FastAPI(
@@ -149,6 +150,35 @@ def case_slice(case_id: str, phase: str, z: int, mask: bool = False) -> Response
     return Response(
         content=payload, media_type="image/png", headers={"Cache-Control": "private, max-age=3600"}
     )
+
+
+@app.get(
+    "/api/uploads/{upload_id}/slice",
+    responses={200: {"content": {"image/png": {}}}},
+    response_class=Response,
+)
+def upload_slice(upload_id: str, phase: str, z: int, mask: bool = False) -> Response:
+    """Render the short-lived ROI crop retained for a completed upload.
+
+    The crop is the exact 112×112×14 input seen by UniFormer. It is not the
+    raw NIfTI and the optional overlay is the user's supplied annotation, not
+    a segmentation output from this classifier.
+    """
+    try:
+        payload = upload_studies.render(upload_id, phase, z, annotation=mask)
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    except IndexError as exc:
+        raise HTTPException(status_code=416, detail=str(exc)) from exc
+    if payload is None:
+        raise HTTPException(
+            status_code=404,
+            detail=(
+                "Ảnh của bộ MRI tải lên đã hết hạn hoặc server đã khởi động lại. "
+                "Hãy tải ZIP lên lại."
+            ),
+        )
+    return Response(content=payload, media_type="image/png", headers={"Cache-Control": "no-store"})
 
 
 @app.get(
@@ -404,10 +434,19 @@ async def predict_upload(archive: UploadFile) -> UploadPredictionResult:
                             "để chạy suy luận."
                         ),
                     )
-                prediction = live_inference.predict_uploaded(archive_name, image_paths, mask_paths)
+                inference_result = live_inference.predict_uploaded(
+                    archive_name, image_paths, mask_paths
+                )
     except BadZipFile as exc:
         raise HTTPException(status_code=422, detail="File tải lên không phải ZIP hợp lệ.") from exc
     except (OSError, ValueError, RuntimeError) as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
 
-    return UploadPredictionResult(**manifest.model_dump(), prediction=prediction)
+    upload_view = upload_studies.create(
+        inference_result.crop_volume,
+        inference_result.annotation_masks,
+        inference_result.spacing_mm,
+    )
+    return UploadPredictionResult(
+        **manifest.model_dump(), prediction=inference_result.prediction, upload_view=upload_view
+    )

@@ -7,7 +7,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type PointerEvent } from 'react';
 import { ArrowLeft, ArrowRight, Flame, Maximize2, Scan, Target } from 'lucide-react';
 
-import { modelViewUrl, sliceUrl } from '@/api/client';
+import { modelViewUrl, sliceUrl, uploadSliceUrl } from '@/api/client';
 import type { CaseVolumeInfo, ModelHeatmapInfo, PhaseInfo } from '@/api/types';
 import { EmptyState } from '@/components/Provenance';
 
@@ -16,6 +16,7 @@ interface Props {
   phases: PhaseInfo[];
   modelHeatmap: ModelHeatmapInfo | null;
   volumes: CaseVolumeInfo[];
+  source?: 'demo' | 'upload';
 }
 
 const MIN_SCALE = 1;
@@ -32,7 +33,7 @@ function toSegments(indices: number[]): Array<[number, number]> {
   return segments;
 }
 
-export function SliceViewer({ caseId, phases, modelHeatmap, volumes }: Props) {
+export function SliceViewer({ caseId, phases, modelHeatmap, volumes, source = 'demo' }: Props) {
   const hasModelHeatmap = modelHeatmap?.available === true;
   const volumeByToken = useMemo(
     () => new Map(volumes.map((volume) => [volume.file_token, volume])),
@@ -189,7 +190,9 @@ export function SliceViewer({ caseId, phases, modelHeatmap, volumes }: Props) {
   const zoomed = scale > 1.001;
   const imageUrl = hasModelHeatmap
     ? modelViewUrl(caseId, token, z, showAnnotation, showHeatmap)
-    : sliceUrl(caseId, token, z, showAnnotation);
+    : source === 'upload'
+      ? uploadSliceUrl(caseId, token, z, showAnnotation)
+      : sliceUrl(caseId, token, z, showAnnotation);
   const annotationAvailable = hasModelHeatmap || activeVolume?.has_mask === true;
 
   return (
@@ -281,6 +284,11 @@ export function SliceViewer({ caseId, phases, modelHeatmap, volumes }: Props) {
       {hasModelHeatmap && (
         <p className="mt-3 max-w-measure text-data text-slate-400">
           Heatmap thể hiện độ nhạy cục bộ của model với lớp đã dự đoán; không phải vùng tổn thương do model khoanh và không mang ý nghĩa chẩn đoán.
+        </p>
+      )}
+      {source === 'upload' && (
+        <p className="mt-3 max-w-measure text-data text-slate-400">
+          Đây là crop ROI đã tiền xử lý đúng như UniFormer nhận. Vùng tô fuchsia là nhãn tổn thương do người tải lên cung cấp, không phải vùng model tự khoanh.
         </p>
       )}
 
