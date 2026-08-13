@@ -6681,3 +6681,51 @@ Không train. **622 passed, 81 skipped** (trước 609/73; +13 test, 8 skip vì 
 - **Một fold không kết luận được gì.** Fold 1 đã lừa dự án **ba** lần (E6b +0.066, ensemble E4⊕CGHNet +0.065, và cả hai đều sập ở 5 fold). Bar hợp lý cho mixup: 1 fold chỉ để **loại**, và chỉ khi thấp hẳn.
 - **Chi tiết không xác định được, phải vào báo cáo:** thứ tự trộn so với augment. Bản của ta trộn ảnh **thô** rồi augment một lần cho ảnh đã trộn. Nếu họ làm ngược thì chỗ lệch là một lượt augment độc lập nữa.
 - `tests/test_sampler.py::test_moi_config_cu_van_o_che_do_instance` là **allowlist khoá cứng**, không phải bộ lọc. Thêm config rời khỏi `sampling: instance` thì nó đỏ — đó là điều muốn.
+
+---
+
+## S-167 · 2026-08-13 · claude-code
+
+**Mục tiêu phiên:** rà soát 20 notebook, xoá những cái không còn cần.
+
+**Nhánh / commit:** `main` · `3d8b4a1` → *(commit của phiên này)*
+
+**Đã đụng file:** xoá 5 notebook; `AGENTS.md` (§6 dòng CV runner).
+
+### Tiêu chí rà, không phải cảm tính
+
+Hai câu hỏi cho mỗi notebook, và phải trả lời được bằng dữ liệu chứ không bằng ấn tượng:
+
+1. `AGENTS.md §6` / `configs/` / `src/` có còn trỏ tới nó không? (WORKLOG **không tính** — nó là lịch sử, mọi notebook từng tồn tại đều được nhắc ở đó.)
+2. Xoá nó thì có mất một năng lực **duy nhất** nào không, kể cả năng lực dựng lại cache?
+
+### Đã xoá 5
+
+| notebook | căn cứ |
+|---|---|
+| `02_build_cache` | dựng cache v0 `fixed_mm` (E0, 0.4244). Không cấu hình nào còn dùng cache đó. `axis_order` đã chốt và đã commit vào config, nên cổng chặn của nó không còn việc |
+| `03_train_baseline` | `09_cv_runner` bao trùm: nhận `CONFIG_NAME` bất kỳ và có nhiều cổng hơn |
+| `04_train_e2_siamese` | E2 đã chết vì chạy ở 48 in-plane mà không có gì báo (S-065). Bản kế nhiệm `17_e13_siamese` có đúng cổng đo hình dạng thật mà E2 thiếu |
+| `05_e3_geometry` | việc chạy lại E3 **đã bị loại khỏi kế hoạch** theo quyết định người dùng (S-076) |
+| `07_e4_cv_folds` | `AGENTS.md` vốn đã ghi 09 thay nó, và ghi rõ logic dò đường dẫn của 07 **đã sai** |
+
+Không notebook nào trong 5 cái được `AGENTS.md §6`, `configs/` hay `src/` trỏ tới. Đã quét lại sau khi xoá: **không còn đường dẫn `notebooks/*.ipynb` nào trong repo trỏ tới file không tồn tại**.
+
+### Giữ 2 cái ranh giới, và lý do
+
+- **`01_eda`** — mọi *con số* của nó đã được `scripts/kaggle_geometry_report.py` bao trùm (script import **đúng cùng sáu hàm** của `src/data/eda.py` + `run_gate`). Nhưng nó là nguồn duy nhất của **biểu đồ**: phân bố 7 lớp, histogram bbox, và lớp overlay bbox lên lát giữa để **mắt người** xác nhận. Report W6 cần phần mô tả dữ liệu. Còn được `docs/KAGGLE_WORKFLOW.md` và `docs/W2_plan.md` trỏ tới.
+- **`06_e4_per_phase_align`** — phần dựng cache của nó **đã** được 09 bao trùm (09 có cả `BUILD_NEEDED` lẫn cổng kiểm cache E4), nên nó không còn là đường duy nhất. Giữ vì hai lý do khác: nó có **cổng A2** đo `max_shift_mm` để xác nhận phép căn từng pha *thật sự dịch* — cổng duy nhất của loại đó; và E4 vẫn là cấu hình gốc mang sang lần chạm test-104 thứ hai, nên notebook sinh ra cache của nó thuộc về gói tái lập.
+
+### Kết quả / số liệu
+
+**607 passed, 81 skipped** (trước 622/81). Mất đúng **15** test, và đã truy ra nguồn: `tests/test_notebook_contract.py` 62 → 47, tức 3 test/notebook × 5 notebook. **Không có test nào đỏ, không có năng lực nào mất.** Gate PASS.
+
+### Hai chỗ bẩn còn lại, KHÔNG sửa phiên này
+
+1. ⚠️ **Hai notebook cùng số 11**: `11_model_heatmaps.ipynb` và `11_tta_e4.ipynb`. Đổi số thì phải sửa `AGENTS.md §6` và `webapp/README.md`; chưa làm vì chưa hỏi người dùng.
+2. ⚠️ **`11_model_heatmaps.ipynb` có `\n` dạng escape trong source của cell markdown** thay vì ký tự xuống dòng thật, nên cell đó render thành một dòng dài hiện rõ chữ `\n`. File do tool khác tạo (2026-08-12), 3 cell.
+3. `src/train/sanity.py` giờ **không còn caller nào ngoài `tests/test_sanity.py`** (hai notebook gọi nó đều vừa bị xoá). Không xoá module — phép kiểm "model có học nổi 8 mẫu không" vẫn đáng có, và nó rẻ.
+
+**Điểm vào phiên sau:** không có việc treo. 15 notebook còn lại đều được `AGENTS.md §6` trỏ tới, trừ `01_eda` (docs trỏ) và `06` (giữ có lý do ở trên).
+
+**Cảnh báo cho tool sau:** đừng dùng số lần xuất hiện trong `WORKLOG.md` để đánh giá notebook còn dùng hay không — WORKLOG là append-only nên nó nhắc **mọi** notebook từng tồn tại. Chỉ `AGENTS.md §6`, `configs/` và `src/` mới nói được cái gì còn sống.
