@@ -189,6 +189,18 @@ def predict_members(
     )
     amp = bool((config.get("train") or {}).get("amp", True))
 
+    # Suy luận KHÔNG cần trọng số khởi tạo: `load_state_dict` ngay dòng sau ghi đè toàn bộ
+    # tham số. Nạp nó chỉ tốn thời gian và tạo một phụ thuộc thừa vào Internet / file mount —
+    # đúng chỗ dễ hỏng nhất khi chạy trên Kaggle không bật Internet.
+    #
+    # Cờ `require_pretrained` tồn tại để một run **TRAIN** không lặng lẽ train from scratch.
+    # Ở đây nó không bảo vệ gì: `load_state_dict` mặc định `strict=True` nên kiến trúc lệch
+    # là nổ ngay, và đó mới là phép kiểm đúng cho đường suy luận.
+    model_config = dict(config["model"])
+    if "require_pretrained" in model_config:
+        model_config["require_pretrained"] = False
+        model_config["pretrained_path"] = None
+
     members: list[np.ndarray] = []
     labels_ref: np.ndarray | None = None
     ids_ref: list[str] | None = None
@@ -202,7 +214,7 @@ def predict_members(
         if state.get("fold") not in (None, fold):
             raise RuntimeError(f"checkpoint ghi fold={state['fold']} nhưng đang nạp fold {fold}")
 
-        model = build_model(config["model"]).to(device)
+        model = build_model(model_config).to(device)
         model.load_state_dict(state["model"])
         # BẮT BUỘC — `build_model` trả về model ở chế độ train (WORKLOG S-096). Quên
         # dòng này thì BatchNorm dùng thống kê của batch hiện tại và kết quả đổi giữa

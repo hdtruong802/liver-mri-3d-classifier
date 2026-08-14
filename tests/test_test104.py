@@ -81,6 +81,33 @@ def test_moi_bo_ghim_du_5_fold_va_khong_trung_nhau():
     assert PINNED_SHA256 is PIN_SETS["e4"], "tên cũ phải trỏ bộ của lần chạm 1"
 
 
+def test_suy_luan_khong_doi_trong_so_pretrained():
+    """Đường suy luận phải TẮT `require_pretrained`, nếu không nó nổ khi không có Internet.
+
+    `load_state_dict` ngay dòng sau ghi đè toàn bộ tham số, nên trọng số khởi tạo là vô
+    ích ở đây. Cờ đó tồn tại để một run **train** không lặng lẽ train from scratch — ở
+    đường suy luận nó không bảo vệ gì, vì `load_state_dict` mặc định `strict=True`.
+
+    Kiểm ở mức mã nguồn vì `predict_members` cần torch + cache thật + checkpoint để chạy.
+    """
+    from src.utils.io import repo_root
+
+    src = (repo_root() / "src" / "eval" / "test_once.py").read_text(encoding="utf-8")
+    than = src[src.index("def predict_members") : src.index("def run(")]
+    assert '"require_pretrained"] = False' in than, "suy luận vẫn đòi trọng số pretrained"
+    assert "build_model(model_config)" in than, "phải dựng từ config đã sửa, không phải config gốc"
+    assert "build_model(config[" not in than, "còn chỗ dựng model từ config gốc"
+
+
+def test_train_van_giu_cong_chan_pretrained():
+    """Đối chứng: run.py (TRAIN) **không** được tắt cờ đó — ở đó nó là cổng chặn thật."""
+    from src.utils.io import repo_root
+
+    src = (repo_root() / "src" / "train" / "run.py").read_text(encoding="utf-8")
+    assert 'build_model(config["model"])' in src, "train phải dựng từ config gốc"
+    assert '"require_pretrained"] = False' not in src, "train KHÔNG được tắt cổng pretrained"
+
+
 def test_pin_set_khong_ton_tai_thi_no():
     from src.eval.test_once import run
 

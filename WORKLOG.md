@@ -7024,3 +7024,49 @@ Không chạy test-104. **593 passed, 81 skipped**, gate PASS.
 **Điểm vào phiên sau:** notebook 22 sẵn sàng, chưa chạy.
 
 **Cảnh báo cho tool sau:** đừng "siết" cổng B lại thành dò theo đường dẫn vì thấy nó lỏng — nó **chặt hơn**. Bộ sha ghim là phép ánh xạ, tên thư mục chỉ là quy ước.
+
+---
+
+## S-172 · 2026-08-14 · claude-code
+
+**Mục tiêu phiên:** notebook 22 nổ `FileNotFoundError: Không tìm thấy trọng số Kinetics` ở cell chạm. Sửa.
+
+**Nhánh / commit:** `main` · `73f6fc2` → *(commit của phiên này)*
+
+**Đã đụng file:** `src/eval/test_once.py`, `tests/test_test104.py`.
+
+### ⚠️ Test-104 CHƯA bị chạm ở lần chạy hỏng này
+
+Nổ ở `build_model` của **fold đầu tiên**, trước vòng lặp batch. `predict_members` mới chỉ dựng `CachedLesionDataset` — hàm đó **giải đường dẫn chứ không nạp ảnh** (ảnh vào ở `__getitem__`). Không dự đoán nào được sinh, không metric nào được tính, không con số nào bị nhìn. Lần chạm thật vẫn còn nguyên.
+
+### Lỗi: đường suy luận đòi trọng số khởi tạo mà nó không cần
+
+`predict_members` gọi `build_model(config["model"])` với `config` là `uniformer_s.yaml`, trong đó `require_pretrained: true`. Trên Kaggle không bật Internet và không mount file Kinetics ⇒ nổ.
+
+**Trọng số đó vô ích ở đây:** `load_state_dict` ngay dòng sau ghi đè **toàn bộ** tham số. Cờ `require_pretrained` tồn tại để một run **TRAIN** không lặng lẽ train from scratch; ở đường suy luận nó không bảo vệ gì, vì `load_state_dict` mặc định `strict=True` nên kiến trúc lệch là nổ ngay — và đó mới là phép kiểm đúng cho đường này.
+
+Sửa: `predict_members` dựng model từ một **bản sao** config với `require_pretrained=False`, `pretrained_path=None`. Chỉ đụng khi khoá có mặt, nên đường DenseNet không đổi gì.
+
+### Điều đáng ghi hơn cả bản sửa
+
+`webapp/backend/live_inference.py:137` **đã** làm đúng việc này từ trước: `build_model({**model_config, "require_pretrained": False})`. Tức một tool khác đã gặp cùng vấn đề và giải cùng cách, mà `test_once` thì không được sửa theo. Đây là dạng drift giữa hai đường suy luận song song — cùng một bài toán, hai chỗ, chỉ một chỗ được sửa.
+
+Đã thêm **hai** test buộc hai đường đứng đúng phía:
+
+- `test_suy_luan_khong_doi_trong_so_pretrained` — `predict_members` phải tắt cờ
+- `test_train_van_giu_cong_chan_pretrained` — **đối chứng**: `run.py` **không** được tắt nó
+
+Test thứ hai quan trọng ngang test thứ nhất: không có nó thì một lần "dọn dẹp" về sau rất dễ tắt cờ ở cả hai chỗ, và cổng chặn thật ở đường train sẽ biến mất im lặng.
+
+### Kết quả / số liệu
+
+Chưa chạy test-104. **595 passed, 81 skipped** (trước 593; +2 test). `ruff check` sạch. Gate PASS.
+
+### Dang dở
+
+- [ ] **Chạy lại notebook 22.** Kéo bản mới về (notebook clone từ GitHub nên chỉ cần chạy lại từ cell bootstrap).
+- [ ] Fold 1 của `21_intra_mixup`; bảng ablation + Holm; README; report; slide; web app trỏ sang `runs/Uniformer3D`.
+
+**Điểm vào phiên sau:** notebook 22 sẵn sàng, chưa chạy.
+
+**Cảnh báo cho tool sau:** có **ba** chỗ dựng model trong repo và chúng không cùng luật — `run.py` (train, **giữ** cổng pretrained), `test_once.py` và `webapp/backend/live_inference.py` (suy luận, **tắt** nó). Đừng đồng nhất ba chỗ này.
