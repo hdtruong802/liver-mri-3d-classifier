@@ -7342,3 +7342,28 @@ Kết xuất PDF chạy được (365 KiB, gitignore đúng). **595 passed, 81 s
 **Điểm vào phiên sau:** Không có việc treo. Bước kế tiếp đề xuất: kiểm tra lại report sau khi có thay đổi nội dung W4.
 
 **Cảnh báo cho tool sau:** Không tái sử dụng ảnh asset này cho tài liệu hoặc kênh công khai khi chưa có phê duyệt riêng.
+
+---
+
+## S-180 · 2026-08-14 15:35 · codex
+
+**Mục tiêu phiên:** Kết xuất `W4_REPORT.md` thành PDF và chuyển bản xuất sang thư mục đầu ra chuẩn.
+
+**Nhánh / commit:** `main` · `dd91be1` → *(commit của phiên này)*
+
+**Đã động file:**
+- `scripts/md2pdf.py` — thêm `base href` theo thư mục Markdown và CSS co ảnh theo bề rộng trang, để asset tương đối xuất hiện đúng trong PDF.
+- `output/pdf/W4_REPORT.pdf` — PDF 6 trang đã kết xuất; là output tái tạo được, bị gitignore.
+- `reports/W4_REPORT.pdf` — đã xoá theo yêu cầu; bản PDF không còn nằm trong `reports/`.
+
+**Quyết định & lý do:**
+- Dùng script hiện có và sửa hỗ trợ ảnh tương đối thay vì tạo một pipeline PDF riêng, để mọi report Markdown cùng hiển thị asset đúng khi in.
+
+**Kết quả / số liệu:** `output/pdf/W4_REPORT.pdf` 381 KiB (389.727 byte), 6 trang; đã render và kiểm tra trực quan trang có Hình 7.1 cùng trang kết thúc.
+
+**Dang dở:**
+- [ ] Không có việc treo.
+
+**Điểm vào phiên sau:** Không có việc treo. Bước kế tiếp đề xuất: dùng `scripts/md2pdf.py <report>.md --out output/pdf/<report>.pdf` cho các report cần xuất.
+
+**Cảnh báo cho tool sau:** `output/` là thư mục gitignore; không thêm PDF tái tạo được vào Git.

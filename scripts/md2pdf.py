@@ -136,6 +136,7 @@ code {
 
 strong { font-weight: 700; }
 hr { border: none; border-top: 1px solid #ccc; margin: 1.4em 0 1em 0; }
+img { display: block; max-width: 100%; height: auto; margin: 0.9em auto; }
 
 /* --- Dòng RUO cuối bài --- */
 hr + p em {
@@ -165,7 +166,7 @@ def find_browser() -> str:
     )
 
 
-def build_html(md_text: str, title: str) -> str:
+def build_html(md_text: str, title: str, base_href: str = "") -> str:
     """Markdown -> HTML hoàn chỉnh, đã gắn CSS in ấn."""
     import markdown
 
@@ -189,7 +190,8 @@ def build_html(md_text: str, title: str) -> str:
 
     return (
         "<!doctype html>\n<html lang='vi'><head><meta charset='utf-8'>\n"
-        f"<title>{title}</title>\n<style>{CSS}</style>\n</head>\n<body>\n{body}\n</body></html>\n"
+        f"<title>{title}</title>\n<base href='{base_href}'>\n"
+        f"<style>{CSS}</style>\n</head>\n<body>\n{body}\n</body></html>\n"
     )
 
 
@@ -240,7 +242,7 @@ def main() -> None:
 
     md_text = md_path.read_text(encoding="utf-8")
     title = md_text.lstrip().splitlines()[0].lstrip("# ").strip() or md_path.stem
-    html = build_html(md_text, title)
+    html = build_html(md_text, title, md_path.resolve().parent.as_uri() + "/")
 
     tmp_dir = Path(tempfile.mkdtemp(prefix="md2pdf_"))
     html_path = tmp_dir / (md_path.stem + ".html")
