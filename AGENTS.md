@@ -392,7 +392,182 @@ trực tiếp, không suy từ điểm số.
 ⚠️ CGHNet `val_loss` chạm đáy ở **epoch 16** (E4 fold 1: epoch 100). Theo ρ=0.770 của S-107
 thì đó là dấu hiệu overfit rất sớm, vậy mà nó vẫn đạt 0.6935 — một ngoại lệ đáng ghi.
 
-### 🏆 UNIFORMER + KINETICS — FOLD 1 = 0.8111, và phép kiểm cơ chế chốt trước ĐÃ BẮN (2026-08-12, WORKLOG S-129)
+---
+
+### 🏆🏆 UNIFORMER + KINETICS, ĐỦ 5 FOLD — CẤU HÌNH CHÍNH CỦA DỰ ÁN (2026-08-14, WORKLOG S-169)
+
+**Đây là kết quả để báo cáo. Mọi mục UniFormer phía trên là hồ sơ 1 fold, đã bị mục này thay.**
+
+5 fold, mỗi fold 300 epoch, **cùng seed 1337 · config giống hệt nhau trừ đúng khoá `fold`** —
+đã kiểm trực tiếp `config_used.json` cả 5 (`stride [1,2,2]` trung thực, `variant small`,
+`sampling sqrt`, `class_weights effective_number`, `smoothing 0.1`, không mixup).
+
+| fold | n val | macro-F1 | κ | epoch tốt nhất | `val_loss` đáy |
+|---|---|---|---|---|---|
+| 1 | 82 | 0.8111 | 0.7664 | 259 | 48 |
+| 2 | 80 | 0.8196 | 0.8304 | 270 | 93 |
+| 3 | 78 | 0.8293 | 0.8238 | 103 | 96 |
+| **4** | 77 | **0.7496** | 0.7474 | 194 | 91 |
+| 5 | 77 | 0.8524 | 0.8397 | 176 | 48 |
+| **gộp out-of-fold** | **394** | **0.8147 [0.7746, 0.8547]** | **0.8010 [0.7600, 0.8418]** | — | — |
+
+Trung bình 5 fold 0.8124 ± 0.0383 (SD mẫu), trải 0.750–0.852. **Con số báo cáo là bản gộp
+out-of-fold**, không phải trung bình này.
+
+#### So với E4 — bootstrap GHÉP CẶP, 394 ca, 2000 lượt
+
+| | hiệu | CI95 | P |
+|---|---|---|---|
+| **UniFormer − E4** | **+0.1296** | **[+0.0778, +0.1809]** | **< 0.001** |
+
+**Cả 5 fold dương** (+0.082 → +0.191) và **cả 7 lớp dương**:
+
+| lớp | n | E4 | UniFormer | hiệu |
+|---|---|---|---|---|
+| **ICC** | 46 | 0.519 | **0.731** | **+0.212** |
+| áp-xe | 42 | 0.660 | 0.814 | +0.154 |
+| nang | 42 | 0.762 | 0.897 | +0.135 |
+| FNH | 36 | 0.761 | 0.895 | +0.134 |
+| HCC | 125 | 0.776 | 0.878 | +0.103 |
+| **di căn** | 40 | 0.488 | **0.576** | **+0.088** |
+| u máu | 63 | 0.831 | 0.912 | +0.081 |
+
+⭐ **Đây là can thiệp duy nhất của dự án vượt E4 có ý nghĩa thống kê, và là lần đầu một hiệu
+ứng MẠNH LÊN khi tăng từ 1 fold lên 5** (fold 1 riêng +0.111, gộp +0.130). Ba lần trước đều
+ngược: E6b +0.038 ở 2 fold → −0.002 ở 5; ensemble E4⊕CGHNet +0.065 ở 1 fold → −0.010 ở 5.
+
+#### ⚠️ ĐÍNH CHÍNH ba khẳng định của mục fold-1
+
+| khẳng định ở fold 1 | đủ 5 fold | |
+|---|---|---|
+| thiên lệch chọn epoch **+0.042**, "nhỏ nhất trong ba cấu hình" | **+0.0797** [+0.0419, +0.1213] | **SAI**, ngang hệt E4 (+0.079) |
+| di căn top-2 = **1.000** (8/8), "biểu diễn đã mã hoá được lớp này" | **0.625** (n=40) | hướng đúng (E4: 0.500) nhưng **không phải 1.000** |
+| `val_loss` đáy ở epoch 48 ⇒ động học lành mạnh | đáy 48/93/96/91/48 | ρ=0.770 của S-107 **không đúng trong nội bộ** cấu hình này: fold 5 đáy sớm nhất *và* điểm cao nhất |
+
+**Bài học lặp lại lần thứ tư: n≈80 không kết luận được gì, kể cả khi có bằng chứng cơ chế đi
+kèm.** Lần này kết luận cuối vẫn đúng, nhưng ba con số phụ trợ thì sai — và lúc viết chúng
+trông thuyết phục y như con số chính.
+
+#### 🎯 Trustworthiness — cải thiện lớn, đây là phần headline của dự án
+
+| | ECE | MCE | Brier | NLL | tự tin TB (lệch) | `T` cần |
+|---|---|---|---|---|---|---|
+| E4 | 0.2030 | 0.6775 | 0.5488 | 2.0308 | 0.889 (**+0.186**) | 3.26 (NLL) · 2.05 (ECE) |
+| **UniFormer** | **0.1073** | 0.4233 | **0.3033** | **0.7692** | 0.903 (**+0.065**) | **1.53** (NLL) · 1.45 (ECE) |
+
+*(accuracy thật 0.8376; temperature fit **leave-one-fold-out**)*
+
+**ECE giảm một nửa và Brier giảm 45% mà không phải hiệu chỉnh gì.** `T` chỉ 1.53 so với 3.26
+— model gần calibrated sẵn. Sau temp-scaling theo ECE: **0.0943**, tốt hơn con số tốt nhất
+E4 từng đạt (0.1534) một mức lớn.
+
+⚠️ Nhưng temp-scaling **bắn quá sang thiếu tự tin** (0.8018 so với accuracy 0.8376) và làm
+**MCE xấu đi** (0.4233 → 0.7376 khi fit theo ECE). Với model đã gần calibrated thì hiệu chỉnh
+thêm là lợi bất cập hại — **khuyến nghị: báo cáo bản chưa hiệu chỉnh, nêu rõ ECE 0.107.**
+
+#### ⚠️ Selective prediction — AURC tốt hơn nhiều, nhưng mức tăng KHÔNG có ý nghĩa thống kê
+
+| | AURC | F1@100% | F1@90% | F1@80% | F1@70% |
+|---|---|---|---|---|---|
+| E4 · max-prob | 0.2059 | 0.6851 | 0.6909 | 0.6799 | 0.7043 |
+| **UniFormer · max-prob** | **0.0972** | 0.8147 | 0.8158 | 0.8316 | 0.8404 |
+
+*(mốc: ngẫu nhiên 0.1615 [0.1274, 0.1963] · oracle 0.0140)*
+
+Bootstrap **ghép cặp** trên hiệu so với coverage 100%:
+
+| | hiệu | CI95 | P |
+|---|---|---|---|
+| max-prob @90% | +0.0012 | [−0.0144, +0.0220] | 0.72 |
+| max-prob @80% | +0.0170 | [−0.0141, +0.0444] | **0.29** |
+| max-prob @70% | +0.0258 | [−0.0133, +0.0595] | 0.22 |
+
+**Không mốc coverage nào đạt ý nghĩa thống kê.** Nhất quán với §3 của chẩn đoán: **0/64 lỗi
+có biên < 0.10** — model sai một cách *tự tin*, nên xếp hạng theo softmax không tách được lỗi
+ra. AURC 0.0972 vẫn tốt hơn ngẫu nhiên rõ rệt, tức thứ hạng *có* thông tin; chỉ là macro-F1 ở
+coverage giảm không nhích đủ để phân biệt với nhiễu.
+
+⚠️⚠️ **Và phép lai đã cứu selective trên E4 thì KHÔNG dùng được ở đây.** S-087 đạt +0.035
+(P=0.030) nhờ xếp hạng bằng epistemic của MC-dropout. UniFormer có `head_dropout: 0.0` nên
+**không có lớp Dropout nào** — MC-dropout sẽ trả K lượt giống hệt nhau. Muốn có tín hiệu bất
+đồng thì phải train nhiều seed **trên cùng một split**, hoặc tạo một config riêng đặt
+`head_dropout: 0.2` (và đó là cấu hình KHÁC, phải đo lại từ đầu).
+
+Một con số vẫn dùng được cho web app: ở mức **sai số ≤ 20%, coverage đạt 100%** — tức tỉ lệ
+lỗi ở toàn bộ 394 ca đã dưới 20% (16,2%). Trên E4 phải bỏ 71% số ca mới xuống được 10%.
+
+#### Chẩn đoán lớp yếu — nút thắt ĐẢO CHIỀU so với E4
+
+| lớp | thật | đoán | tỉ lệ | P | R |
+|---|---|---|---|---|---|
+| **di căn** | 40 | **26** | **0.65** | **0.731** | **0.475** |
+| FNH | 36 | 40 | 1.11 | 0.850 | 0.944 |
+| nang | 42 | 45 | 1.07 | 0.867 | 0.929 |
+| áp-xe | 42 | 44 | 1.05 | 0.795 | 0.833 |
+| HCC | 125 | 130 | 1.04 | 0.862 | 0.896 |
+| ICC | 46 | 47 | 1.02 | 0.723 | 0.739 |
+| u máu | 63 | 62 | 0.98 | 0.919 | 0.905 |
+
+**Trên E4 vấn đề là precision** (ICC bị đoán thừa 1.26×, áp-xe 1.31×). **Trên UniFormer sáu
+lớp đã cân, và di căn lật hẳn sang thiếu**: precision *tốt* (0.731) nhưng recall *tệ* (0.475)
+— model giờ quá dè dặt khi gọi tên di căn.
+
+⚠️ **Hệ quả trực tiếp, và nó NGƯỢC với hướng dẫn của mục chẩn đoán S-123:** ở E4, trọng số lớp
+và logit adjustment bị loại vì *sai chiều*. Với UniFormer, **riêng cho di căn** chúng đúng
+chiều. Nhưng §3 vẫn chặn: 0/64 lỗi sát sao, nên dịch ngưỡng cũng không lật được ca nào. Cách
+duy nhất còn khớp là thứ tác động lúc **train**, không phải lúc suy luận —
+`configs/uniformer_s_intra_mixup.yaml` là đúng loại đó.
+
+Ba hướng nhầm lớn nhất: **di căn → HCC 8** · ICC → HCC 6 · HCC → ICC 4. Chữa hết 13 lỗi của
+HCC chỉ đưa macro-F1 0.8147 → 0.8405 (+0.026) — nhỏ hơn nhiều so với +0.060 tương ứng trên
+E4, tức **lớp đa số không còn là nút thắt**.
+
+Trần nếu 6 lớp kia đều đạt 0.95 mà di căn giữ 0.576: macro-F1 chỉ tới **0.896**. **Di căn một
+mình chặn mốc 0.9.**
+
+#### ⚠️ Ensemble với E4 làm TỆ ĐI ở mọi trọng số — đừng gộp
+
+| w(UniFormer) | macro-F1 |
+|---|---|
+| 0.5 | 0.7349 |
+| 0.7 | 0.8055 |
+| 0.9 | 0.8129 |
+| **1.0 (một mình)** | **0.8147** |
+
+Trùng lặp lỗi UniFormer so E4 là **61%** (kỳ vọng 30% nếu độc lập) và oracle 0.901 — tức vẫn
+còn 8.6 điểm dư địa mà **trung bình xác suất không lấy được điểm nào**. Xác nhận ở quy mô đầy
+đủ điều fold 1 đã gợi ý, và lặp lại bài học S-127: **trùng lặp lỗi thấp không bảo đảm ensemble
+ăn.** Muốn khai thác thì cần bộ phối hợp **học được** (stacking trên out-of-fold).
+
+#### Vị trí so với văn liệu — đọc kỹ trước khi viết báo cáo
+
+⚠️ **0.8147 là val out-of-fold, KHÔNG phải test-104.** Không được đặt cạnh 0.8078 của đội hạng
+2 hay 0.818 của CGHNet. Hai lý do cụ thể, đều đo được:
+
+1. **Thiên lệch chọn epoch +0.0797** đã đo ngay trên chính bộ số này.
+2. **Mức hụt OOF → test đo trên E4 là −0.069** (0.6851 → 0.6162), và nó gần trùng khít với
+   thiên lệch chọn epoch của E4 (+0.079).
+
+Nếu UniFormer hụt tương tự thì test-104 rơi vào khoảng **0.74–0.75** — vẫn là bước nhảy lớn so
+với 0.6162 đã đo, nhưng dưới SOTA công bố. **Đây là ước lượng, không phải kết quả.**
+
+#### Trạng thái: UniFormer là cấu hình chính, E4 lùi về mốc đối chứng
+
+Từ S-169, `configs/uniformer_s.yaml` là cấu hình để báo cáo. E4 vẫn giữ nguyên giá trị làm
+**đối chứng đã đo trên test-104** và làm nguồn cho web app/MC-dropout/TTA.
+
+⚠️ **Chạm test-104 lần thứ hai bằng UniFormer cần đủ ba thứ, không được bỏ bước nào:** (1) xin
+phép người dùng; (2) một pre-registration **mới** commit trước khi chạy; (3) cập nhật
+`PINNED_SHA256` trong `src/eval/test_once.py` sang checkpoint UniFormer. Và phải báo cáo rõ
+**đây là lần chạm thứ hai** (§3.4, §10).
+
+---
+
+### 📁 HỒ SƠ · UniFormer fold 1 = 0.8111 (2026-08-12, WORKLOG S-129) — ĐÃ BỊ BẢN 5 FOLD THAY
+
+> **Giữ làm hồ sơ, KHÔNG trích làm kết quả.** Mục 5 fold ở trên là bản chính thức. Ba con
+> số phụ trợ ở đây (thiên lệch +0.042 · di căn top-2 = 1.000 · động học từ `val_loss` đáy)
+> **không sống sót** qua 394 ca — xem bảng đính chính ở mục trên.
 
 **Con số cao nhất dự án từng có, và lần đầu một can thiệp vượt E4 có ý nghĩa thống kê.**
 Cấu hình đúng `configs/uniformer_s.yaml` không sửa gì (`patch_embed1_stride [1,2,2]` trung
@@ -467,14 +642,13 @@ Trùng lặp lỗi UniFormer so E4 chỉ **50%** và oracle 0.895, nhưng trung 
 xuống — vì gộp một model mạnh với hai model yếu hơn 0.11 điểm thì phần yếu thắng. Cùng bài
 học S-127: **trùng lặp lỗi thấp không bảo đảm ensemble ăn.**
 
-#### ⚠️ Vẫn chỉ MỘT fold
+#### ✅ ĐỦ 5 FOLD — bar đã vượt, xem mục ngay dưới
 
-Bar chốt trước là **gộp 2 fold ≥ 0.78**. Hiện có 1 fold. Fold 1 đã lừa dự án hai lần (E6b
-0.7660; ensemble +0.065). Khác biệt lần này là bằng chứng cơ chế, nhưng **n=8 cho di căn** —
-8/8 vào top-2 so với 5/8 của E4 là hướng đúng, không phải chứng minh.
+Bar chốt trước là **gộp 2 fold ≥ 0.78** ⇒ chạy đủ 5 fold và thành cấu hình chính. Đã đủ 5 fold
+(S-169): gộp out-of-fold **0.8147**. Bar đã vượt.
 
-**Việc phải làm: fold 2 (6.5h).** Nếu gộp 2 fold ≥ 0.78 thì đây thành cấu hình chính và chạy
-đủ 5 fold (còn 26h, phải trải qua hai tuần quota).
+⚠️ **Ba con số ở mục fold-1 phía trên KHÔNG sống sót qua 5 fold** — chúng là hiện vật cỡ mẫu
+nhỏ, và mục dưới đây đính chính từng cái. Đừng trích mục fold-1 làm kết quả.
 
 ---
 
@@ -1067,7 +1241,7 @@ Bootstrap **ghép cặp** trên hiệu (2000 lần, phân tầng, mức bệnh n
 | **EMA** | `configs/e7_ema.yaml` (`train.ema_decay: 0.999`) | mặc định TẮT ở baseline. Khi bật, **mọi số trong `train_log.csv`/`metrics_best.json`/`val_probs_*.npz` là của model EMA** |
 | **Build cache CGHNet** (một lần, ~20 phút, **CPU**) | `notebooks/18_build_cache_cghnet.ipynb` trên Kaggle, **Accelerator = None** | sẵn sàng (2026-08-10), **chưa chạy**. Lưới **128×128×16** (`configs/preprocess_cghnet.yaml`: `target_size [112,112,14]` + lề `[8,8,1]`), đúng hình học của bài CGHNet. ~2,0 GB, nhỏ hơn cache E4. ⚠️ **z=14 nên KHÔNG dùng được cho config DenseNet121** (cần ≥32 mọi chiều, S-063); `tests/test_models.py` chặn cả hai chiều |
 | **⭐ Intra-class mixup trên UniFormer** | `notebooks/21_intra_mixup.ipynb` trên Kaggle, **bật Internet** | sẵn sàng (2026-08-13), **chưa chạy**. `configs/uniformer_s_intra_mixup.yaml` khác `uniformer_s.yaml` **đúng hai khoá khoa học** (`data.intra_class_mixup: 1.0`, `data.intra_class_mixup_exclude_majority: true`) — khoá bởi `tests/test_intra_class_mixup.py`. Đây là **mảnh cuối còn thiếu** của recipe hạng 2 (S-128). Notebook sinh **từ** notebook 20 nên năm cổng A–E giống hệt, cộng **cổng F** kiểm phép trộn: giải ngược λ từ voxel và đọc file gốc bằng `np.load` độc lập với dataset, kiểm đối tác cùng lớp, kiểm tập val **không** bị trộn. ⚠️ Chạy **1 fold trước** (fold 1, để so ghép cặp với fold 1 của `uniformer_s`); 6.5h/fold, đọc đĩa gấp đôi đã nằm trong số của cổng C |
-| **⭐ UniFormer-S + Kinetics — tái lập đội hạng 2** | `notebooks/20_uniformer.ipynb` trên Kaggle, **bật Internet** | sẵn sàng (2026-08-11), **chưa chạy**. Dùng **lại cache CGHNet** (`--img_size 16 128 128 --crop_size 14 112 112` của họ khớp chính xác), không build cache mới. Tự tải `uniformer_small_k400_16x8.pth` (~200 MB) từ `Sense-X/uniformer_video`. **Năm cổng A–E chạy trước khi cam kết fold nào** — xem §5. ⚠️ Cổng C bắt buộc: `patch_embed1` stride `(1,2,2)` không hạ mẫu trục lát nên stage 3 có 2744 token so với 1568 của bản pretrained, **đắt hơn** CGHNet. Quá 60 s/epoch thì đặt `patch_embed1_stride: [2,2,2]` |
+| **⭐ UniFormer-S + Kinetics — CẤU HÌNH CHÍNH** | `notebooks/20_uniformer.ipynb` trên Kaggle, **bật Internet** | ✅ **đã chạy đủ 5 fold** (S-169) → out-of-fold **0.8147**, hơn E4 **+0.130** P<0.001. Kết quả ở `runs/Uniformer3D`. Dùng **lại cache CGHNet** (`--img_size 16 128 128 --crop_size 14 112 112` của họ khớp chính xác), không build cache mới. Tự tải `uniformer_small_k400_16x8.pth` (~200 MB) từ `Sense-X/uniformer_video`. **Năm cổng A–E chạy trước khi cam kết fold nào** — xem §5. ⚠️ Cổng C bắt buộc: `patch_embed1` stride `(1,2,2)` không hạ mẫu trục lát nên stage 3 có 2744 token so với 1568 của bản pretrained, **đắt hơn** CGHNet. Quá 60 s/epoch thì đặt `patch_embed1_stride: [2,2,2]` |
 | Đánh giá (CPU, không cần GPU) | `python -m src.eval.run --run-dir artifacts/runs/baseline_3dpatch` | sẵn sàng (W3); đọc `val_probs_*.npz` đã lưu → bảng metric ± CI bootstrap + gộp out-of-fold |
 | **So hai cấu hình, có ghép cặp** (CPU) | `python -m src.eval.compare --baseline runs/E4_cv_results --candidate runs/E8` | sẵn sàng (2026-08-10). Bootstrap **trên hiệu**, cùng bệnh nhân, phân tầng theo lớp. Chỉ dùng fold có ở **cả hai** bên; nổ nếu tập bệnh nhân hoặc nhãn lệch. Thay cho việc so hai CI riêng lẻ — cách đó bỏ mất phần phương sai triệt tiêu và cho phép kiểm yếu hơn thực tế |
 | **⭐ Chẩn đoán lớp yếu** (CPU, vài giây) | `python -m src.eval.weak_classes --run-dir runs/E4_cv_results --compare runs/E6b --build-log runs/E4_per_phase_results/fold_1/cache_build_log.csv` | sẵn sàng (2026-08-10). Sáu phân tích trên xác suất đã lưu, **không cần GPU**. Nó **LOẠI bảy hướng chữa** hiển nhiên (trọng số lớp, logit adjustment, ngưỡng theo lớp, focal mạnh hơn, thêm augmentation, gộp với biến thể gần, cắt sát hơn) — đọc trước khi đề xuất bất cứ cách nâng macro-F1 nào. Chi tiết ở §5 |

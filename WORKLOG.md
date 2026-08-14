@@ -6807,3 +6807,96 @@ Xoá dòng thì mất luôn thông tin "chạy cái này bằng gì". Nên mỗi
 - **`18_build_cache_cghnet` là bắt buộc**, đừng xoá theo quán tính "CGHNet đã bị bác" — cache của nó là cache mà notebook 20 và 21 dùng.
 - **Cache E4 không còn notebook nào dựng được.** Xem dòng "Build LẠI cache E4" ở `AGENTS.md §6` trước khi kết luận là mất.
 - Mọi file đã xoá vẫn lấy lại được từ git history (`git show a2f08c0:notebooks/09_cv_runner.ipynb`).
+
+---
+
+## S-169 · 2026-08-14 · claude-code
+
+**Mục tiêu phiên:** người dùng đã train đủ 5 fold UniFormer. Đánh giá đầy đủ và chốt cấu hình chính.
+
+**Nhánh / commit:** `main` · `e2f190f` → *(commit của phiên này)*
+
+**Đã đụng file:** `AGENTS.md` (§5 thêm mục 5 fold, hạ mục fold-1 xuống hồ sơ; §6 cập nhật dòng notebook 20). Không đụng `runs/`.
+
+### 🏆 macro-F1 out-of-fold 394 ca = 0.8147 [0.7746, 0.8547] · κ 0.8010
+
+Đã kiểm `config_used.json` cả 5 fold **trước khi** đọc kết quả: khác nhau **đúng khoá `fold`**, `stride [1,2,2]` trung thực ở cả 5. Phép so hợp lệ.
+
+| fold | 1 | 2 | 3 | 4 | 5 | gộp |
+|---|---|---|---|---|---|---|
+| macro-F1 | 0.8111 | 0.8196 | 0.8293 | **0.7496** | 0.8524 | **0.8147** |
+
+Trung bình 0.8124 ± 0.0383. Fold 4 là fold yếu nhất, cách fold 5 tới 0.103.
+
+**So E4, bootstrap ghép cặp 394 ca: +0.1296 [+0.0778, +0.1809], P < 0.001.** Cả 5 fold dương, cả 7 lớp dương. ICC +0.212 · áp-xe +0.154 · nang +0.135 · FNH +0.134 · HCC +0.103 · di căn +0.088 · u máu +0.081.
+
+⭐ **Lần đầu trong dự án một hiệu ứng MẠNH LÊN khi tăng cỡ mẫu** (fold 1 riêng +0.111 → gộp +0.130). Ba lần trước đều ngược chiều: E6b +0.038 ở 2 fold → −0.002 ở 5; ensemble E4⊕CGHNet +0.065 ở 1 fold → −0.010 ở 5.
+
+### ⚠️ Ba khẳng định của S-129 KHÔNG sống sót — tôi đã báo cáo sai ở phiên đó
+
+| S-129 (1 fold) | 5 fold | |
+|---|---|---|
+| thiên lệch chọn epoch **+0.042**, "nhỏ nhất trong ba cấu hình" | **+0.0797** [+0.0419, +0.1213] | **sai** — ngang hệt E4 (+0.079) |
+| di căn top-2 = **1.000** (8/8), "biểu diễn đã mã hoá được lớp này" | **0.625** (n=40) | hướng đúng (E4 0.500), nhưng không phải 1.000 |
+| `val_loss` đáy sớm ⇒ động học lành mạnh | đáy 48/93/96/91/48 | ρ=0.770 của S-107 **không đúng trong nội bộ** cấu hình này: fold 5 đáy sớm nhất *và* điểm cao nhất |
+
+Kết luận chính (pretrained là đòn bẩy thật) thì đúng, nhưng **ba con số phụ trợ dùng để chống đỡ nó thì sai** — và lúc viết chúng trông thuyết phục y hệt con số chính. Đây là lần thứ tư cỡ mẫu ~80 đánh lừa dự án; khác ba lần trước ở chỗ lần này kết luận sống sót, không phải phương pháp đọc số đã tốt lên.
+
+### 🎯 Trustworthiness — phần headline của dự án cải thiện mạnh
+
+| | ECE | Brier | NLL | tự tin (lệch) | `T` cần |
+|---|---|---|---|---|---|
+| E4 | 0.2030 | 0.5488 | 2.0308 | +0.186 | 3.26 / 2.05 |
+| **UniFormer** | **0.1073** | **0.3033** | **0.7692** | **+0.065** | **1.53** / 1.45 |
+
+ECE giảm một nửa, Brier giảm 45%, **không cần hiệu chỉnh gì**. Sau temp-scaling theo ECE còn **0.0943** — tốt hơn con số tốt nhất E4 từng đạt (0.1534).
+
+⚠️ Nhưng hiệu chỉnh **bắn quá sang thiếu tự tin** (0.802 so accuracy 0.838) và làm MCE xấu đi (0.423 → 0.738). **Khuyến nghị: báo cáo bản chưa hiệu chỉnh.** Với model đã gần calibrated, temperature scaling là lợi bất cập hại — đây là một kết quả có nội dung, không phải một bước bỏ qua.
+
+### ⚠️ Selective KHÔNG có ý nghĩa thống kê, và phép lai cũ không dùng được
+
+AURC 0.0972 (E4: 0.2059; ngẫu nhiên 0.1615; oracle 0.0140) — thứ hạng *có* thông tin. Nhưng bootstrap ghép cặp so với coverage 100%:
+
+| | hiệu | CI95 | P |
+|---|---|---|---|
+| max-prob @90% | +0.0012 | [−0.0144, +0.0220] | 0.72 |
+| max-prob @80% | +0.0170 | [−0.0141, +0.0444] | 0.29 |
+| max-prob @70% | +0.0258 | [−0.0133, +0.0595] | 0.22 |
+
+Không mốc nào đạt. Nhất quán với §3: **0/64 lỗi có biên < 0.10** — model sai một cách *tự tin*.
+
+⚠️⚠️ **Phép lai cứu selective trên E4 (S-087, +0.035 P=0.030) KHÔNG dùng được ở đây.** Nó cần epistemic từ MC-dropout, mà `head_dropout: 0.0` nghĩa là model **không có lớp Dropout nào** — K lượt sẽ giống hệt nhau. Muốn có tín hiệu bất đồng phải train nhiều seed trên cùng split, hoặc một config riêng `head_dropout: 0.2` (và đó là cấu hình KHÁC, phải đo lại từ đầu).
+
+Con số vẫn dùng được cho web app: **sai số ≤ 20% đạt coverage 100%** (tỉ lệ lỗi toàn bộ 394 ca là 16,2%). Trên E4 phải bỏ 71% số ca mới xuống 10%.
+
+### Chẩn đoán ĐẢO CHIỀU — di căn giờ là bài toán RECALL
+
+E4: ICC bị đoán **thừa** 1.26×, áp-xe 1.31× ⇒ vấn đề precision. UniFormer: sáu lớp đã cân (0.98–1.11), riêng **di căn lật hẳn sang thiếu — tỉ lệ 0.65, P 0.731 nhưng R 0.475**. Model giờ quá dè dặt khi gọi tên di căn.
+
+⚠️ Hệ quả **ngược** với hướng dẫn S-123: ở E4, trọng số lớp và logit adjustment bị loại vì sai chiều; với UniFormer, **riêng cho di căn** chúng đúng chiều. Nhưng §3 vẫn chặn (0/64 lỗi sát sao) nên dịch ngưỡng không lật được ca nào. Chỉ còn thứ tác động lúc **train** — `uniformer_s_intra_mixup.yaml` đúng loại đó.
+
+Chữa hết 13 lỗi của HCC chỉ được +0.026 (E4: +0.060) ⇒ **lớp đa số không còn là nút thắt**. Trần nếu 6 lớp kia đạt 0.95 mà di căn giữ 0.576: **0.896**. Di căn một mình chặn mốc 0.9.
+
+### Ensemble với E4 làm tệ đi ở MỌI trọng số
+
+w=0.5 → 0.7349 · w=0.7 → 0.8055 · w=0.9 → 0.8129 · một mình **0.8147**. Trùng lặp lỗi 61% (kỳ vọng 30%), oracle 0.901 ⇒ còn 8.6 điểm dư địa mà trung bình xác suất không lấy được điểm nào. Lặp lại bài học S-127.
+
+### Kết quả / số liệu
+
+Không train. Không chạy test. **586 passed, 81 skipped**, `ruff check` sạch, gate PASS.
+
+### Dang dở
+
+- [ ] Fold 1 của `21_intra_mixup` (6.5h) — giờ có mốc so ghép cặp đầy đủ.
+- [ ] Bảng ablation lõi + kiểm định Holm (CPU, không cần GPU).
+- [ ] `README.md` (chưa tồn tại), report, slide.
+- [ ] Web app đang phục vụ số của E4 — cần trỏ sang `runs/Uniformer3D`.
+
+**Điểm vào phiên sau:** không có việc treo.
+
+**Cảnh báo cho tool sau:**
+
+- **0.8147 là val out-of-fold, KHÔNG phải test-104.** Không được đặt cạnh 0.8078 hay 0.818. Thiên lệch chọn epoch đo được là +0.0797, và mức hụt OOF→test đo trên E4 là −0.069 ⇒ ước lượng test-104 khoảng **0.74–0.75**. Đó là ước lượng, không phải kết quả.
+- **Chạm test-104 lần hai cần đủ ba thứ:** xin phép người dùng · pre-registration MỚI commit trước khi chạy · cập nhật `PINNED_SHA256` sang checkpoint UniFormer. Và phải báo rõ đây là lần thứ **hai**.
+- **Đừng ensemble UniFormer với E4.** Đã đo ở mọi trọng số trên đủ 394 ca.
+- **MC-dropout vô nghĩa trên cấu hình này** (`head_dropout: 0.0`). Notebook 08 sẽ chạy trơn và trả K lượt giống hệt nhau — không nổ, chỉ vô nghĩa.
