@@ -7270,3 +7270,51 @@ Kết xuất PDF chạy được (365 KiB, gitignore đúng). **595 passed, 81 s
 **Điểm vào phiên sau:** Mở một ZIP hợp lệ và xác nhận `PredictResult.defer` không còn `null` cho inference live.
 
 **Cảnh báo cho tool sau:** Không thay ngưỡng live bằng `LLDMMRI_DEFER_THRESHOLD=0.55`; đó là default utility cũ, không phải policy UniFormer đã khóa.
+
+---
+
+## S-177 · 2026-08-14 15:11 · codex
+
+**Mục tiêu phiên:** Làm rõ nội dung trạng thái AI tự nhận kết quả cho người dùng và bác sĩ.
+
+**Nhánh / commit:** `main` · `5798caf` → *(commit của phiên này)*
+
+**Đã động file:**
+- `webapp/frontend/src/components/DeferPanel.tsx` — thay copy trạng thái tự nhận bằng ngôn ngữ ngắn, rõ giới hạn sử dụng.
+- `WORKLOG.md` — ghi nhận phiên.
+
+**Quyết định & lý do:**
+- Nêu trạng thái hệ thống trước, rồi nhắc đây chỉ là tham khảo — tránh để cụm “AI tự nhận” bị hiểu là một kết luận chẩn đoán.
+
+**Kết quả / số liệu:** frontend typecheck PASS.
+
+**Dang dở:**
+- [ ] Không có việc treo. Bước kế tiếp đề xuất: kiểm tra copy trạng thái từ chối cùng luồng upload thực tế.
+
+**Điểm vào phiên sau:** `webapp/frontend/src/components/DeferPanel.tsx` nếu cần tinh chỉnh copy cho trạng thái từ chối.
+
+**Cảnh báo cho tool sau:** Giữ rõ Research Use Only; không mô tả trạng thái tự nhận như một xác nhận chẩn đoán.
+
+---
+
+## S-178 · 2026-08-14 15:13 · codex
+
+**Mục tiêu phiên:** Làm rõ hơn trạng thái kết quả được hệ thống tự nhận.
+
+**Nhánh / commit:** `main` · `5798caf` → *(commit của phiên này)*
+
+**Đã động file:**
+- `webapp/frontend/src/components/DeferPanel.tsx` — dùng copy nhấn vào độ tin cậy để tham khảo và yêu cầu đối chiếu MRI/thông tin lâm sàng.
+- `WORKLOG.md` — ghi nhận phiên.
+
+**Quyết định & lý do:**
+- Không dùng “AI tự nhận” làm tiêu đề — cụm này mơ hồ và dễ bị hiểu là AI xác nhận chẩn đoán.
+
+**Kết quả / số liệu:** frontend typecheck PASS.
+
+**Dang dở:**
+- [ ] Không có việc treo. Bước kế tiếp đề xuất: thử nghiệm copy này trên luồng upload thực tế.
+
+**Điểm vào phiên sau:** `webapp/frontend/src/components/DeferPanel.tsx`.
+
+**Cảnh báo cho tool sau:** Trạng thái này chỉ mô tả policy selective prediction cho mục đích nghiên cứu, không phải xác nhận chẩn đoán.

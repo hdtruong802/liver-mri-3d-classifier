@@ -18,8 +18,8 @@ export function DeferPanel({ result }: { result: PredictResult }) {
         tone: 'warning',
       }
     : {
-        title: 'AI tự nhận kết quả ca này',
-        copy: 'Kết quả này đáp ứng tiêu chí tự nhận của hệ thống nghiên cứu. Không dùng để chẩn đoán hoặc thay thế đánh giá chuyên môn.',
+        title: 'Kết quả AI đủ độ tin cậy để tham khảo',
+        copy: 'Hệ thống đánh giá dự đoán này thuộc nhóm có độ tin cậy phù hợp để trả kết quả. Bác sĩ vẫn cần đối chiếu ảnh MRI và thông tin lâm sàng; không sử dụng riêng kết quả này để chẩn đoán.',
         icon: <ShieldCheck aria-hidden="true" />,
         tone: 'success',
       };
