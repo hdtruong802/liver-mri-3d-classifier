@@ -117,13 +117,32 @@ def test_b16_khop_thong_so_ban_goc():
 
 def test_moi_variant_deu_co_ten_file_trong_so():
     assert set(PRETRAINED_FILENAMES) == set(UNIFORMERV2_VARIANTS)
-    assert PRETRAINED_FILENAMES["b16"] == "k710_uniformerv2_b16_8x224.pyth"
 
 
-def test_nguon_trong_so_la_k710_khong_phai_k400():
-    """K710 là bản trung gian họ chỉ định cho finetune; K400 đã chuyên biệt hoá vào 400 lớp."""
-    assert "/k710/" in PRETRAINED_BASE_URL
-    assert "k710" in PRETRAINED_FILENAMES["b16"]
+def test_trong_so_la_ban_k400_k710_va_do_la_CHO_LECH_bat_buoc():
+    """⚠️ Neo lại một chỗ lệch, không phải một lựa chọn.
+
+    MODEL_ZOO chỉ định bản **K710 thuần** làm điểm khởi tạo cho finetune xuôi dòng, và đó là
+    bản đáng dùng nhất cho chuyển giao xuyên miền. Nhưng **bucket Aliyun của họ đã chết** —
+    mọi URL trả 404 (kiểm 2026-08-14). Bản còn sống là mirror của tác giả trên HuggingFace,
+    và nó đã finetune thêm một bước trên K400.
+
+    Test này tồn tại để chỗ lệch đó không lặng lẽ biến mất khỏi tài liệu: nếu ai đó sau này
+    tìm được bản K710 thuần thì phải sửa cả test này, tức phải đọc lý do.
+    """
+    ten = PRETRAINED_FILENAMES["b16"]
+    assert ten == "k400+k710_uniformerv2_b16_8x224.pyth"
+    assert "k710" in ten, "chuỗi pretrain vẫn đi qua K710"
+    assert "k400" in ten, "và nó KHÔNG dừng ở K710 — đây là chỗ lệch"
+    assert "huggingface.co" in PRETRAINED_BASE_URL, "Aliyun đã chết, phải là mirror HF"
+
+
+def test_dung_luong_ghim_khop_file_that():
+    """Cell tải dùng con số này để phân biệt checkpoint với một trang lỗi."""
+    from src.models.uniformerv2 import PRETRAINED_SIZE_BYTES
+
+    assert PRETRAINED_SIZE_BYTES == 458_289_355
+    assert 4e8 < PRETRAINED_SIZE_BYTES < 5e8
 
 
 def test_mac_dinh_doi_trong_so_pretrained():

@@ -2,8 +2,9 @@
 
 Nguồn kiến trúc: https://github.com/OpenGVLab/UniFormerV2
 (`slowfast/models/uniformerv2_model.py`, hàm `uniformerv2_b16`). Trọng số:
-``k710_uniformerv2_b16_8x224.pyth`` — MODEL_ZOO ghi rõ nhóm K710 *"serve as initialization
-points for downstream finetuning"*, tức đúng mục đích ở đây.
+``k400+k710_uniformerv2_b16_8x224.pyth``. ⚠️ MODEL_ZOO chỉ định bản **K710 thuần** cho việc
+này, nhưng bucket Aliyun của họ đã chết (mọi URL trả 404, kiểm 2026-08-14) — xem ghi chú ở
+`PRETRAINED_FILENAMES`.
 
 ## Nó KHÁC UniFormer-S ở đâu, và vì sao điều đó quan trọng
 
@@ -84,13 +85,29 @@ UNIFORMERV2_VARIANTS: dict[str, dict[str, Any]] = {
     },
 }
 
+# ⚠️⚠️ CHỖ LỆCH BẮT BUỘC: đây là bản **K400+K710**, không phải K710 thuần.
+#
+# MODEL_ZOO của họ liệt kê `k710_uniformerv2_b16_8x224.pyth` — bản trung gian được chỉ định
+# làm điểm khởi tạo cho finetune xuôi dòng, và đó là bản đáng dùng nhất cho chuyển giao xuyên
+# miền. **Nhưng toàn bộ bucket Aliyun của họ đã chết**: mọi URL trong MODEL_ZOO trả 404
+# (kiểm 2026-08-14, cả nhóm k710 lẫn k400).
+#
+# Bản còn sống là mirror trên HuggingFace của chính tác giả, và nó chỉ có bản **đã finetune
+# thêm trên K400**. Chuỗi pretrain vì thế là CLIP-400M -> K710 -> K400 chứ không dừng ở K710.
+#
+# Hệ quả, phải ghi vào báo cáo: đặc trưng đã chuyên biệt hoá thêm một bước về 400 lớp hành
+# động. Mức ảnh hưởng có lẽ nhỏ — ta bỏ hẳn đầu ra và finetune toàn mạng — nhưng đây là một
+# chỗ lệch THẬT so với thứ đã đề xuất, không phải một chi tiết vụn.
 PRETRAINED_FILENAMES: dict[str, str] = {
-    "b16": "k710_uniformerv2_b16_8x224.pyth",
+    "b16": "k400+k710_uniformerv2_b16_8x224.pyth",
 }
 
-# ⚠️ Host là Aliyun OSS Thượng Hải, KHÔNG phải HuggingFace. Kiểm tải được từ Kaggle trước khi
-# mở session train, và mirror thành Kaggle Dataset — đừng phát hiện nó chậm sau khi đã cam kết.
-PRETRAINED_BASE_URL = "https://pjlab-gvm-data.oss-cn-shanghai.aliyuncs.com/uniformerv2/k710/"
+# Mirror của tác giả UniFormerV2. Dấu `+` trong tên file hợp lệ trong đường dẫn URL (chỉ ở
+# query string nó mới nghĩa là dấu cách), đã kiểm cả hai dạng đều trả 206.
+PRETRAINED_BASE_URL = "https://huggingface.co/Andy1621/uniformerv2/resolve/main/"
+
+# Dung lượng thật, để cell tải phân biệt được file thật với một trang lỗi.
+PRETRAINED_SIZE_BYTES = 458_289_355
 
 # Độ phân giải và lưới token lúc pretrain, dùng để nội suy `positional_embedding`.
 PRETRAINED_RESOLUTION = 224
@@ -102,6 +119,7 @@ __all__ = [
     "PRETRAINED_BASE_URL",
     "PRETRAINED_FILENAMES",
     "PRETRAINED_RESOLUTION",
+    "PRETRAINED_SIZE_BYTES",
     "UNIFORMERV2_VARIANTS",
     "build_uniformerv2",
     "load_clip_k710_weights",

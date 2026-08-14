@@ -7499,3 +7499,67 @@ Với MC-dropout thì mất mát gần bằng 0: cấu hình chính có `head_dr
 **Điểm vào phiên sau:** không có việc treo, worktree sạch.
 
 **Cảnh báo cho tool sau:** repo còn **7 notebook**. Nếu cần TTA, MC-dropout, heatmap, hay lượt chạm test-104 lần 1 thì chúng nằm trong git history tại `605d797`, không phải đã mất.
+
+---
+
+## S-177 · 2026-08-14 · claude-code
+
+**Mục tiêu phiên:** notebook 24 nổ `HTTP Error 404` khi tải trọng số. Sửa.
+
+**Nhánh / commit:** `main` · `2128a9e` → *(commit của phiên này)*
+
+**Đã đụng file:** `src/models/uniformerv2.py`, `tests/test_uniformerv2.py`, `notebooks/24_uniformerv2.ipynb`, `AGENTS.md` §6.
+
+### Nguyên nhân: bucket của tác giả đã CHẾT, không phải lỗi mạng Kaggle
+
+Kiểm trực tiếp bằng `curl`, **cả ba** URL trong MODEL_ZOO đều trả 404:
+
+```
+404  .../uniformerv2/k710/k710_uniformerv2_b16_8x224.pyth
+404  .../uniformerv2/k400/k400_k710_uniformerv2_b16_8x224.pyth
+404  .../uniformerv2/k400/k400_uniformerv2_b16_8x224.pyth
+```
+
+Tức toàn bộ nhóm checkpoint trên Aliyun OSS không còn truy cập được. Thông báo lỗi tôi viết đoán ba nguyên nhân (Internet tắt · Aliyun chặn theo vùng · hết đĩa) — **cả ba đều sai**. Bài học: khi URL do mình ghi cứng mà trả 404 thì việc đầu tiên là **kiểm chính URL đó**, đừng đoán về môi trường chạy.
+
+### ⚠️ Bản K710 THUẦN không còn tồn tại ở đâu — phải đổi sang k400+k710
+
+Quét HuggingFace: chỉ có 4 repo liên quan tới UniFormerV2, và bản B/16 duy nhất còn sống là mirror của **chính tác giả**:
+
+```
+https://huggingface.co/Andy1621/uniformerv2/resolve/main/k400+k710_uniformerv2_b16_8x224.pyth
+458 289 355 bytes · trả 206 cho range request
+```
+
+**Đây là chỗ lệch so với chính đề xuất tôi đưa ra trước đó.** Tôi khuyến nghị K710 thuần vì nó là bản trung gian được chỉ định cho finetune xuôi dòng, và tổng quát hơn cho chuyển giao xuyên miền. Bản còn sống đã finetune thêm một bước trên K400 ⇒ chuỗi là CLIP-400M → K710 → **K400**, đặc trưng chuyên biệt hoá thêm về 400 lớp hành động.
+
+Mức ảnh hưởng có lẽ nhỏ (ta bỏ hẳn đầu ra và finetune toàn mạng), nhưng nó là **chỗ lệch thật**, không phải chi tiết vụn — đã ghi vào docstring module, config, notebook, `AGENTS.md`, và neo bằng một test.
+
+### Ba chi tiết kỹ thuật đã kiểm chứ không đoán
+
+1. **Dấu `+` trong tên file**: hợp lệ nguyên bản trong đường dẫn URL (chỉ ở query string nó mới nghĩa là dấu cách). Đã kiểm cả `+` lẫn `%2B`, cả hai trả 206.
+2. **Dung lượng 458 MB**, không phải ~1 GB như tôi ghi ban đầu. Cell tải giờ so với `PRETRAINED_SIZE_BYTES` đã ghim, sai số 1 MB — thay cho ngưỡng thô `> 3e8`. Một bản tải cụt 90% vẫn qua được ngưỡng thô, rồi cổng A sẽ nổ với thông báo về **kiến trúc**, hoàn toàn sai hướng.
+3. **Đầu ra 400 lớp thay vì 710** — không ảnh hưởng: `transformer.proj.2.` vốn đã nằm trong `DROPPED_PREFIXES`.
+
+### Test được viết để chỗ lệch không lặng lẽ biến mất
+
+`test_trong_so_la_ban_k400_k710_va_do_la_CHO_LECH_bat_buoc` khẳng định tên file chứa **cả** `k710` lẫn `k400`, và nguồn là HuggingFace. Nếu sau này ai tìm được bản K710 thuần thì phải sửa test này, tức **buộc phải đọc lý do** trước khi đổi.
+
+### Kết quả / số liệu
+
+**607 passed, 86 skipped** (trước 606; +1 test dung lượng, −1 test cũ khẳng định "k710 chứ không k400" nay đã sai, +1 test chỗ lệch). `ruff` sạch, gate PASS.
+
+⚠️ Vẫn chưa chạy fold nào. Cổng A trên Kaggle mới là chỗ xác nhận kiến trúc.
+
+### Dang dở
+
+- [ ] Chạy lại notebook 24 từ đầu; và fold 1 của `21_intra_mixup`, `23_uniformer_base`.
+- [ ] Bảng ablation + Holm; `README.md`; slide; dọn mã chết của web app.
+
+**Điểm vào phiên sau:** notebook 24 sẵn sàng chạy lại.
+
+**Cảnh báo cho tool sau:**
+
+- **Đừng đổi lại sang URL Aliyun.** Nó chết, không phải chậm.
+- Nếu tìm được bản **K710 thuần** cho B/16 thì đó là bản đúng hơn — nhưng phải sửa `test_trong_so_la_ban_k400_k710_va_do_la_CHO_LECH_bat_buoc` và ghi lại vào báo cáo.
+- Khi một URL ghi cứng trả 404: **kiểm chính URL đó trước**, đừng đoán về môi trường chạy. Thông báo lỗi ba-nguyên-nhân của tôi đã dẫn sai hướng đúng một lần.
