@@ -6977,3 +6977,50 @@ Không chạy test. **593 passed, 81 skipped** (trước 586/81; +7 test: 4 cho 
 - **`--oof-dir` của `test_report` phải là `runs/Uniformer3D`**, không phải run E4. `T` fit ở đó rồi áp mù lên test; trỏ nhầm là fit `T` trên một phân bố xác suất khác — **sai im lặng, không nổ**.
 - **Đừng chạy lại `notebooks/12_test104.ipynb`** — nó là hồ sơ của lần chạm 1.
 - Sau khi có số: mọi câu trong báo cáo phải nói rõ **lần chạm thứ hai**. Và **không** được viết "ta ngang đội hạng 2 / ngang CGHNet" trừ khi CI95 loại được mốc đó — với n=104 thì CI rộng ~±0.09 nên gần như chắc chắn không loại được.
+
+---
+
+## S-171 · 2026-08-14 · claude-code
+
+**Mục tiêu phiên:** người dùng đã upload checkpoint lên Kaggle ở `/kaggle/input/datasets/marcohoang/uniformer-best-weights` và yêu cầu sửa notebook 22 cho khớp.
+
+**Nhánh / commit:** `main` · `24b8464` → *(commit của phiên này)*
+
+**Đã đụng file:** `notebooks/22_test104_uniformer.ipynb`, `AGENTS.md` (§6 một dòng).
+
+### Đổi cách dò checkpoint: theo sha256, không theo đường dẫn
+
+Bản trước bắt Dataset phải giữ cấu trúc `fold_N/uniformer3D_best_N.pt`, và tôi đã viết hẳn yêu cầu đó vào notebook. **Ràng buộc ấy là thừa.**
+
+Bộ sha256 đã ghim trong pre-registration §B1 **tự nó là phép ánh xạ**: một file có sha khớp `pinned[3]` **là** checkpoint của fold 3, bất kể nó tên gì và nằm ở đâu. Dò theo tên thư mục thì chặt hơn về hình thức nhưng yếu hơn về bản chất — tên là thứ người ta đặt tay và đặt sai được, mã băm thì không.
+
+Cổng B giờ: băm mọi `.pt` dưới `/kaggle/input` → đối chiếu bộ ghim → dựng cây chuẩn `fold_N/best.pt` bằng **symlink** trong `/kaggle/working` để `test_once.find_checkpoints` nhận ra. File gốc chỉ-đọc không bị đụng, và không tốn thêm 425 MB đĩa.
+
+⚠️ **`test_once` vẫn băm lại lần nữa** và tự từ chối nếu lệch. Hai lớp kiểm **độc lập** (một ánh xạ, một xác minh), không phải một lớp lặp lại.
+
+Ba chốt phụ trong cổng: hai file cùng khớp một fold thì nổ · hai fold trỏ cùng một file thì nổ · file `.pt` không khớp bộ ghim thì **bỏ qua và in ra**, không phải lỗi (dataset khác có thể cũng chứa `.pt`).
+
+### Diễn tập khô với checkpoint THẬT ở bố cục xấu nhất
+
+Không dùng file giả. Trỏ `INPUT_ROOT` vào một cây cố ý làm khó: **phẳng**, tên `w1.pt`…`w5.pt` (không mang mẫu số fold nào), cộng một `.pt` rác không liên quan.
+
+Kết quả: ánh xạ đúng cả 5 fold, bỏ qua đúng file rác, cây chuẩn dựng xong và `find_checkpoints` nhận đủ 5 với sha khớp hết. **Cổng B PASS.**
+
+### Cũng sửa hai chỗ nhỏ
+
+- Thứ tự cổng bị đảo thành B trước A khi tôi chèn cổng mới vào mục cache. Đã trả về A (cache) rồi B (checkpoint).
+- `_os.system(f"rm -rf ...")` gán vào một biến không dùng → thay bằng `shutil.rmtree(..., ignore_errors=True)`.
+- Cell mount in **cây thư mục đã mount** kèm số `.npz` / `.pt` từng dataset trước khi kiểm, để lúc thiếu thì thấy ngay *cái gì* thiếu thay vì chỉ thấy một `assert` đỏ.
+
+### Kết quả / số liệu
+
+Không chạy test-104. **593 passed, 81 skipped**, gate PASS.
+
+### Dang dở
+
+- [ ] **Chạy notebook 22.** Push đã xong ở phiên trước (`24b8464` có trên remote, đã kiểm §B nằm trong bản remote).
+- [ ] Fold 1 của `21_intra_mixup`; bảng ablation + Holm; README; report; slide; web app trỏ sang `runs/Uniformer3D`.
+
+**Điểm vào phiên sau:** notebook 22 sẵn sàng, chưa chạy.
+
+**Cảnh báo cho tool sau:** đừng "siết" cổng B lại thành dò theo đường dẫn vì thấy nó lỏng — nó **chặt hơn**. Bộ sha ghim là phép ánh xạ, tên thư mục chỉ là quy ước.
