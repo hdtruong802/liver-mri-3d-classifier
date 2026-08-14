@@ -64,7 +64,7 @@ Không dùng folder picker: hành vi khác nhau giữa các trình duyệt. DICO
 
 ## Heatmap đa thì E4
 
-Xuất artefact offline bằng [`notebooks/11_model_heatmaps.ipynb`](../notebooks/11_model_heatmaps.ipynb). Mỗi `<case>.npz` phải có `phase_tokens`, `crop_refs`, `heatmaps_pred`, `annotation_masks`, `pred_index` và `heatmap_scale`; ba mảng cùng shape `[8, X, Y, Z]`. `heatmaps_pred` là `|input × gradient|` của **lớp model đã dự đoán**, chuẩn hoá bằng một thang chung trên cả tám thì.
+⚠️ **Phần này đã được chốt GỠ khỏi web app** (quyết định người dùng, 2026-08-14) và notebook sinh artefact đã bị xoá ở S-176. Mô tả dưới đây giữ lại cho tới khi mã được dọn. Artefact offline trước đây do một notebook chuyên dụng xuất ra. Mỗi `<case>.npz` phải có `phase_tokens`, `crop_refs`, `heatmaps_pred`, `annotation_masks`, `pred_index` và `heatmap_scale`; ba mảng cùng shape `[8, X, Y, Z]`. `heatmaps_pred` là `|input × gradient|` của **lớp model đã dự đoán**, chuẩn hoá bằng một thang chung trên cả tám thì.
 
 Backend chỉ chấp nhận đúng thứ tự phase E4 và shape khớp nhau. Nó render duy nhất theo thứ tự MRI → heatmap hổ phách → nhãn người chú giải fuchsia, nên nhãn không bị che hoặc bị hiểu nhầm là model segmentation.
 

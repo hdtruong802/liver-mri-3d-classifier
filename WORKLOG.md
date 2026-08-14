@@ -7443,3 +7443,59 @@ Không train. **606 passed, 86 skipped** (trước 595/81; +11 test, 5 skip vì 
 - **Notebook 24 là một cược, không phải một phép đo.** Bốn biến đổi cùng lúc — đừng viết "V2 tốt hơn nhờ CLIP" dù kết quả có dương.
 - Nếu fold 1 của V2 kém: kiểm `lr` (2e-5, lệch so với phần còn lại dự án) **trước** khi nghi kiến trúc.
 - `uniformerv2` là model **duy nhất** trong repo được viết lại từ mã của bên khác. Sửa nó thì chạy lại cổng A của notebook 24 trên checkpoint thật — test ở local không phủ được phần đó.
+
+---
+
+## S-176 · 2026-08-14 · claude-code
+
+**Mục tiêu phiên:** người dùng chốt "commit push toàn bộ mọi thứ", tức commit cả bốn notebook đang bị xoá trong working tree.
+
+**Nhánh / commit:** `main` · `605d797` → *(commit của phiên này)*
+
+**Đã đụng file:** xoá 4 notebook; `AGENTS.md` (8 chỗ), `src/eval/run.py`, `webapp/README.md`.
+
+### Đã xoá 4, theo quyết định của người dùng
+
+`08_mc_dropout` · `11_model_heatmaps` · `11_tta_e4` · `12_test104`.
+
+Bốn file này ở trạng thái ` D` (xoá trong working tree, chưa stage) **từ trước khi S-175 bắt đầu** — không do phiên nào của Claude Code xoá. S-175 đã cố ý **không** stage chúng và nêu ra để hỏi; phiên này người dùng trả lời "toàn bộ mọi thứ".
+
+Còn **7 notebook**: `01_eda`, `18_build_cache_cghnet`, `20_uniformer`, `21_intra_mixup`, `22_test104_uniformer`, `23_uniformer_base`, `24_uniformerv2`.
+
+⚠️ Cả bốn lấy lại được: `git show 605d797:notebooks/08_mc_dropout.ipynb`.
+
+### 10 tham chiếu treo, đã sửa hết trong CÙNG commit
+
+Xoá file mà để lại tham chiếu chết là tự tạo lỗi cho phiên sau. Nguyên tắc như S-168: **không xoá dòng mang kết quả khoa học** — nó là hồ sơ; chỉ gỡ đường dẫn tới file không còn.
+
+| chỗ | xử lý |
+|---|---|
+| `AGENTS.md` §5, hai mục kết quả (TTA, MC-dropout) | giữ nguyên số liệu, bỏ đường dẫn notebook |
+| `AGENTS.md` §6, ba dòng lệnh (TTA, MC-dropout, heatmap) | **xoá dòng** — lệnh không còn chạy được |
+| `AGENTS.md` §6, dòng "Build LẠI cache E4" | viết lại: giờ **chỉ web app** còn dùng cache E4, mà cả hai chỗ dùng đều đã chốt gỡ |
+| `AGENTS.md` §6, dòng test-104 lần 1 | giữ làm hồ sơ, trỏ sang `runs/test104/` + `src.eval.test_report` |
+| `AGENTS.md` §6, dòng `trust --members` | ghi rõ `mc_dropout.npz` đã có sẵn trong `runs/`, và phép này **vô nghĩa** trên cấu hình chính (`head_dropout: 0.0`) |
+| `src/eval/run.py` | bỏ tên notebook khỏi comment |
+| `webapp/README.md` | đánh dấu mục heatmap là **đã chốt gỡ**, giữ mô tả tới khi mã được dọn |
+
+Đã quét lại toàn repo (thêm `reports/` vào phạm vi quét lần này): **không còn tham chiếu treo nào.**
+
+### Hệ quả đáng chú ý
+
+Xoá `11_tta_e4` và `08_mc_dropout` **không mất kết quả nào** — mọi con số của chúng đã nằm trong `AGENTS.md` §5 và mọi `.npz` vẫn ở `runs/`. Cái mất là khả năng **sinh mới**: muốn chạy lại TTA hay MC-dropout thì phải khôi phục notebook từ git history.
+
+Với MC-dropout thì mất mát gần bằng 0: cấu hình chính có `head_dropout: 0.0` nên không có lớp Dropout nào, phép này trả K lượt giống hệt nhau.
+
+### Kết quả / số liệu
+
+**606 passed, 86 skipped** — không đổi so với S-175, vì `test_notebook_contract` đã tính trên 7 notebook từ trước (bốn file kia đã vắng mặt trong working tree suốt). `ruff` sạch, gate PASS.
+
+### Dang dở
+
+- [ ] Chạy fold 1 của `21_intra_mixup`, `23_uniformer_base`, `24_uniformerv2` — cả ba chưa chạy fold nào.
+- [ ] Bảng ablation + Holm; `README.md`; slide; gói tái lập.
+- [ ] Dọn mã chết của web app (ca demo + heatmap) theo quyết định 2026-08-14.
+
+**Điểm vào phiên sau:** không có việc treo, worktree sạch.
+
+**Cảnh báo cho tool sau:** repo còn **7 notebook**. Nếu cần TTA, MC-dropout, heatmap, hay lượt chạm test-104 lần 1 thì chúng nằm trong git history tại `605d797`, không phải đã mất.
