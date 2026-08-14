@@ -99,6 +99,47 @@ def test_proj_0_KHONG_duoc_phep_thieu():
     assert missing_pretrained_keys(["transformer.proj.0.weight"]) == ["transformer.proj.0.weight"]
 
 
+# --- dò tiền tố bọc của checkpoint ---------------------------------------------
+
+
+def test_do_duoc_tien_to_backbone():
+    """Lớp model của PySlowFast gán mạng vào `self.backbone`, nên checkpoint mang tiền tố đó.
+
+    Không gỡ thì **không khoá nào khớp** và thông báo lỗi lại nói "lệch kiến trúc" — sai hoàn
+    toàn. Đã tốn một vòng chạy Kaggle vì đúng chuyện này.
+    """
+    from src.models.uniformerv2 import detect_key_prefix
+
+    model = {"conv1.weight", "ln_pre.weight", "transformer.balance"}
+    ck = {"backbone." + k for k in model} | {"head.weight"}
+    assert detect_key_prefix(ck, model) == ("backbone.", 3)
+
+
+def test_khong_go_tien_to_khi_no_khong_giup():
+    """Hoà thì ưu tiên KHÔNG tiền tố — gỡ bừa một đoạn đầu là tự thêm rủi ro."""
+    from src.models.uniformerv2 import detect_key_prefix
+
+    model = {"conv1.weight", "ln_pre.weight"}
+    assert detect_key_prefix(model, model) == ("", 2)
+
+
+def test_sai_file_han_thi_so_khop_bang_0():
+    """Khác hẳn nhau thì không tiền tố nào cứu được, và chỗ gọi phải nổ với thông báo ĐÚNG."""
+    from src.models.uniformerv2 import detect_key_prefix
+
+    _, n = detect_key_prefix({"foo.a", "foo.b"}, {"conv1.weight", "ln_pre.weight"})
+    assert n == 0
+
+
+def test_loader_go_tien_to_truoc_khi_ket_luan_lech_kien_truc():
+    """Kiểm ở mức mã nguồn: thứ tự hai bước này là chỗ đã sai một lần."""
+    src = (repo_root() / "src" / "models" / "uniformerv2.py").read_text(encoding="utf-8")
+    than = src[src.index("def load_clip_k710_weights") :]
+    i_go = than.index("detect_key_prefix")
+    i_no = than.index("missing_pretrained_keys(missing)")
+    assert i_go < i_no, "phải gỡ tiền tố TRƯỚC khi kết luận lệch kiến trúc"
+
+
 # --- hợp đồng ------------------------------------------------------------------
 
 

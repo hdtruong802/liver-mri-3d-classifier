@@ -122,6 +122,7 @@ __all__ = [
     "PRETRAINED_SIZE_BYTES",
     "UNIFORMERV2_VARIANTS",
     "build_uniformerv2",
+    "detect_key_prefix",
     "load_clip_k710_weights",
     "missing_pretrained_keys",
     "token_layout",
@@ -172,6 +173,28 @@ def token_layout(
         "tokens_per_frame": grid * grid + 1,
         "tokens_global_block": t_out * (grid * grid + 1),
     }
+
+
+def detect_key_prefix(state_keys: Iterable[str], model_keys: Iterable[str]) -> tuple[str, int]:
+    """Dò tiền tố bọc của checkpoint. Trả ``(tiền_tố, số_khoá_khớp_sau_khi_gỡ)``.
+
+    Vì sao cần: lớp model đăng ký với PySlowFast gán mạng vào ``self.backbone``, nên checkpoint
+    mang tiền tố ``backbone.`` mà `strip_state_dict` không biết. Không gỡ thì **không khoá nào
+    khớp**, và thông báo lỗi lại nói "lệch kiến trúc" — sai hoàn toàn. Đã tốn một vòng.
+
+    Không ghi cứng ``backbone.``: hàm thử **mọi đoạn đầu** xuất hiện trong checkpoint, cộng
+    trường hợp không tiền tố, rồi chọn cái cho nhiều khoá khớp nhất. Một mirror gói theo kiểu
+    khác vẫn nạp được, mà khi thật sự lệch kiến trúc thì số khớp vẫn thấp và chỗ gọi nổ đúng lý do.
+
+    Hàm **thuần** trên tên khoá, không cần torch — nên test được ở local, đúng chỗ nó cần được.
+    """
+    dich = set(model_keys)
+    state = list(state_keys)
+    ung_vien = {""} | {k.split(".", 1)[0] + "." for k in state if "." in k}
+    diem = {p: len({k.removeprefix(p) for k in state if k.startswith(p)} & dich) for p in ung_vien}
+    # Hoà thì ưu tiên KHÔNG tiền tố: gỡ bừa một đoạn đầu khi nó không giúp gì là tự thêm rủi ro.
+    tot = max(sorted(diem), key=lambda p: (diem[p], p == ""))
+    return tot, diem[tot]
 
 
 def inflate_input_channels(weight: Any, in_channels: int) -> Any:
@@ -540,6 +563,15 @@ def load_clip_k710_weights(
     ⚠️ File ``.pyth`` là checkpoint của **PySlowFast**, không phải `state_dict` phẳng — phải
     bóc khoá ``model_state``. `strip_state_dict` dùng lại từ `uniformer3d.py` làm đúng việc đó
     và cũng gỡ tiền tố ``module.`` của DataParallel.
+
+    ⚠️⚠️ **Và còn một tầng bọc nữa mà `strip_state_dict` không biết:** lớp model đăng ký với
+    PySlowFast gán mạng vào ``self.backbone``, nên **mọi** khoá trong checkpoint mang tiền tố
+    ``backbone.``. Không gỡ nó thì **không khoá nào khớp** — 455/455 thiếu — và thông báo lỗi
+    sẽ nói "lệch kiến trúc", hoàn toàn sai hướng. Đã xảy ra một lần.
+
+    `detect_key_prefix` **tự dò** tiền tố thay vì ghi cứng ``backbone.``: nó thử gỡ từng đoạn
+    đầu có thể và chọn cái làm số khoá khớp nhiều nhất. Nhờ vậy một mirror khác gói theo kiểu
+    khác vẫn nạp được, và khi thật sự lệch kiến trúc thì thông báo mới nói đúng điều đó.
     """
     import torch
 
@@ -547,6 +579,19 @@ def load_clip_k710_weights(
     state = strip_state_dict(raw)
     dich = model.state_dict()
     adapted: list[str] = []
+
+    tien_to, n_khop = detect_key_prefix(state.keys(), dich.keys())
+    if tien_to:
+        state = {k.removeprefix(tien_to): v for k, v in state.items() if k.startswith(tien_to)}
+        adapted.append(f"gỡ tiền tố bọc {tien_to!r} khỏi {len(state)} khoá")
+    if n_khop < len(dich) // 2:
+        raise RuntimeError(
+            f"chỉ {n_khop}/{len(dich)} khoá của model tìm được trong checkpoint, kể cả sau khi "
+            f"thử gỡ tiền tố (tốt nhất: {tien_to!r}).\n"
+            f"  khoá checkpoint (5 đầu): {sorted(state)[:5]}\n"
+            f"  khoá model      (5 đầu): {sorted(dich)[:5]}\n"
+            "Nếu hai bên trông khác hẳn nhau thì đây là SAI FILE, không phải lệch kiến trúc."
+        )
 
     if "conv1.weight" in state:
         w = state["conv1.weight"]

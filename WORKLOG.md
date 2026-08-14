@@ -7563,3 +7563,59 @@ Mức ảnh hưởng có lẽ nhỏ (ta bỏ hẳn đầu ra và finetune toàn 
 - **Đừng đổi lại sang URL Aliyun.** Nó chết, không phải chậm.
 - Nếu tìm được bản **K710 thuần** cho B/16 thì đó là bản đúng hơn — nhưng phải sửa `test_trong_so_la_ban_k400_k710_va_do_la_CHO_LECH_bat_buoc` và ghi lại vào báo cáo.
 - Khi một URL ghi cứng trả 404: **kiểm chính URL đó trước**, đừng đoán về môi trường chạy. Thông báo lỗi ba-nguyên-nhân của tôi đã dẫn sai hướng đúng một lần.
+
+---
+
+## S-178 · 2026-08-14 · claude-code
+
+**Mục tiêu phiên:** cổng A của notebook 24 nổ "455 khoá thiếu ngoài DROPPED_PREFIXES". Sửa.
+
+**Nhánh / commit:** `main` · `3d4b294` → *(commit của phiên này)*
+
+**Đã đụng file:** `src/models/uniformerv2.py`, `tests/test_uniformerv2.py`, `notebooks/24_uniformerv2.ipynb`.
+
+### Nguyên nhân: một tầng bọc nữa mà `strip_state_dict` không biết
+
+**455/455 khoá thiếu = không khoá nào khớp.** Đó không phải "lệch kiến trúc" như thông báo nói; đó là tên khoá lệch toàn bộ.
+
+Lớp model đăng ký với PySlowFast gán mạng vào `self.backbone`, nên **mọi** khoá trong checkpoint mang tiền tố `backbone.`. `strip_state_dict` (dùng lại từ `uniformer3d.py`) gỡ được `model_state` và `module.`, nhưng không biết tầng này.
+
+⚠️ **Thông báo lỗi của tôi lại dẫn sai hướng lần thứ hai liên tiếp.** Lần trước nó đoán về môi trường chạy khi thật ra URL đã chết; lần này nó khẳng định "lệch KIẾN TRÚC" khi thật ra chỉ là tiền tố. Cả hai đều là **thông báo tự tin về một nguyên nhân chưa được kiểm**.
+
+### Sửa: tự dò tiền tố, và nổ kèm chẩn đoán chứ không kèm kết luận
+
+`detect_key_prefix(state_keys, model_keys)` thử **mọi đoạn đầu** xuất hiện trong checkpoint, cộng trường hợp không tiền tố, rồi chọn cái cho nhiều khoá khớp nhất. Không ghi cứng `backbone.`: một mirror gói theo kiểu khác vẫn nạp được.
+
+Hoà thì **ưu tiên không tiền tố** — gỡ bừa một đoạn đầu khi nó không giúp gì là tự thêm rủi ro.
+
+Và bộ nạp giờ nổ theo hai mức khác nhau:
+
+| tình huống | thông báo |
+|---|---|
+| khớp < một nửa số khoá | *"chỉ N/M khoá tìm được... nếu hai bên trông khác hẳn nhau thì đây là **SAI FILE**, không phải lệch kiến trúc"*, **kèm 5 khoá mẫu mỗi bên** |
+| khớp phần lớn nhưng vài khoá thiếu | *"lệch KIẾN TRÚC"* — giờ mới đúng nghĩa |
+
+Hàm dò là **hàm thuần trên tên khoá**, không cần torch, nên test được ở local — đúng chỗ nó cần được test.
+
+### Bốn test mới, trong đó một test neo THỨ TỰ
+
+Ba test cho hàm dò (có tiền tố · không tiền tố · sai file hẳn), cộng một test đọc mã nguồn khẳng định `detect_key_prefix` chạy **trước** `missing_pretrained_keys`. Thứ tự đó chính là chỗ đã sai: kết luận về kiến trúc trước khi gỡ tiền tố thì luôn ra kết luận sai.
+
+### Kết quả / số liệu
+
+**611 passed, 86 skipped** (trước 607; +4). `ruff` sạch, gate PASS.
+
+⚠️ Vẫn **chưa xác nhận được kiến trúc**. Phiên này chỉ sửa phần đọc tên khoá; cổng A trên Kaggle mới nói được trọng số có thật sự vào model không.
+
+### Dang dở
+
+- [ ] Chạy lại notebook 24. Nếu cổng A qua, đọc dòng "đã thích nghi" — nó phải nhắc gỡ tiền tố `backbone.`.
+- [ ] Fold 1 của `21_intra_mixup` và `23_uniformer_base`.
+- [ ] Bảng ablation + Holm; `README.md`; slide; dọn mã chết web app.
+
+**Điểm vào phiên sau:** notebook 24 sẵn sàng chạy lại.
+
+**Cảnh báo cho tool sau:**
+
+- **Đừng viết thông báo lỗi khẳng định nguyên nhân chưa kiểm.** Hai lần liên tiếp trong dự án này thông báo của tôi dẫn người dùng đi sai hướng: một lần đoán về môi trường khi URL đã chết, một lần nói "lệch kiến trúc" khi chỉ là tiền tố. Thông báo tốt nêu **triệu chứng và cách phân biệt**, không nêu kết luận.
+- `strip_state_dict` của `uniformer3d.py` **không** gỡ `backbone.`. Model nào nạp checkpoint PySlowFast cũng phải qua `detect_key_prefix`.
