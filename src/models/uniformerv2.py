@@ -13,11 +13,19 @@ này, nhưng bucket Aliyun của họ đã chết (mọi URL trả 404, kiểm 2
 **theo từng lát**, cộng hai thứ gắn thêm —
 
 * `lmhra1`/`lmhra2` — MHRA cục bộ, conv 3D depthwise trộn theo trục lát **bên trong** mỗi block;
-* `dec` — bộ trích xuất cross-attention, để một `temporal_cls_token` học được hút thông tin từ
-  bốn block cuối (`return_list`).
+* `dpe` + `dec` — conv vị trí depthwise và bộ trích xuất cross-attention, để một
+  `temporal_cls_token` học được hút thông tin từ bốn block cuối (`return_list`).
 
 Hệ quả thực tế: **không dùng lại được gì của `uniformer3d.py`** — không `stage_token_counts`,
 không cổng B theo stage, không `DROPPED_PREFIXES` cũ.
+
+⚠️⚠️ **Bản B/16 được phát hành TẮT `lmhra`.** Config đi kèm chính checkpoint đang dùng ghi
+``NO_LMHRA: True`` và ``TEMPORAL_DOWNSAMPLE: False``. Nghĩa là với B/16, tương tác theo trục
+lát đến **hoàn toàn** từ khối global (`dpe` + cross-attention trên T×L token), không phải từ
+bên trong backbone — các block ViT chạy thuần tuý theo từng lát, y như ViT ảnh.
+
+Con số neo lại điều đó: model có **483** khoá khi bật `lmhra`, **219** khi tắt, và checkpoint
+có đúng **219**. Bật `lmhra` thì 264 tham số kia không nhận được trọng số nào và cổng A đỏ.
 
 ## Ba chỗ CỐ Ý lệch khỏi bản gốc, cả ba đều bắt buộc và đều phải ghi vào báo cáo
 
@@ -254,9 +262,12 @@ def build_uniformerv2(
     num_classes: int = NUM_CLASSES,
     input_resolution: int = 112,
     t_size: int = 14,
-    temporal_downsample: bool = True,
+    # Hai mặc định dưới đây khớp config đi kèm checkpoint B/16 (`NO_LMHRA: True`,
+    # `TEMPORAL_DOWNSAMPLE: False`). Đổi chúng là đổi tập khoá của model, và cổng A sẽ đỏ —
+    # đó là hành vi đúng, không phải phiền toái.
+    temporal_downsample: bool = False,
     dw_reduction: float = 1.5,
-    no_lmhra: bool = False,
+    no_lmhra: bool = True,
     double_lmhra: bool = True,
     mlp_factor: float = 4.0,
     mlp_dropout: float = 0.5,

@@ -38,18 +38,34 @@ requires_torch = pytest.mark.skipif(torch is None, reason="dựng mạng cần t
 
 
 def test_bo_cuc_token_o_hinh_hoc_that():
-    """112 với patch 16 cho lưới 7×7 — đây là con số phải đọc bằng mắt trước khi train."""
-    got = token_layout((14, 112, 112), 16, temporal_downsample=True)
+    """112 với patch 16 cho lưới 7×7, và cấu hình dùng thật GIỮ ĐỦ 14 lát.
+
+    `temporal_downsample=False` là giá trị trong config đi kèm checkpoint B/16.
+    """
+    got = token_layout((14, 112, 112), 16, temporal_downsample=False)
     assert got["grid"] == 7
     assert got["tokens_per_frame"] == 50  # 7*7 + 1 token lớp
+    assert got["frames_after_conv1"] == 14
+    assert got["tokens_global_block"] == 700
+
+
+def test_bat_ha_mau_thoi_gian_thi_mat_mot_nua_so_lat():
+    """Khoá thoát nếu cổng C báo quá đắt — rẻ một nửa, đổi lại mất độ phân giải theo lát."""
+    got = token_layout((14, 112, 112), 16, temporal_downsample=True)
     assert got["frames_after_conv1"] == 7
     assert got["tokens_global_block"] == 350
 
 
-def test_tat_ha_mau_thoi_gian_thi_giu_du_lat():
-    got = token_layout((14, 112, 112), 16, temporal_downsample=False)
-    assert got["frames_after_conv1"] == 14
-    assert got["tokens_global_block"] == 700, "gấp đôi — đây là cái giá của việc giữ đủ lát"
+def test_mac_dinh_khop_config_di_kem_checkpoint():
+    """⚠️ Neo hai mặc định đã tốn một vòng chạy Kaggle để tìm ra.
+
+    Config đi kèm checkpoint B/16 ghi ``NO_LMHRA: True`` và ``TEMPORAL_DOWNSAMPLE: False``.
+    Đặt ngược lại thì tập khoá của model không còn khớp checkpoint: bật `lmhra` thêm 264
+    tham số mà checkpoint **không có**, và cổng A đỏ với thông báo về số khoá.
+    """
+    sig = inspect.signature(build_uniformerv2)
+    assert sig.parameters["no_lmhra"].default is True
+    assert sig.parameters["temporal_downsample"].default is False
 
 
 def test_bo_cuc_luc_pretrain_de_doi_chieu():
@@ -268,6 +284,13 @@ def test_config_base_khac_uniformer_s_dung_hai_khoa():
     lech = {k for k in set(a) | set(b) if a.get(k, "<vắng>") != b.get(k, "<vắng>")}
     assert lech == {"model.variant", "output_dir"}, f"lệch ngoài dự kiến: {lech}"
     assert b["model.variant"] == "base"
+
+
+def test_config_v2_khop_config_di_kem_checkpoint():
+    """Hai khoá này quyết định tập khoá của model có khớp checkpoint hay không."""
+    cfg = yaml.safe_load((repo_root() / "configs" / "uniformerv2_b16.yaml").read_text("utf-8"))
+    assert cfg["model"]["no_lmhra"] is True, "checkpoint B/16 được train KHÔNG có lmhra"
+    assert cfg["model"]["temporal_downsample"] is False, "checkpoint giữ đủ số lát"
 
 
 def test_config_v2_dung_dung_ten_model_va_hinh_hoc():

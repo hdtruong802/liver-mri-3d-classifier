@@ -7619,3 +7619,74 @@ Ba test cho hàm dò (có tiền tố · không tiền tố · sai file hẳn), 
 
 - **Đừng viết thông báo lỗi khẳng định nguyên nhân chưa kiểm.** Hai lần liên tiếp trong dự án này thông báo của tôi dẫn người dùng đi sai hướng: một lần đoán về môi trường khi URL đã chết, một lần nói "lệch kiến trúc" khi chỉ là tiền tố. Thông báo tốt nêu **triệu chứng và cách phân biệt**, không nêu kết luận.
 - `strip_state_dict` của `uniformer3d.py` **không** gỡ `backbone.`. Model nào nạp checkpoint PySlowFast cũng phải qua `detect_key_prefix`.
+
+---
+
+## S-179 · 2026-08-14 · claude-code
+
+**Mục tiêu phiên:** cổng A nổ "chỉ 219/483 khoá khớp". Sửa.
+
+**Nhánh / commit:** `main` · `37bbce2` → *(commit của phiên này)*
+
+**Đã đụng file:** `configs/uniformerv2_b16.yaml`, `src/models/uniformerv2.py`, `tests/test_uniformerv2.py`, `notebooks/24_uniformerv2.ipynb`.
+
+### Con số 219 tự nó chỉ ra nguyên nhân
+
+Lần này thông báo lỗi làm đúng việc: nó in **khoá mẫu hai bên**, và chúng **giống hệt nhau** (`class_embedding`, `conv1.weight`, `ln_pre.bias`…). Tức tiền tố đã gỡ đúng và kiến trúc cơ bản khớp — chỉ thiếu một nhóm module.
+
+Đếm thử: model không có `lmhra` thì mỗi block ViT còn 12 khoá, ×12 block = 144, cộng 75 khoá ngoài block (conv1, embedding, `dpe`, `dec`, `proj`…) = **đúng 219**. Với `lmhra` bật thì mỗi block thêm 22 khoá ⇒ 483.
+
+Kiểm config đi kèm chính checkpoint đó (`exp/k400/k400+k710_b16_f8x224/config.yaml`) thay vì đoán:
+
+```
+NO_LMHRA: True
+TEMPORAL_DOWNSAMPLE: False
+```
+
+**Cả hai đều ngược với giá trị tôi đặt.**
+
+### Hệ quả về mặt kiến trúc, không chỉ về mặt cấu hình
+
+`NO_LMHRA: True` nghĩa là bản B/16 được phát hành **không có MHRA cục bộ** — phần conv 3D trộn theo trục lát bên trong mỗi block ViT. Nên với B/16, tương tác theo trục lát đến **hoàn toàn** từ khối global (`dpe` + cross-attention trên T×L token); các block ViT chạy thuần tuý theo từng lát, y như ViT ảnh.
+
+⚠️ **Điều này sửa cách tôi đã mô tả kiến trúc ở ba chỗ** (docstring module, config, notebook). Mô tả cũ — "ViT + MHRA cục bộ bên trong mỗi block + decoder" — đúng với bài báo nhưng **sai với bản B/16 đang dùng**.
+
+`TEMPORAL_DOWNSAMPLE: False` thì hoá ra lại hợp với dữ liệu của ta: giữ đủ **14 lát** thay vì hạ còn 7. 14 lát ở 3mm vốn đã mỏng. Cái giá là gấp đôi token ở khối global (700 thay vì 350) — cổng C sẽ đo.
+
+### Đã đổi mặc định của hàm dựng, không chỉ của config
+
+`build_uniformerv2` giờ mặc định `no_lmhra=True`, `temporal_downsample=False`. Lý do: mặc định của một hàm dựng nên là **giá trị khớp checkpoint**, không phải giá trị của bài báo. Ai gọi hàm mà không đọc config vẫn ra model nạp được.
+
+Thêm ba test: hai neo mặc định của hàm dựng, một neo hai khoá trong config. Cộng với bố cục token đã đổi sang `temporal_downsample=False` làm ca chính.
+
+### Ba vòng, ba nguyên nhân khác nhau — và một mẫu chung
+
+| vòng | triệu chứng | nguyên nhân thật | thông báo của tôi nói gì |
+|---|---|---|---|
+| 1 | HTTP 404 | bucket của tác giả đã chết | đoán về Internet/vùng/đĩa — **sai cả ba** |
+| 2 | 455/455 khoá thiếu | tiền tố `backbone.` | "lệch KIẾN TRÚC" — **sai** |
+| 3 | 219/483 khoá thiếu | `no_lmhra` ngược | in khoá mẫu hai bên — **đủ để tự chẩn** |
+
+Vòng 3 là vòng duy nhất thông báo lỗi giúp được, và nó là vòng duy nhất thông báo **nêu triệu chứng kèm cách phân biệt** thay vì nêu kết luận. Đây là bằng chứng trực tiếp cho quy tắc đã ghi ở S-178.
+
+⚠️ Và cả ba vòng đều là thứ **đọc tài liệu gốc sẽ tránh được**: MODEL_ZOO cho URL, mã wrapper cho tiền tố, config đi kèm cho `no_lmhra`. Tôi đã đọc mã kiến trúc nhưng **không đọc config đi kèm checkpoint** — đó là chỗ hổng, không phải xui.
+
+### Kết quả / số liệu
+
+**613 passed, 86 skipped** (trước 611; +3, và một test đổi ca chính). `ruff` sạch, gate PASS.
+
+⚠️ Vẫn chưa có fold nào chạy. Cổng A trên Kaggle mới xác nhận được.
+
+### Dang dở
+
+- [ ] Chạy lại notebook 24. Cổng A xanh thì **số khoá phải là 219**; thấy 483 nghĩa là `no_lmhra` lại bị đặt sai.
+- [ ] Fold 1 của `21_intra_mixup` và `23_uniformer_base`.
+- [ ] Bảng ablation + Holm; `README.md`; slide; dọn mã chết web app.
+
+**Điểm vào phiên sau:** notebook 24 sẵn sàng chạy lại.
+
+**Cảnh báo cho tool sau:**
+
+- **Đọc config đi kèm checkpoint, không chỉ mã kiến trúc.** Mặc định của hàm factory trong mã gốc (`no_lmhra=False`) **khác** giá trị dùng để train checkpoint được phát hành (`True`). Ba vòng chạy Kaggle đã mất vì chỗ này.
+- Bản B/16 **không có MHRA cục bộ**. Đừng mô tả nó như "ViT có conv thời gian bên trong" trong báo cáo.
+- Nếu bật `no_lmhra: false` thì đó là một **ablation riêng** với 264 tham số học từ đầu, không phải mặc định — và cổng A sẽ đỏ đúng như thiết kế.

@@ -56,19 +56,31 @@ model:
   input_resolution: 112
   t_size: 14                    # số lát TRƯỚC conv1
 
-  # true  = conv1 kernel (3,16,16) stride (2,16,16) -> 7 lát vào transformer. Đúng cấu hình
-  #         `uniformerv2_b16` của họ, và rẻ hơn một nửa ở mọi block.
-  # false = kernel (1,16,16) stride 1 -> giữ đủ 14 lát, đắt gấp đôi.
+  # [GỐC] `TEMPORAL_DOWNSAMPLE: False` trong config đi kèm chính checkpoint này.
+  # conv1 kernel (1,16,16) stride (1,16,16) ⇒ **giữ đủ 14 lát**, không hạ mẫu.
   #
-  # ⚠️ Chọn `true` KHÔNG mất gì về trọng số: `conv1` phải khởi tạo lại cho 8 kênh trong cả hai
-  # trường hợp, nên hình dạng kernel là lựa chọn tự do. Cái mất là **độ phân giải theo lát**:
-  # 14 lát ở 3mm vốn đã mỏng, hạ còn 7 là một nhượng bộ thật. Đây là ablation MỘT khoá đáng
-  # chạy nếu fold đầu cho kết quả sát nút.
-  temporal_downsample: true
+  # Đây cũng là lựa chọn đúng cho dữ liệu của ta: 14 lát ở 3mm vốn đã mỏng, hạ còn 7 là một
+  # nhượng bộ thật. Cái giá là **gấp đôi token** ở khối global (14×50 = 700 thay vì 350).
+  #
+  # ⚠️ Đặt `true` KHÔNG mất gì về trọng số (`conv1` phải khởi tạo lại cho 8 kênh trong cả hai
+  # trường hợp), nên nó là khoá thoát hợp lệ nếu cổng C báo quá đắt — nhưng khi đó ghi rõ là
+  # một chỗ lệch nữa.
+  temporal_downsample: false
 
-  dw_reduction: 1.5             # [GỐC] hệ số thu hẹp của MHRA cục bộ
-  no_lmhra: false               # [GỐC] giữ MHRA cục bộ — đây là phần "UniFormer" của V2
-  double_lmhra: true            # [GỐC] hai lần mỗi block, trước và sau self-attention
+  # ⚠️⚠️ `NO_LMHRA: True` trong config đi kèm checkpoint. Nghĩa là bản B/16 được phát hành
+  # **KHÔNG có MHRA cục bộ** — phần conv 3D trộn theo trục lát bên trong mỗi block ViT.
+  #
+  # Điều này đổi cách mô tả kiến trúc: với B/16, tương tác theo trục lát đến **hoàn toàn** từ
+  # khối global (conv `dpe` + cross-attention trên T×L token), không phải từ bên trong backbone.
+  # Phần "UniFormer" nằm ở khối global, không ở các block ViT.
+  #
+  # ⚠️ Đặt `false` thì các module lmhra được TẠO nhưng **không nhận trọng số nào** — chúng khởi
+  # tạo ngẫu nhiên, và `pos_embed[3]` khởi tạo 0 nên bắt đầu là ánh xạ đồng nhất. Không hỏng,
+  # nhưng là 264 tham số mới học từ đầu trên 312 ca, và cổng A sẽ đỏ vì checkpoint thiếu chúng.
+  # Muốn thử thì đó là một ablation riêng, không phải mặc định.
+  no_lmhra: true
+  double_lmhra: true            # vô hiệu khi no_lmhra = true; giữ để đối chiếu với bản gốc
+  dw_reduction: 1.5             # vô hiệu khi no_lmhra = true
   mlp_factor: 4.0               # [GỐC]
 
   # [GỐC] mặc định của họ cho b16. Cao bất thường so với phần còn lại của dự án, nhưng đây là
