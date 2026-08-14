@@ -7219,3 +7219,27 @@ Kết xuất PDF chạy được (365 KiB, gitignore đúng). **595 passed, 81 s
 - Report dùng **quy ước viết khác** `AGENTS.md`: dấu phẩy thập phân, CI dạng `[0,7746; 0,8547]`, không emoji, không tên thí nghiệm nội bộ. Sửa report thì giữ đúng quy ước đó.
 - Mọi câu trong report nhắc tập test đều đã nói rõ **lần chạm thứ hai**. Đừng bỏ cụm đó khi biên tập.
 - **Không** thêm câu "ngang hạng 2 / ngang CGHNet / tiệm cận SOTA" — CI ±0,09 không loại được mốc nào từ 0,709 trở lên.
+
+---
+
+## S-175 · 2026-08-14 14:57 · codex
+
+**Mục tiêu phiên:** Commit phần báo cáo W4 còn thay đổi theo yêu cầu người dùng, rồi khởi động web app.
+
+**Nhánh / commit:** `main` · `e721b2d` → *(commit của phiên này)*
+
+**Đã động file:**
+- `reports/W4_REPORT.md` — giữ phần biên tập đang có; khôi phục cụm bắt buộc nêu đây là lần đánh giá test thứ hai.
+- `WORKLOG.md` — ghi nhận phiên commit và chạy ứng dụng.
+
+**Quyết định & lý do:**
+- Giữ rõ trạng thái lần chạm test thứ hai — đây là yêu cầu minh bạch khoa học đã khoá trong `AGENTS.md`.
+
+**Kết quả / số liệu:** quality gate Windows PASS; không chạy thí nghiệm hay đánh giá test.
+
+**Dang dở:**
+- [ ] Khởi động và kiểm tra frontend/backend ở phiên kế tiếp trong cùng lượt làm việc.
+
+**Điểm vào phiên sau:** Xác nhận web app lắng nghe ở frontend `localhost:5173` và backend `localhost:8000`.
+
+**Cảnh báo cho tool sau:** Không chạy lại hoặc chạm thêm tập test-104 nếu chưa có phê duyệt và pre-registration §C.
