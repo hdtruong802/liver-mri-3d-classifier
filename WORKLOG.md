@@ -6900,3 +6900,80 @@ Không train. Không chạy test. **586 passed, 81 skipped**, `ruff check` sạc
 - **Chạm test-104 lần hai cần đủ ba thứ:** xin phép người dùng · pre-registration MỚI commit trước khi chạy · cập nhật `PINNED_SHA256` sang checkpoint UniFormer. Và phải báo rõ đây là lần thứ **hai**.
 - **Đừng ensemble UniFormer với E4.** Đã đo ở mọi trọng số trên đủ 394 ca.
 - **MC-dropout vô nghĩa trên cấu hình này** (`head_dropout: 0.0`). Notebook 08 sẽ chạy trơn và trả K lượt giống hệt nhau — không nổ, chỉ vô nghĩa.
+
+---
+
+## S-170 · 2026-08-14 · claude-code
+
+**Mục tiêu phiên:** người dùng yêu cầu notebook chạy 5 model UniFormer trên test-104, có đo latency. Đây là **lần chạm test-104 thứ hai** — người dùng cho phép trực tiếp.
+
+**Nhánh / commit:** `main` · `1209615` → *(commit của phiên này)*
+
+**Đã đụng file:** `docs/TEST104_PREREGISTRATION.md` (thêm §B), `src/eval/test_once.py`, `tests/test_test104.py`, `notebooks/22_test104_uniformer.ipynb` (mới), `AGENTS.md` (§5 mục test-104, §6 ba dòng).
+
+### ⚠️ CHƯA CHẠY. Ba việc phải xong trước khi chạy
+
+1. **`git push`** — notebook clone từ GitHub, và cổng 0 kiểm pre-registration bằng `git log` trên bản clone. Commit mà không push thì cổng 0 nổ.
+2. Upload 5 checkpoint thành Kaggle Dataset **giữ nguyên cấu trúc `fold_N/`**.
+3. Mount cache lưới `128×128×16` (đủ 498 ca, không phải 394).
+
+### Pre-registration §B — chốt trước khi nhìn số
+
+Khoá: `configs/uniformer_s.yaml` không sửa · ensemble 5 fold trung bình softmax · không TTA/EMA/mixup · không ensemble với E4 hay CGHNet (đã đo làm tệ đi ở mọi trọng số).
+
+**Hai chỗ ĐỔI so với §A, cả hai có căn cứ từ out-of-fold, không có gì của test:**
+
+| | §A (lần 1) | §B (lần 2) | căn cứ |
+|---|---|---|---|
+| số chính về calibration | temp-scaled | **CHƯA hiệu chỉnh** | `T` chỉ 1.45–1.53 (E4 cần 2.05–3.26); hiệu chỉnh hạ ECE chút ít nhưng **làm MCE xấu đi 74%** và đẩy sang thiếu tự tin |
+| điểm xếp hạng defer | `−epistemic` | **`max-prob`** | lần chạm 1 đã bác luận điểm S-087: hai cách không khác nhau (P=0.90) và max-prob một mình cho +0.070 (P=0.016) |
+
+**Ước lượng ghi trước:** out-of-fold 0.8147, thiên lệch chọn epoch +0.0797, mức hụt OOF→test đo trên E4 là −0.069 ⇒ **≈ 0.746**, khoảng hợp lý **0.72–0.79**. Ghi ở đây để sau không thể nói "đúng như dự đoán" với bất kỳ kết quả nào.
+
+**Một dự đoán có thể bị bác:** selective **KHÔNG** đạt ý nghĩa thống kê ở coverage 80% (trên OOF: +0.017 P=0.29, và 0/64 lỗi có biên < 0.10). Nếu nó đạt thì dự đoán này sai và phải ghi rõ là sai.
+
+### Hai thay đổi trong `test_once.py`
+
+1. **`find_checkpoints` nhận thêm bố cục `fold_N/<tiền tố>_best_N.pt`** — checkpoint UniFormer tên `uniformer3D_best_1.pt` nên **không** khớp hai mẫu cũ, hàm trả về `{}`. Bố cục mới **chỉ** được nhận khi số trong tên file khớp số trong tên thư mục cha: hai nguồn độc lập cùng nói một fold. Chấp riêng tên file thì một thư mục gom lẫn nhiều run sẽ ghép nhầm, và hậu quả là "ensemble" đếm một model hai lần với con số ra vẫn trông hợp lý.
+
+2. **`PINNED_SHA256` → `PIN_SETS`** có khoá theo lần chạm, cộng tham số `pin_set` và cờ `--pin-set`. Giữ bộ cũ sau khi đã dùng là có chủ đích: nó là hồ sơ để về sau đối chiếu `test_run_meta.json` cũ với checkpoint đã sinh ra nó. Mặc định vẫn là `e4`, nên chạy bộ khác mà quên đổi thì **nổ vì lệch sha** — hỏng về phía an toàn. Tên `PINNED_SHA256` giữ nguyên, trỏ `PIN_SETS["e4"]`.
+
+Đã kiểm: không mã băm nào trùng giữa hai bộ.
+
+### Diễn tập khô phần dò checkpoint
+
+Lượt chạm chỉ có một lần, không được để nó chết vì logic dò. Đã mô phỏng 5 bố cục mount:
+
+| bố cục | kết quả |
+|---|---|
+| `<ds>/fold_N/uniformer3D_best_N.pt` | ✓ nhận |
+| `<ds>/runs/Uniformer3D/fold_N/...` (lồng sâu) | ✓ nhận |
+| `<ds>/best_fold_N.pt` (bố cục cũ) | ✓ nhận |
+| `<ds>/uniformer3D_best_N.pt` **phẳng** | ✗ từ chối — đúng ý |
+| `fold_1/uniformer3D_best_2.pt` **lệch số** | ✗ từ chối — đúng ý |
+
+Hai cái bị từ chối là cố ý, và notebook nói rõ trong phần "Cần mount gì" để người dùng chuẩn bị Dataset đúng.
+
+### Latency
+
+**Đã có sẵn trong `predict_members`** từ S-116 (`per_case_1model_ms`, `per_case_ensemble_ms`), không phải viết mới. Notebook in nó ngay sau khi chạm — ngoại lệ duy nhất của luật "không in metric ở đây", vì nó chỉ đo được trong lúc chạy và lần chạm 1 đã bỏ lỡ rồi không truy lại được.
+
+⚠️ Ghi rõ trong notebook và phải vào báo cáo: **đây là latency theo LÔ trên T4, không phải độ trễ một ca đơn lẻ.** Web app phục vụ từng ca nên sẽ chậm hơn, và con số này **không** bao gồm thời gian đọc + tiền xử lý NIfTI.
+
+### Kết quả / số liệu
+
+Không chạy test. **593 passed, 81 skipped** (trước 586/81; +7 test: 4 cho `find_checkpoints`/`PIN_SETS`, 3 cho notebook mới). `ruff check` sạch. Gate PASS.
+
+### Dang dở
+
+- [ ] **Push, rồi chạy notebook 22.** Sau đó `test_report --run-dir runs/test104_uniformer --oof-dir runs/Uniformer3D`.
+- [ ] Fold 1 của `21_intra_mixup`.
+- [ ] Bảng ablation + Holm; README; report; slide; web app trỏ sang `runs/Uniformer3D`.
+
+**Điểm vào phiên sau:** notebook 22 sẵn sàng, chưa chạy. Chưa push.
+
+**Cảnh báo cho tool sau:**
+
+- **`--oof-dir` của `test_report` phải là `runs/Uniformer3D`**, không phải run E4. `T` fit ở đó rồi áp mù lên test; trỏ nhầm là fit `T` trên một phân bố xác suất khác — **sai im lặng, không nổ**.
+- **Đừng chạy lại `notebooks/12_test104.ipynb`** — nó là hồ sơ của lần chạm 1.
+- Sau khi có số: mọi câu trong báo cáo phải nói rõ **lần chạm thứ hai**. Và **không** được viết "ta ngang đội hạng 2 / ngang CGHNet" trừ khi CI95 loại được mốc đó — với n=104 thì CI rộng ~±0.09 nên gần như chắc chắn không loại được.

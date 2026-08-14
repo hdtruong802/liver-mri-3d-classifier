@@ -200,9 +200,13 @@ Ba điều rút ra, đều đã được dùng để định hướng thí nghi�
 
 **Bất kỳ ai định debug chất lượng model đều phải đối chiếu với bảng này trước.** Ba phiên (S-036, S-039, S-040) đã đốt ba run GPU để đoán nguyên nhân mà không hề biết điểm số nào là đạt được — cả ba chẩn đoán đều sai.
 
-### 🔒 TEST-104 OFFICIAL — đã chạm, lần thứ nhất và duy nhất (2026-08-07, WORKLOG S-110)
+### 🔒 TEST-104 OFFICIAL — lần chạm 1 (2026-08-07, WORKLOG S-110)
 
-> **Test-104 ĐÃ BỊ CHẠM.** Lần chạm thứ hai cần xin phép người dùng lại và một pre-registration mới, và phải được báo cáo rõ là lần thứ hai (AGENTS.md §3.4, §10). Protocol đã khoá trước khi chạy: [`docs/TEST104_PREREGISTRATION.md`](docs/TEST104_PREREGISTRATION.md), commit `56baa41`.
+> **Test-104 ĐÃ BỊ CHẠM MỘT LẦN.** Mục này là kết quả của lần đó, cấu hình E4.
+>
+> 🔓 **Lần chạm 2 đã được cho phép và đã khoá protocol** (2026-08-14, WORKLOG S-170): UniFormer ensemble 5 fold, [`docs/TEST104_PREREGISTRATION.md`](docs/TEST104_PREREGISTRATION.md) **§B**, chạy bằng `notebooks/22_test104_uniformer.ipynb`. **Chưa chạy.** Khi có kết quả, mọi báo cáo phải nói rõ đó là **lần chạm thứ hai** và tập test đã bị nhìn một lần trước đó.
+>
+> Lần chạm **thứ ba** lại cần xin phép và một pre-registration §C mới (AGENTS.md §3.4, §10). Protocol lần 1 khoá ở cùng file, mục §A, commit `56baa41`.
 
 Cấu hình: E4 (`baseline_3dpatch.yaml` + cache lesion-tight · 112×112×32 · per-phase) · **ensemble 5 fold**, trung bình softmax · không TTA · không EMA/pretrained.
 
@@ -1249,7 +1253,9 @@ Bootstrap **ghép cặp** trên hiệu (2000 lần, phân tầng, mức bệnh n
 | **Bảng trustworthiness** (CPU) | `python -m src.eval.trust --run-dir runs/E4_cv_results` | sẵn sàng (W3); calibration + selective từ cùng các `.npz`. Temperature fit **leave-one-fold-out**, không fit gộp — xem docstring module |
 | Bảng trên + bất định epistemic | `python -m src.eval.trust --run-dir runs/E4_cv_results --members` | sẵn sàng (W3); cần `fold*/mc_dropout.npz` sinh từ `notebooks/08_mc_dropout.ipynb` |
 | **MC-dropout** (GPU, ~8 phút) | chạy `notebooks/08_mc_dropout.ipynb` trên Kaggle | sẵn sàng (W3); inference thuần, **không train**. Cần mount **hai** dataset: cache E4, và checkpoint (`best-weights`: `best_fold_1..5.pt` phẳng, hoặc `fold_N/best.pt`) |
-| **Test-104 — CHẠM 1 LẦN** (GPU, ~1 phút) | `notebooks/12_test104.ipynb` trên Kaggle, hoặc `python -m src.eval.test_once --ckpt-dir <dir> --out runs/test104 --i-know-this-is-final` | sẵn sàng (2026-08-07, WORKLOG S-108). **Từ chối chạy** nếu thiếu cờ, nếu `docs/TEST104_PREREGISTRATION.md` chưa commit, hoặc nếu sha256 checkpoint lệch danh sách ghim. Chỉ lưu xác suất, **không in metric** |
+| **Test-104 — chạm lần 1 (ĐÃ DÙNG)** | `notebooks/12_test104.ipynb` | hồ sơ lần chạm 2026-08-07 (S-110), cấu hình E4, `--pin-set e4`. **Đừng chạy lại** |
+| **🔒 Test-104 — chạm lần 2** (GPU, ~2 phút) | `notebooks/22_test104_uniformer.ipynb` trên Kaggle | sẵn sàng (2026-08-14, WORKLOG S-170), **chưa chạy**. UniFormer ensemble 5 fold, `--pin-set uniformer`. Protocol khoá ở `docs/TEST104_PREREGISTRATION.md` **§B**, phải **commit + push trước** khi chạy — notebook clone từ GitHub và cổng 0 kiểm bằng `git log`. Bốn cổng: §B đã commit · hình học cache khớp `preprocess_cghnet.yaml` · sha256 khớp bộ ghim · không checkpoint trùng. Dataset checkpoint **phải giữ cấu trúc `fold_N/`** (số trong tên file và tên thư mục phải khớp). **Đo latency** và in ngay — lần chạm 1 đã bỏ lỡ và không truy lại được (S-116) |
+| **Đọc số test-104 lần 2** (CPU, chạy lại được) | `python -m src.eval.test_report --run-dir runs/test104_uniformer --oof-dir runs/Uniformer3D` | ⚠️ `--oof-dir` phải là run out-of-fold của **chính** cấu hình đó — `T` fit ở đó rồi áp mù lên test. Trỏ nhầm là sai **im lặng** |
 | **Đọc số test-104** (CPU, chạy lại được) | `python -m src.eval.test_report --run-dir runs/test104` | sẵn sàng; đọc từ `test_probs.npz` nên **không** thành lần chạm thứ hai. `T` lấy từ out-of-fold, không fit trên test |
 | Cài backend web app (một lần / máy) | `pip install -r webapp/backend/requirements.txt` | sẵn sàng; **tách hẳn** khỏi `requirements.txt` train, không kéo torch/monai |
 | Cài frontend web app (một lần / máy) | `cd webapp/frontend && npm install` | sẵn sàng |

@@ -49,15 +49,33 @@ from src.utils.io import load_yaml, resolve_cache_dir, resolve_repo_path
 
 PREREG = "docs/TEST104_PREREGISTRATION.md"
 
-# Ghim ở WORKLOG S-081, đối chiếu lại ở S-107. Đây là 5 checkpoint E4 duy nhất được
-# phép chạm test — xem `docs/TEST104_PREREGISTRATION.md` §1.
-PINNED_SHA256 = {
-    1: "2e1f3e1ad477ad59",
-    2: "30a8eb9ee221d453",
-    3: "00c133e031bdf8fe",
-    4: "3fe18f1eb3de4431",
-    5: "d61cc7ed94b8ebf0",
+# Mỗi khoá là MỘT lần chạm test-104 đã được cho phép, kèm đúng bộ checkpoint của nó.
+#
+# Giữ cả bộ cũ sau khi đã dùng là có chủ đích: nó là hồ sơ của lần chạm đó. Xoá đi thì
+# về sau không còn cách nào đối chiếu `test_run_meta.json` cũ với checkpoint nào đã sinh
+# ra nó, và một con số test không truy được nguồn thì không dùng được trong báo cáo.
+PIN_SETS: dict[str, dict[int, str]] = {
+    # Lần chạm 1 — 2026-08-07 (WORKLOG S-110). E4, ghim ở S-081, đối chiếu lại ở S-107.
+    # ĐÃ DÙNG. Xem `docs/TEST104_PREREGISTRATION.md` §1.
+    "e4": {
+        1: "2e1f3e1ad477ad59",
+        2: "30a8eb9ee221d453",
+        3: "00c133e031bdf8fe",
+        4: "3fe18f1eb3de4431",
+        5: "d61cc7ed94b8ebf0",
+    },
+    # Lần chạm 2 — UniFormer-S + Kinetics, 5 fold (WORKLOG S-169). Xem PREREG §B.
+    "uniformer": {
+        1: "62948396cdccd5a4",
+        2: "0d36a6cd52fde563",
+        3: "bc023a9a7662d38e",
+        4: "1b44f40bf97d3b30",
+        5: "8edf4fbc07f181b2",
+    },
 }
+
+# Tên cũ, giữ để không phá chỗ gọi và test đã có. Mặc định vẫn là bộ của lần chạm 1.
+PINNED_SHA256 = PIN_SETS["e4"]
 
 
 def sha16(path: Path) -> str:
@@ -66,22 +84,31 @@ def sha16(path: Path) -> str:
 
 
 def find_checkpoints(ckpt_dir: str | Path, folds: list[int]) -> dict[int, Path]:
-    """Tìm checkpoint từng fold. Chấp cả `best_fold_N.pt` phẳng lẫn `fold_N/best.pt`.
+    """Tìm checkpoint từng fold. Chấp ba bố cục đang tồn tại trong dự án:
 
-    Không đoán bừa: fold nào không suy ra được từ tên thì bỏ, và hàm gọi sẽ nổ vì
-    thiếu. Nhận nhầm fold ở đây tạo ra một "ensemble" có model bị đếm hai lần, và
-    con số ra vẫn trông hoàn toàn hợp lý.
+    ``best_fold_N.pt`` phẳng · ``fold_N/best.pt`` · ``fold_N/<tiền tố>_best_N.pt``.
+
+    Bố cục thứ ba do `train()` sinh khi config đặt tên riêng cho checkpoint (ví dụ
+    ``uniformer3D_best_1.pt``). Nó **chỉ** được nhận khi số trong tên file khớp số
+    trong tên thư mục cha — hai nguồn độc lập cùng nói một fold. Chấp riêng tên file
+    thì một thư mục gom lẫn nhiều run sẽ ghép nhầm, mà hậu quả là một "ensemble" đếm
+    một model hai lần và **con số ra vẫn trông hoàn toàn hợp lý**.
+
+    Không đoán bừa: fold nào không suy ra được thì bỏ, và hàm gọi sẽ nổ vì thiếu.
     """
     root = Path(ckpt_dir)
     found: dict[int, Path] = {}
     for fold in folds:
+        thu_muc = (f"fold_{fold}", f"fold{fold}")
         flat = sorted(root.rglob(f"best_fold_{fold}.pt"))
-        nested = [
+        nested = [p for p in sorted(root.rglob("best.pt")) if p.parent.name in thu_muc]
+        # Tên file phải kết thúc bằng `_best_{fold}.pt` VÀ nằm trong thư mục `fold_{fold}`.
+        co_tien_to = [
             p
-            for p in sorted(root.rglob("best.pt"))
-            if p.parent.name in (f"fold_{fold}", f"fold{fold}")
+            for p in sorted(root.rglob(f"*_best_{fold}.pt"))
+            if p.parent.name in thu_muc and not p.name.startswith("best_fold_")
         ]
-        hits = flat or nested
+        hits = flat or nested or co_tien_to
         if hits:
             found[fold] = hits[0]
     return found
@@ -248,10 +275,19 @@ def run(
     splits_dir: str | Path = "splits",
     folds: list[int] | None = None,
     skip_git_check: bool = False,
+    pin_set: str = "e4",
 ) -> Path:
-    """Chạm test-104 một lần và lưu `test_probs.npz`. Trả về đường dẫn file."""
+    """Chạm test-104 một lần và lưu `test_probs.npz`. Trả về đường dẫn file.
+
+    `pin_set` chọn bộ sha256 đã khoá trong pre-registration — xem `PIN_SETS`. Mặc định
+    giữ nguyên bộ của lần chạm 1 để chỗ gọi cũ không đổi hành vi; chạy bộ checkpoint
+    khác mà quên đổi khoá này thì **nổ vì lệch sha**, tức hỏng về phía an toàn.
+    """
     repo = resolve_repo_path(".")
     folds = folds or [1, 2, 3, 4, 5]
+    if pin_set not in PIN_SETS:
+        raise RuntimeError(f"pin_set {pin_set!r} không có trong PIN_SETS: {sorted(PIN_SETS)}")
+    pinned = PIN_SETS[pin_set]
 
     prereg_sha = "(bỏ qua kiểm git)" if skip_git_check else check_prereg_committed(repo)
 
@@ -267,11 +303,13 @@ def run(
         raise RuntimeError(
             f"có checkpoint trùng nhau — ensemble sẽ đếm một model hai lần: {digests}"
         )
-    wrong = {f: (digests[f], PINNED_SHA256[f]) for f in folds if digests[f] != PINNED_SHA256.get(f)}
+    wrong = {f: (digests[f], pinned.get(f)) for f in folds if digests[f] != pinned.get(f)}
     if wrong:
         raise RuntimeError(
-            f"sha256 lệch danh sách ghim trong {PREREG}: {wrong}.\n"
-            f"Đây không phải bộ checkpoint đã khoá. DỪNG."
+            f"sha256 lệch bộ ghim {pin_set!r} trong {PREREG}: {wrong}.\n"
+            f"Đây không phải bộ checkpoint đã khoá. DỪNG.\n"
+            f"Nếu đang chạy bộ checkpoint khác thì đổi --pin-set (có: {sorted(PIN_SETS)}) "
+            f"— và bộ đó phải đã được ghi trong pre-registration TRƯỚC khi chạy."
         )
 
     config = load_yaml(resolve_repo_path(config_path))
@@ -293,6 +331,7 @@ def run(
         json.dumps(
             {
                 "prereg_commit": prereg_sha,
+                "pin_set": pin_set,
                 "config": str(config_path),
                 "cache_dir": str(cache),
                 "checkpoint_sha256": digests,
@@ -317,6 +356,12 @@ def main() -> None:
     parser.add_argument("--out", required=True, help="thư mục ghi test_probs.npz")
     parser.add_argument("--cache-dir", default=None, help="mặc định lấy từ config/env")
     parser.add_argument("--splits-dir", default="splits")
+    parser.add_argument(
+        "--pin-set",
+        default="e4",
+        choices=sorted(PIN_SETS),
+        help="bộ checkpoint đã khoá trong pre-registration (mặc định: bộ của lần chạm 1)",
+    )
     parser.add_argument(
         "--skip-git-check",
         action="store_true",
@@ -346,6 +391,7 @@ def main() -> None:
         cache_dir=args.cache_dir,
         splits_dir=args.splits_dir,
         skip_git_check=args.skip_git_check,
+        pin_set=args.pin_set,
     )
     print(f"đã lưu {path}")
     lat = json.loads((Path(path).parent / "test_run_meta.json").read_text("utf-8"))["latency"]

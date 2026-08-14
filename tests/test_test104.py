@@ -43,6 +43,51 @@ def test_find_checkpoints_nhan_ca_hai_bo_cuc(tmp_path):
     assert got[2].parent.name == "fold_2", "suy fold từ thư mục cha bị lệch"
 
 
+def test_find_checkpoints_nhan_ten_co_tien_to(tmp_path):
+    """`fold_N/<tiền tố>_best_N.pt` — bố cục `train()` sinh khi config đặt tên riêng."""
+    root = tmp_path / "uni"
+    for fold in (1, 2):
+        (root / f"fold_{fold}").mkdir(parents=True)
+        (root / f"fold_{fold}" / f"uniformer3D_best_{fold}.pt").write_bytes(b"x")
+    got = find_checkpoints(root, [1, 2])
+    assert set(got) == {1, 2}
+    assert got[2].name == "uniformer3D_best_2.pt"
+
+
+def test_find_checkpoints_tu_choi_khi_ten_file_lech_thu_muc(tmp_path):
+    """Số trong tên file phải khớp số trong tên thư mục — hai nguồn độc lập.
+
+    Chấp riêng tên file thì một thư mục gom lẫn nhiều run sẽ ghép nhầm, và hậu quả là
+    'ensemble' đếm một model hai lần với con số ra vẫn trông hợp lý.
+    """
+    root = tmp_path / "lech"
+    (root / "fold_1").mkdir(parents=True)
+    (root / "fold_1" / "uniformer3D_best_2.pt").write_bytes(b"x")
+    assert find_checkpoints(root, [1, 2]) == {}
+
+
+def test_moi_bo_ghim_du_5_fold_va_khong_trung_nhau():
+    """Mỗi lần chạm test-104 là một bộ 5 checkpoint riêng, không lẫn giữa các bộ."""
+    from src.eval.test_once import PIN_SETS
+
+    assert set(PIN_SETS) >= {"e4", "uniformer"}
+    thay = {}
+    for ten, bo in PIN_SETS.items():
+        assert set(bo) == {1, 2, 3, 4, 5}, f"bộ {ten} thiếu fold"
+        assert len(set(bo.values())) == 5, f"bộ {ten} có mã băm trùng nhau"
+        for sha in bo.values():
+            assert sha not in thay, f"{sha} có ở cả bộ {thay[sha]} và {ten}"
+            thay[sha] = ten
+    assert PINNED_SHA256 is PIN_SETS["e4"], "tên cũ phải trỏ bộ của lần chạm 1"
+
+
+def test_pin_set_khong_ton_tai_thi_no():
+    from src.eval.test_once import run
+
+    with pytest.raises(RuntimeError, match="pin_set"):
+        run("bat_ky", "configs/uniformer_s.yaml", "bat_ky", pin_set="khong_co")
+
+
 def test_find_checkpoints_khong_doan_bua(tmp_path):
     """`best.pt` không suy được fold thì phải BỎ, không gán bừa cho fold đang hỏi.
 

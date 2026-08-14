@@ -1,4 +1,11 @@
-# Pre-registration — chạm test-104 official, lần thứ nhất
+# Pre-registration — chạm test-104 official
+
+> File này append-only theo lần chạm. §A = lần 1 (đã chạy). §B = lần 2 (đã khoá).
+> **Không sửa mục của lần đã chạy** — nó là hồ sơ chứng minh quyết định có TRƯỚC kết quả.
+
+---
+
+# §A. Chạm lần thứ nhất — ĐÃ CHẠY 2026-08-07 (WORKLOG S-110)
 
 > **Trạng thái:** ĐÃ KHOÁ, chưa chạy.
 > **Ngày khoá:** 2026-08-07 · **Người duyệt:** người dùng (yêu cầu trực tiếp, 2026-08-07)
@@ -131,3 +138,150 @@ Nên khoảng hợp lý là **0.62 – 0.72**, và tôi không đoán được n
 
 - Chạy lại **phần báo cáo** từ file `test_probs.npz` đã lưu, bao nhiêu lần cũng được — nó không đọc lại ảnh và không đổi dự đoán.
 - Phân tích lỗi định tính (xem ca nào sai, Grad-CAM trên ca sai) — miễn là không dùng nó để chỉnh model rồi báo lại số test.
+
+---
+
+# §B. Pre-registration — chạm test-104 official, **LẦN THỨ HAI**
+
+> **Trạng thái:** ĐÃ KHOÁ, chưa chạy.
+> **Ngày khoá:** 2026-08-14 · **Người duyệt:** người dùng (yêu cầu trực tiếp, 2026-08-14)
+> **Điều kiện:** phần này phải được **commit trước** khi bất kỳ dòng code nào đọc `splits/test_official.txt` để suy luận. `src/eval/test_once.py` kiểm điều đó bằng `git log`, không bằng sự tồn tại của file.
+
+⚠️ **ĐÂY LÀ LẦN CHẠM THỨ HAI.** Lần thứ nhất: 2026-08-07, cấu hình E4, kết quả macro-F1 0.6162 (WORKLOG S-110). Mọi báo cáo dùng số của lần này **bắt buộc** nói rõ đây là lần chạm thứ hai và tập test đã bị nhìn một lần trước đó (AGENTS.md §3.4, §10).
+
+**Lý do chạm:** UniFormer-S + Kinetics đã đủ 5 fold và vượt E4 trên out-of-fold **+0.1296 [+0.0778, +0.1809] P<0.001** (WORKLOG S-169) — mức chênh lớn hơn mọi can thiệp dự án từng đo. Cấu hình chính đã đổi, nên con số so được với văn liệu cũng phải đo lại trên cấu hình mới. Việc chọn cấu hình này được quyết **hoàn toàn trên out-of-fold**, không dùng một thông tin nào của test.
+
+---
+
+## B1. Cấu hình được khoá
+
+| khoản | giá trị |
+|---|---|
+| config train | `configs/uniformer_s.yaml`, **không sửa gì** |
+| kiến trúc | UniFormer-S 3D · `patch_embed1_stride [1,2,2]` · `head_dropout 0.0` |
+| trọng số khởi tạo | Kinetics-400 `uniformer_small_k400_16x8.pth` |
+| cache | lưới `128×128×16` của `configs/preprocess_cghnet.yaml`, cắt giữa còn `112×112×14` |
+| `--pin-set` | `uniformer` |
+| **không** TTA | trên E4 đã đo âm; chưa đo trên cấu hình này ⇒ không dùng |
+| **không** EMA, **không** intra-class mixup | `uniformer_s_intra_mixup.yaml` chưa chạy fold nào |
+| **không** ensemble với E4 hay CGHNet | trên 394 ca làm tệ đi ở **mọi** trọng số (S-169) |
+
+### Checkpoint — sha256 ghim sẵn
+
+Năm file `runs/Uniformer3D/fold_N/uniformer3D_best_N.pt`, đo ở máy local 2026-08-14:
+
+```
+fold 1  62948396cdccd5a4      fold 4  1b44f40bf97d3b30
+fold 2  0d36a6cd52fde563      fold 5  8edf4fbc07f181b2
+fold 3  bc023a9a7662d38e
+```
+
+Lệch một mã băm ⇒ **dừng**, không chạy tiếp. Đã kiểm không mã nào trùng với bộ của lần chạm 1.
+
+---
+
+## B2. Bộ dự đoán chính: ensemble 5 fold, trung bình softmax, trọng số bằng nhau
+
+Giữ nguyên lựa chọn và lập luận của §2. Hai điều kiện vẫn đúng: không model nào từng thấy 104 ca này, và bảng CGHNet dùng đúng protocol "5 model từ 5 fold".
+
+**Báo kèm nhưng KHÔNG phải số chính:** 5 model đơn, và trung bình ± SD của chúng. **Cấm** báo model đơn tốt nhất — lần chạm 1 đã gặp đúng cám dỗ này (fold 2 đạt 0.6308, cao hơn ensemble 0.6162).
+
+---
+
+## B3. Hiệu chỉnh xác suất — ⚠️ ĐỔI so với lần chạm 1, và lý do nằm ở out-of-fold
+
+**Số chính là bản CHƯA hiệu chỉnh.** Bản temperature-scaled báo kèm.
+
+Đây là thay đổi có chủ đích so với §3, và căn cứ **hoàn toàn từ 394 ca out-of-fold** (S-169), không có gì của test:
+
+| trên out-of-fold | ECE | MCE | tự tin (lệch so accuracy 0.8376) |
+|---|---|---|---|
+| chưa hiệu chỉnh | **0.1073** | **0.4233** | 0.903 (+0.065) |
+| temp-scaled, fit ECE | 0.0943 | **0.7376** | 0.8165 (−0.021) |
+
+`T` chỉ 1.45–1.53 (E4 cần 2.05–3.26) — model **gần calibrated sẵn**. Hiệu chỉnh hạ ECE chút ít nhưng **làm MCE xấu đi 74%** và đẩy sang thiếu tự tin. Với một model đã gần đúng thì temperature scaling là lợi bất cập hại, và đó là một kết quả có nội dung chứ không phải bước bị bỏ qua.
+
+`T` vẫn fit trên 394 ca out-of-fold bằng `fit_temperature_min_ece` rồi áp **mù**. **Không bao giờ fit trên test.**
+
+⚠️ Cảnh báo của §3 vẫn nguyên giá trị và đã ứng nghiệm ở lần 1: `T` học từ phân bố *model đơn* áp lên *ensemble* thì hiệu chỉnh quá tay. Lần này nó là thêm một lý do để lấy bản chưa hiệu chỉnh làm số chính.
+
+---
+
+## B4. Selective prediction
+
+**Điểm xếp hạng chính đã chốt: `max-prob` của ensemble.**
+**Dòng đối chứng bắt buộc: `−epistemic`** (bất đồng giữa 5 model, `uncertainty_decomposition`).
+
+⚠️ **Đây là ĐẢO vai trò so với §4 của lần chạm 1**, và có căn cứ đo được từ hai nguồn:
+
+1. **Lần chạm 1 đã bác luận điểm của S-087.** Trên test-104, hai cách xếp hạng không khác nhau (AURC +0.0009 **P=0.90**), và max-prob một mình cho +0.070 **P=0.016**. Lý do nhất quán: với 5 model độc lập thật, softmax của trung bình đã là tín hiệu bất định tốt.
+2. **Trên out-of-fold của chính cấu hình này**, max-prob là thứ duy nhất đo được (MC-dropout vô nghĩa vì `head_dropout: 0.0` ⇒ không có lớp Dropout nào).
+
+**Coverage báo cáo: 100%, 90%, 80%, 70%.** Bốn mức, chốt trước, **không** thêm sau khi nhìn số.
+
+### Dự đoán chốt trước — có thể bị bác
+
+Trên 394 ca out-of-fold, mức tăng khi từ chối ca **không đạt ý nghĩa thống kê** ở mọi mức: @90% +0.001 P=0.72 · @80% +0.017 P=0.29 · @70% +0.026 P=0.22. Cơ chế đo được: **0/64 lỗi có biên < 0.10** — model sai một cách tự tin.
+
+**Dự đoán: trên test-104 selective cũng KHÔNG đạt ý nghĩa thống kê ở mức 80%.** Nếu nó đạt, dự đoán này sai và phải ghi rõ là sai — không được diễn giải ngược thành "đúng như mong đợi".
+
+---
+
+## B5. Latency — bắt buộc đo và báo cáo
+
+`predict_members` đo sẵn và ghi vào `test_run_meta.json`. Hai con số phải vào báo cáo:
+
+- `per_case_1model_ms` — so được với văn liệu
+- `per_case_ensemble_ms` — thứ hệ thống thật phải trả, và là con số web app phải hiển thị
+
+Kèm ngữ cảnh đo: thiết bị, `batch_size`, `amp`. ⚠️ Đo trên **T4 của Kaggle** với batch của config, **không phải** đo một ca một. Latency thật của web app (một ca, một lần) sẽ **cao hơn** con số này vì không có lợi thế theo lô — phải nói rõ, không được trình bày `per_case` như độ trễ một ca đơn lẻ.
+
+Lần chạm 1 đã bỏ lỡ phép đo này và không truy lại được (WORKLOG S-116) — test chạm một lần nên không chạy lại để đo được.
+
+---
+
+## B6. Danh sách metric — y hệt §5, không thêm không bớt
+
+Phân loại · calibration · selective như §5. CI95 bootstrap phân tầng mức bệnh nhân, 2000 lần.
+
+**Metric chính: macro-F1.**
+
+**Thêm một phép so, và nó hợp lệ:** UniFormer so E4 **ghép cặp trên đúng 104 ca**, dùng `test_probs.npz` của lần chạm 1 đã lưu ở `runs/test104`. Đọc lại file đã lưu **không phải** một lần chạm mới. Phép so này hợp lệ vì cấu hình UniFormer được chọn trên out-of-fold, không dùng thông tin nào của test.
+
+---
+
+## B7. Mốc đối chiếu và ước lượng — ghi trước để khỏi hợp lý hoá sau
+
+| | macro-F1 test-104 |
+|---|---|
+| **E4, lần chạm 1 của chính dự án** | **0.6162** |
+| baseline official (UniFormer-S, from scratch) | 0.6083 |
+| ResNet3D trong bảng CGHNet | 0.709 ± 0.021 |
+| Uniformer trong bảng CGHNet | 0.719 ± 0.022 |
+| đội hạng 2 (recipe đang tái lập) | 0.8078 |
+| CGHNet | 0.818 ± 0.012 |
+| đội hạng 1 | 0.8322 |
+
+**Ước lượng trước khi chạy.** Out-of-fold 0.8147, thiên lệch chọn epoch đo được **+0.0797**. Trên E4, mức hụt out-of-fold → test là **−0.069**, gần trùng khít với thiên lệch +0.079 của nó. Áp cùng mức hụt: **0.8147 − 0.069 ≈ 0.746**.
+
+Khoảng hợp lý: **0.72 – 0.79**. Tôi không đoán được nó rơi vào đâu trong đó. Ghi ở đây để sau không thể nói "đúng như dự đoán" với bất kỳ kết quả nào.
+
+### Cách đọc kết quả, chốt trước
+
+| kết quả | kết luận được phép rút |
+|---|---|
+| **≥ 0.75** | vượt rõ mọi mốc dưới SOTA; so được với `Uniformer 0.719` của bảng CGHNet |
+| **0.72 – 0.75** | khớp ước lượng; mức hụt out-of-fold→test tái lập đúng như đo trên E4 |
+| **0.65 – 0.72** | hụt sâu hơn phần thiên lệch đã đo ⇒ out-of-fold lạc quan vì lý do khác nữa, **phải điều tra và ghi rõ** |
+| **< 0.65** | nghi **lỗi triển khai** hơn kết luận khoa học (cache sai hình học, checkpoint lệch) ⇒ đọc lại meta trước khi kết luận gì |
+| bất kỳ giá trị nào | **không** được đổi config/checkpoint/`T`/ngưỡng rồi chạy lại |
+
+⚠️ **Dù kết quả bao nhiêu cũng KHÔNG được viết "ta ngang đội hạng 2 / ngang CGHNet"** trừ khi CI95 loại được mốc đó — và với n=104 thì CI rộng khoảng ±0.09, nên gần như chắc chắn là không loại được.
+
+---
+
+## B8. Điều bị cấm sau khi chạm — như §7, cộng thêm
+
+6. **Không** được chọn giữa bản hiệu chỉnh và chưa hiệu chỉnh **sau khi** nhìn số. B3 đã chốt bản chưa hiệu chỉnh là chính.
+7. **Không** được đổi điểm xếp hạng defer sau khi nhìn số. B4 đã chốt `max-prob` là chính.
+8. Lần chạm **thứ ba** cần xin phép lại và một pre-registration §C mới.
