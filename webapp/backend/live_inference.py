@@ -11,6 +11,7 @@ import functools
 import json
 import time
 from collections.abc import Mapping
+from dataclasses import dataclass
 from importlib.util import find_spec
 from pathlib import Path
 from typing import Any
@@ -20,13 +21,14 @@ from src.preprocess.build_cache import process_uploaded_with_masks
 from src.utils.io import load_yaml
 
 from webapp.backend.config import (
+    LIVE_DEFER_TARGET_COVERAGE,
     LIVE_DEVICE,
     LIVE_PREPROCESS_CONFIG,
     LIVE_WEIGHTS_DIR,
     REPO_ROOT,
 )
 from webapp.backend.inference import assemble_result
-from webapp.backend.schemas import PredictResult, Provenance, ProvenanceSource
+from webapp.backend.schemas import DeferBasis, PredictResult, Provenance, ProvenanceSource
 
 _EXPECTED_MODEL = {
     "name": "uniformer3d",
@@ -42,6 +44,70 @@ _EXPECTED_MODEL = {
 }
 
 
+@dataclass(frozen=True)
+class LiveSelectivePolicy:
+    """Selective policy locked from raw UniFormer out-of-fold predictions."""
+
+    confidence_threshold: float
+    target_coverage: float
+    n_oof_cases: int
+
+
+def load_live_selective_policy(
+    run_dir: Path, target_coverage: float = LIVE_DEFER_TARGET_COVERAGE
+) -> LiveSelectivePolicy:
+    """Lock the max-prob defer threshold from OOF files only, never Test-104."""
+    if not 0.0 < target_coverage <= 1.0:
+        raise RuntimeError("LLDMMRI_LIVE_DEFER_TARGET_COVERAGE phải nằm trong (0, 1]")
+
+    paths = tuple(sorted(run_dir.glob("fold_*/val_probs_best.npz")))
+    if not paths:
+        raise RuntimeError(
+            "Thiếu dự đoán OOF UniFormer để áp dụng cơ chế tự nhận/từ chối ca."
+        )
+
+    from src.utils.ids import normalize_pid
+
+    seen_ids: set[str] = set()
+    confidences: list[np.ndarray] = []
+    for path in paths:
+        try:
+            with np.load(path, allow_pickle=False) as data:
+                probs = np.asarray(data["probs"], dtype=np.float64)
+                patient_ids = [str(value) for value in data["patient_ids"]]
+        except (KeyError, OSError, ValueError) as exc:
+            raise RuntimeError(f"Không đọc được dự đoán OOF: {path}") from exc
+
+        if probs.ndim != 2 or probs.shape[1] != 7 or probs.shape[0] != len(patient_ids):
+            raise RuntimeError(f"Dự đoán OOF có shape không hợp lệ: {path}")
+        if not np.all(np.isfinite(probs)) or np.any(probs < 0.0) or not np.allclose(
+            probs.sum(axis=1), 1.0, atol=1e-4
+        ):
+            raise RuntimeError(f"Dự đoán OOF không phải phân phối xác suất hợp lệ: {path}")
+
+        for patient_id in patient_ids:
+            normalized = normalize_pid(patient_id)
+            if normalized in seen_ids:
+                raise RuntimeError("Dự đoán OOF bị trùng bệnh nhân giữa các fold.")
+            seen_ids.add(normalized)
+        confidences.append(probs.max(axis=1))
+
+    scores = np.concatenate(confidences)
+    if scores.size == 0:
+        raise RuntimeError("Dự đoán OOF UniFormer trống.")
+    return LiveSelectivePolicy(
+        confidence_threshold=float(np.quantile(scores, 1.0 - target_coverage)),
+        target_coverage=target_coverage,
+        n_oof_cases=int(scores.size),
+    )
+
+
+@functools.lru_cache(maxsize=1)
+def live_selective_policy() -> LiveSelectivePolicy:
+    """Cache the validated policy; it is independent of every uploaded case."""
+    return load_live_selective_policy(LIVE_WEIGHTS_DIR)
+
+
 def weight_paths() -> tuple[Path, ...]:
     """Return completed UniFormer folds; a finished fold 4 is picked up on restart."""
     return tuple(sorted(LIVE_WEIGHTS_DIR.glob("fold_*/uniformer3D_best_*.pt")))
@@ -53,11 +119,17 @@ def dependencies_available() -> bool:
 
 def is_available() -> bool:
     """Whether the machine has both the local artifacts and runtime packages."""
-    return (
+    if not (
         LIVE_PREPROCESS_CONFIG.is_file()
         and len(weight_paths()) >= 4
         and dependencies_available()
-    )
+    ):
+        return False
+    try:
+        live_selective_policy()
+    except RuntimeError:
+        return False
+    return True
 
 
 def _select_device(torch) -> str:
@@ -147,11 +219,7 @@ def predict_uploaded(
     image_paths: Mapping[str, Path],
     mask_paths: Mapping[str, Path],
 ) -> PredictResult:
-    """Run raw UniFormer ensemble probabilities for one newly uploaded case.
-
-    No temperature or defer rule is applied: those serving rules were validated
-    for the stored OOF population, not for this unlabelled upload.
-    """
+    """Run UniFormer ensemble and the OOF-locked selective policy for one upload."""
     started = time.perf_counter()
     phases, preprocess_config, _ = _load_runtime_config()
     volume, _ = process_uploaded_with_masks(image_paths, mask_paths, phases, preprocess_config)
@@ -177,6 +245,7 @@ def predict_uploaded(
     probs = stacked.mean(axis=0)
     probs /= probs.sum()
     elapsed_ms = int((time.perf_counter() - started) * 1000)
+    policy = live_selective_policy()
 
     return assemble_result(
         case_id=Path(archive_name).stem,
@@ -187,11 +256,14 @@ def predict_uploaded(
             note=(
                 f"Suy luận trực tiếp từ {len(models)} weights UniFormer-S trên bộ MRI "
                 "và mask người dùng tải lên. "
-                "Xác suất là trung bình softmax thô, chưa được hiệu chỉnh cho nguồn dữ liệu này. "
-                "Không áp dụng cơ chế từ chối ca. Research Use Only, không dùng để chẩn đoán."
+                "Xác suất là trung bình softmax thô. Cơ chế tự nhận/từ chối dùng max-prob "
+                f"với ngưỡng OOF đã khóa ở coverage {policy.target_coverage:.0%} "
+                f"(n={policy.n_oof_cases}). Research Use Only, không dùng để chẩn đoán."
             ),
         ),
         ensemble_std=float(stacked.std(axis=0).mean()),
         inference_ms=elapsed_ms,
-        defer_available=False,
+        defer_threshold=policy.confidence_threshold,
+        defer_basis=DeferBasis.CONFIDENCE,
+        defer_available=True,
     )

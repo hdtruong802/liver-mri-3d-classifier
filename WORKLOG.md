@@ -7243,3 +7243,30 @@ Kết xuất PDF chạy được (365 KiB, gitignore đúng). **595 passed, 81 s
 **Điểm vào phiên sau:** Xác nhận web app lắng nghe ở frontend `localhost:5173` và backend `localhost:8000`.
 
 **Cảnh báo cho tool sau:** Không chạy lại hoặc chạm thêm tập test-104 nếu chưa có phê duyệt và pre-registration §C.
+
+---
+
+## S-176 · 2026-08-14 15:06 · codex
+
+**Mục tiêu phiên:** Áp dụng cơ chế tự nhận/từ chối cho suy luận UniFormer trực tiếp trước khi phục hồi khối trạng thái kết quả.
+
+**Nhánh / commit:** `main` · `b39a79d` → *(commit của phiên này)*
+
+**Đã động file:**
+- `webapp/backend/live_inference.py` — nạp policy selective từ OOF và trả `defer` cho upload live.
+- `webapp/backend/config.py`, `webapp/backend/schemas.py` — khai báo coverage và contract policy live.
+- `webapp/frontend/src/components/DeferPanel.tsx` — hiển thị trạng thái AI tự nhận/chưa tự nhận bằng ngôn ngữ hướng người dùng.
+- `webapp/README.md` — mô tả đúng chính sách live mới.
+- `tests/test_webapp_live_selective.py` — chặn đọc Test-104, trùng bệnh nhân OOF và quantile sai.
+
+**Quyết định & lý do:**
+- Dùng raw max-prob ở coverage 80% — phép đánh giá ensemble đã chốt cho thấy temperature từ OOF làm calibration xấu hơn; threshold được lấy từ 394 dự đoán OOF và không fit trên ca tải lên hay Test-104.
+
+**Kết quả / số liệu:** threshold max-prob `0,813651204109`; 394 ca OOF; pytest web app liên quan PASS; typecheck và production build PASS.
+
+**Dang dở:**
+- [ ] Khởi động lại backend đang chạy để nạp policy mới, sau khi commit/push.
+
+**Điểm vào phiên sau:** Mở một ZIP hợp lệ và xác nhận `PredictResult.defer` không còn `null` cho inference live.
+
+**Cảnh báo cho tool sau:** Không thay ngưỡng live bằng `LLDMMRI_DEFER_THRESHOLD=0.55`; đó là default utility cũ, không phải policy UniFormer đã khóa.

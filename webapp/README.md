@@ -56,7 +56,7 @@ App đọc ảnh lúc chạy từ `LLDMMRI_SAMPLE_DIR`, mặc định `data/samp
 
 Chỉ nhận **một ZIP**. ZIP cần có hai thư mục: `images/` chứa 8 MRI và `masks/` chứa 8 mask tổn thương tương ứng. Mỗi phần phải có đúng một `.nii` hoặc `.nii.gz` nhận diện được cho từng thì: C-pre, C+A, C+V, C+Delay, T2WI, DWI, In Phase và Out Phase. Mask phải cùng shape, spacing, origin và direction với ảnh của chính thì đó.
 
-`POST /api/validate-upload` chỉ đọc manifest. `POST /api/predict-upload` chỉ giải nén tạm đúng 16 NIfTI đã được nhận diện, tái tạo crop UniFormer và chạy các checkpoint fold đã hoàn tất (hiện là 1, 2, 3, 5). Khi fold 4 xuất hiện, backend tự nhận ở lần khởi động tiếp theo. Xác suất là trung bình softmax thô, không áp dụng temperature/defer từ tập OOF và không dùng để chẩn đoán.
+`POST /api/validate-upload` chỉ đọc manifest. `POST /api/predict-upload` chỉ giải nén tạm đúng 16 NIfTI đã được nhận diện, tái tạo crop UniFormer và chạy các checkpoint fold đã hoàn tất. Xác suất là trung bình softmax thô. Cơ chế tự nhận/từ chối dùng max-prob với ngưỡng 80% coverage được khóa từ 394 dự đoán OOF UniFormer; backend không đọc hay fit lại trên Test-104. Kết quả không dùng để chẩn đoán.
 
 Sau một lần suy luận thành công, app cho xem đủ 8 thì của **ảnh MRI gốc, chưa crop** và bật/tắt nhãn tổn thương do người dùng cung cấp. Để đọc lát, app chỉ giữ tạm NIfTI của bộ tải lên mới nhất trong thư mục tạm tối đa 30 phút (mặc định); hết hạn, khởi động lại server hoặc tải bộ mới thì chúng bị xoá. Crop ROI `112×112×14` vẫn chỉ dùng nội bộ cho UniFormer. Upload không có heatmap vì app không tạo heatmap mô phỏng.
 

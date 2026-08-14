@@ -58,9 +58,15 @@ UPLOAD_MAX_UNCOMPRESSED_BYTES: int = int(
 UPLOAD_VIEW_TTL_SECONDS: int = int(os.environ.get("LLDMMRI_UPLOAD_VIEW_TTL_SECONDS", "1800"))
 UPLOAD_VIEW_MAX_STUDIES: int = int(os.environ.get("LLDMMRI_UPLOAD_VIEW_MAX_STUDIES", "1"))
 
-# Ngưỡng mặc định cho utility thuần. Quy tắc defer của prediction OOF được nạp cùng store,
-# đã khóa trên validation; UI không dùng giá trị này để dựng kết quả tải lên.
+# Ngưỡng mặc định cho utility thuần và prediction OOF cũ. Suy luận trực tiếp không dùng
+# giá trị này: nó nạp ngưỡng max-prob đã khóa từ artefact OOF UniFormer.
 DEFAULT_DEFER_THRESHOLD: float = float(os.environ.get("LLDMMRI_DEFER_THRESHOLD", "0.55"))
+
+# Mức coverage đã chốt cho selective prediction. Ngưỡng cụ thể không hard-code: backend
+# suy ra một lần từ 394 dự đoán OOF của UniFormer, tuyệt đối không đọc test-104.
+LIVE_DEFER_TARGET_COVERAGE: float = float(
+    os.environ.get("LLDMMRI_LIVE_DEFER_TARGET_COVERAGE", "0.80")
+)
 
 RUO_NOTICE: str = "Research Use Only: chưa kiểm định lâm sàng"
 

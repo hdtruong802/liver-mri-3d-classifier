@@ -12,14 +12,14 @@ export function DeferPanel({ result }: { result: PredictResult }) {
       }
     : result.defer
     ? {
-        title: 'Mô hình từ chối quyết ca này',
-        copy: 'Mô hình chưa đủ chắc chắn để đưa ra dự đoán cho ca này. Cần xem kết quả cùng đánh giá của người có chuyên môn.',
+        title: 'AI chưa tự nhận kết quả ca này',
+        copy: 'Dự đoán này chưa đủ tin cậy để AI tự nhận. Cần được người có chuyên môn đối chiếu trước khi sử dụng.',
         icon: <AlertTriangle aria-hidden="true" />,
         tone: 'warning',
       }
     : {
-        title: 'Mô hình nhận quyết ca này',
-        copy: 'Mô hình có thể đưa ra dự đoán cho ca này. Kết quả chỉ phục vụ mục đích nghiên cứu, không dùng để chẩn đoán.',
+        title: 'AI tự nhận kết quả ca này',
+        copy: 'Kết quả này đáp ứng tiêu chí tự nhận của hệ thống nghiên cứu. Không dùng để chẩn đoán hoặc thay thế đánh giá chuyên môn.',
         icon: <ShieldCheck aria-hidden="true" />,
         tone: 'success',
       };

@@ -110,9 +110,9 @@ class PredictResult(BaseModel):
         ge=0.0, le=1.0, description="Tổng xác suất của ba lớp ác: ICC, di căn, HCC."
     )
     uncertainty: Uncertainty
-    # Live uploads are a different population from the validation cohort used
-    # to lock the selective-prediction rule.  `None` means that rule was not
-    # applied; it must never be represented as a reassuring false value.
+    # Live uploads use the max-prob policy locked on UniFormer OOF predictions.
+    # `None` remains reserved for an incomplete result without a validated policy;
+    # it must never be represented as a reassuring false value.
     defer: bool | None
     defer_basis: DeferBasis | None = Field(
         default=DeferBasis.CONFIDENCE,
