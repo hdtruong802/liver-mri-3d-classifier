@@ -21,6 +21,7 @@ Ba thứ module này cố ý làm khác một script báo cáo thông thường:
 from __future__ import annotations
 
 import argparse
+import json
 from pathlib import Path
 from typing import Any
 
@@ -245,7 +246,23 @@ def main() -> None:
     r = report(args.run_dir, args.oof_dir)
     labels, ensemble = r["labels"], r["ensemble"]
 
-    print(f"=== TEST-104 OFFICIAL · n={r['n_cases']} · chạm lần thứ nhất ===\n")
+    # Số thứ tự lần chạm suy từ `pin_set` ghi trong `test_run_meta.json` — mỗi lần chạm được
+    # cho phép là một bộ checkpoint riêng trong `PIN_SETS`. Ghi cứng "lần thứ nhất" như bản
+    # trước là một câu **nói sai** ngay khi có lần chạm thứ hai, và nó nằm ở dòng đầu tiên
+    # của báo cáo — chỗ dễ bị chép thẳng vào bài viết nhất.
+    # Vắng `pin_set` = run sinh TRƯỚC khi `PIN_SETS` tồn tại, tức lần chạm 1 (chỉ có một
+    # bộ checkpoint hồi đó). Mặc định "e4" chứ không phải None, để run cũ không bị gán
+    # nhãn cảnh báo sai.
+    _meta_path = Path(args.run_dir) / "test_run_meta.json"
+    _pin = "e4"
+    if _meta_path.exists():
+        _pin = json.loads(_meta_path.read_text("utf-8")).get("pin_set", "e4")
+    _lan = {"e4": "lần thứ NHẤT", "uniformer": "lần thứ HAI"}.get(_pin, f"pin-set {_pin!r}")
+    print(f"=== TEST-104 OFFICIAL · n={r['n_cases']} · {_lan} ===")
+    if _pin != "e4":
+        print("⚠️  Tập test này ĐÃ BỊ NHÌN ở lần chạm trước. Mọi câu trong báo cáo dùng số")
+        print("    dưới đây phải nói rõ điều đó.")
+    print()
 
     print("1) Phân loại — bộ dự đoán CHÍNH là ensemble 5 fold")
     columns = list(next(iter(r["classification"].values())))
@@ -297,7 +314,7 @@ def main() -> None:
 
     print(
         "\n=== RÀNG BUỘC ===\n"
-        "Đây là lần chạm test-104 duy nhất được cho phép. Không đổi config, checkpoint,\n"
+        "Không đổi config, checkpoint,\n"
         "T, hay ngưỡng defer vì các con số trên. Chi tiết: docs/TEST104_PREREGISTRATION.md"
     )
 

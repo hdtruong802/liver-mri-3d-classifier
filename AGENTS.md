@@ -200,11 +200,166 @@ Ba điều rút ra, đều đã được dùng để định hướng thí nghi�
 
 **Bất kỳ ai định debug chất lượng model đều phải đối chiếu với bảng này trước.** Ba phiên (S-036, S-039, S-040) đã đốt ba run GPU để đoán nguyên nhân mà không hề biết điểm số nào là đạt được — cả ba chẩn đoán đều sai.
 
+---
+
+### 🔒🔒 TEST-104 OFFICIAL — LẦN CHẠM 2, UNIFORMER (2026-08-14, WORKLOG S-173)
+
+> ⚠️ **Tập test đã bị nhìn MỘT LẦN trước đó** (2026-08-07, E4, 0.6162). Mọi câu trong báo
+> cáo dùng số dưới đây **phải nói rõ đây là lần chạm thứ hai**. Lần thứ ba cần xin phép và
+> một pre-registration §C mới.
+>
+> Protocol khoá ở [`docs/TEST104_PREREGISTRATION.md`](docs/TEST104_PREREGISTRATION.md) **§B**,
+> commit `24b8464` — và `test_run_meta.json` ghi lại đúng sha commit đó, nên quan hệ
+> "protocol có trước kết quả" là **kiểm được**, không phải lời hứa.
+
+Cấu hình: `configs/uniformer_s.yaml` không sửa · cache `128×128×16` · **ensemble 5 fold**,
+trung bình softmax · không TTA · không EMA · không mixup.
+
+| | macro-F1 | κ | balanced acc | accuracy |
+|---|---|---|---|---|
+| **ensemble 5 fold (số chính)** | **0.7682 [0.6902, 0.8422]** | 0.7333 | 0.7822 | 0.7788 |
+| trung bình 5 model đơn | 0.7302 ± 0.0278 | — | — | — |
+
+#### So với lần chạm 1 — bootstrap ghép cặp trên ĐÚNG 104 ca
+
+| | macro-F1 | hiệu | CI95 | P |
+|---|---|---|---|---|
+| E4 (lần chạm 1) | 0.6162 | — | — | — |
+| **UniFormer (lần 2)** | **0.7682** | **+0.1520** | **[+0.0647, +0.2421]** | **0.001** |
+
+Phép so hợp lệ: cấu hình UniFormer được chọn **hoàn toàn trên out-of-fold**, không dùng
+thông tin nào của test. Đọc lại `test_probs.npz` đã lưu của lần 1 **không phải** một lần
+chạm mới.
+
+#### ✅ Ước lượng chốt trước đã trúng, và mức hụt NHỎ HƠN dự đoán
+
+§B7 ghi trước khi chạy: **≈ 0.746, khoảng hợp lý 0.72–0.79**. Kết quả 0.7682 nằm giữa khoảng đó.
+
+| | out-of-fold | test-104 | hụt |
+|---|---|---|---|
+| E4 | 0.6851 | 0.6162 | **−0.069** |
+| **UniFormer** | 0.8147 | 0.7682 | **−0.047** |
+
+Ước lượng dùng mức hụt của E4 (−0.069); thực tế chỉ **−0.047**, tức UniFormer khái quát hoá
+*tốt hơn* E4 chứ không chỉ điểm cao hơn. Thiên lệch chọn epoch của hai bên gần bằng nhau
+(+0.079 và +0.080), nên phần chênh này **không** giải thích được bằng nó.
+
+#### ⭐ Ensemble lần này ĂN THẬT — ngược hẳn lần chạm 1
+
+| | macro-F1 |
+|---|---|
+| ensemble 5 fold | **0.7682** |
+| trung bình 5 thành viên | 0.7302 ± 0.0278 |
+| **hiệu** | **+0.0380 [+0.0007, +0.0771] P=0.048** |
+| model đơn tốt nhất | 0.7569 ⚠️ **thấp hơn ensemble** |
+
+Lần chạm 1: hiệu chỉ +0.016 **P=0.43**, và model đơn tốt nhất (0.6308) **cao hơn** ensemble
+(0.6162). Lần này ensemble vượt **cả 5** thành viên, và mức tăng có ý nghĩa thống kê.
+
+⚠️ Vẫn **cấm** báo model đơn tốt nhất — chọn nó sau khi nhìn test là chọn trên test.
+
+#### 🎯 Calibration — §B3 chốt bản CHƯA hiệu chỉnh, và đó là lựa chọn đúng
+
+| | ECE | MCE | Brier | NLL | tự tin (lệch so acc) |
+|---|---|---|---|---|---|
+| **ensemble, chưa hiệu chỉnh** | **0.0833** | 0.3716 | 0.3075 | 0.6804 | 0.820 (**+0.042**) |
+| ensemble, T=1.35 từ OOF | 0.0985 | **0.2384** | 0.3025 | 0.6656 | 0.749 (−0.030) |
+
+**ECE 0.0833 mà không hiệu chỉnh gì** — so với 0.1303 của ensemble E4 ở lần chạm 1. Hiệu
+chỉnh làm **ECE xấu đi** (đúng như §B3 dự đoán từ out-of-fold) nhưng làm MCE tốt lên. Đây là
+đánh đổi, không phải cải thiện, và §B3 đã chốt trước bản chưa hiệu chỉnh là số chính.
+
+Tự tin thái quá chỉ **+0.042** (E4 lần 1: +0.115; E4 out-of-fold: +0.186). **Đây là con số
+mạnh nhất của phần trustworthiness trong báo cáo.**
+
+#### ⚠️ SELECTIVE — dự đoán chốt trước của tôi ĐÃ SAI
+
+§B4 ghi trước khi chạy: *"Dự đoán: trên test-104 selective cũng KHÔNG đạt ý nghĩa thống kê ở
+mức 80%. Nếu nó đạt, dự đoán này sai và phải ghi rõ là sai."*
+
+**Nó đạt, ở cả ba mức.** Bootstrap ghép cặp so với coverage 100%:
+
+| | hiệu | CI95 | P |
+|---|---|---|---|
+| max-prob @90% | **+0.0340** | [+0.0015, +0.0688] | **0.044** |
+| max-prob @80% | **+0.0739** | [+0.0126, +0.1360] | **0.027** |
+| max-prob @70% | **+0.1229** | [+0.0087, +0.2043] | **0.033** |
+
+Căn cứ của dự đoán sai: trên out-of-fold không mức nào đạt (@80% P=0.29) và **0/64 lỗi có
+biên < 0.10**. Bài học: **"lỗi tự tin sai" trên out-of-fold KHÔNG dự báo được hành vi
+selective trên test.** Đừng lặp lại lối suy luận đó.
+
+| xếp hạng | AURC | F1@100% | F1@90% | F1@80% | F1@70% | cov@risk≤10% |
+|---|---|---|---|---|---|---|
+| **max-prob** | **0.0494** | 0.7682 | 0.8022 | **0.8421** | 0.8911 | **76.9%** |
+| −epistemic | 0.0562 | 0.7682 | 0.8082 | 0.8194 | 0.8685 | 70.2% |
+
+§B4 chốt `max-prob` làm chính (đảo vai so với lần 1) — **đúng**: nó thắng `−epistemic` ở AURC
+(+0.0069 nghiêng về max-prob, P=0.053) và ở F1@80% (+0.0235, P=0.38). Củng cố kết luận đã rút
+ở lần chạm 1: với 5 model độc lập thật, softmax của trung bình đã là tín hiệu bất định tốt,
+không cần đại lượng bất đồng.
+
+**Phát biểu dùng được cho báo cáo và web app:** *từ chối 20% ca khó nâng macro-F1 từ 0.768 lên
+0.842 (P=0.027), và ở mức sai số ≤10% hệ thống tự quyết được 76,9% số ca.*
+
+#### Latency — đo trong chính lượt chạm
+
+| | ms/ca |
+|---|---|
+| 1 model | **81.7** |
+| **ensemble 5 model** | **408.5** |
+
+T4, batch 4, AMP bật, 104 ca. ⚠️ **Đây là latency theo LÔ.** Web app phục vụ từng ca nên sẽ
+chậm hơn, và con số này **không** gồm đọc + tiền xử lý NIfTI. Đừng trình bày nó như thời gian
+đáp ứng của hệ thống thật.
+
+#### Từng lớp — di căn vẫn là nút thắt, đúng như out-of-fold
+
+| lớp | n | F1 |
+|---|---|---|
+| nang | 11 | 0.957 |
+| u máu | 16 | 0.938 |
+| FNH | 10 | 0.909 |
+| HCC | 32 | 0.787 |
+| áp-xe | 12 | 0.667 |
+| ICC | 12 | 0.621 |
+| **di căn** | 11 | **0.500** |
+
+Ba hướng nhầm lớn nhất: **di căn → ICC 3** · HCC → ICC 3 · áp-xe → ICC/di căn 2+2. ICC là
+lớp hút nhầm chính, giống hệt bức tranh out-of-fold.
+
+⚠️ n mỗi lớp chỉ 10–16 ca — đừng diễn giải sâu từng con số.
+
+#### Vị trí so với văn liệu — đọc kỹ trước khi viết
+
+| | macro-F1 test-104 | so với 0.7682 |
+|---|---|---|
+| baseline official (UniFormer-S from scratch) | 0.6083 | **ta cao hơn, CI loại được** (cận dưới 0.690) |
+| ResNet3D (bảng CGHNet) | 0.709 | ta cao hơn, **CI không loại được** |
+| Uniformer (bảng CGHNet) | 0.719 | ta cao hơn, **CI không loại được** |
+| SDR-Former · STM-Former | 0.791 · 0.793 | ta thấp hơn, không phân biệt được |
+| đội hạng 2 (recipe đang tái lập) | 0.8078 | ta thấp hơn, không phân biệt được |
+| CGHNet · đội hạng 1 | 0.818 · 0.8322 | ta thấp hơn, không phân biệt được |
+
+✅ **Câu được phép viết:** *vượt baseline official 0.6083 một cách có ý nghĩa thống kê*
+(CI95 [0.690, 0.842] không chứa 0.6083). Đây là điều lần chạm 1 **không** nói được — hồi đó
+0.6162 với CI chứa 0.6083 rất thoải mái.
+
+⛔ **Câu KHÔNG được viết:** "ngang đội hạng 2", "ngang CGHNet", "tiệm cận SOTA". CI rộng ±0.09
+nên không loại được mốc nào từ 0.709 trở lên. Định vị đúng: **trên baseline official và trên
+nhóm hạng 20–24, dưới SOTA công bố, và với n=104 thì chưa phân biệt được với nhóm 0.71–0.83.**
+
+⚠️ Và phải ghi: đây là **tái lập một phần** recipe của đội hạng 2 (0.8078) — ta dùng `small`
+thay `base`, focal softmax thay sigmoid, và **chưa có** intra-class mixup. Chênh 0.039 so với
+họ nằm trong khoảng đó cộng nhiễu cỡ mẫu.
+
+---
+
 ### 🔒 TEST-104 OFFICIAL — lần chạm 1 (2026-08-07, WORKLOG S-110)
 
 > **Test-104 ĐÃ BỊ CHẠM MỘT LẦN.** Mục này là kết quả của lần đó, cấu hình E4.
 >
-> 🔓 **Lần chạm 2 đã được cho phép và đã khoá protocol** (2026-08-14, WORKLOG S-170): UniFormer ensemble 5 fold, [`docs/TEST104_PREREGISTRATION.md`](docs/TEST104_PREREGISTRATION.md) **§B**, chạy bằng `notebooks/22_test104_uniformer.ipynb`. **Chưa chạy.** Khi có kết quả, mọi báo cáo phải nói rõ đó là **lần chạm thứ hai** và tập test đã bị nhìn một lần trước đó.
+> ✅ **Lần chạm 2 ĐÃ CHẠY** (2026-08-14, WORKLOG S-173) — UniFormer ensemble 5 fold, **0.7682**. Xem mục ngay trên. Mục này giữ nguyên làm hồ sơ lần 1.
 >
 > Lần chạm **thứ ba** lại cần xin phép và một pre-registration §C mới (AGENTS.md §3.4, §10). Protocol lần 1 khoá ở cùng file, mục §A, commit `56baa41`.
 

@@ -7070,3 +7070,92 @@ Chưa chạy test-104. **595 passed, 81 skipped** (trước 593; +2 test). `ruff
 **Điểm vào phiên sau:** notebook 22 sẵn sàng, chưa chạy.
 
 **Cảnh báo cho tool sau:** có **ba** chỗ dựng model trong repo và chúng không cùng luật — `run.py` (train, **giữ** cổng pretrained), `test_once.py` và `webapp/backend/live_inference.py` (suy luận, **tắt** nó). Đừng đồng nhất ba chỗ này.
+
+---
+
+## S-173 · 2026-08-14 · claude-code
+
+**Mục tiêu phiên:** người dùng đã chạy xong lần chạm test-104 **thứ hai**, kết quả ở `runs/Uniformer3D/test`. Đọc số theo đúng pre-registration §B.
+
+**Nhánh / commit:** `main` · `070af54` → *(commit của phiên này)*
+
+**Đã đụng file:** `AGENTS.md` (§5 mục mới), `src/eval/test_report.py`. Không đụng `runs/`.
+
+### Kiểm tính hợp lệ trước khi đọc một con số nào
+
+`test_run_meta.json` ghi `prereg_commit = 24b8464d5ff…` — **đúng commit chứa §B**, tức quan hệ "protocol có trước kết quả" là **kiểm được**, không phải lời hứa. `pin_set = uniformer`, cả 5 sha256 khớp bộ ghim, 104 ca × 5 thành viên.
+
+### 🏆 macro-F1 = 0.7682 [0.6902, 0.8422] · κ 0.7333 · accuracy 0.7788
+
+**So lần chạm 1, ghép cặp trên đúng 104 ca: +0.1520 [+0.0647, +0.2421] P=0.001.**
+
+Ước lượng chốt trước ở §B7 là **≈0.746, khoảng 0.72–0.79**. Kết quả nằm giữa khoảng đó.
+
+| | out-of-fold | test | hụt |
+|---|---|---|---|
+| E4 | 0.6851 | 0.6162 | −0.069 |
+| **UniFormer** | 0.8147 | **0.7682** | **−0.047** |
+
+Ước lượng dùng mức hụt của E4; thực tế nhỏ hơn ⇒ UniFormer **khái quát hoá tốt hơn**, không chỉ điểm cao hơn. Thiên lệch chọn epoch hai bên gần bằng nhau (+0.079 và +0.080) nên phần chênh này không giải thích được bằng nó.
+
+### ⭐ Ensemble lần này ăn thật — ngược hẳn lần 1
+
+| | hiệu so trung bình thành viên | P |
+|---|---|---|
+| lần chạm 1 (E4) | +0.0162 | 0.43 |
+| **lần chạm 2 (UniFormer)** | **+0.0380** [+0.0007, +0.0771] | **0.048** |
+
+Và ensemble (0.7682) vượt **cả 5** thành viên; model đơn tốt nhất chỉ 0.7569. Lần 1 thì ngược: model đơn tốt nhất 0.6308 **cao hơn** ensemble 0.6162.
+
+### ⚠️ DỰ ĐOÁN CHỐT TRƯỚC CỦA TÔI ĐÃ SAI — ghi rõ theo đúng §B4
+
+§B4 viết trước khi chạy: *"Dự đoán: selective KHÔNG đạt ý nghĩa thống kê ở mức 80%. Nếu nó đạt, dự đoán này sai và phải ghi rõ là sai."*
+
+**Nó đạt, ở cả ba mức:** @90% +0.034 P=0.044 · @80% **+0.074 P=0.027** · @70% +0.123 P=0.033.
+
+Căn cứ của dự đoán sai: trên out-of-fold không mức nào đạt (@80% P=0.29), và **0/64 lỗi có biên < 0.10** nên tôi kết luận "model sai một cách tự tin ⇒ xếp hạng không tách được lỗi".
+
+**Bài học: "lỗi tự tin sai" đo trên out-of-fold KHÔNG dự báo được hành vi selective trên test.** Lối suy luận đó nghe rất thuyết phục và nó sai. Đừng lặp lại.
+
+Hai chốt kia của §B thì **đúng**: `max-prob` làm điểm xếp hạng chính (thắng `−epistemic` cả AURC lẫn F1@80%), và bản **chưa hiệu chỉnh** làm số chính (hiệu chỉnh làm ECE xấu đi 0.0833 → 0.0985, đúng như dự đoán từ out-of-fold).
+
+### 🎯 Trustworthiness — con số mạnh nhất của báo cáo
+
+ECE **0.0833 mà không hiệu chỉnh gì** (ensemble E4 lần 1: 0.1303). Tự tin thái quá chỉ **+0.042**, so với +0.115 của E4 lần 1 và +0.186 của E4 out-of-fold.
+
+Selective dùng được: **từ chối 20% ca khó nâng macro-F1 0.768 → 0.842 (P=0.027)**, và ở mức sai số ≤10% hệ thống tự quyết được **76,9%** số ca (E4 lần 1 chỉ 29%).
+
+### Latency
+
+**81.7 ms/ca** cho 1 model · **408.5 ms/ca** cho ensemble 5 model. T4, batch 4, AMP.
+
+⚠️ Là latency **theo lô**, và **không** gồm đọc + tiền xử lý NIfTI. Web app phục vụ từng ca sẽ chậm hơn — phải ghi rõ, đừng trình bày như thời gian đáp ứng thật.
+
+### Vị trí so với văn liệu — câu được phép và không được phép
+
+✅ **Vượt baseline official 0.6083 có ý nghĩa thống kê** — CI95 [0.690, 0.842] không chứa 0.6083. Lần chạm 1 **không** nói được câu này (0.6162 với CI chứa 0.6083 rất thoải mái).
+
+⛔ **Không** được viết "ngang đội hạng 2" / "ngang CGHNet" / "tiệm cận SOTA": CI rộng ±0.09 nên không loại được mốc nào từ 0.709 trở lên. Định vị đúng: **trên baseline official, dưới SOTA công bố, và với n=104 thì chưa phân biệt được với nhóm 0.71–0.83.**
+
+### Sửa một câu NÓI SAI trong `test_report`
+
+Dòng đầu báo cáo ghi cứng `"chạm lần thứ nhất"` và cuối ghi `"lần chạm duy nhất được cho phép"` — sai ngay khi có lần chạm thứ hai, và nó nằm ở **chỗ dễ bị chép thẳng vào bài viết nhất**. Giờ suy từ `pin_set` trong meta; vắng khoá đó = run sinh trước khi có `PIN_SETS` = lần 1. Bản lần 2 in thêm cảnh báo tập test đã bị nhìn trước đó. Đã kiểm cả hai run ra đúng nhãn.
+
+### Kết quả / số liệu
+
+**595 passed, 81 skipped**, `ruff` sạch, gate PASS.
+
+### Dang dở
+
+- [ ] Fold 1 của `21_intra_mixup` — mảnh cuối của recipe, và giờ có mốc test để so.
+- [ ] Bảng ablation lõi + kiểm định Holm.
+- [ ] `README.md`, report, slide. Web app trỏ sang `runs/Uniformer3D` và cập nhật latency.
+
+**Điểm vào phiên sau:** không có việc treo. **Test-104 đã chạm HAI lần — lần thứ ba cần xin phép và pre-registration §C mới.**
+
+**Cảnh báo cho tool sau:**
+
+- Mọi câu báo cáo dùng 0.7682 **phải nói rõ đây là lần chạm thứ hai**.
+- **Đừng chạy lại `notebooks/22_test104_uniformer.ipynb`.** Đọc số từ `runs/Uniformer3D/test/test_probs.npz` bằng `test_report` — chạy lại bao nhiêu lần cũng vô hại.
+- `--oof-dir` phải là `runs/Uniformer3D`. Trỏ nhầm là fit `T` trên phân bố khác, **sai im lặng**.
+- Đừng dùng "tỉ lệ lỗi có biên hẹp" trên out-of-fold để dự đoán selective trên test — phiên này đã thử và sai.
