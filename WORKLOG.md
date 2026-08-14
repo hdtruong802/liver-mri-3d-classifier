@@ -7159,3 +7159,63 @@ Dòng đầu báo cáo ghi cứng `"chạm lần thứ nhất"` và cuối ghi `
 - **Đừng chạy lại `notebooks/22_test104_uniformer.ipynb`.** Đọc số từ `runs/Uniformer3D/test/test_probs.npz` bằng `test_report` — chạy lại bao nhiêu lần cũng vô hại.
 - `--oof-dir` phải là `runs/Uniformer3D`. Trỏ nhầm là fit `T` trên phân bố khác, **sai im lặng**.
 - Đừng dùng "tỉ lệ lỗi có biên hẹp" trên out-of-fold để dự đoán selective trên test — phiên này đã thử và sai.
+
+---
+
+## S-174 · 2026-08-14 · claude-code
+
+**Mục tiêu phiên:** viết `reports/W4_REPORT.md`, tập trung vào kết quả UniFormer và phần giao diện, theo đúng format và giọng của ba report trước.
+
+**Nhánh / commit:** `main` · `0a8bc0a` → *(commit của phiên này)*
+
+**Đã đụng file:** `reports/W4_REPORT.md` (mới). Không đụng code, không chạy thí nghiệm nào.
+
+### Quyết định của người dùng về web app, ghi lại để không trôi
+
+**Bỏ ca demo · bỏ heatmap · chỉ UniFormer · GIỮ ensemble 5 fold.**
+
+⚠️ Lần trả lời đầu người dùng viết "ko ensemble" rồi **đính chính ngay**: vẫn giữ ensemble 5 fold. Đừng đọc lịch sử hội thoại rồi làm theo câu đầu.
+
+Chưa sửa code — người dùng nói "trước mắt" viết report. Việc gỡ mã chết thành mục đầu của W5, và report ghi rõ đó là quyết định đã chốt chứ không phải đề xuất.
+
+### Trạng thái UI thật, đã kiểm trực tiếp chứ không đọc tài liệu
+
+Tài liệu và mã nguồn đang nói hai chuyện khác nhau, nên phải kiểm bằng grep:
+
+- **Ca demo đã bị gỡ khỏi giao diện** từ 13/08 (`refactor(webapp): remove demo cases from UI`). Không component nào còn gọi `/api/cases`; chỉ còn hàm chết trong `webapp/frontend/src/api/client.ts` và các endpoint chết ở backend.
+- **Heatmap** còn nút bật/tắt trong `SliceViewer.tsx`, nhưng luồng upload không sinh artefact nào ⇒ đường chết.
+- ⚠️ **`webapp/README.md` NÓI SAI**: ghi "các checkpoint fold đã hoàn tất (hiện là 1, 2, 3, 5)". Fold 4 đã có từ 14/08. Backend tự dò nên hành vi đúng, chỉ tài liệu sai.
+- Ngưỡng defer `0.55` vẫn là giá trị tạm, chưa khoá từ đường risk–coverage.
+
+Ba chỗ này vào mục 7.3 của report như việc còn nợ.
+
+### Cách bảo đảm report không sai số
+
+Không gõ tay con số nào. Viết một máy quét đối chiếu **từng con số then chốt** trong report với `runs/Uniformer3D/*/metrics_best.json` và `runs/Uniformer3D/test/test_run_meta.json`: 5 fold macro-F1 **và** κ khớp cả 10 giá trị, latency khớp meta, mọi CI và P khớp `AGENTS.md` §5.
+
+Máy quét thứ hai bắt lỗi **style**, vì `AGENTS.md`/`WORKLOG.md` viết theo quy ước khác hẳn report: dấu chấm thập phân, emoji, tên thí nghiệm nội bộ (`E4`, `runs/…`, `S-1xx`), tên kiến trúc, và bốn câu bị cấm về so sánh với SOTA. Kết quả sạch — ba lần khớp "câu bị cấm" đều nằm trong chính câu **cấm** chúng.
+
+### Hai chỗ tự sửa cho trung thực hơn
+
+1. **Hàng tiền xử lý trong bảng thời gian là số mang từ W3, không đo lại.** Bản đầu tôi cộng nó với latency mới rồi ghi tổng "3,84 – 5,15 giây" như một phép đo end-to-end. Đã sửa thành "khoảng 3,8 – 5,2 giây" kèm một câu nói rõ đó là phép cộng ước lượng.
+2. **Mức hụt out-of-fold → test nhỏ hơn (−0,047 so với −0,069)** được phát biểu là "phù hợp với giả thuyết khái quát hoá tốt hơn", kèm ngay câu rằng đó là hai điểm đo trên hai cấu hình chứ không phải một phép kiểm định, và 0,022 nằm trong khoảng nhiễu ở n=104.
+
+### Kết quả / số liệu
+
+301 dòng (W3: 209). Phần dôi ra là mục giao diện và mục nút thắt — nội dung W3 không có, và là hai chỗ người dùng yêu cầu tập trung. Đã cắt bớt mục hướng không hiệu quả.
+
+Kết xuất PDF chạy được (365 KiB, gitignore đúng). **595 passed, 81 skipped**, gate PASS.
+
+### Dang dở
+
+- [ ] Gỡ mã chết ca demo + heatmap; sửa `webapp/README.md`; khoá ngưỡng defer từ risk–coverage **trên out-of-fold**.
+- [ ] Fold 1 của phép trộn trong cùng lớp; bảng ablation + Holm; `README.md`; slide; gói tái lập.
+- [ ] Web app đang phục vụ số của cấu hình cũ ở phần dự đoán ca — cần trỏ sang run mới.
+
+**Điểm vào phiên sau:** không có việc treo.
+
+**Cảnh báo cho tool sau:**
+
+- Report dùng **quy ước viết khác** `AGENTS.md`: dấu phẩy thập phân, CI dạng `[0,7746; 0,8547]`, không emoji, không tên thí nghiệm nội bộ. Sửa report thì giữ đúng quy ước đó.
+- Mọi câu trong report nhắc tập test đều đã nói rõ **lần chạm thứ hai**. Đừng bỏ cụm đó khi biên tập.
+- **Không** thêm câu "ngang hạng 2 / ngang CGHNet / tiệm cận SOTA" — CI ±0,09 không loại được mốc nào từ 0,709 trở lên.
