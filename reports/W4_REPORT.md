@@ -177,6 +177,10 @@ Ngoài ra, gộp mô hình mới với cấu hình cũ làm **tệ đi ở mọi
 
 Giao diện được dựng lại trong tuần thành một **bàn đọc MRI ba cột**: dữ liệu đầu vào bên trái, ảnh ở trung tâm, kết quả mô hình bên phải. Có hai theme sáng và tối; vùng ảnh **luôn giữ nền đen** kể cả khi giao diện đang ở theme sáng.
 
+![Giao diện bàn đọc MRI sau khi hoàn tất dự đoán](assets/w4-webapp-current-mri.png)
+
+*Hình 7.1. Bàn đọc MRI của web app sau khi xử lý một bộ ảnh đa thì: bảng kiểm dữ liệu, ảnh MRI có thể bật/tắt nhãn vùng tổn thương, và kết quả phân loại theo từng lớp.*
+
 Luồng làm việc một chiều: thả một tệp ZIP, hệ thống kiểm 8 chuỗi MRI và 8 nhãn vùng tổn thương tương ứng, rồi chạy ensemble 5 mô hình trực tiếp trên máy chủ. Sau khi có kết quả, người dùng xem được đủ 8 thì của ảnh gốc và bật tắt nhãn tổn thương.
 
 ### 7.2. Thời gian xử lý một ca

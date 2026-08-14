@@ -7318,3 +7318,27 @@ Kết xuất PDF chạy được (365 KiB, gitignore đúng). **595 passed, 81 s
 **Điểm vào phiên sau:** `webapp/frontend/src/components/DeferPanel.tsx`.
 
 **Cảnh báo cho tool sau:** Trạng thái này chỉ mô tả policy selective prediction cho mục đích nghiên cứu, không phải xác nhận chẩn đoán.
+
+---
+
+## S-179 · 2026-08-14 15:28 · codex
+
+**Mục tiêu phiên:** Chèn ảnh chụp giao diện web app đang chạy vào mục 7 của báo cáo W4.
+
+**Nhánh / commit:** `main` · `04a7c7b` → *(commit của phiên này)*
+
+**Đã động file:**
+- `reports/assets/w4-webapp-current-mri.png` — ảnh chụp giao diện bàn đọc MRI hiện tại theo yêu cầu của người dùng.
+- `reports/W4_REPORT.md` — thêm Hình 7.1 và chú thích vào mục 7.1.
+
+**Quyết định & lý do:**
+- Dùng ảnh giao diện tại thời điểm xử lý hoàn tất để minh hoạ đủ ba vùng làm việc, nhãn tổn thương và bảng kết quả; đây là ngoại lệ được người dùng xác nhận rõ cho báo cáo nội bộ.
+
+**Kết quả / số liệu:** Hình 7.1 đã được kiểm tra trực quan trong report asset, kích thước 1536 × 768 px.
+
+**Dang dở:**
+- [ ] Không có việc treo.
+
+**Điểm vào phiên sau:** Không có việc treo. Bước kế tiếp đề xuất: kiểm tra lại report sau khi có thay đổi nội dung W4.
+
+**Cảnh báo cho tool sau:** Không tái sử dụng ảnh asset này cho tài liệu hoặc kênh công khai khi chưa có phê duyệt riêng.
