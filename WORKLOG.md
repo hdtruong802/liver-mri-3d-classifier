@@ -7367,3 +7367,79 @@ Kết xuất PDF chạy được (365 KiB, gitignore đúng). **595 passed, 81 s
 **Điểm vào phiên sau:** Không có việc treo. Bước kế tiếp đề xuất: dùng `scripts/md2pdf.py <report>.md --out output/pdf/<report>.pdf` cho các report cần xuất.
 
 **Cảnh báo cho tool sau:** `output/` là thư mục gitignore; không thêm PDF tái tạo được vào Git.
+
+---
+
+## S-175 · 2026-08-14 · claude-code
+
+**Mục tiêu phiên:** người dùng chạy song song được, yêu cầu hai notebook sẵn sàng train: UniFormer-**Base** và **UniFormerV2-B/16 + K710**.
+
+**Nhánh / commit:** `main` · `e721b2d` → *(commit của phiên này)*
+
+**Đã đụng file:** `configs/uniformer_base.yaml`, `configs/uniformerv2_b16.yaml`, `src/models/uniformerv2.py`, `src/models/__init__.py`, `tests/test_uniformerv2.py`, `tests/test_models.py`, `tests/test_sampler.py`, `notebooks/23_uniformer_base.ipynb`, `notebooks/24_uniformerv2.ipynb`, `AGENTS.md` §6.
+
+### ⚠️⚠️ BỐN NOTEBOOK BỊ XOÁ TRONG WORKING TREE — KHÔNG PHẢI TÔI XOÁ
+
+`08_mc_dropout`, `11_model_heatmaps`, `11_tta_e4`, `12_test104` hiện ở trạng thái ` D` (xoá trong working tree, **chưa stage**). Chúng vẫn còn nguyên trong HEAD.
+
+Trạng thái này **có từ trước khi phiên bắt đầu** — `git status` lúc mở phiên đã ghi đúng bốn dòng đó. Phiên này **không** stage chúng: commit dùng `git add` liệt kê từng đường dẫn, không `git add -A`.
+
+Bốn file đó lấy lại bằng `git checkout -- notebooks/`. Cần người dùng quyết định.
+
+### Notebook 23 — Base: một khoá, và một vấn đề vận hành
+
+`configs/uniformer_base.yaml` sinh **từ** `uniformer_s.yaml` bằng script rồi kiểm bằng YAML diff phẳng: lệch **đúng hai khoá** (`model.variant`, `output_dir`). Notebook sinh từ notebook 20, năm cổng giữ nguyên.
+
+Cell tải trọng số vốn đã dùng `PRETRAINED_FILENAMES[M["variant"]]`, nên đổi variant là nó tự lấy đúng file — không phải sửa gì.
+
+⚠️ Sửa **ngưỡng cổng C**: ngưỡng 60 s/epoch đặt cho `small`, mà `base` gần như chắc chắn vượt. Giờ cổng bắt theo **h/fold so với trần session 12h** và in ra hai đường xử lý (chạy 2 session/fold, hoặc `[2,2,2]` kèm cảnh báo mất tính một-biến) thay vì chỉ báo "quá ngưỡng".
+
+Ước lượng **13–16 h/fold** ghi trong config là ước lượng thô từ số block stage 3 (8 → 20 trên 2744 token). **Không được tin** — dự án đã ghi rõ suy giờ từ GFLOPs cho CGHNet sai xa.
+
+### Notebook 24 — V2: model viết mới, và một chế độ hỏng mới
+
+`src/models/uniformerv2.py` transcribe từ `slowfast/models/uniformerv2_model.py` của họ, giữ **nguyên tên tham số** để trọng số nạp khớp. Không vendor cả file: nó phụ thuộc `timm.DropPath` và logging của SlowFast, mà dự án đã có `_drop_path` riêng đúng vì lý do đó.
+
+Ba việc thích nghi, đều ghi vào `adapted` để cổng A in ra:
+
+1. `conv1` 3 kênh RGB → 8 kênh MRI. Thổi bằng **trung bình rồi nhân 3/8** để tổng theo kênh không đổi ⇒ thang kích hoạt giữ nguyên. Chỉ lặp mà không chia thì kích hoạt nhân 8/3 và `ln_pre` phải hấp thụ một cú lệch thang chưa từng thấy — sai lặng lẽ.
+2. `positional_embedding` nội suy song khối 14×14 → 7×7.
+3. `transformer.proj.2` bỏ hẳn (710 lớp so với 7).
+
+**Chế độ hỏng mà các notebook khác không có: nối dây sai.** Đúng module, sai thứ tự kết nối thì nạp trọng số **thành công 100%**, train trơn, ra số hợp lý. Bộ kiểm khoá không bắt được.
+
+Nên cổng A đối chiếu tập khoá **hai chiều**: model thiếu gì (như cũ), **và** checkpoint dư gì so với model. Chiều thứ hai bắt được "thiếu hẳn một module" — nếu quên cài `lmhra2` thì chiều một vẫn xanh, chiều hai đỏ. ⚠️ Cả hai chiều vẫn **không** phủ được phần nối dây; phần đó được transcribe nguyên văn thay vì viết lại theo ý mình, và đó là toàn bộ bảo đảm có được.
+
+### ⚠️ Vì sao V2 là thí nghiệm NHIỀU biến, đã ghi vào cả config lẫn notebook
+
+So cấu hình chính, nó đổi **bốn** thứ cùng lúc: kiến trúc · nguồn pretrain · lớp vào phải khởi tạo lại · lưới token (49/lát so với 196 lúc pretrain, vì crop 112 chứ không 224). Thắng thì không quy kết được; thua thì gần như không học được gì.
+
+Chỗ mất mát lớn nhất là **hình học**: giữ lại 1/4 số token không gian. Cách tránh duy nhất là dựng cache 224 in-plane từ NIfTI gốc — biến thứ năm, ~4× chi phí. Chưa làm.
+
+Còn một chỗ lệch **thứ năm chưa đo**: `lr 2e-5` thay 1e-4, vì 1e-4 trên ViT pretrained thường phá trọng số ở vài epoch đầu. Nếu fold đầu kém thì đây là nghi phạm **đầu tiên**, trước khi kết luận về kiến trúc.
+
+### Ba cổng chặn có sẵn đã bắt lỗi trong phiên
+
+1. `test_models.py::test_moi_model_trong_registry_deu_co_trong_cong_tham_so_luoi` — đỏ ngay khi đăng ký `uniformerv2` mà chưa khai kích thước tối thiểu. Đúng ý đồ.
+2. `test_sampler.py` allowlist — đỏ khi thêm hai config dùng `sqrt`. Đúng ý đồ.
+3. Test của chính tôi sai: dùng 96 làm ca "không chia hết cho 16", mà 96 = 6×16. Đã đổi sang 100 và **thêm một assert rằng 96 phải đi qua được**, để test không đỏ vì lý do sai.
+
+### Kết quả / số liệu
+
+Không train. **606 passed, 86 skipped** (trước 595/81; +11 test, 5 skip vì thiếu torch). `ruff` sạch, gate PASS.
+
+⚠️ **8/19 test của V2 skip trên máy này** vì không có torch, gồm toàn bộ phần dựng mạng, thổi kênh và nội suy pos-embed. Chỗ xác nhận thật là **cổng A và B của notebook 24**. Đừng đọc "606 passed" thành "kiến trúc đúng".
+
+### Dang dở
+
+- [ ] Quyết định về bốn notebook bị xoá trong working tree.
+- [ ] Chạy fold 1 của notebook 23 và 24; và `21_intra_mixup` vẫn chưa chạy fold nào.
+- [ ] Bảng ablation + Holm; README; slide; dọn mã chết của web app.
+
+**Điểm vào phiên sau:** hai notebook sẵn sàng, chưa chạy.
+
+**Cảnh báo cho tool sau:**
+
+- **Notebook 24 là một cược, không phải một phép đo.** Bốn biến đổi cùng lúc — đừng viết "V2 tốt hơn nhờ CLIP" dù kết quả có dương.
+- Nếu fold 1 của V2 kém: kiểm `lr` (2e-5, lệch so với phần còn lại dự án) **trước** khi nghi kiến trúc.
+- `uniformerv2` là model **duy nhất** trong repo được viết lại từ mã của bên khác. Sửa nó thì chạy lại cổng A của notebook 24 trên checkpoint thật — test ở local không phủ được phần đó.

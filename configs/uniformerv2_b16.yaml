@@ -1,0 +1,140 @@
+# UNIFORMERV2-B/16 + TRỌNG SỐ CLIP-400M → K710.
+#
+#   notebooks/24_uniformerv2.ipynb   (dùng LẠI cache của configs/preprocess_cghnet.yaml)
+#
+# Kiến trúc: https://github.com/OpenGVLab/UniFormerV2 · trọng số nhóm **K710**, mà MODEL_ZOO
+# của họ ghi rõ là "serve as initialization points for downstream finetuning".
+#
+# ---------------------------------------------------------------------------
+# ⚠️⚠️ ĐÂY LÀ THÍ NGHIỆM NHIỀU BIẾN. ĐỌC TRƯỚC KHI DIỄN GIẢI KẾT QUẢ.
+#
+# So với `configs/uniformer_s.yaml` (out-of-fold 0.8147), file này đổi **bốn** thứ cùng lúc:
+#
+#   1. kiến trúc      kim tự tháp 4 stage  ->  ViT phẳng + MHRA cục bộ + decoder cross-attn
+#   2. nguồn pretrain Kinetics-400 (video) ->  CLIP-400M (ảnh-ngôn ngữ) rồi K710
+#   3. `conv1`        nhận trọng số        ->  PHẢI khởi tạo lại cho 8 kênh
+#   4. lưới token     đa tầng              ->  49 token/lát (112 / patch 16 = 7x7)
+#
+# Thắng thì **không quy kết được** cho cái nào trong bốn. Thua thì gần như không học được gì:
+# kiến trúc? lưới 49 token? patch embed? hay một lỗi triển khai?
+#
+# Đây là một cược đầu cơ, không phải một phép đo. Ghi đúng như vậy trong báo cáo.
+#
+# ---------------------------------------------------------------------------
+# ⚠️ CHỖ MẤT MÁT LỚN NHẤT, VÀ NÓ NẰM Ở HÌNH HỌC
+#
+# Mọi checkpoint của họ đều pretrain ở **224**; crop của ta là **112**.
+#
+#                       token không gian mỗi lát
+#   lúc pretrain (224)  14x14 = 196
+#   ở đây        (112)   7x7  =  49        <- giữ lại 1/4
+#
+# `positional_embedding` được nội suy song khối 14x14 -> 7x7, nhưng nội suy không tạo lại
+# thông tin: tiên nghiệm không gian của CLIP bị lấy mẫu thưa đi bốn lần.
+#
+# Cách tránh duy nhất là dựng cache ở **224 in-plane** từ NIfTI gốc (~20-30 phút CPU). Đó là
+# thông tin THẬT chứ không phải phóng to bản 112. Nhưng nó là **biến thứ năm**, và ~4x chi phí
+# ở mọi block. Chưa làm; nếu làm thì phải ghi là một cấu hình khác hẳn.
+# ---------------------------------------------------------------------------
+
+seed: 1337
+fold: 1
+splits_dir: splits
+
+cache_dir: artifacts/cache_cghnet          # env LLDMMRI_CACHE_DIR thắng
+output_dir: artifacts/runs/uniformerv2_b16  # env LLDMMRI_OUTPUT_DIR thắng
+
+model:
+  name: uniformerv2
+  variant: b16                  # ViT-B/16 · 12 block · width 768 · decoder hút 4 block cuối
+  in_channels: 8                # 8 pha MRI vào làm KÊNH
+  num_classes: 7
+
+  # Phải khớp `data.crop_size`; test `test_config_v2_dung_dung_ten_model_va_hinh_hoc` khoá
+  # điều đó. Lệch thì reshape trong transformer nổ với thông báo về số phần tử, hoàn toàn
+  # không gợi ra nguyên nhân.
+  input_resolution: 112
+  t_size: 14                    # số lát TRƯỚC conv1
+
+  # true  = conv1 kernel (3,16,16) stride (2,16,16) -> 7 lát vào transformer. Đúng cấu hình
+  #         `uniformerv2_b16` của họ, và rẻ hơn một nửa ở mọi block.
+  # false = kernel (1,16,16) stride 1 -> giữ đủ 14 lát, đắt gấp đôi.
+  #
+  # ⚠️ Chọn `true` KHÔNG mất gì về trọng số: `conv1` phải khởi tạo lại cho 8 kênh trong cả hai
+  # trường hợp, nên hình dạng kernel là lựa chọn tự do. Cái mất là **độ phân giải theo lát**:
+  # 14 lát ở 3mm vốn đã mỏng, hạ còn 7 là một nhượng bộ thật. Đây là ablation MỘT khoá đáng
+  # chạy nếu fold đầu cho kết quả sát nút.
+  temporal_downsample: true
+
+  dw_reduction: 1.5             # [GỐC] hệ số thu hẹp của MHRA cục bộ
+  no_lmhra: false               # [GỐC] giữ MHRA cục bộ — đây là phần "UniFormer" của V2
+  double_lmhra: true            # [GỐC] hai lần mỗi block, trước và sau self-attention
+  mlp_factor: 4.0               # [GỐC]
+
+  # [GỐC] mặc định của họ cho b16. Cao bất thường so với phần còn lại của dự án, nhưng đây là
+  # dropout ở nhánh decoder (4 lớp) chứ không phải toàn mạng.
+  mlp_dropout: 0.5
+  cls_dropout: 0.5
+
+  backbone_drop_path_rate: 0.0
+  drop_path_rate: 0.0
+
+  require_pretrained: true      # nổ thay vì lặng lẽ train from scratch
+  pretrained_path: null         # env LLDMMRI_PRETRAINED_PATH thắng
+
+data:
+  batch_size: 4
+  num_workers: 4
+  persistent_workers: true
+  prefetch_factor: 4
+  pin_memory: true
+
+  crop_size: [112, 112, 14]     # [X, Y, Z] — Z phải bằng model.t_size
+  sampling: sqrt
+  mixup_alpha: 0.0
+
+  augment:
+    flip_prob: 0.5
+    flip_axes: [x, y, z]
+    rotate_degrees: 10
+    rotate_prob: 1.0
+    rotate_mode: nearest
+    translate_voxels: [0, 0, 0]
+    rot90_prob: 0
+    intensity_prob: 0
+    edge_prob: 0.10
+    emboss_prob: 0.10
+    filter_prob: 0.40
+    blur_prob: 0.20
+    sharpen_prob: 0.20
+    unsharp_prob: 0.10
+    filter_spatial_only: false
+
+loss:
+  name: focal
+  gamma: 2.0
+  class_weights: effective_number
+  beta: 0.9999
+  label_smoothing: 0.1
+  deep_supervision: false
+
+train:
+  epochs: 300
+  warmup_epochs: 5
+  warmup_lr: 0.000001
+  min_lr: 0.00001
+
+  # ⚠️ LỆCH có chủ đích so với 1e-4 của phần còn lại dự án. Backbone là ViT đã pretrain trên
+  # CLIP; lr 1e-4 trên một ViT pretrained thường phá trọng số ở vài epoch đầu. 2e-5 là mức
+  # quen thuộc khi finetune CLIP-ViT.
+  #
+  # ⚠️ Nhưng đây là chỗ lệch thứ NĂM so với cấu hình gốc, và nó CHƯA được đo. Nếu fold đầu
+  # kém, đây là nghi phạm đầu tiên — thử 1e-4 trước khi kết luận về kiến trúc.
+  lr: 0.00002
+
+  weight_decay: 0.05
+  accum_steps: 1
+  early_stop_patience: 0
+  amp: true
+  deterministic: true
+  resume: true

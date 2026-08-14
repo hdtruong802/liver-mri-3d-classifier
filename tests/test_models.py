@@ -370,6 +370,14 @@ _KHOI_TOI_THIEU: dict[str, tuple[dict, tuple[int, ...]]] = {
         {"variant": "small", "patch_embed1_stride": (2, 2, 2), "require_pretrained": False},
         (1, 8, 112, 112, 14),
     ),
+    # ViT phẳng: cạnh in-plane phải chia hết cho patch_size 16, nên 112 là mức nhỏ nhất
+    # dùng được. `t_size` là số lát TRƯỚC conv1 và phải khớp chiều Z của shape đầu vào —
+    # lệch hai thứ này thì reshape trong transformer nổ với thông báo về số phần tử,
+    # hoàn toàn không gợi ra nguyên nhân.
+    "uniformerv2": (
+        {"variant": "b16", "input_resolution": 112, "t_size": 14, "require_pretrained": False},
+        (1, 8, 112, 112, 14),
+    ),
 }
 
 
