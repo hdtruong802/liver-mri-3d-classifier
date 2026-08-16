@@ -196,6 +196,7 @@ def build_uniformer3d(
     attn_drop_rate: float = 0.0,
     drop_path_rate: float = 0.1,
     head_dropout: float = 0.0,
+    memory_efficient_attn: bool = False,
     pretrained_path: str | None = None,
     require_pretrained: bool = False,
 ) -> Any:
@@ -206,6 +207,15 @@ def build_uniformer3d(
         patch_embed1_stride: ``(D, H, W)`` **theo thứ tự model**. ``(1, 2, 2)`` là của repo
             hạng 2 (giữ nguyên số lát); ``(2, 2, 2)`` hạ nửa số lát và rẻ hơn nhiều.
         patch_embed1_kernel: mặc định bằng stride, đúng như họ (`stride=None → patch_size`).
+        memory_efficient_attn: dùng `scaled_dot_product_attention` thay vì dựng ma trận
+            attention ``(n × n)``. **Cùng phép toán**, chỉ khác cách xếp phép cộng, nên đây là
+            khoá **vận hành** chứ không phải khoá khoa học. Mặc định ``False`` để nhánh đã
+            chạy ra 0.8147 không đổi một bit nào.
+
+            ⚠️ Biến thể ``base`` **cần** nó: stage 3 có 20 block trên 2744 token, và riêng một
+            ma trận attention fp16 đã ~300 MB mỗi block ⇒ OOM trên T4 16GB ngay ở batch 4.
+            Bật nó rẻ hơn hẳn hai lối thoát kia: giảm batch làm BatchNorm thấy ít mẫu hơn (đổi
+            động học thật), còn ``patch_embed1_stride [2,2,2]`` là đổi kiến trúc.
         drop_rate: dropout trong Mlp và `pos_drop`. **Repo hạng 2 để 0.0** (factory của họ
             không truyền `drop_rate`, và `--drop` của timm mặc định 0). Giữ 0 để trung thực.
         drop_path_rate: ``--drop-path 0.1`` của họ.
@@ -286,9 +296,22 @@ def build_uniformer3d(
             b, n, c = x.shape
             qkv = self.qkv(x).reshape(b, n, 3, self.num_heads, c // self.num_heads)
             q, k, v = qkv.permute(2, 0, 3, 1, 4)
-            attn = (q @ k.transpose(-2, -1)) * self.scale
-            attn = self.attn_drop(attn.softmax(dim=-1))
-            return self.proj_drop(self.proj((attn @ v).transpose(1, 2).reshape(b, n, c)))
+            if memory_efficient_attn:
+                # Cùng phép toán, nhưng KHÔNG dựng ma trận (n × n) trong bộ nhớ. Với
+                # `patch_embed1_stride [1,2,2]` thì stage 3 có 2744 token, và riêng một ma
+                # trận attention fp16 đã là ~300 MB mỗi block — nhân số block là hết VRAM.
+                # Biến thể `base` có 20 block ở stage 3 và OOM ngay ở cổng C vì chỗ này.
+                #
+                # ⚠️ Kết quả **không bit-identical** với nhánh dưới: phép cộng dồn được sắp
+                # xếp lại nên sai khác ở vài chữ số cuối của fp16. Về mặt toán học là một.
+                out = torch.nn.functional.scaled_dot_product_attention(
+                    q, k, v, dropout_p=self.attn_drop.p if self.training else 0.0
+                )
+            else:
+                attn = (q @ k.transpose(-2, -1)) * self.scale
+                attn = self.attn_drop(attn.softmax(dim=-1))
+                out = attn @ v
+            return self.proj_drop(self.proj(out.transpose(1, 2).reshape(b, n, c)))
 
     class CBlock(nn.Module):
         """Stage 1–2: MHRA cục bộ, hoàn toàn bằng conv. `attn` là conv 5×5×5 depthwise."""

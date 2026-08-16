@@ -7690,3 +7690,76 @@ Vòng 3 là vòng duy nhất thông báo lỗi giúp được, và nó là vòng
 - **Đọc config đi kèm checkpoint, không chỉ mã kiến trúc.** Mặc định của hàm factory trong mã gốc (`no_lmhra=False`) **khác** giá trị dùng để train checkpoint được phát hành (`True`). Ba vòng chạy Kaggle đã mất vì chỗ này.
 - Bản B/16 **không có MHRA cục bộ**. Đừng mô tả nó như "ViT có conv thời gian bên trong" trong báo cáo.
 - Nếu bật `no_lmhra: false` thì đó là một **ablation riêng** với 264 tham số học từ đầu, không phải mặc định — và cổng A sẽ đỏ đúng như thiết kế.
+
+---
+
+## S-180 · 2026-08-14 · claude-code
+
+**Mục tiêu phiên:** notebook 23 (Base) OOM ở cổng C. Sửa.
+
+**Nhánh / commit:** `main` · `afc4c57` → *(commit của phiên này)*
+
+**Đã đụng file:** `src/models/uniformer3d.py`, `configs/uniformer_base.yaml`, `tests/test_uniformerv2.py`, `notebooks/23_uniformer_base.ipynb`.
+
+### Nguyên nhân, và vì sao nó là lỗi ĐÃ ĐOÁN ĐƯỢC mà tôi vẫn để lọt
+
+`Attention.forward` của `uniformer3d.py` dựng **thẳng** ma trận `(n × n)`:
+
+```python
+attn = (q @ k.transpose(-2, -1)) * self.scale
+attn = self.attn_drop(attn.softmax(dim=-1))
+```
+
+Ở stage 3 có **2744 token**, nên một ma trận fp16 là ~300 MB. Bản `small` có 8 block ở stage đó và vừa đủ lọt; `base` có **20 block** ⇒ hết 14 GB VRAM của T4 ngay ở batch 4.
+
+⚠️ Tôi đã ghi trong config rằng stage 3 đi từ 8 lên 20 block và cảnh báo về **thời gian**, nhưng không suy tiếp sang **bộ nhớ**. Cùng một con số, hai hệ quả, tôi chỉ đọc một.
+
+### Sửa bằng khoá VẬN HÀNH, không phải khoá khoa học
+
+`model.memory_efficient_attn` → `scaled_dot_product_attention`. **Cùng phép toán**, không hiện thực hoá ma trận `(n × n)`; chỉ khác cách xếp phép cộng nên sai khác vài chữ số cuối của fp16.
+
+Mặc định **`False`** để nhánh đã cho out-of-fold 0.8147 không đổi một bit nào. Chỉ `uniformer_base.yaml` bật.
+
+Hai lối thoát khác đều đắt hơn về mặt khoa học, và đã ghi lý do vào config:
+
+| cách | vì sao không chọn |
+|---|---|
+| `batch_size` 4 → 2 | BatchNorm ở stage 1–2 chỉ còn thấy 2 mẫu. **`accum_steps` KHÔNG bù được** — nó gộp gradient chứ không gộp thống kê BatchNorm. Phép so mất tính một biến |
+| `patch_embed1_stride [2,2,2]` | đổi kiến trúc |
+
+### Phân biệt khoá khoa học với khoá vận hành
+
+Test cũ khẳng định config Base khác base **đúng hai khoá**. Giờ có ba, nên tôi đổi test thành: **trừ nhóm vận hành ra thì lệch đúng MỘT khoá khoa học** (`model.variant`).
+
+Nhóm vận hành = `output_dir` + `memory_efficient_attn`. Phân biệt này quan trọng theo cả hai chiều: gộp chung thì hoặc ta tưởng thí nghiệm có ba biến, hoặc một khoá khoa học lặng lẽ trà trộn vào nhóm "vận hành". Test cũng chốt `uniformer_s` vẫn ở `False`.
+
+### Bốn vòng, và lần này nguyên nhân nằm trong mã của CHÍNH dự án
+
+| vòng | nguyên nhân | ở đâu |
+|---|---|---|
+| 1 | bucket đã chết | ngoài dự án |
+| 2 | tiền tố `backbone.` | tài liệu bên ngoài |
+| 3 | `no_lmhra` ngược | config đi kèm checkpoint |
+| **4** | **attention dựng ma trận n×n** | **`src/models/uniformer3d.py`** |
+
+Ba vòng đầu là thứ đọc tài liệu gốc sẽ tránh được. Vòng này thì không — nó đòi suy từ một con số đã có sẵn trong chính config tôi viết (8 → 20 block) sang hệ quả bộ nhớ. **Cảnh báo về thời gian mà không cảnh báo về bộ nhớ là đọc thiếu, không phải thiếu thông tin.**
+
+### Kết quả / số liệu
+
+**613 passed, 86 skipped** — không đổi (test cũ được viết lại chứ không thêm). `ruff` sạch, gate PASS.
+
+Cổng C giờ in chế độ attention đang dùng, để nếu ai tắt khoá đó thì thấy ngay lý do OOM.
+
+### Dang dở
+
+- [ ] Chạy lại notebook 23. Cổng C giờ mới đo được `s/epoch` thật của `base` — ước lượng 13–16 h/fold vẫn **chưa được kiểm**.
+- [ ] Notebook 24 cũng chưa qua cổng A.
+- [ ] Fold 1 của `21_intra_mixup`; bảng ablation + Holm; `README.md`; slide; dọn mã chết web app.
+
+**Điểm vào phiên sau:** cả ba notebook train đều chưa chạy fold nào.
+
+**Cảnh báo cho tool sau:**
+
+- **`memory_efficient_attn` phải giữ `False` ở `uniformer_s.yaml`.** Bật nó đổi vài chữ số cuối, và mọi con số đã báo cáo (out-of-fold 0.8147, test-104 0.7682) sinh ra từ nhánh `False`.
+- Khi một biến thể sâu hơn: suy hệ quả sang **cả thời gian lẫn bộ nhớ**. Ở đây cùng một con số "8 → 20 block" cho cả hai, và tôi chỉ đọc một.
+- `accum_steps` **không** thay thế được `batch_size` cho model có BatchNorm. Nó gộp gradient, không gộp thống kê chuẩn hoá.

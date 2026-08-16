@@ -276,14 +276,27 @@ def _phang(d, tien=""):
     return out
 
 
-def test_config_base_khac_uniformer_s_dung_hai_khoa():
-    """Đúng hai khoá: biến thể và thư mục ra. Thừa một khoá là thí nghiệm hai biến."""
+def test_config_base_khac_uniformer_s_dung_MOT_khoa_khoa_hoc():
+    """Đúng **một** khoá khoa học: biến thể. Hai khoá kia là vận hành.
+
+    `output_dir` để không ghi đè run cũ. `memory_efficient_attn` là cách tính attention —
+    cùng phép toán, chỉ khác cách xếp phép cộng — và `base` **bắt buộc** cần nó vì 20 block
+    stage 3 trên 2744 token gây OOM trên T4 ở batch 4.
+
+    Phân biệt hai loại khoá này là điều quan trọng: nếu gộp chung thì hoặc ta tưởng thí
+    nghiệm có ba biến, hoặc ta lặng lẽ cho một khoá khoa học trà trộn vào nhóm "vận hành".
+    """
     cfg = repo_root() / "configs"
     a = _phang(yaml.safe_load((cfg / "uniformer_s.yaml").read_text("utf-8")))
     b = _phang(yaml.safe_load((cfg / "uniformer_base.yaml").read_text("utf-8")))
     lech = {k for k in set(a) | set(b) if a.get(k, "<vắng>") != b.get(k, "<vắng>")}
-    assert lech == {"model.variant", "output_dir"}, f"lệch ngoài dự kiến: {lech}"
+
+    VAN_HANH = {"output_dir", "model.memory_efficient_attn"}
+    assert lech - VAN_HANH == {"model.variant"}, f"khoá khoa học lệch ngoài dự kiến: {lech}"
     assert b["model.variant"] == "base"
+    assert b["model.memory_efficient_attn"] is True
+    # Nhánh gốc phải giữ nguyên: run đã cho 0.8147 không được đổi một bit nào.
+    assert a.get("model.memory_efficient_attn", False) is False
 
 
 def test_config_v2_khop_config_di_kem_checkpoint():

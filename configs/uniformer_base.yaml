@@ -106,6 +106,21 @@ model:
   # [REPO] `--model uniformer_base_original` — ĐÂY là biến thể họ dùng.
   # File trọng số: `uniformer_base_k600_32x4.pth` (xem hai chỗ lệch ở đầu file).
   variant: base
+
+  # ⚠️ BẮT BUỘC với `base`, và đây là khoá VẬN HÀNH chứ không phải khoá khoa học.
+  #
+  # Bản `small` dựng thẳng ma trận attention (n × n) trong stage 3. Với 2744 token thì mỗi ma
+  # trận fp16 đã ~300 MB, và `base` có **20 block** ở stage đó ⇒ **OOM trên T4 16GB ngay ở
+  # batch 4**, đã gặp thật ở cổng C.
+  #
+  # `scaled_dot_product_attention` làm **cùng phép toán** mà không hiện thực hoá ma trận đó.
+  # Chỉ khác cách xếp phép cộng ⇒ sai khác vài chữ số cuối của fp16, không phải khác mô hình.
+  #
+  # Vì sao chọn nó thay vì hai lối thoát kia:
+  #   - giảm `batch_size` xuống 2: BatchNorm ở stage 1–2 sẽ chỉ thấy 2 mẫu thay vì 4.
+  #     `accum_steps` KHÔNG bù được điều đó ⇒ đổi động học thật, phép so mất tính một biến.
+  #   - `patch_embed1_stride [2,2,2]`: đổi kiến trúc, còn tệ hơn.
+  memory_efficient_attn: true
   in_channels: 8              # 8 pha MRI vào làm KÊNH (không phải làm trục thời gian)
   num_classes: 7
 
