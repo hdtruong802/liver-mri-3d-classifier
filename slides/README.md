@@ -5,11 +5,12 @@
 | [`overview.html`](overview.html) | Bản khắc atlas giải phẫu | 12 | Giới thiệu dự án nói chung | ✅ Bản chính thức |
 | [`overview_v2.html`](overview_v2.html) | Bản khắc atlas giải phẫu | 7 + phụ lục nguồn | Báo cáo nội bộ VSF 28/07/2026 | ✅ Dựng xong, chưa soát trên máy chiếu |
 | [`sprint_1.html`](sprint_1.html) | Bản khắc atlas giải phẫu | 7 | Báo cáo tiến độ 07/08/2026, **deck đầu tiên mang số đo được** | ✅ Dựng xong, in đúng 7 trang |
+| [`sprint_2.html`](sprint_2.html) | Bản khắc atlas giải phẫu | 5 | Báo cáo tiến độ 17/08/2026, **đổi mô hình chính sang UniFormer** | ✅ Dựng xong, in đúng 5 trang |
 
 > `sprint_1.html` trước đây tên là `overview_v3.html`, đổi tên 2026-08-10 (nội dung không
 > đổi một byte nào). Các entry WORKLOG từ S-112 trở về trước gọi nó bằng tên cũ.
 
-Ba deck **song song**, không thay thế nhau. Cùng một thế giới thị giác, khác mạch kể:
+Bốn deck **song song**, không thay thế nhau. Cùng một thế giới thị giác, khác mạch kể:
 
 - **v1 (12 bản khắc)** đi từ *bài toán → dataset → SOTA → ứng dụng → nguồn*. Có slide
   output UI và slide input/output chi tiết.
@@ -22,6 +23,21 @@ Ba deck **song song**, không thay thế nhau. Cùng một thế giới thị gi
   test-104. Vì vậy nó là deck đầu tiên chịu ràng buộc Loại B của
   [`DESIGN.md`](../DESIGN.md): mỗi con số phải kèm **CI** và **tên tập đo được**.
   Có 5 mốc phần thay vì 4 như v2.
+- **`sprint_2` (5 bản khắc)** đi từ *bài toán → dữ liệu → kết quả → tiếp theo*. Ngắn nhất
+  trong bốn deck, và dựng quanh **một luận điểm duy nhất**: đổi backbone sang UniFormer-S
+  kèm trọng số Kinetics nâng macro-F1 từ 0,6162 lên **0,7682** trên test-104 (lần chạm thứ
+  hai), tức **+0,1520** [+0,0647; +0,2421] P = 0,001 theo bootstrap ghép cặp. Bản khắc 1 lấy
+  bố cục bìa của v2 (có `dl.meta` và ảnh tám thì); bản khắc 4 mang toàn bộ phép so E4 với
+  UniFormer. **4 mốc phần**, tức đúng mặc định `repeat(4)`, nên nó **không** có override
+  `repeat(5)` của `sprint_1`.
+
+  Hai chỗ `sprint_2` cố ý khác `sprint_1`, cả hai đều để đọc cho dễ:
+  - **Khoảng tin cậy phân tách bằng dấu chấm phẩy** `[0,7746; 0,8547]`. `sprint_1` dùng dấu
+    phẩy, trùng với dấu thập phân nên khó đọc. Semicolon là quy ước của `reports/W4_REPORT.md`.
+  - **Khối `.caveat` của bản khắc 4 chia hai cột** (`max-width:none` + grid 2 cột). Lý do:
+    `.caveat` mặc định giới hạn 74ch nên nó chỉ dùng ~40% bề rộng và bỏ trống phần bên phải,
+    trong khi bốn điểm cảnh báo là ràng buộc của `AGENTS.md` §3 và §10, không được cắt bớt.
+    Cột thứ hai phải tự mang thanh dọc riêng, vì container chỉ cấp thanh đó cho cột đầu.
 
 Mỗi file tự chứa, mở bằng double-click. In ra PDF được (mỗi bản khắc một trang ngang,
 URL tự hiện trong ngoặc). Điều hướng: mũi tên trái/phải, Space, PageUp/PageDown,
@@ -35,6 +51,18 @@ chỉ điều khiển bằng bàn phím, không có phần tử nào nổi lên 
 > `@media print` (xem chú thích trong file). Nếu sửa v1/v2 thì chép cùng khối đó, và
 > đừng ghim `--u` thành một giá trị mm cố định: Chrome headless mặc định in khổ Letter
 > 279×216mm chứ không phải A4, hardcode bề rộng sẽ tràn ngang.
+
+> ⚠️ **Khi soát số trang, phải TẮT header/footer của trình duyệt.** Để bật thì mỗi bề mặt
+> tràn sang trang sau và deck 5 bản khắc in ra 6 trang, trông y như lỗi tràn nội dung.
+> `scripts/md2pdf.py` truyền `--no-pdf-header-footer`; bản Edge trên máy dev **không nhận**
+> cờ đó (nó thoát mà không sinh file), nên đường chắc chắn là gọi `Page.printToPDF` qua
+> DevTools Protocol với `displayHeaderFooter: false`.
+>
+> ⚠️⚠️ **Và số trang PDF KHÔNG bắt được lỗi tràn.** `.slide` có `overflow: hidden`, nên nội
+> dung quá khổ bị **cắt âm thầm** trên màn hình mà số trang vẫn đúng. Phép kiểm thật là so
+> `scrollHeight` của con đầu tiên trong `.body` với `clientHeight` của `.body` ở 1600×900.
+> Bản dựng đầu của `sprint_2` tràn **318px** ở bản khắc 4: tiêu đề bị cắt mất phần trên và
+> cả điểm cảnh báo thứ tư biến mất, mà PDF vẫn ra đủ số trang.
 
 Hệ thống thị giác đầy đủ ở [`DESIGN.md`](../DESIGN.md). Prompt đã dùng để sinh từng file:
 [`prompt/slides_overview.md`](../prompt/slides_overview.md) cho v1,

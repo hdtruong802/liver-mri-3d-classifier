@@ -7818,3 +7818,53 @@ Phần **đã kiểm được** ở local, bằng numpy độc lập với code 
 - ⚠️ Mọi câu báo cáo dùng số của cấu hình này **bắt buộc** ghi đây là bản tái lập **nhỏ hơn** bài (~12.7M so với 19.34M), nên 0.7910 chỉ là mốc **định hướng**, không phải mốc so trực tiếp.
 - ⚠️ Chỗ thiếu duy nhất so với danh sách augmentation của bài: **`random erasing`** (§4.2). Dự án không có `RandomErasing3D`. Phải vào báo cáo.
 - ⚠️ `ruff format --check src tests` báo **7 file** cần format lại, trong đó **6 file là drift có sẵn** của tool khác (`src/eval/tta.py`, `src/preprocess/build_cache.py`, `tests/test_preprocess_pipeline.py`, `tests/test_webapp_api.py`, `tests/test_webapp_predictions.py`, `tests/test_webapp_volumes.py`). Phiên này **chỉ format file của mình** và không đụng 6 file kia. Trông như hai tool đang dùng cấu hình/phiên bản `ruff` khác nhau — đáng xử lý một lần cho dứt, nhưng phải là một quyết định riêng, không lẫn vào commit tính năng.
+
+## S-182 · 2026-08-17 · claude-code
+
+**Mục tiêu phiên:** Dựng `slides/sprint_2.html`, 5 bản khắc, báo cáo bước nhảy sang UniFormer.
+
+**Nhánh / commit:** `main` · `8fe2a63` → (commit cuối phiên)
+
+**Đã đụng file:**
+- `slides/sprint_2.html` — **mới**. 5 bản khắc: bìa · bài toán/input/output/target · dataset · so E4 với UniFormer · công việc tiếp theo.
+- `slides/README.md` — thêm hàng cho deck mới, mô tả mạch kể, và **hai cảnh báo về cách soát số trang** (xem dưới).
+
+**Quyết định & lý do:**
+
+- **Target trình bày theo hướng trustworthiness**, không dùng mốc 0,85–0,90 của `overview_v2`. Người dùng chốt trong phiên. Mốc đó cao hơn cả đội hạng 1 và mâu thuẫn với `AGENTS.md` §1; `slides/README.md` đã ghi chỗ lệch từ trước. Mốc định lượng đưa lên slide là mốc **đã đạt**: vượt baseline ban tổ chức 0,6083 có ý nghĩa thống kê. Phiên này **không sửa** `overview_v2.html` hay `PRODUCT.md` — chỗ lệch vẫn còn đó.
+- **Slide 5 cân bằng ba phần** (nút thắt · hai trục đã cạn · deliverable còn nợ), cũng do người dùng chốt.
+- **Chép nguyên khối `<style>` và `<script>` của `sprint_1`** bằng script thay vì gõ lại 1090 dòng CSS. Sửa đúng một chỗ: bỏ override `.section-nav { repeat(5) }` vì deck này có 4 mốc, tức đúng mặc định của khối nền.
+- **Khoảng tin cậy phân tách bằng dấu chấm phẩy** `[0,7746; 0,8547]`, cố ý lệch khỏi `sprint_1` (dùng dấu phẩy, trùng dấu thập phân nên khó đọc). Theo quy ước của `reports/W4_REPORT.md`.
+- **Base và V2 chỉ nêu ĐỊNH TÍNH** ("không cải thiện, tệ hơn"), không một con số nào. Hai run đó chưa đóng gói kèm CI, nên viết số ra là Loại C — `DESIGN.md` cấm vẽ số chưa đo.
+- **Khối `.caveat` của bản khắc 4 chia hai cột.** `.caveat` mặc định giới hạn 74ch nên nó chỉ dùng ~40% bề rộng và bỏ trống ~700px bên phải. Bốn điểm cảnh báo là ràng buộc `AGENTS.md` §3 và §10 nên không được cắt; chia cột là cách giữ đủ bốn điểm mà vẫn vừa khung. Cột thứ hai mang thanh dọc riêng, vì container chỉ cấp thanh đó cho cột đầu và thanh dọc là **ký hiệu** của khối cảnh báo, không phải trang trí.
+
+**Kết quả / số liệu:**
+
+Deck 5 bản khắc, in ra **đúng 5 trang**. `impeccable detect slides` trả `[]`. Quality gate PASS.
+
+Soát tự động (script ở scratchpad, 20 phép kiểm): HTML cân bằng · 5 dải RUO · 4 mốc phần đúng 1 active mỗi bề mặt · không `text-transform`/`box-shadow`/bo góc khác 0 · không câu định vị bị cấm · **24 con số khớp `AGENTS.md`** · mọi số dùng dấu phẩy thập phân · chú số 1/2/3 đều có chú giải · không em-dash trong nội dung.
+
+**⚠️ Hai bài học về cách soát deck, đã ghi vào `slides/README.md`:**
+
+1. **Phải TẮT header/footer của trình duyệt khi in.** Để bật thì mỗi bề mặt tràn sang trang sau, deck 5 bản khắc ra **6 trang**, trông y như lỗi tràn nội dung. Bản Edge trên máy này **không nhận** `--no-pdf-header-footer` (thoát mà không sinh file), nên đường chắc chắn là gọi `Page.printToPDF` qua DevTools Protocol với `displayHeaderFooter: false` (cần thêm `--remote-allow-origins=*`).
+2. **⚠️⚠️ Số trang PDF KHÔNG bắt được lỗi tràn.** `.slide` có `overflow: hidden` nên nội dung quá khổ bị **cắt âm thầm** mà số trang vẫn đúng. Phép kiểm thật là so `scrollHeight` của con đầu tiên trong `.body` với `clientHeight` của `.body` ở 1600×900.
+
+   Bản dựng đầu tràn **318px** ở bản khắc 4: tiêu đề bị cắt mất phần trên, và **cả điểm cảnh báo thứ tư biến mất hoàn toàn** — tức đúng phần ràng buộc của `AGENTS.md` là thứ bị mất. Chỉ phát hiện được khi chụp ảnh và đo, không phải khi đếm trang.
+
+   Đường cắt đã dùng, theo thứ tự: rút bảng từng lớp thành một câu → gộp CI và P vào cùng dòng trong bảng → tinh gọn văn trong `.caveat` → chia `.caveat` thành hai cột. 318px → 82px → 39px → **+87px dư**.
+
+Dư chỗ cuối cùng của cả 5 bề mặt: +271 / +86 / +246 / +87 / +101 px.
+
+**Dang dở:**
+- [ ] Chưa soát trên máy chiếu thật. Nền tối cần phòng có giảm sáng (`DESIGN.md` ghi rủi ro này).
+- [ ] Fold 1 của `21_intra_mixup` và `25_sdrformer`; notebook 23, 24 chưa có số đóng gói kèm CI.
+- [ ] Bảng ablation + Holm · `README.md` · report cuối · gói tái lập · dọn mã chết web app.
+
+**Điểm vào phiên sau:** mở `slides/sprint_2.html` soát bằng mắt trên màn hình trình chiếu thật. Nếu cần sửa nội dung, sửa ở scratchpad rồi chạy lại `gen_sprint2.py`, hoặc sửa thẳng file (nó tự chứa, không có bước build bắt buộc).
+
+**Cảnh báo cho tool sau:**
+
+- ⚠️ **Đừng "thống nhất" dấu phân tách CI giữa hai deck.** `sprint_1` dùng dấu phẩy, `sprint_2` dùng dấu chấm phẩy. Đây là lựa chọn có lý do, không phải sơ suất.
+- ⚠️ **Đừng thêm lại override `.section-nav { repeat(5) }`** vào `sprint_2` — deck này có 4 mốc.
+- ⚠️ **Không dùng `<b>` bên trong `<span>` của `.dash-list`:** `.dash-list b` là `display:block` nên con số sẽ nhảy xuống dòng riêng và cắt đôi câu. Dùng `<strong>`. Đã mắc một lần ở bản khắc 2.
+- ⚠️ Mốc **0,85–0,90** của `overview_v2.html` vẫn mâu thuẫn với `AGENTS.md` §1 và `PRODUCT.md`. `sprint_2` đi theo `AGENTS.md`; hai file kia chưa ai sửa. Đây là chỗ lệch còn tồn tại, không phải nhầm lẫn của phiên này.
