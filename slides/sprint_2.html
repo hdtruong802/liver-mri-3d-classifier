@@ -4,7 +4,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Phân loại u gan trên MRI 3D đa thì — báo cáo sprint 2, 18/08/2026</title>
+  <title>Phân loại u gan trên MRI 3D đa thì — báo cáo sprint 2, 17/08/2026</title>
   <style>
     :root {
       --ink: #10161B;
@@ -1124,10 +1124,6 @@
                   <dd>VSF-KD&amp;VHVMEC-DL&amp;AI</dd>
                 </div>
                 <div>
-                  <dt>Kỳ báo cáo</dt>
-                  <dd class="num">08/08 – 17/08/2026</dd>
-                </div>
-                <div>
                   <dt>Ngày báo cáo</dt>
                   <dd class="num">17/08/2026</dd>
                 </div>
@@ -1136,16 +1132,13 @@
             <figure class="cover-media">
               <img src="assets/synthetic-mri-8phase-contact-sheet.png"
                 alt="Bảng tiếp xúc tám lát cắt MRI bụng tổng hợp, minh hoạ tám thì chụp của cùng một trường nhìn.">
-              <figcaption>Ảnh tổng hợp minh hoạ tám thì MRI. Không phải dữ liệu bệnh nhân, không phải ảnh
-                LLD-MMRI.<sup class="ref">3</sup></figcaption>
+              <figcaption>Ảnh tổng hợp minh hoạ tám thì MRI.<sup class="ref">3</sup></figcaption>
             </figure>
           </div>
         </div>
       </div>
-      <div class="foot"><span class="keys"><span><sup class="ref">3</sup> Ảnh tám thì do mô hình sinh ảnh tạo ra, dùng
-            để minh hoạ khái niệm. Không phải dữ liệu bệnh nhân, không phải ảnh LLD-MMRI, không phải kết quả của đề
-            tài.</span><span>Mọi số của dự án đều kèm khoảng tin cậy và tên tập đo được</span></span><span
-          class="no">Bìa</span></div>
+      <div class="foot"><span class="keys"><span><sup class="ref">3</sup> Ảnh do mô hình sinh ảnh tạo ra. Không phải
+            dữ liệu bệnh nhân, không phải ảnh LLD-MMRI.</span></span><span class="no">Bìa</span></div>
     </section>
 
     <!-- 2 · Bài toán -->
@@ -1158,54 +1151,35 @@
       <div class="body">
         <div class="content">
           <p class="eyebrow">Bài toán</p>
-          <h2>Gọi tên tổn thương gan, và nói rõ mức tin cậy của chính câu trả lời đó.</h2>
+          <h2>Gọi tên tổn thương gan, và nói rõ mức tin cậy của câu trả lời.</h2>
           <div class="trio">
             <div>
               <h3>Bài toán</h3>
-              <p>Phân loại <b>7 lớp</b> tổn thương gan ở <b>mức ROI</b>. Ba lớp ác tính: HCC, ICC, di căn. Bốn lớp
-                lành tính: nang, u máu, FNH, áp-xe.</p>
-              <p>Vị trí tổn thương cho trước, nên đây <em>không</em> phải bài toán phát hiện, và cũng không phải
-                segmentation.</p>
+              <p>Phân loại <b>7 lớp</b> ở <b>mức ROI</b>. Ác tính: HCC, ICC, di căn. Lành tính: nang, u máu, FNH,
+                áp-xe.</p>
+              <p>Vị trí tổn thương cho trước, nên không phải phát hiện, cũng không phải segmentation.</p>
             </div>
             <div>
               <h3>Đầu vào</h3>
-              <p>Một bệnh nhân là <b>8 thì MRI 3D</b>: C-pre, C+A, C+V, C+Delay, T2WI, DWI, In Phase, Out Phase.</p>
-              <p>Tiền xử lý cache lưới <b>128 × 128 × 16</b>, mô hình nhận khối <b>8 × 112 × 112 × 14</b>, tức 8 thì
-                xếp thành 8 kênh của cùng một khối ba chiều.</p>
+              <p><b>8 thì MRI 3D</b>: C-pre, C+A, C+V, C+Delay, T2WI, DWI, In Phase, Out Phase.</p>
+              <p>Mô hình nhận khối <b>8 × 112 × 112 × 14</b>, tức 8 thì xếp thành 8 kênh.</p>
             </div>
             <div>
               <h3>Đầu ra</h3>
-              <p><b>7 xác suất</b>, cộng một <b>mức bất định</b>, cộng một <b>cờ defer</b>.</p>
-              <p>Cờ defer là phần khác biệt: khi mô hình không đủ chắc, nó nói ra điều đó và chuyển ca cho bác sĩ thay
-                vì đoán bừa một nhãn.</p>
+              <p><b>7 xác suất</b>, một <b>mức bất định</b>, một <b>cờ defer</b>.</p>
+              <p>Khi mô hình không đủ chắc, nó nói ra và chuyển ca cho bác sĩ thay vì đoán bừa.</p>
             </div>
           </div>
-          <div class="split" style="margin-top:var(--lg)">
-            <div>
-              <h3>Target: đích là độ tin cậy, không phải điểm số</h3>
-              <ul class="dash-list words tight" style="margin-top:var(--sm)">
-                <li><b>Đích chính</b><span>Xác suất đáng tin cộng cơ chế từ chối ca không chắc. Đây là đóng góp
-                    headline của đề tài.</span></li>
-                <li><b>Thước để so</b><span>macro-F1 và Cohen's κ, trùng đúng hai metric xếp hạng của challenge nên so
-                    sánh được trực tiếp.</span></li>
-              </ul>
-            </div>
-            <div>
-              <h3>Mốc định lượng</h3>
-              <ul class="dash-list words tight" style="margin-top:var(--sm)">
-                <!-- KHÔNG dùng <b> trong <span> của .dash-list: `.dash-list b` là display:block nên
-                     con số sẽ tự nhảy xuống dòng riêng và cắt đôi câu. Dùng <strong> thay. -->
-                <li><b>Đã vượt</b><span>Baseline ban tổ chức <strong class="num">0,6083</strong><sup
-                      class="ref">2</sup>, vượt <em>có ý nghĩa thống kê</em>: cận dưới khoảng tin cậy của dự án là
-                    0,690 trên test-104.</span></li>
-                <li><b>Chưa phân biệt được</b><span>Nhóm 0,709 tới 0,832 của văn liệu. Với n = 104 thì khoảng tin cậy
-                    rộng ±0,09, chưa loại được mốc nào trong nhóm đó.</span></li>
-              </ul>
+          <div class="target" style="border-style:solid;border-color:var(--line)">
+            <div class="target-head"><strong>Target</strong><span class="plate-label">Đích là độ tin cậy, không phải
+                điểm số.</span></div>
+            <div class="target-grid">
+              <p><b>Đích chính:</b> xác suất đáng tin cộng cơ chế từ chối ca không chắc. macro-F1 và Cohen's κ chỉ là
+                <em>thước để so</em>, vì trùng metric xếp hạng của challenge.</p>
+              <p><b>Mốc:</b> đã vượt baseline ban tổ chức <b>0,6083</b><sup class="ref">2</sup> có ý nghĩa thống kê.
+                Chưa phân biệt được với nhóm 0,71 tới 0,83, vì n = 104 nên khoảng tin cậy rộng ±0,09.</p>
             </div>
           </div>
-          <p class="sub"><b>Vì sao chọn hướng này:</b> phần lớn công trình cùng bài toán chỉ báo độ chính xác, không
-            báo mô hình có tự biết mình sai hay không. Một mô hình đoán đúng 77% nhưng luôn nói chắc chắn thì không
-            dùng được trên lâm sàng; một mô hình đoán đúng 77% mà chỉ ra được phần ca nó không nắm thì dùng được.</p>
         </div>
       </div>
       <div class="foot"><span class="keys"><span><sup class="ref">2</sup> <a
@@ -1227,7 +1201,7 @@
           <div class="split split-wide">
             <div>
               <table class="compact">
-                <caption>Phân bố lớp, LLD-MMRI. Split official 394 / 104 đã tái lập và khoá trong
+                <caption>Phân bố lớp, LLD-MMRI. Split official đã tái lập và khoá trong
                   <code>splits/</code>.<sup class="ref">1</sup></caption>
                 <thead>
                   <tr>
@@ -1281,17 +1255,12 @@
             </div>
             <div>
               <ul class="dash-list words">
-                <li><b>Nhãn là gold standard thật</b><span>Lấy từ <em>kết quả giải phẫu bệnh</em>, không phải từ đọc
-                    ảnh. Mỗi bệnh nhân đúng một tổn thương, nên số ca cũng là số tổn thương.<sup
-                      class="ref">1</sup></span></li>
-                <li><b>Chia dữ liệu khớp official 100%</b><span>Split 316 / 78 / 104 của challenge đã tái lập được và
-                    kiểm khớp phân bố lớp ở cả 7 lớp. Nhờ vậy con số của dự án so trực tiếp được với bảng xếp
-                    hạng.</span></li>
-                <li><b>Mất cân bằng vừa phải</b><span>HCC nhiều nhất, FNH ít nhất, tỉ lệ khoảng 3,4 lần. Đây không
-                    phải long-tail, nên không cần kỹ thuật đặc biệt cho lớp siêu hiếm.</span></li>
-                <li><b>Tám thì khác nhau về hình học</b><span>Thì không thuốc chụp theo mặt phẳng khác, DWI có ma trận
-                    thô hơn, khoảng cách lát cắt không giống nhau, và dữ liệu đến từ nhiều máy 1.5T và 3T. Vì vậy
-                    <em>căn các thì về cùng một lưới là bắt buộc</em>, không phải tuỳ chọn.</span></li>
+                <li><b>Nhãn từ giải phẫu bệnh</b><span>Gold standard thật, không phải từ đọc ảnh. Mỗi bệnh nhân đúng
+                    một tổn thương.<sup class="ref">1</sup></span></li>
+                <li><b>Chia dữ liệu khớp official 100%</b><span>Split 316 / 78 / 104 đã tái lập và kiểm khớp phân bố
+                    lớp, nên số của dự án so trực tiếp được với bảng xếp hạng.</span></li>
+                <li><b>Tám thì khác nhau về hình học</b><span>Khác mặt phẳng chụp, khác ma trận, nhiều máy 1.5T và 3T.
+                    Vì vậy <em>căn các thì về cùng một lưới là bắt buộc</em>.</span></li>
               </ul>
             </div>
           </div>
@@ -1317,13 +1286,12 @@
           <div class="figure">
             <b class="num">0,7682</b>
             <span class="ci">CI95 [0,6902; 0,8422]</span>
-            <span class="on">macro-F1 · test-104 official · n = 104 · ensemble 5 fold · lần chạm thứ hai</span>
+            <span class="on">macro-F1 · test-104 official · ensemble 5 fold · lần chạm thứ hai</span>
           </div>
           <div class="split split-wide">
             <div>
               <table class="compact">
-                <caption>Hai cột số là <b>hai tập khác nhau</b>, đọc riêng từng cột, không so chéo. Cùng split, cùng
-                  seed 1337, cùng 5 fold.</caption>
+                <caption>Hai cột là <b>hai tập khác nhau</b>, không so chéo.</caption>
                 <thead>
                   <tr>
                     <th scope="col">Cấu hình</th>
@@ -1333,88 +1301,75 @@
                 </thead>
                 <tbody>
                   <tr>
-                    <td>DenseNet121-3D <span class="on">cấu hình cũ</span></td>
+                    <td>DenseNet121-3D <span class="on">cũ</span></td>
                     <td class="n">0,6851 <span class="ci">[0,6394; 0,7308]</span></td>
                     <td class="n">0,6162 <span class="ci">[0,5246; 0,7032]</span></td>
                   </tr>
                   <tr class="ours">
-                    <td>UniFormer-S 3D + Kinetics <span class="on">cấu hình chính</span></td>
+                    <td>UniFormer-S + Kinetics <span class="on">chính</span></td>
                     <td class="n">0,8147 <span class="ci">[0,7746; 0,8547]</span></td>
                     <td class="n">0,7682 <span class="ci">[0,6902; 0,8422]</span></td>
                   </tr>
                   <tr>
-                    <td>hiệu, bootstrap ghép cặp <span class="on">cùng bệnh nhân</span></td>
+                    <td>hiệu, bootstrap ghép cặp</td>
                     <td class="n"><b>+0,1296</b> <span class="ci">[+0,0778; +0,1809] P &lt; 0,001</span></td>
                     <td class="n"><b>+0,1520</b> <span class="ci">[+0,0647; +0,2421] P = 0,001</span></td>
                   </tr>
                 </tbody>
               </table>
-              <p class="sub" style="font-size:var(--small);margin-top:var(--sm)">Mức tăng dương ở <b>cả 5 fold</b> và
-                <b>cả 7 lớp</b>, ICC nhiều nhất với <b>+0,212</b>. Cohen's κ của cấu hình chính: <b>0,8010</b> val
-                out-of-fold, <b>0,7333</b> test-104.</p>
+              <p class="sub" style="font-size:var(--small);margin-top:var(--sm)">Dương ở <b>cả 5 fold</b> và <b>cả 7
+                  lớp</b>, ICC nhiều nhất <b>+0,212</b>. <span class="on">val out-of-fold</span></p>
             </div>
             <div>
               <table class="compact">
-                <caption>Độ tin cậy của xác suất và cơ chế từ chối. <b>Cả hai hàng đo trên test-104 official</b>, nên
-                  so được trực tiếp. Xác suất là bản <em>chưa</em> hiệu chỉnh.</caption>
+                <caption>Độ tin cậy của xác suất. <b>Cả hai hàng đo trên test-104</b>, xác suất chưa hiệu
+                  chỉnh.</caption>
                 <thead>
                   <tr>
                     <th scope="col">Cấu hình</th>
                     <th scope="col" class="n">ECE</th>
                     <th scope="col" class="n">tự tin<br>thái quá</th>
-                    <th scope="col" class="n">macro-F1<br>@80% coverage</th>
+                    <th scope="col" class="n">macro-F1<br>@80%</th>
                   </tr>
                 </thead>
                 <tbody>
                   <tr>
-                    <td>cấu hình cũ</td>
+                    <td>cũ</td>
                     <td class="n">0,1303</td>
                     <td class="n">+0,115</td>
-                    <td class="n">+0,0696 <span class="ci">P = 0,016</span></td>
+                    <td class="n">+0,0696</td>
                   </tr>
                   <tr class="ours">
-                    <td>cấu hình chính</td>
+                    <td>chính</td>
                     <td class="n"><b>0,0833</b></td>
                     <td class="n"><b>+0,042</b></td>
-                    <td class="n"><b>+0,0739</b> <span class="ci">P = 0,027</span></td>
+                    <td class="n"><b>+0,0739</b></td>
                   </tr>
                 </tbody>
               </table>
-              <p class="sub" style="font-size:var(--small);margin-top:var(--sm)"><b>Phát biểu dùng được:</b> từ chối
-                20% ca khó nâng macro-F1 từ <b class="num">0,768</b> lên <b class="num">0,842</b> (P = 0,027); ở mức
-                sai số ≤ 10% hệ thống tự quyết được <b class="num">76,9%</b> số ca. <span class="on">cả ba số đo trên
-                  test-104</span></p>
+              <p class="sub" style="font-size:var(--small);margin-top:var(--sm)">Từ chối 20% ca khó nâng macro-F1
+                <b>0,768</b> lên <b>0,842</b> (P = 0,027). <span class="on">test-104</span></p>
             </div>
           </div>
-          <!-- `.caveat` giới hạn 74ch nên một mình nó chỉ dùng ~40% bề rộng bản khắc, bỏ trống
-               phần bên phải. Chia hai cột để lấy lại chỗ đó: bốn điểm cảnh báo là ràng buộc của
-               AGENTS.md §3 và §10, không được cắt bớt để vừa khung. -->
+          <!-- Bốn điểm dưới đây là ràng buộc AGENTS.md §3 và §10, không được cắt. Chia hai cột vì
+               `.caveat` giới hạn 74ch nên một mình nó bỏ trống nửa bề rộng bản khắc. -->
           <div class="caveat" style="max-width:none;display:grid;grid-template-columns:1fr 1fr;gap:0 var(--xl)">
             <div>
-              <p><b>Test-104 đã bị nhìn hai lần</b> (07/08 và 14/08); lần thứ ba cần xin phép và một bản đăng ký
-                protocol mới. Quan hệ <em>protocol có trước kết quả</em> kiểm được: file kết quả ghi mã commit của bản
-                đăng ký, và ước lượng chốt trước là 0,72 tới 0,79.</p>
-              <p><b>Con số 0,8147 lệch lạc quan:</b> thiên lệch chọn checkpoint <b>+0,0797</b> [+0,0419; +0,1213]. Mức
-                hụt val sang test là <b>−0,047</b>, nhỏ hơn <b>−0,069</b> của cấu hình cũ, nhưng đây là <em>quan sát
-                  trên hai điểm đo, không phải phép kiểm định</em>.</p>
+              <p><b>Test-104 đã nhìn hai lần</b> (07/08 và 14/08). Lần thứ ba cần xin phép và một bản đăng ký protocol
+                mới.</p>
+              <p><b>0,8147 lệch lạc quan:</b> thiên lệch chọn checkpoint <b>+0,0797</b> [+0,0419; +0,1213].</p>
             </div>
-            <!-- Thanh dọc là KÝ HIỆU của khối cảnh báo (DESIGN.md), không phải trang trí. Container
-                 chỉ cấp thanh đó cho cột đầu, nên cột thứ hai phải tự mang một thanh giống hệt:
-                 thiếu nó thì nửa bên phải không còn đọc ra là cảnh báo. -->
             <div style="border-left:2px solid var(--line-strong);padding-left:var(--md)">
-              <p><b>Một dự đoán chốt trước đã sai, và ghi lại là sai:</b> dự án dự đoán cơ chế từ chối <em>không</em>
-                đạt ý nghĩa thống kê trên test. Nó đạt, ở cả ba mức coverage.</p>
-              <p><b>Định vị đúng:</b> vượt baseline ban tổ chức <b class="num">0,6083</b><sup class="ref">2</sup> có ý
-                nghĩa thống kê, điều sprint 1 chưa nói được; vẫn <em>dưới</em> SOTA đã công bố, và n = 104 nên chưa
-                phân biệt được với nhóm 0,71 tới 0,83. Đây là bản <em>tái lập một phần</em> recipe đội hạng 2.</p>
+              <p><b>Một dự đoán chốt trước đã sai:</b> dự án dự đoán cơ chế từ chối <em>không</em> đạt ý nghĩa thống kê
+                trên test. Nó đạt.</p>
+              <p><b>Định vị:</b> trên baseline ban tổ chức, <em>dưới</em> SOTA đã công bố, và n = 104 nên chưa phân
+                biệt được với nhóm 0,71 tới 0,83.</p>
             </div>
           </div>
         </div>
       </div>
-      <div class="foot"><span class="keys"><span><sup class="ref">2</sup> <a
-              href="https://github.com/LMMMEng/LLD-MMRI2023/blob/main/assets/test_leaderboard.md" target="_blank"
-              rel="noopener">LLD-MMRI2023 leaderboard</a>, n = 104</span><span class="on">val out-of-fold và test-104
-            là hai tập khác nhau, không so chéo</span></span><span class="no">Kết quả</span></div>
+      <div class="foot"><span class="keys"><span class="on">val out-of-fold và test-104 là hai tập khác nhau, không so
+            chéo</span></span><span class="no">Kết quả</span></div>
     </section>
 
     <!-- 5 · Tiếp theo -->
@@ -1427,25 +1382,22 @@
       <div class="body">
         <div class="content">
           <p class="eyebrow">Công việc tiếp theo</p>
-          <h2>Nút thắt còn lại là một lớp duy nhất, và hai trục cải thiện hiển nhiên đều đã cạn.</h2>
-          <div class="split split-wide">
+          <h2>Nút thắt còn lại là một lớp duy nhất, và hai trục hiển nhiên đều đã cạn.</h2>
+          <div class="split">
             <div>
-              <h3>Nút thắt: lớp di căn, một mình chặn mốc 0,9</h3>
-              <p style="color:var(--muted);font-size:var(--small);margin-top:var(--sm)">F1 <b class="num">0,576</b>,
-                precision 0,731 nhưng recall chỉ <b class="num">0,475</b> <span class="on">(val out-of-fold, 394
-                  ca)</span>. Mô hình quá dè dặt khi gọi tên lớp này, chứ không phải nhầm lẫn tràn lan.</p>
-              <p style="color:var(--muted);font-size:var(--small);margin-top:var(--sm)"><b>Phép tính trần:</b> kể cả 6
-                lớp còn lại đều đạt 0,95 mà di căn giữ 0,576 thì macro-F1 cũng chỉ tới <b class="num">0,896</b>. Muốn
-                qua mốc 0,9 thì bắt buộc chữa lớp này, không có đường vòng.</p>
-              <p style="color:var(--muted);font-size:var(--small);margin-top:var(--sm)">Đáng ghi: lớp yếu nhất của
-                CGHNet ở mức 0,818 <em>cũng là di căn</em>. Đây là giới hạn của bài toán, không riêng của dự án, nên
-                nó thuộc mục Giới hạn của báo cáo.</p>
+              <h3>Nút thắt: lớp di căn</h3>
+              <ul class="dash-list words tight" style="margin-top:var(--sm)">
+                <li><b class="num">0,576</b><span>F1, với recall chỉ 0,475. <span class="on">val out-of-fold 394
+                      ca</span></span></li>
+                <li><b class="num">0,896</b><span>Trần macro-F1 nếu 6 lớp kia đều đạt 0,95 mà di căn giữ 0,576. Di căn
+                    một mình chặn mốc 0,9.</span></li>
+              </ul>
             </div>
             <div>
-              <h3>Hai trục đã cạn, và đó là kết quả đáng báo cáo</h3>
+              <h3>Hai trục đã cạn</h3>
               <table class="compact" style="margin-top:var(--sm)">
-                <caption>Kết quả âm. Cả hai đo trên val out-of-fold, cùng công thức huấn luyện, chỉ đổi backbone.
-                  Chưa đóng gói kèm khoảng tin cậy nên <em>chỉ nêu định tính</em>.</caption>
+                <caption>Kết quả âm, val out-of-fold. Chưa đóng gói kèm khoảng tin cậy nên chỉ nêu định
+                  tính.</caption>
                 <thead>
                   <tr>
                     <th scope="col">Can thiệp</th>
@@ -1457,43 +1409,39 @@
                   <tr>
                     <td>UniFormer-Base</td>
                     <td>dung lượng lớn hơn</td>
-                    <td>không cải thiện, tệ hơn</td>
+                    <td>tệ hơn</td>
                   </tr>
                   <tr>
                     <td>UniFormerV2-B/16</td>
                     <td>nguồn pretrain khác</td>
-                    <td>không cải thiện, tệ hơn</td>
+                    <td>tệ hơn</td>
                   </tr>
                 </tbody>
               </table>
-              <p class="sub" style="font-size:var(--small)">Nên trục còn lại <em>không</em> phải backbone lớn hơn. Nó
-                là <b>cách 8 thì được kết hợp</b> và <b>dữ liệu</b>.</p>
+              <p class="sub" style="font-size:var(--small);margin-top:var(--sm)">Trục còn lại là <b>cách 8 thì được
+                  kết hợp</b> và <b>dữ liệu</b>, không phải backbone lớn hơn.</p>
             </div>
           </div>
           <div class="trio">
             <div>
               <h3>Trộn trong cùng lớp</h3>
-              <p>Mảnh cuối còn thiếu của recipe đội hạng 2: nội suy hai ca cùng chẩn đoán để sinh biến thể mới, nhắm
-                đúng các lớp hiếm. Đã cài, chưa chạy fold nào.</p>
+              <p>Mảnh cuối của recipe đội hạng 2, nhắm đúng các lớp hiếm.</p>
             </div>
             <div>
               <h3>Siamese hai độ phân giải</h3>
-              <p>Đổi trục kết hợp thì. Bảng của nhóm phát hành dataset cho thấy bọc backbone vào khung Siamese nâng
-                điểm trên cả sáu backbone họ thử. Đánh đổi: nó huấn luyện từ đầu, tức bỏ trọng số pretrained.</p>
+              <p>Đổi trục kết hợp thì. Đánh đổi: huấn luyện từ đầu, tức bỏ trọng số pretrained.</p>
             </div>
             <div>
               <h3>Ensemble nhiều seed</h3>
-              <p>Trên cùng một split. Vừa nâng điểm vừa lấy lại đại lượng bất định epistemic, thứ cấu hình chính hiện
-                không có vì nó không chứa lớp dropout nào.</p>
+              <p>Nâng điểm, và lấy lại đại lượng bất định epistemic.</p>
             </div>
           </div>
-          <p class="sub"><b>Deliverable còn nợ, ưu tiên ngang với thí nghiệm:</b> bảng ablation kèm hiệu chỉnh Holm ·
-            README · report cuối · gói tái lập gồm seed, config, split và notebook · dọn mã chết của web app và nối
-            nó vào mô hình mới.</p>
+          <p class="sub"><b>Deliverable còn nợ:</b> bảng ablation kèm Holm · README · report cuối · gói tái lập · dọn
+            mã chết web app.</p>
         </div>
       </div>
-      <div class="foot"><span class="keys"><span>Lần chạm test-104 tiếp theo cần khoá protocol mới và phải báo là lần
-            thứ ba</span></span><span class="no">Tiếp theo</span></div>
+      <div class="foot"><span class="keys"><span>Lần chạm test-104 tiếp theo phải báo là lần thứ ba</span></span><span
+          class="no">Tiếp theo</span></div>
     </section>
 
   </main>

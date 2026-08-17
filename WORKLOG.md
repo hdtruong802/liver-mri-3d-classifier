@@ -7868,3 +7868,39 @@ Dư chỗ cuối cùng của cả 5 bề mặt: +271 / +86 / +246 / +87 / +101 p
 - ⚠️ **Đừng thêm lại override `.section-nav { repeat(5) }`** vào `sprint_2` — deck này có 4 mốc.
 - ⚠️ **Không dùng `<b>` bên trong `<span>` của `.dash-list`:** `.dash-list b` là `display:block` nên con số sẽ nhảy xuống dòng riêng và cắt đôi câu. Dùng `<strong>`. Đã mắc một lần ở bản khắc 2.
 - ⚠️ Mốc **0,85–0,90** của `overview_v2.html` vẫn mâu thuẫn với `AGENTS.md` §1 và `PRODUCT.md`. `sprint_2` đi theo `AGENTS.md`; hai file kia chưa ai sửa. Đây là chỗ lệch còn tồn tại, không phải nhầm lẫn của phiên này.
+
+## S-183 · 2026-08-17 · claude-code
+
+**Mục tiêu phiên:** Rút gọn slides/sprint_2.html theo yêu cầu người dùng (quá nhiều chữ).
+
+**Nhánh / commit:** main · db1f159 → (commit cuối phiên)
+
+**Đã đụng file:**
+- slides/sprint_2.html — viết lại toàn bộ phần thân, gọn khoảng một nửa số chữ.
+
+**Quyết định & lý do:**
+
+- **Cắt phần diễn giải, giữ phần khẳng định.** Bốn điểm cảnh báo của bản khắc 4 vẫn đủ bốn (ràng buộc AGENTS.md §3 và §10) nhưng mỗi điểm rút về một câu: bỏ phần giải thích về mã commit của bản đăng ký, bỏ câu "quan sát trên hai điểm đo", bỏ mệnh đề "điều sprint 1 chưa nói được".
+- **Bỏ hẳn:** đoạn "Vì sao chọn hướng này" ở bản khắc 2 · mục "Mất cân bằng vừa phải" ở bản khắc 3 (bảng phân bố đã nói) · hàng Cohen's κ và con số 76,9% ở bản khắc 4 · hàng Kỳ báo cáo ở bìa (trùng với tiêu đề và ngày).
+- **Giữ nguyên, không thương lượng:** dải RUO cả 5 bề mặt · CI cộng tên tập cho mọi số Loại B · chú số 1/2/3 và chú giải · ác/lành bằng hình dạng cộng nhãn chữ · câu "hai tập khác nhau, không so chéo".
+- **Khối 	arget ở bản khắc 2 đổi từ nét đứt sang nét liền** (order-style:solid). .target mặc định nét đứt, mà nét đứt là ngôn ngữ dành riêng cho "chưa có dữ liệu" (DESIGN.md); mốc 0,6083 là mốc **đã đạt** nên dùng nét đứt sẽ đọc sai nghĩa.
+
+**Kết quả / số liệu:**
+
+Dư chỗ tăng mạnh: trước +271/+86/+246/+87/+101 px, sau **+320/+322/+308/+196/+184 px**. File 46,5 KB → 41,8 KB.
+
+In ra đúng 5 trang · impeccable detect slides trả [] · 22 con số còn lại vẫn khớp AGENTS.md · quality gate PASS.
+
+**Dang dở:**
+- [ ] Chưa soát trên máy chiếu thật.
+- [ ] Fold 1 của 21_intra_mixup và 25_sdrformer.
+- [ ] Bảng ablation + Holm · README.md · report cuối · gói tái lập · dọn mã chết web app.
+
+**Điểm vào phiên sau:** soát slides/sprint_2.html trên màn hình trình chiếu thật.
+
+**Cảnh báo cho tool sau:**
+
+- ⚠️ Deck này **đã bị rút gọn có chủ ý**. Đừng thêm lại phần diễn giải đã cắt; nếu cần chi tiết thì đó là việc của 
+eports/, không phải của slide.
+- ⚠️ **Đừng đổi khối 	arget ở bản khắc 2 về nét đứt.** Nét đứt nghĩa là "chưa có dữ liệu"; mốc ở đó đã đạt.
+- ⚠️ Các cảnh báo của S-182 vẫn còn hiệu lực: không dùng <b> trong <span> của .dash-list; không thêm lại override .section-nav repeat(5); số trang PDF không bắt được lỗi tràn.
