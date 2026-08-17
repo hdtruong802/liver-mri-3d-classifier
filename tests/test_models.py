@@ -378,6 +378,13 @@ _KHOI_TOI_THIEU: dict[str, tuple[dict, tuple[int, ...]]] = {
         {"variant": "b16", "input_resolution": 112, "t_size": 14, "require_pretrained": False},
         (1, 8, 112, 112, 14),
     ),
+    # Siamese hai độ phân giải: nhánh thấp lấy nửa mặt phẳng, nên cạnh in-plane phải chẵn và
+    # đủ lớn để sống qua hai lần pool (stem /2, stage1 /2, stage2 /2). 112 là hình học thật
+    # của config; nhỏ hơn thì nhánh Transformer teo về 1 voxel và lưới GSA toàn đệm.
+    "sdrformer": (
+        {"num_phases": 8, "num_classes": 7, "blocks_per_stage": 1},
+        (1, 8, 112, 112, 14),
+    ),
 }
 
 

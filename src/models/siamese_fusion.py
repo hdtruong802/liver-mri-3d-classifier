@@ -3,22 +3,38 @@
 Đây là bước v1 của trục fusion trong Spec Sheet §3, thay cho early-concat v0
 (`src/models/densenet3d.py`, 8 pha vào như 8 kênh).
 
-**Vì sao đổi.** Bảng so sánh trong SDR-Former (Lou et al., Neural Networks 2025,
-đo trên đúng test-104 của LLD-MMRI) cho thấy bước nhảy lớn nhất không đến từ
-backbone mà từ việc bọc backbone trong một Siamese Neural Network::
+**Vì sao đổi.** Bảng 1 của SDR-Former (Lou và cs., arXiv:2402.17246) cho thấy bọc
+một backbone vào Siamese Neural Network nâng macro-F1 trên **cả sáu** backbone họ
+thử, cùng dataset MR 8 pha::
 
-    ResNet-50 (early-fusion)     macro-F1 0.6898
-    SNN-UniFormer-S              macro-F1 0.7639   <- +0.074 chỉ do đổi sang SNN
-    SNN-H2Former                 macro-F1 0.7745
-    SDR-Former (đủ bộ)           macro-F1 0.7910   <- +0.027 cho toàn bộ module lai
+    backbone        image-level   Siamese    hiệu
+    ResNet-50          0.6898     0.7168    +0.027
+    DenseNet-121       0.7171     0.7394    +0.022
+    MCSCNN             0.7089     0.7409    +0.032
+    BoTNet-50          0.7139     0.7572    +0.043
+    UniFormer-S        0.7123     0.7639    +0.052
+    H2Former           0.7342     0.7745    +0.040
+    SDR-Former (đủ bộ)             0.7910   <- +0.027 nữa cho DR-Former + BCIM + APSM
 
-Hạng 2 của challenge dùng **ResNet18** và đạt 0.8078 nhờ registration tốt, tức
-backbone không phải nút thắt. Cả ba đội đầu bảng đều thắng ở chỗ 8 thì được căn
-và kết hợp thế nào.
+Trung bình +0.036, và transformer hưởng lợi hơn CNN (+0.045 so với +0.027).
 
-*Ghi chú về mức tin cậy:* việc hàng ``ResNet-50`` là early-fusion còn ba hàng
-``SNN-*`` là Siamese được **suy ra từ quy ước đặt tên** của bảng, chưa đối chiếu
-phần setup của bài báo. Cần kiểm trước khi trích con số +0.074 vào report.
+⚠️ **ĐÍNH CHÍNH 2026-08-17 (đã đọc bài gốc).** Bản trước của docstring này viết
+*"+0.074 chỉ do đổi sang SNN"*, lấy hiệu giữa ``ResNet-50`` (0.6898) và
+``SNN-UniFormer-S`` (0.7639). **Sai** — hai hàng đó khác nhau **cả backbone lẫn
+fusion**, nên con số ấy gộp hai biến. Hiệu một biến thật nằm trong khoảng
+**+0.022 đến +0.052**. Đừng trích con số cũ.
+
+✅ Phần *nghi ngờ* của bản trước thì **đã giải quyết được**: §5.1 nói thẳng rằng các
+hàng ``SNN-*`` là chính những backbone đó *"integrated into the SDR-Former's
+weight-sharing network framework"*. Suy luận từ quy ước đặt tên là đúng.
+
+⚠️ Một đính chính nữa: bản trước viết *"hạng 2 của challenge dùng ResNet18"*. Sai —
+hạng 2 (`NPUBXY`) dùng **UniFormer-S + trọng số Kinetics**; xem AGENTS.md §5 và
+``configs/uniformer_s.yaml``.
+
+**Bản tái lập đầy đủ SDR-Former nằm ở** ``src/models/sdrformer.py``. Module này là
+bản Siamese *tối giản* (một scalar mỗi thì, trên vector đã pool); bản kia có APSM
+cho trọng số riêng **từng kênh**, hai độ phân giải, và BCIM nối hai nhánh.
 
 **Vì sao dùng chung trọng số.** 316 mẫu train. Tám encoder riêng là tám lần số
 tham số và gần như chắc chắn overfit. Dùng chung trọng số giữ nguyên số tham số

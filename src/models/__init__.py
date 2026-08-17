@@ -11,6 +11,7 @@ from typing import Any
 from src.models.cghnet import build_cghnet
 from src.models.densenet3d import build_densenet3d, count_parameters
 from src.models.resnet3d import build_resnet3d
+from src.models.sdrformer import build_sdrformer
 from src.models.siamese_fusion import build_siamese_fusion
 from src.models.uniformer3d import build_uniformer3d
 from src.models.uniformerv2 import build_uniformerv2
@@ -22,6 +23,7 @@ _BUILDERS = {
     "cghnet": build_cghnet,
     "uniformer3d": build_uniformer3d,
     "uniformerv2": build_uniformerv2,
+    "sdrformer": build_sdrformer,
 }
 
 # Model trả về **dict** ở chế độ train (deep supervision). Vòng train phải biết để lấy
@@ -53,6 +55,7 @@ __all__ = [
     "build_densenet3d",
     "build_model",
     "build_resnet3d",
+    "build_sdrformer",
     "build_siamese_fusion",
     "build_uniformer3d",
     "build_uniformerv2",

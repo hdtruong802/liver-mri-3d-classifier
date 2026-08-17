@@ -7763,3 +7763,58 @@ Cổng C giờ in chế độ attention đang dùng, để nếu ai tắt khoá 
 - **`memory_efficient_attn` phải giữ `False` ở `uniformer_s.yaml`.** Bật nó đổi vài chữ số cuối, và mọi con số đã báo cáo (out-of-fold 0.8147, test-104 0.7682) sinh ra từ nhánh `False`.
 - Khi một biến thể sâu hơn: suy hệ quả sang **cả thời gian lẫn bộ nhớ**. Ở đây cùng một con số "8 → 20 block" cho cả hai, và tôi chỉ đọc một.
 - `accum_steps` **không** thay thế được `batch_size` cho model có BatchNorm. Nó gộp gradient, không gộp thống kê chuẩn hoá.
+
+## S-181 · 2026-08-17 · claude-code
+
+**Mục tiêu phiên:** Đọc bài SDR-Former và dựng notebook train theo phương pháp đó.
+
+**Nhánh / commit:** `main` · `71a1a13` → (commit cuối phiên)
+
+**Đã đụng file:**
+- `src/models/sdrformer.py` — **mới**. Tái lập SDR-Former: Siamese + DR-Former (nhánh CNN đủ độ phân giải · nhánh Transformer nửa mặt phẳng) + BCIM (Eq. 1) + APSM (Eq. 2–3) + GSA 3D.
+- `configs/sdrformer.yaml` — **mới**. Mọi khoá gắn nhãn `[BÀI]` / `[SUY]` / `[LỆCH]`.
+- `notebooks/25_sdrformer.ipynb` — **mới**, sinh từ notebook 20. Sáu cổng A–F.
+- `tests/test_sdrformer.py` — **mới**, 29 test (24 chạy không cần torch).
+- `src/models/__init__.py` — đăng ký `sdrformer` vào `_BUILDERS`.
+- `tests/test_models.py` — thêm `sdrformer` vào `_KHOI_TOI_THIEU` (cổng registry đã bắt được thiếu sót này).
+- `src/models/siamese_fusion.py` — **đính chính hai câu sai**, xem dưới.
+- `AGENTS.md` — §5 thêm bảng SNN một biến; §6 thêm dòng lệnh.
+
+**Quyết định & lý do:**
+
+- **Chạy hướng này vì nó đổi trục THỨ BA.** Hai trục vừa cạn về thực nghiệm: dung lượng (Base thua Small) và nguồn pretrain (V2/CLIP thua Kinetics). Trục "8 pha được **kết hợp** thế nào" thì dự án **chưa từng thử** — từ E0 tới nay đều là 8 pha vào làm 8 kênh. Bảng 1 của bài đo đúng trục đó, **một biến, trên sáu backbone**, 6/6 dương, +0.022…+0.052.
+- **Giữ bản literal ~12.7M thay vì chỉnh cho khớp 19.34M của Bảng 4.** Bài không cho đủ thông tin để biết thiếu ~6.6M ở đâu; hai ứng viên (`blocks_per_stage: 2`, `bcim_hidden_mult: 2`) đã tính sẵn và phơi ra thành khoá config. Lý do khoa học chứ không phải cho tiện: dự án **vừa đo được rằng tăng dung lượng làm tệ đi** trên 312 ca train, nên bản nhỏ hơn bài *hợp* với chẩn đoán hiện tại. Phương án đã loại: chỉnh hai khoá đó để khớp một con số vô hướng — CGHNet làm vậy được vì bài đó **không nói gì** về kiến trúc ViT, còn ở đây Hình 2 vẽ rõ **một** hộp mỗi stage.
+- **Trung thực với recipe của bài kể cả khi nó ngược thói quen dự án:** `cross_entropy` trần (không focal, không trọng số lớp, không smoothing), **200 epoch** (không phải 300), batch 8, `sampling: instance`. Ba khoá này bị neo bằng test vì rất dễ bị "thống nhất" nhầm sang giá trị của config khác.
+- **Cổng F là cổng mới, riêng của kiến trúc này.** Nó kiểm encoder **thật sự dùng chung trọng số** giữa 8 pha, theo hai cách: số tham số encoder không đổi khi đổi `num_phases`, và cùng một ảnh đặt ở hai vị trí pha phải cho đặc trưng giống hệt. Chế độ hỏng bị chặn: 8 encoder riêng vẫn chạy, vẫn hội tụ, tham số phồng ~8 lần mà **không có gì báo**, rồi kết quả thấp bị đọc nhầm thành "Siamese fusion không có tác dụng".
+
+**Đính chính `src/models/siamese_fusion.py`** (docstring cũ viết từ bảng thứ cấp, nay đã đọc bài gốc):
+1. *"+0.074 chỉ do đổi sang SNN"* — **sai**. Con số đó là hiệu giữa `ResNet-50` (0.6898) và `SNN-UniFormer-S` (0.7639), tức khác **cả backbone lẫn fusion**. Hiệu một biến thật là **+0.022…+0.052**.
+2. *"hạng 2 của challenge dùng ResNet18"* — **sai**, hạng 2 (`NPUBXY`) dùng UniFormer-S + Kinetics.
+3. ✅ Phần *nghi ngờ* của docstring cũ (liệu các hàng `SNN-*` có đúng là Siamese không, hay chỉ suy từ tên) thì **đã giải quyết được**: §5.1 nói thẳng đó là những backbone đó *"integrated into the SDR-Former's weight-sharing network framework"*.
+
+**Kết quả / số liệu:**
+
+**Chưa chạy fold nào.** Máy local không có torch nên forward pass chưa chạy được ở đây — điểm xác nhận thật là cổng A–F trên Kaggle.
+
+Phần **đã kiểm được** ở local, bằng numpy độc lập với code model:
+- phép chia lưới GSA round-trip **đúng khít** ở cả ba hình dạng thật của nhánh Transformer, kể cả trường hợp phải đệm;
+- lưới đúng nghĩa **thưa** (token cách nhau theo bước nhảy, ví dụ `[0, 2, 4, …, 12]`) chứ không phải cửa sổ liền kề kiểu Swin;
+- số học hình dạng khớp Hình 2 của bài, và bất biến **"nhánh CNN gấp đôi in-plane, cùng số lát"** giữ ở **mọi** stage — nếu sai thì BCIM vẫn chạy (`F.interpolate` nhận mọi kích thước) và chỉ lặng lẽ ghép sai.
+
+**640 passed, 91 skipped** (trước: 613/86). `ruff check` sạch, quality gate **PASS**.
+
+**Dang dở:**
+- [ ] Chạy `notebooks/25_sdrformer.ipynb` fold 1. Bar quyết định đã chốt trước, nằm trong config và trong notebook mục 3.
+- [ ] Cổng C **chưa đo thật**. Ước lượng gián tiếp: bài báo 40.26 GFLOPs so với 209 của CGHNet (1,6 h/fold đo thật) ⇒ rẻ hơn — nhưng nút thắt của kiến trúc này là **Siamese** (encoder chạy `8×8 = 64` volume mỗi bước), không phải attention. **Đừng suy giờ từ GFLOPs.**
+- [ ] Fold 1 của `21_intra_mixup`; notebook 23 và 24 vẫn chưa qua cổng nào.
+- [ ] Bảng ablation + Holm; `README.md`; slide; dọn mã chết web app.
+
+**Điểm vào phiên sau:** chạy `notebooks/25_sdrformer.ipynb` trên Kaggle với cache CGHNet đã mount (không cần Internet, không cần tải trọng số). Sáu cổng A–F chạy tuần tự; cổng nào đỏ thì dừng.
+
+**Cảnh báo cho tool sau:**
+
+- ⚠️⚠️ **SDR-Former train FROM SCRATCH.** Cấu hình này cố ý bỏ pretrained — can thiệp *duy nhất* từng thắng có ý nghĩa thống kê (+0.130, P<0.001). Nếu nó thua `uniformer_s` thì **KHÔNG kết luận được** "Siamese fusion vô ích": phép so gộp **hai** biến. Kết luận sạch duy nhất rút ra được từ một kết quả thấp là *ở điều kiện from-scratch, trục fusion không bù được phần mất đi do bỏ pretrained*.
+- ⚠️ **0.7910 của họ chỉ hơn 0.7682 của ta đúng +0.023**, nằm gọn trong CI ±0.09 của ta. Đây **không** phải một cấu hình chắc chắn tốt hơn.
+- ⚠️ Mọi câu báo cáo dùng số của cấu hình này **bắt buộc** ghi đây là bản tái lập **nhỏ hơn** bài (~12.7M so với 19.34M), nên 0.7910 chỉ là mốc **định hướng**, không phải mốc so trực tiếp.
+- ⚠️ Chỗ thiếu duy nhất so với danh sách augmentation của bài: **`random erasing`** (§4.2). Dự án không có `RandomErasing3D`. Phải vào báo cáo.
+- ⚠️ `ruff format --check src tests` báo **7 file** cần format lại, trong đó **6 file là drift có sẵn** của tool khác (`src/eval/tta.py`, `src/preprocess/build_cache.py`, `tests/test_preprocess_pipeline.py`, `tests/test_webapp_api.py`, `tests/test_webapp_predictions.py`, `tests/test_webapp_volumes.py`). Phiên này **chỉ format file của mình** và không đụng 6 file kia. Trông như hai tool đang dùng cấu hình/phiên bản `ruff` khác nhau — đáng xử lý một lần cho dứt, nhưng phải là một quyết định riêng, không lẫn vào commit tính năng.

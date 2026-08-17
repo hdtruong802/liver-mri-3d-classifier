@@ -200,6 +200,30 @@ Ba điều rút ra, đều đã được dùng để định hướng thí nghi�
 
 **Bất kỳ ai định debug chất lượng model đều phải đối chiếu với bảng này trước.** Ba phiên (S-036, S-039, S-040) đã đốt ba run GPU để đoán nguyên nhân mà không hề biết điểm số nào là đạt được — cả ba chẩn đoán đều sai.
 
+#### ⭐ Bảng thứ ba, và là bảng DUY NHẤT đo một biến về FUSION (SDR-Former, đọc bài 2026-08-17)
+
+Nguồn: Lou và cs., arXiv:2402.17246, Bảng 1 phần "MR (8-phase)". **Nhóm này chính là nhóm phát hành LLD-MMRI.** Họ bọc **cùng một backbone** vào khung Siamese của SDR-Former và đo lại — §5.1 nói thẳng các hàng `SNN-*` là những backbone đó *"integrated into the SDR-Former's weight-sharing network framework"*, nên đây **là** phép so một biến:
+
+| backbone | image-level (8 pha = 8 kênh) | Siamese (encoder dùng chung) | hiệu |
+|---|---|---|---|
+| ResNet-50 | 0.6898 | 0.7168 | +0.027 |
+| DenseNet-121 | 0.7171 | 0.7394 | +0.022 |
+| MCSCNN | 0.7089 | 0.7409 | +0.032 |
+| BoTNet-50 | 0.7139 | 0.7572 | +0.043 |
+| **UniFormer-S** | 0.7123 | **0.7639** | **+0.052** |
+| H2Former | 0.7342 | 0.7745 | +0.040 |
+| **SDR-Former** (đủ bộ: DR-Former + BCIM + APSM) | — | **0.7910** | +0.027 nữa |
+
+**6/6 đều dương**, trung bình **+0.036**, và transformer hưởng lợi hơn CNN (+0.045 so +0.027).
+
+Vì sao bảng này đáng giá **ngay bây giờ**: hai trục đã cạn về mặt thực nghiệm — UniFormer-**Base** (dung lượng lớn hơn) và UniFormerV2-B/16 (nguồn pretrain khác) đều **không** vượt `uniformer_s`. Trục "8 pha được **kết hợp** thế nào" là trục thứ ba, và dự án **chưa từng thử** (mọi thí nghiệm từ E0 tới nay đều đưa 8 pha vào làm 8 kênh). `configs/sdrformer.yaml` + `notebooks/25_sdrformer.ipynb` là bản tái lập.
+
+⚠️⚠️ **Nhưng SDR-Former train FROM SCRATCH.** Ta đang cân nhắc bỏ pretrained — can thiệp *duy nhất* từng thắng có ý nghĩa thống kê (+0.130, P<0.001). Đặt kỳ vọng cho đúng: 0.7910 của họ chỉ hơn **0.7682** của ta trên test-104 đúng **+0.023**, nằm gọn trong CI ±0.09. **Không phải một cấu hình chắc chắn tốt hơn.** Và nếu nó thua thì **không kết luận được** "Siamese fusion vô ích" — phép so gộp hai biến (fusion *và* pretrained).
+
+⚠️ **ĐÍNH CHÍNH hai câu sai trong `src/models/siamese_fusion.py`** (đã sửa tại chỗ 2026-08-17):
+1. Docstring cũ viết *"+0.074 chỉ do đổi sang SNN"*, lấy hiệu giữa `ResNet-50` (0.6898) và `SNN-UniFormer-S` (0.7639) — hai hàng khác nhau **cả backbone lẫn fusion**. Hiệu một biến thật là **+0.022…+0.052**. Đừng trích con số cũ.
+2. Docstring cũ viết *"hạng 2 của challenge dùng ResNet18"* — sai, hạng 2 (`NPUBXY`) dùng UniFormer-S + Kinetics.
+
 ---
 
 ### 🔒🔒 TEST-104 OFFICIAL — LẦN CHẠM 2, UNIFORMER (2026-08-14, WORKLOG S-173)
@@ -1400,6 +1424,7 @@ Bootstrap **ghép cặp** trên hiệu (2000 lần, phân tầng, mức bệnh n
 | **Build cache CGHNet** (một lần, ~20 phút, **CPU**) | `notebooks/18_build_cache_cghnet.ipynb` trên Kaggle, **Accelerator = None** | sẵn sàng (2026-08-10), **chưa chạy**. Lưới **128×128×16** (`configs/preprocess_cghnet.yaml`: `target_size [112,112,14]` + lề `[8,8,1]`), đúng hình học của bài CGHNet. ~2,0 GB, nhỏ hơn cache E4. ⚠️ **z=14 nên KHÔNG dùng được cho config DenseNet121** (cần ≥32 mọi chiều, S-063); `tests/test_models.py` chặn cả hai chiều |
 | **UniFormer-Base** | `notebooks/23_uniformer_base.ipynb` trên Kaggle, **bật Internet** | sẵn sàng (2026-08-14), **chưa chạy**. `configs/uniformer_base.yaml` khác `uniformer_s.yaml` **đúng hai khoá** (`model.variant`, `output_dir`) — thí nghiệm MỘT biến, đóng chỗ lệch đã ghi so với recipe gốc (họ dùng `base`, ta chọn `small` vì HF chỉ có file trọng số của small). ⚠️ Hai chỗ lệch của file: **k600 thay k400**, **32x4 thay 16x8** — nạp được vì không tham số nào phụ thuộc số frame, nhưng phải ghi vào báo cáo. ⚠️⚠️ **Cổng C bắt buộc**: depth stage 3 đi từ 8 lên 20 block trên 2744 token, ước lượng thô **13–16 h/fold** ⇒ vượt trần session 12h. `resume: true` xử lý được (2 session/fold) — **đừng suy giờ từ GFLOPs**, đọc `s/epoch` thật |
 | **UniFormerV2-B/16 + CLIP→K710** | `notebooks/24_uniformerv2.ipynb` trên Kaggle, **bật Internet** | sẵn sàng (2026-08-14), **chưa chạy**. `src/models/uniformerv2.py` + `configs/uniformerv2_b16.yaml`. ⚠️ Trọng số là **`k400+k710_uniformerv2_b16_8x224.pyth`** (458 MB) từ mirror HuggingFace `Andy1621/uniformerv2`. Bản **K710 thuần** mà MODEL_ZOO chỉ định thì **không còn tồn tại** — toàn bộ bucket Aliyun của họ trả 404 (kiểm 2026-08-14). Chuỗi pretrain vì thế là CLIP → K710 → **K400**, tức đặc trưng đã chuyên biệt hoá thêm một bước; **chỗ lệch này phải vào báo cáo**. ⚠️⚠️ **THÍ NGHIỆM NHIỀU BIẾN**: đổi cùng lúc kiến trúc (ViT phẳng), nguồn pretrain (CLIP), lớp vào (khởi tạo lại cho 8 kênh), và lưới token (49/lát so với 196 lúc pretrain vì crop 112 chứ không 224). Thắng thì **không quy kết được**; thua thì gần như không học được gì. ⚠️ **Cổng A đối chiếu tập khoá HAI CHIỀU** — chiều "checkpoint dư so với model" bắt được lỗi thiếu hẳn một module, thứ các notebook khác không có. Nó vẫn **không** phủ được lỗi nối dây |
+| **⭐ SDR-Former (Siamese đa pha)** | `notebooks/25_sdrformer.ipynb` trên Kaggle, **KHÔNG cần Internet** | sẵn sàng (2026-08-17), **chưa chạy**. `src/models/sdrformer.py` + `configs/sdrformer.yaml`. Dùng **lại cache CGHNet** — §4.2 của bài (resize 16×128×128, crop 14×112×112) khớp chính xác, không build cache mới. ⭐ **Đổi trục THỨ BA mà dự án chưa từng thử: cách 8 pha được KẾT HỢP.** Mọi thí nghiệm cho tới nay là image-level fusion (8 pha = 8 kênh); đây là Siamese + APSM. Bảng 1 của họ đo đúng trục đó **một biến trên sáu backbone**, 6/6 đều dương, +0.022…+0.052 (xem §5). ⚠️⚠️ **Train FROM SCRATCH** — bỏ pretrained, tức bỏ đòn bẩy duy nhất từng thắng có ý nghĩa thống kê (+0.130). Thua thì **không kết luận được** "fusion vô ích": phép so gộp hai biến. ⚠️ Bản tái lập **~12.7M so với 19.34M** của bài (Bảng 4) — cố ý giữ literal theo Hình 2, xem cổng A. ⚠️ **Sáu cổng A–F**; cổng F là mới và riêng của kiến trúc này: kiểm encoder **thật sự dùng chung trọng số** giữa 8 pha (8 encoder riêng vẫn chạy, vẫn hội tụ, không có gì báo) |
 | **⭐ Intra-class mixup trên UniFormer** | `notebooks/21_intra_mixup.ipynb` trên Kaggle, **bật Internet** | sẵn sàng (2026-08-13), **chưa chạy**. `configs/uniformer_s_intra_mixup.yaml` khác `uniformer_s.yaml` **đúng hai khoá khoa học** (`data.intra_class_mixup: 1.0`, `data.intra_class_mixup_exclude_majority: true`) — khoá bởi `tests/test_intra_class_mixup.py`. Đây là **mảnh cuối còn thiếu** của recipe hạng 2 (S-128). Notebook sinh **từ** notebook 20 nên năm cổng A–E giống hệt, cộng **cổng F** kiểm phép trộn: giải ngược λ từ voxel và đọc file gốc bằng `np.load` độc lập với dataset, kiểm đối tác cùng lớp, kiểm tập val **không** bị trộn. ⚠️ Chạy **1 fold trước** (fold 1, để so ghép cặp với fold 1 của `uniformer_s`); 6.5h/fold, đọc đĩa gấp đôi đã nằm trong số của cổng C |
 | **⭐ UniFormer-S + Kinetics — CẤU HÌNH CHÍNH** | `notebooks/20_uniformer.ipynb` trên Kaggle, **bật Internet** | ✅ **đã chạy đủ 5 fold** (S-169) → out-of-fold **0.8147**, hơn E4 **+0.130** P<0.001. Kết quả ở `runs/Uniformer3D`. Dùng **lại cache CGHNet** (`--img_size 16 128 128 --crop_size 14 112 112` của họ khớp chính xác), không build cache mới. Tự tải `uniformer_small_k400_16x8.pth` (~200 MB) từ `Sense-X/uniformer_video`. **Năm cổng A–E chạy trước khi cam kết fold nào** — xem §5. ⚠️ Cổng C bắt buộc: `patch_embed1` stride `(1,2,2)` không hạ mẫu trục lát nên stage 3 có 2744 token so với 1568 của bản pretrained, **đắt hơn** CGHNet. Quá 60 s/epoch thì đặt `patch_embed1_stride: [2,2,2]` |
 | Đánh giá (CPU, không cần GPU) | `python -m src.eval.run --run-dir artifacts/runs/baseline_3dpatch` | sẵn sàng (W3); đọc `val_probs_*.npz` đã lưu → bảng metric ± CI bootstrap + gộp out-of-fold |
