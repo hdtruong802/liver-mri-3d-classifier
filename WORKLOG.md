@@ -7975,3 +7975,12 @@ In đúng **5 trang** · `impeccable detect slides` trả `[]` · quality gate P
 - `slides/sprint_2.html` — thay phần kế hoạch cũ bằng bốn ưu tiên: triển khai mô hình, hoàn thành UI/UX demo, viết tài liệu, rồi mới fine-tune nếu còn thời gian.
 
 **Kiểm tra:** soát render slide 5 bằng Chrome headless; không có nội dung bị cắt.
+
+## S-189 · 2026-08-18 · codex
+
+**Mục tiêu phiên:** Chốt thay đổi dở dang ở `slides/sprint_2.html` theo yêu cầu người dùng trước khi thêm bảng macro-F1 từng lớp vào slide 4.
+
+**Đã động file:**
+- `slides/sprint_2.html` — rút gọn nhãn và làm rõ tên hai cấu hình ở bảng calibration của slide 4.
+
+**Kiểm tra:** quality gate sẽ được chạy trước khi commit.
