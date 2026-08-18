@@ -1379,66 +1379,28 @@
           class="section-item active" aria-current="step"><i></i>Tiếp theo</span></nav>
       <div class="body">
         <div class="content">
-          <p class="eyebrow">Công việc tiếp theo</p>
-          <h2>Nút thắt còn lại là một lớp duy nhất, và hai trục hiển nhiên đều đã cạn.</h2>
-          <div class="split">
-            <div>
-              <h3>Nút thắt: lớp di căn</h3>
-              <ul class="dash-list words tight" style="margin-top:var(--sm)">
-                <li><b class="num">0,576</b><span>F1, với recall chỉ 0,475. <span class="on">val out-of-fold 394
-                      ca</span></span></li>
-                <li><b class="num">0,896</b><span>Trần macro-F1 nếu 6 lớp kia đều đạt 0,95 mà di căn giữ 0,576. Di căn
-                    một mình chặn mốc 0,9.</span></li>
-              </ul>
-            </div>
-            <div>
-              <h3>Hai trục đã cạn</h3>
-              <table class="compact" style="margin-top:var(--sm)">
-                <caption>Kết quả âm, val out-of-fold. Chưa đóng gói kèm khoảng tin cậy nên chỉ nêu định
-                  tính.</caption>
-                <thead>
-                  <tr>
-                    <th scope="col">Can thiệp</th>
-                    <th scope="col">Trục</th>
-                    <th scope="col">Kết quả</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr>
-                    <td>UniFormer-Base</td>
-                    <td>dung lượng lớn hơn</td>
-                    <td>tệ hơn</td>
-                  </tr>
-                  <tr>
-                    <td>UniFormerV2-B/16</td>
-                    <td>nguồn pretrain khác</td>
-                    <td>tệ hơn</td>
-                  </tr>
-                </tbody>
-              </table>
-              <p class="sub" style="font-size:var(--small);margin-top:var(--sm)">Trục còn lại là <b>cách 8 thì được
-                  kết hợp</b> và <b>dữ liệu</b>, không phải backbone lớn hơn.</p>
-            </div>
-          </div>
+          <p class="eyebrow">Thứ tự ưu tiên</p>
+          <h2>Hoàn thành phần có thể bàn giao trước: mô hình, demo, rồi tài liệu.</h2>
           <div class="trio">
             <div>
-              <h3>Trộn trong cùng lớp</h3>
-              <p>Mảnh cuối của recipe đội hạng 2, nhắm đúng các lớp hiếm.</p>
+              <h3>1. Triển khai mô hình</h3>
+              <p>Đóng gói pipeline suy luận ổn định để sẵn sàng đưa vào demo.</p>
             </div>
             <div>
-              <h3>Siamese hai độ phân giải</h3>
-              <p>Đổi trục kết hợp thì. Đánh đổi: huấn luyện từ đầu, tức bỏ trọng số pretrained.</p>
+              <h3>2. Hoàn thành UI/UX demo</h3>
+              <p>Biến kết quả thành trải nghiệm rõ ràng, dễ kiểm tra cho người review.</p>
             </div>
             <div>
-              <h3>Ensemble nhiều seed</h3>
-              <p>Nâng điểm, và lấy lại đại lượng bất định epistemic.</p>
+              <h3>3. Viết tài liệu</h3>
+              <p>Hoàn thiện README, report và gói tái lập để bàn giao được đầy đủ.</p>
             </div>
           </div>
-          <p class="sub"><b>Deliverable còn nợ:</b> bảng ablation kèm Holm · README · report cuối · gói tái lập · dọn
-            mã chết web app.</p>
+          <div class="caveat">
+            <p><b>4. Fine-tune tiếp, nếu còn thời gian.</b> Chỉ tiếp tục thí nghiệm sau khi ba ưu tiên trên đã hoàn tất.</p>
+          </div>
         </div>
       </div>
-      <div class="foot"><span class="keys"><span>Lần chạm test-104 tiếp theo phải báo là lần thứ ba</span></span><span
+      <div class="foot"><span class="keys"><span>Fine-tune chỉ thực hiện khi ba ưu tiên đầu đã hoàn tất</span></span><span
           class="no">Tiếp theo</span></div>
     </section>
 

@@ -7966,3 +7966,12 @@ In đúng **5 trang** · `impeccable detect slides` trả `[]` · quality gate P
 - `slides/sprint_2.html` — chuyển phần diễn giải ở slide 2 sang các mục ngắn và thêm dấu hỏi vào tiêu đề.
 
 **Kiểm tra:** quality gate sẽ được chạy trước khi commit.
+
+## S-188 · 2026-08-18 · codex
+
+**Mục tiêu phiên:** Viết lại toàn bộ slide 5 của `slides/sprint_2.html` theo thứ tự ưu tiên công việc người dùng chốt.
+
+**Đã động file:**
+- `slides/sprint_2.html` — thay phần kế hoạch cũ bằng bốn ưu tiên: triển khai mô hình, hoàn thành UI/UX demo, viết tài liệu, rồi mới fine-tune nếu còn thời gian.
+
+**Kiểm tra:** soát render slide 5 bằng Chrome headless; không có nội dung bị cắt.
