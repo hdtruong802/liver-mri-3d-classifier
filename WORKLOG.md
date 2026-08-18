@@ -7939,3 +7939,12 @@ In đúng **5 trang** · `impeccable detect slides` trả `[]` · quality gate P
 - ⚠️ **Bản khắc 2 giờ không còn chú số nào.** Nếu ai thêm lại một con số của người khác vào đó thì phải thêm cả chú giải ở chân bản, nếu không sẽ vi phạm luật Loại A của `DESIGN.md`.
 - ⚠️ **Entry này suýt không tồn tại.** Lệnh append WORKLOG viết bằng here-string của PowerShell có `\"` bên trong, PowerShell nuốt dấu escape và Python nổ `SyntaxError`; nhưng `git commit` nằm sau dấu `;` nên **vẫn chạy**, và commit `a4b5b52` đi qua mà **thiếu WORKLOG**. Bài học lặp lại lần thứ năm trong dự án: **đừng nhúng văn bản tiếng Việt nhiều dấu nháy vào lệnh shell** — viết ra file bằng công cụ ghi file rồi mới append. Và **đừng nối `git commit` sau một lệnh có thể hỏng bằng `;`**, vì `;` chạy tiếp bất kể lệnh trước thành hay bại.
 - ⚠️ Các cảnh báo của S-182 và S-183 vẫn còn hiệu lực.
+
+## S-185 · 2026-08-18 · codex
+
+**Mục tiêu phiên:** Chốt thay đổi dở dang ở `slides/sprint_2.html` theo yêu cầu người dùng trước khi thực hiện chỉnh sửa slide 4 độc lập.
+
+**Đã động file:**
+- `slides/sprint_2.html` — làm rõ tiêu đề và nhãn dataset ở slide 3.
+
+**Kiểm tra:** quality gate PASS.
