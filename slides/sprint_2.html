@@ -1093,6 +1093,17 @@
         aspect-ratio: 16 / 9
       }
     }
+
+    /* Hai khối định nghĩa ở bản khắc 2. `.trio h3` có `margin-bottom` còn `.split` thì
+       không, nên nếu không có khối này thì tiêu đề dính sát đoạn văn và hai khối dưới
+       lệch nhịp so với hàng trio ngay trên nó. */
+    .explain h3 {
+      margin-bottom: var(--sm)
+    }
+
+    .explain p+p {
+      margin-top: var(--sm)
+    }
   </style>
 </head>
 
@@ -1167,24 +1178,29 @@
             <div>
               <h3>Đầu ra</h3>
               <p><b>7 xác suất</b>, một <b>mức bất định</b>, một <b>cờ defer</b>.</p>
-              <p>Khi mô hình không đủ chắc, nó nói ra và chuyển ca cho bác sĩ thay vì đoán bừa.</p>
+              <p>Hai thứ sau là phần đóng góp chính của đề tài, không phải phụ kiện của xác suất.</p>
             </div>
           </div>
-          <div class="target" style="border-style:solid;border-color:var(--line)">
-            <div class="target-head"><strong>Target</strong><span class="plate-label">Đích là độ tin cậy, không phải
-                điểm số.</span></div>
-            <div class="target-grid">
-              <p><b>Đích chính:</b> xác suất đáng tin cộng cơ chế từ chối ca không chắc. macro-F1 và Cohen's κ chỉ là
-                <em>thước để so</em>, vì trùng metric xếp hạng của challenge.</p>
-              <p><b>Mốc:</b> đã vượt baseline ban tổ chức <b>0,6083</b><sup class="ref">2</sup> có ý nghĩa thống kê.
-                Chưa phân biệt được với nhóm 0,71 tới 0,83, vì n = 104 nên khoảng tin cậy rộng ±0,09.</p>
+          <div class="split">
+            <div class="explain">
+              <h3>Mức bất định là gì</h3>
+              <p>Một con số cho biết mô hình đang chắc đến đâu ở <em>chính ca này</em>, suy ra từ xác suất cao nhất
+                trong 7 lớp sau khi trung bình 5 mô hình.</p>
+              <p>Xác suất cao nhất gần 1 nghĩa là mô hình dứt khoát. Hai lớp đầu gần bằng nhau nghĩa là nó đang phân
+                vân giữa hai chẩn đoán, dù vẫn buộc phải chọn một cái để trả lời.</p>
+            </div>
+            <div class="explain">
+              <h3>Cờ defer là gì</h3>
+              <p>Một cờ bật hoặc tắt. Khi mức bất định vượt ngưỡng, mô hình <b>không trả lời</b> mà chuyển ca đó cho
+                bác sĩ đọc.</p>
+              <p>Ngưỡng là núm vặn đánh đổi: từ chối càng nhiều ca khó thì phần mô hình tự quyết càng chính xác, nhưng
+                bác sĩ phải đọc nhiều hơn. Mức đo được nằm ở bản khắc Kết quả.</p>
             </div>
           </div>
         </div>
       </div>
-      <div class="foot"><span class="keys"><span><sup class="ref">2</sup> <a
-              href="https://github.com/LMMMEng/LLD-MMRI2023/blob/main/assets/test_leaderboard.md" target="_blank"
-              rel="noopener">LLD-MMRI2023 leaderboard</a>, n = 104</span></span><span class="no">Bài toán</span></div>
+      <div class="foot"><span class="keys"><span>Research Use Only, không dùng cho chẩn
+            đoán</span></span><span class="no">Bài toán</span></div>
     </section>
 
     <!-- 3 · Dữ liệu -->
@@ -1362,14 +1378,16 @@
             <div style="border-left:2px solid var(--line-strong);padding-left:var(--md)">
               <p><b>Một dự đoán chốt trước đã sai:</b> dự án dự đoán cơ chế từ chối <em>không</em> đạt ý nghĩa thống kê
                 trên test. Nó đạt.</p>
-              <p><b>Định vị:</b> trên baseline ban tổ chức, <em>dưới</em> SOTA đã công bố, và n = 104 nên chưa phân
-                biệt được với nhóm 0,71 tới 0,83.</p>
+              <p><b>Định vị:</b> vượt baseline ban tổ chức <b>0,6083</b><sup class="ref">2</sup> có ý nghĩa thống kê,
+                nhưng <em>dưới</em> SOTA đã công bố, và n = 104 nên chưa phân biệt được với nhóm 0,71 tới 0,83.</p>
             </div>
           </div>
         </div>
       </div>
-      <div class="foot"><span class="keys"><span class="on">val out-of-fold và test-104 là hai tập khác nhau, không so
-            chéo</span></span><span class="no">Kết quả</span></div>
+      <div class="foot"><span class="keys"><span><sup class="ref">2</sup> <a
+              href="https://github.com/LMMMEng/LLD-MMRI2023/blob/main/assets/test_leaderboard.md" target="_blank"
+              rel="noopener">LLD-MMRI2023 leaderboard</a>, n = 104</span><span class="on">val out-of-fold và test-104
+            là hai tập khác nhau, không so chéo</span></span><span class="no">Kết quả</span></div>
     </section>
 
     <!-- 5 · Tiếp theo -->
