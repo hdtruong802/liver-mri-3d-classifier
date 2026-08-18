@@ -1446,6 +1446,7 @@ Bootstrap **ghép cặp** trên hiệu (2000 lần, phân tầng, mức bệnh n
 | Test | `pytest -q` | sẵn sàng (113 test; 8 test cần torch/monai sẽ tự skip nếu chưa cài) |
 | Lint | `ruff check src tests` · `ruff format src tests` | sẵn sàng (W2 ngày 1) |
 | **Kết xuất báo cáo ra PDF** | `python scripts/md2pdf.py reports/W2_REPORT.md` | sẵn sàng; Markdown → HTML → Chrome/Edge headless. Không cần pandoc hay LaTeX. `--keep-html` để soi bản trung gian |
+| **Dựng khung DOCX báo cáo kết thúc dự án** | `python scripts/make_final_report_docx.py` | sẵn sàng (2026-08-18, WORKLOG S-195). Sinh `reports/FINAL_REPORT.docx` — **khung RỖNG**: cây tiêu đề 7 mục (Background → Reference), 19 bảng đã có sẵn dòng tiêu đề + nhãn hàng (7 lớp theo `src/data/taxonomy.py`, 5 fold, tên cấu hình) nhưng **ô số để trống**, 4 khung ảnh để trống, và danh mục tham khảo điền sẵn. ⚠️ **Chạy đè sẽ xoá sạch nội dung đã viết tay** — script từ chối ghi đè trừ khi truyền `--force`. Cần `pip install python-docx` (cố ý **không** nằm trong `requirements.txt`: công cụ soạn deliverable ở máy local, môi trường train Kaggle không cần) |
 
 ---
 

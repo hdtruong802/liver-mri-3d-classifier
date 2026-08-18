@@ -8057,3 +8057,49 @@ In đúng **5 trang** · `impeccable detect slides` trả `[]` · quality gate P
 - `slides/sprint_2.html` — rút gọn nhãn và làm rõ tên hai cấu hình ở bảng calibration của slide 4.
 
 **Kiểm tra:** quality gate sẽ được chạy trước khi commit.
+
+## S-195 · 2026-08-18 14:18 · claude-code
+
+**Mục tiêu phiên:** Dựng một file `.docx` làm **khung** cho báo cáo kết thúc dự án, gồm bảy mục Background · Problem · Method · Result · Conclusion · Discussion · Reference. Người dùng chốt rõ: **chỉ dựng template, họ tự viết nội dung**.
+
+**Nhánh / commit:** `main` · `d86b250` → *(commit của phiên này)*
+
+**Đã đụng file:**
+- `scripts/make_final_report_docx.py` — **mới**. Sinh khung docx bằng `python-docx`.
+- `reports/FINAL_REPORT.docx` — **mới**, đầu ra của script.
+- `AGENTS.md` §6 — thêm một dòng vào bảng lệnh chạy (bắt buộc theo chính §6 khi tạo entrypoint mới).
+
+**Quyết định & lý do:**
+- **`python-docx` thay vì pandoc/LaTeX** — cùng lý do đã ghi ở `scripts/md2pdf.py`: không phải cài toolchain nặng trên máy Windows. Thư viện thuần Python, bản 1.2.0 đã có sẵn trên máy.
+- **KHÔNG thêm vào `requirements.txt`** — đây là công cụ soạn deliverable chạy ở máy local, không thuộc môi trường train Kaggle. `md2pdf.py` cũng theo tiền lệ này. Script tự nổ với thông báo `pip install python-docx` rõ ràng nếu thiếu, thay vì traceback.
+- **Script từ chối ghi đè trừ khi có `--force`** — nó dựng lại khung RỖNG, nên chạy lại sau khi người dùng đã viết tay sẽ xoá sạch. Đây là lớp bảo vệ duy nhất, và nó là hệ quả trực tiếp của việc để script sống trong repo.
+- **Cấu trúc khai báo dạng DỮ LIỆU** (hằng `STRUCTURE` ở đầu module) rồi một vòng lặp dựng — sửa khung sau này là sửa dữ liệu, không đụng logic. 19 bảng mà không lặp code dựng bảng 19 lần.
+- **Tiêu đề đánh số thủ công**, không dùng list numbering tự động của Word: nó hay trôi khi chèn/xoá mục, mà bản template này chắc chắn sẽ bị chèn/xoá mục.
+- **Nhãn hàng của bảng lấy từ nguồn sự thật trong repo, không bịa:** 7 tên lớp và đúng thứ tự từ `src/data/taxonomy.py::SHORT_NAMES`; số split từ `splits/README.md`; hàng leaderboard từ AGENTS.md §5 và `reports/W4_REPORT.md`.
+- **Mục 7 Reference là phần duy nhất điền sẵn nội dung** (13 mục), vì nó là danh mục nguồn đã thực dùng chứ không phải văn xuôi phải viết.
+
+**⚠️ Quyết định về `runs/Uniformer3D-mixup/` — CỐ Ý LOẠI KHỎI BÁO CÁO:**
+
+Phiên này phát hiện thư mục đó đã chạy **đủ 5 fold VÀ có cả `test104/`**, trong khi AGENTS.md §5 và §6 vẫn ghi *"chưa chạy fold nào"* và **không có entry WORKLOG nào mô tả nó**. Đọc lại xác suất đã lưu (không chạy GPU, không phải lượt chạm mới) cho:
+
+| | out-of-fold (394) | test-104 |
+|---|---|---|
+| `uniformer_s` (cấu hình chính) | 0.8147 | 0.7682 |
+| `uniformer_s_intra_mixup` | **0.8038** | **0.7488** |
+| trung bình 5 model đơn (mixup, test) | — | 0.7335 |
+
+Tức **kết quả âm ở cả hai tập**. Và `runs/Uniformer3D-mixup/test104/test_run_meta.json` ghi `"prereg_commit": "(bỏ qua kiểm git)"` — nghĩa là đây là **lần chạm test-104 thứ BA, chạy mà không có pre-registration §C**, trái AGENTS.md §3.4 và §10.
+
+Đã báo người dùng, người dùng chốt **bỏ hẳn khỏi báo cáo**. Script không đọc thư mục đó, và chuỗi `mixup` không xuất hiện ở đâu trong `make_final_report_docx.py` lẫn trong file docx sinh ra (đã kiểm bằng grep, cả hai đều `False`).
+
+**Kết quả / số liệu:** `reports/FINAL_REPORT.docx`, 48,8 KB. Đọc ngược bằng python-docx: **7 mục cấp 1** đúng thứ tự yêu cầu, cây con khớp thiết kế; **19 bảng nội dung + 1 bảng bìa**, mọi bảng đúng số hàng × cột; **4 khung ảnh** để trống; 44 dòng gợi ý `[Viết: …]`, 7 ghi chú `[Ghi chú: …]`, 13 mục tham khảo. Toàn bộ XML trong gói parse sạch; field `TOC` và field `PAGE` ở footer đều có; 19 bảng đều đặt `tblHeader` để lặp dòng tiêu đề khi tràn trang; footer mang dòng RUO ở mọi trang (AGENTS.md §12). Cổng chống ghi đè: chạy lần hai thoát mã 1 kèm thông báo, `--force` thoát 0. `ruff check` sạch, `ruff format` sạch.
+
+**Dang dở:**
+- [ ] **Chưa mở được bằng Word để soát mắt** — máy này không cài Word (`New-Object -ComObject Word.Application` trả `REGDB_E_CLASSNOTREG`). Đã thay bằng kiểm cấu trúc và kiểm XML, nhưng **hai thứ chỉ Word mới xác nhận được**: mục lục bấm F9 có điền số trang không, và bảng 7 cột (B15, B16) có tràn lề A4 không.
+
+**Điểm vào phiên sau:** Không có việc treo về mã. Bước kế tiếp thuộc về người dùng: mở `reports/FINAL_REPORT.docx` bằng Word, bấm F9 trên mục lục, rồi viết nội dung. Nếu B15/B16 tràn lề thì chỉnh trong Word, **đừng** sửa script rồi chạy lại — chạy lại sẽ xoá nội dung đã viết.
+
+**Cảnh báo cho tool sau:**
+1. **KHÔNG chạy `python scripts/make_final_report_docx.py --force`** sau khi người dùng đã bắt đầu viết. Cờ `--force` tồn tại cho lần dựng lại có chủ ý, không phải để vượt qua thông báo lỗi.
+2. **AGENTS.md §5 và §6 đang SAI về `uniformer_s_intra_mixup`** — cả hai ghi "chưa chạy fold nào" nhưng `runs/Uniformer3D-mixup/` có đủ 5 fold và một lượt test-104. Phiên này **không sửa** hai chỗ đó vì việc được giao là dựng template, và vì sửa chúng đúng cách cần người dùng quyết định xử lý thế nào với lượt chạm test-104 thứ ba không pre-registration. **Đây là việc nợ, phải xử lý trước khi ai đó dùng AGENTS.md §5 làm căn cứ lập kế hoạch thí nghiệm tiếp theo.**
+3. Số liệu mixup ở entry này đọc từ `.npz` đã lưu bằng `np.load` + `sklearn`, **không** phải một lượt chạm test mới.
