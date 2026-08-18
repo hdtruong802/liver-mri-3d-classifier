@@ -7967,6 +7967,18 @@ In đúng **5 trang** · `impeccable detect slides` trả `[]` · quality gate P
 
 **Kiểm tra:** quality gate sẽ được chạy trước khi commit.
 
+## S-193 · 2026-08-18 · codex
+
+**Mục tiêu phiên:** Rút gọn bảng kết quả ở slide 4 theo yêu cầu người dùng.
+
+**Đã động file:**
+- `slides/sprint_2.html` — bỏ bảng calibration/selective, đưa macro-F1 tại coverage 80% vào bảng hiệu năng phân loại.
+
+**Quyết định & lý do:**
+- Giữ macro-F1 @80% trên test-104, CI95 bootstrap mức bệnh nhân và hiệu ghép cặp so với F1 @100%; bỏ ECE và tự tin thái quá để tập trung slide vào hiệu năng phân loại.
+
+**Kiểm tra:** tính lại CI95 từ xác suất test đã lưu (2.000 bootstrap phân tầng, seed `20260727`) và soát render slide 4 bằng Chrome headless; bố cục không bị cắt.
+
 ## S-190 · 2026-08-18 · codex
 
 **Mục tiêu phiên:** Thêm bảng macro-F1 từng lớp của UniFormer-S + Kinetics vào slide 4.

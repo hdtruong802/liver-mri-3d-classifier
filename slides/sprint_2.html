@@ -980,27 +980,15 @@
       font-size: var(--small)
     }
 
-    .results-overview {
-      gap: calc(2.6 * var(--u))
-    }
-
     .results-panel,
     .per-class-section {
       border-top: 2px solid var(--line-strong);
       padding-top: var(--sm)
     }
 
-    .results-panel--trust {
-      border-top-color: var(--cyan)
-    }
-
     .results-panel h3,
     .per-class-section h3 {
       margin-bottom: var(--sm)
-    }
-
-    .results-panel--trust h3 {
-      color: var(--cyan)
     }
 
     /* Hàng của dự án trong bảng benchmark. Nhấn bằng ĐỘ SÁNG NÉT cộng nhãn chữ,
@@ -1344,66 +1332,39 @@
             <span class="ci">CI95 [0,6902; 0,8422]</span>
             <span class="on">macro-F1 · test-104 official · ensemble 5 fold</span>
           </div>
-          <div class="split split-wide results-overview">
-            <section class="results-panel" aria-labelledby="classification-results">
-              <h3 id="classification-results">Hiệu năng phân loại</h3>
-              <table class="compact">
-                <thead>
-                  <tr>
-                    <th scope="col">Cấu hình</th>
-                    <th scope="col" class="n">val out-of-fold<br>394 ca</th>
-                    <th scope="col" class="n">test-104 official<br>104 ca</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr>
-                    <td>DenseNet121-3D <span class="on">cũ</span></td>
-                    <td class="n">0,6851 <span class="ci">[0,6394; 0,7308]</span></td>
-                    <td class="n">0,6162 <span class="ci">[0,5246; 0,7032]</span></td>
-                  </tr>
-                  <tr class="ours">
-                    <td>UniFormer-S + Kinetics <span class="on">chính</span></td>
-                    <td class="n">0,8147 <span class="ci">[0,7746; 0,8547]</span></td>
-                    <td class="n">0,7682 <span class="ci">[0,6902; 0,8422]</span></td>
-                  </tr>
-                  <tr>
-                    <td>hiệu, bootstrap ghép cặp</td>
-                    <td class="n"><b>+0,1296</b> <span class="ci">[+0,0778; +0,1809] P &lt; 0,001</span></td>
-                    <td class="n"><b>+0,1520</b> <span class="ci">[+0,0647; +0,2421] P = 0,001</span></td>
-                  </tr>
-                </tbody>
-              </table>
-            </section>
-            <section class="results-panel results-panel--trust" aria-labelledby="trust-results">
-              <h3 id="trust-results">Calibration &amp; selective</h3>
-              <table class="compact">
-                <thead>
-                  <tr>
-                    <th scope="col">Cấu hình</th>
-                    <th scope="col" class="n">ECE</th>
-                    <th scope="col" class="n">tự tin<br>thái quá</th>
-                    <th scope="col" class="n">macro-F1<br>@80%</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr>
-                    <td>DenseNet121-3D</td>
-                    <td class="n">0,1303</td>
-                    <td class="n">+0,115</td>
-                    <td class="n">+0,0696</td>
-                  </tr>
-                  <tr class="ours">
-                    <td>UniFormer-S + Kinetics</td>
-                    <td class="n"><b>0,0833</b></td>
-                    <td class="n"><b>+0,042</b></td>
-                    <td class="n"><b>+0,0739</b></td>
-                  </tr>
-                </tbody>
-              </table>
-              <p class="sub" style="font-size:var(--small);margin-top:var(--sm)">Từ chối 20% ca khó nâng macro-F1
-                <b>0,768</b> lên <b>0,842</b> (P = 0,027). <span class="on">test-104</span></p>
-            </section>
-          </div>
+          <section class="results-panel" aria-labelledby="classification-results">
+            <h3 id="classification-results">Hiệu năng phân loại</h3>
+            <table class="compact">
+              <thead>
+                <tr>
+                  <th scope="col">Cấu hình</th>
+                  <th scope="col" class="n">val out-of-fold<br>394 ca</th>
+                  <th scope="col" class="n">test-104 official<br>104 ca</th>
+                  <th scope="col" class="n">macro-F1 @80% coverage<br>test-104</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>DenseNet121-3D <span class="on">cũ</span></td>
+                  <td class="n">0,6851 <span class="ci">[0,6394; 0,7308]</span></td>
+                  <td class="n">0,6162 <span class="ci">[0,5246; 0,7032]</span></td>
+                  <td class="n">0,6844 <span class="ci">[0,5808; 0,7889]</span><br><span class="ci">hiệu +0,0696 [0,0154; 0,1245] P = 0,016</span></td>
+                </tr>
+                <tr class="ours">
+                  <td>UniFormer-S + Kinetics <span class="on">chính</span></td>
+                  <td class="n">0,8147 <span class="ci">[0,7746; 0,8547]</span></td>
+                  <td class="n">0,7682 <span class="ci">[0,6902; 0,8422]</span></td>
+                  <td class="n"><b>0,8421</b> <span class="ci">[0,7468; 0,9376]</span><br><span class="ci">hiệu +0,0739 [0,0126; 0,1360] P = 0,027</span></td>
+                </tr>
+                <tr>
+                  <td>hiệu, bootstrap ghép cặp</td>
+                  <td class="n"><b>+0,1296</b> <span class="ci">[+0,0778; +0,1809] P &lt; 0,001</span></td>
+                  <td class="n"><b>+0,1520</b> <span class="ci">[+0,0647; +0,2421] P = 0,001</span></td>
+                  <td class="n">—</td>
+                </tr>
+              </tbody>
+            </table>
+          </section>
           <section class="per-class-section" aria-labelledby="per-class-f1">
             <h3 id="per-class-f1">macro-F1 từng lớp</h3>
             <p class="per-class-caption">UniFormer-S + Kinetics · CI95 bootstrap mức bệnh nhân.</p>
@@ -1413,7 +1374,7 @@
                 <tr>
                   <th scope="col">Lớp<br><span class="on">n val / test</span></th>
                   <th scope="col" class="n">val out-of-fold<br>394 ca</th>
-                  <th scope="col" class="n">test-104 official<br>104 ca · lần chạm thứ hai</th>
+                  <th scope="col" class="n">test-104 official<br>104 ca</th>
                 </tr>
               </thead>
               <tbody>
@@ -1444,7 +1405,7 @@
                 <tr>
                   <th scope="col">Lớp<br><span class="on">n val / test</span></th>
                   <th scope="col" class="n">val out-of-fold<br>394 ca</th>
-                  <th scope="col" class="n">test-104 official<br>104 ca · lần chạm thứ hai</th>
+                  <th scope="col" class="n">test-104 official<br>104 ca</th>
                 </tr>
               </thead>
               <tbody>
@@ -1499,7 +1460,7 @@
             </div>
           </div>
           <div class="caveat">
-            <p><b>4. Fine-tune tiếp, nếu còn thời gian.</b> Chỉ tiếp tục thí nghiệm sau khi ba ưu tiên trên đã hoàn tất.</p>
+            <p><b>4. Fine-tune tiếp, nếu còn thời gian.</b></p>
           </div>
         </div>
       </div>
