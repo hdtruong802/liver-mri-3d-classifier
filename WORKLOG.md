@@ -7904,3 +7904,38 @@ In ra đúng 5 trang · impeccable detect slides trả [] · 22 con số còn l�
 eports/, không phải của slide.
 - ⚠️ **Đừng đổi khối 	arget ở bản khắc 2 về nét đứt.** Nét đứt nghĩa là "chưa có dữ liệu"; mốc ở đó đã đạt.
 - ⚠️ Các cảnh báo của S-182 vẫn còn hiệu lực: không dùng <b> trong <span> của .dash-list; không thêm lại override .section-nav repeat(5); số trang PDF không bắt được lỗi tràn.
+
+## S-184 · 2026-08-17 · claude-code
+
+**Mục tiêu phiên:** Bỏ khối `Target` ở bản khắc 2 của `slides/sprint_2.html` và giải thích rõ hơn hai khái niệm *mức bất định* và *cờ defer*.
+
+**Nhánh / commit:** `main` · `9943956` → `a4b5b52`
+
+**Đã đụng file:**
+- `slides/sprint_2.html` — bỏ khối `Target`, thêm hai khối định nghĩa, chuyển mốc `0,6083` sang bản khắc 4.
+
+**Quyết định & lý do:**
+
+- **Bỏ khối `Target`** theo yêu cầu người dùng. ⚠️ Khối đó chứa mốc `0,6083` và **chú số 2 duy nhất** của bản khắc 2, nên xoá thẳng sẽ làm câu định vị mất nguồn và bỏ lại một chú giải mồ côi ở chân bản. **Đã chuyển mốc và chú số sang câu "Định vị" ở bản khắc 4** — đúng chỗ hơn, vì đó là câu về kết quả. Chú giải nguồn theo sang chân bản khắc 4.
+- **Hai khối định nghĩa cố ý không dùng con số ví dụ nào.** Một ví dụ kiểu "xác suất 0,95" sẽ dạy nhanh hơn, nhưng `DESIGN.md` xếp số chưa đo vào **Loại C** và cấm vẽ; muốn dùng thì phải bọc chip nét đứt "minh hoạ khái niệm". Chọn cách mô tả bằng lời ("gần 1", "hai lớp đầu gần bằng nhau") để không phải mở ngoại lệ cho một chi tiết nhỏ.
+- **Lớp `.explain` riêng thay vì nới rộng `.split > div`.** `.trio h3` có `margin-bottom` còn `.split` thì không, nên hai khối mới dính tiêu đề vào đoạn văn và lệch nhịp so với hàng trio ngay trên nó. `.split` còn dùng ở bản khắc 4 (bảng + `p.sub`) và bản khắc 5 (h3 + bảng), nới rộng sẽ đổi nhịp cả hai chỗ đó.
+
+**Kết quả / số liệu:**
+
+Dư chỗ bản khắc 2: **+242 px** (bản có `Target` là +258, tức thêm hai khối mà vẫn thoáng gần bằng). Bốn bản khắc kia không đổi: +320 / +308 / +196 / +184.
+
+In đúng **5 trang** · `impeccable detect slides` trả `[]` · quality gate PASS.
+
+**Dang dở:**
+- [ ] Chưa soát trên máy chiếu thật.
+- [ ] Fold 1 của `21_intra_mixup` và `25_sdrformer`.
+- [ ] Bảng ablation + Holm · `README.md` · report cuối · gói tái lập · dọn mã chết web app.
+
+**Điểm vào phiên sau:** soát `slides/sprint_2.html` trên màn hình trình chiếu thật.
+
+**Cảnh báo cho tool sau:**
+
+- ⚠️⚠️ **`lay_giua()` trong script dựng deck GIỮ CẢ HAI thẻ**, nên biến `style` kết thúc bằng `</style>`. Tôi đã nối CSS mới vào cuối chuỗi đó, tức đẩy CSS ra **ngoài** thẻ — trình duyệt sẽ in nó ra như chữ thường mà **không báo gì**. Một `assert` bắt được trước khi ghi file. Giờ có ba chốt: thẻ đóng đúng một lần, và `.explain` phải nằm **trước** `</style>`.
+- ⚠️ **Bản khắc 2 giờ không còn chú số nào.** Nếu ai thêm lại một con số của người khác vào đó thì phải thêm cả chú giải ở chân bản, nếu không sẽ vi phạm luật Loại A của `DESIGN.md`.
+- ⚠️ **Entry này suýt không tồn tại.** Lệnh append WORKLOG viết bằng here-string của PowerShell có `\"` bên trong, PowerShell nuốt dấu escape và Python nổ `SyntaxError`; nhưng `git commit` nằm sau dấu `;` nên **vẫn chạy**, và commit `a4b5b52` đi qua mà **thiếu WORKLOG**. Bài học lặp lại lần thứ năm trong dự án: **đừng nhúng văn bản tiếng Việt nhiều dấu nháy vào lệnh shell** — viết ra file bằng công cụ ghi file rồi mới append. Và **đừng nối `git commit` sau một lệnh có thể hỏng bằng `;`**, vì `;` chạy tiếp bất kể lệnh trước thành hay bại.
+- ⚠️ Các cảnh báo của S-182 và S-183 vẫn còn hiệu lực.
