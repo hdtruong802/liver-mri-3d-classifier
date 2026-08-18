@@ -7979,6 +7979,18 @@ In đúng **5 trang** · `impeccable detect slides` trả `[]` · quality gate P
 
 **Kiểm tra:** soát render slide 4 bằng Chrome headless; bảng vừa khung, không cắt nội dung.
 
+## S-191 · 2026-08-18 · codex
+
+**Mục tiêu phiên:** Sắp xếp lại bố cục slide 4 của `slides/sprint_2.html` để các bảng không chồng lên điều hướng hoặc chân slide.
+
+**Đã động file:**
+- `slides/sprint_2.html` — bỏ nhãn lặp `Kết quả`, chia bảng macro-F1 từng lớp thành hai bảng song song và thêm quy tắc layout responsive cho cụm này.
+
+**Quyết định & lý do:**
+- Thứ tự đọc được giữ theo giá trị: headline/điểm chính → bảng so cấu hình và trustworthiness → chi tiết từng lớp. Hai bảng 4+3 hàng giảm chiều cao, giữ các CI95 đọc được và chừa khoảng cách với foot.
+
+**Kiểm tra:** soát render slide 4 bằng Chrome headless; không còn chồng lấp hay cắt nội dung.
+
 ## S-188 · 2026-08-18 · codex
 
 **Mục tiêu phiên:** Viết lại toàn bộ slide 5 của `slides/sprint_2.html` theo thứ tự ưu tiên công việc người dùng chốt.
