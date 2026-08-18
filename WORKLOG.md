@@ -7991,6 +7991,18 @@ In đúng **5 trang** · `impeccable detect slides` trả `[]` · quality gate P
 
 **Kiểm tra:** soát render slide 4 bằng Chrome headless; không còn chồng lấp hay cắt nội dung.
 
+## S-192 · 2026-08-18 · codex
+
+**Mục tiêu phiên:** Làm slide 4 dễ phân biệt và dễ quét giữa các bảng.
+
+**Đã động file:**
+- `slides/sprint_2.html` — đặt tiêu đề và đường phân cách cho ba vùng nội dung: hiệu năng phân loại, calibration/selective và macro-F1 từng lớp.
+
+**Quyết định & lý do:**
+- Lam Ngọc chỉ nhận diện khối calibration/selective; Hoàng Thổ vẫn thuộc về kết quả chính. Cả hai khối có nhãn chữ và vị trí riêng nên không dựa vào màu đơn lẻ.
+
+**Kiểm tra:** soát render slide 4 bằng Chrome headless; các bảng phân biệt rõ và không bị cắt.
+
 ## S-188 · 2026-08-18 · codex
 
 **Mục tiêu phiên:** Viết lại toàn bộ slide 5 của `slides/sprint_2.html` theo thứ tự ưu tiên công việc người dùng chốt.

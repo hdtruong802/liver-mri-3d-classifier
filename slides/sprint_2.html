@@ -980,6 +980,29 @@
       font-size: var(--small)
     }
 
+    .results-overview {
+      gap: calc(2.6 * var(--u))
+    }
+
+    .results-panel,
+    .per-class-section {
+      border-top: 2px solid var(--line-strong);
+      padding-top: var(--sm)
+    }
+
+    .results-panel--trust {
+      border-top-color: var(--cyan)
+    }
+
+    .results-panel h3,
+    .per-class-section h3 {
+      margin-bottom: var(--sm)
+    }
+
+    .results-panel--trust h3 {
+      color: var(--cyan)
+    }
+
     /* Hàng của dự án trong bảng benchmark. Nhấn bằng ĐỘ SÁNG NÉT cộng nhãn chữ,
        không bằng Hoàng Thổ (Plate Key Rule) và không bằng màu đứng một mình
        (Never-Colour-Alone Rule). */
@@ -1321,8 +1344,9 @@
             <span class="ci">CI95 [0,6902; 0,8422]</span>
             <span class="on">macro-F1 · test-104 official · ensemble 5 fold</span>
           </div>
-          <div class="split split-wide">
-            <div>
+          <div class="split split-wide results-overview">
+            <section class="results-panel" aria-labelledby="classification-results">
+              <h3 id="classification-results">Hiệu năng phân loại</h3>
               <table class="compact">
                 <thead>
                   <tr>
@@ -1349,10 +1373,10 @@
                   </tr>
                 </tbody>
               </table>
-            </div>
-            <div>
+            </section>
+            <section class="results-panel results-panel--trust" aria-labelledby="trust-results">
+              <h3 id="trust-results">Calibration &amp; selective</h3>
               <table class="compact">
-                <caption>Độ tin cậy của xác suất. <b>Cả hai hàng đo trên test-104.</b></caption>
                 <thead>
                   <tr>
                     <th scope="col">Cấu hình</th>
@@ -1378,10 +1402,12 @@
               </table>
               <p class="sub" style="font-size:var(--small);margin-top:var(--sm)">Từ chối 20% ca khó nâng macro-F1
                 <b>0,768</b> lên <b>0,842</b> (P = 0,027). <span class="on">test-104</span></p>
-            </div>
+            </section>
           </div>
-          <p class="per-class-caption" id="per-class-f1">macro-F1 từng lớp · UniFormer-S + Kinetics · CI95 bootstrap mức bệnh nhân.</p>
-          <div class="per-class-grid" role="group" aria-labelledby="per-class-f1">
+          <section class="per-class-section" aria-labelledby="per-class-f1">
+            <h3 id="per-class-f1">macro-F1 từng lớp</h3>
+            <p class="per-class-caption">UniFormer-S + Kinetics · CI95 bootstrap mức bệnh nhân.</p>
+            <div class="per-class-grid" role="group" aria-labelledby="per-class-f1">
             <table class="compact" aria-label="Macro-F1 từng lớp, phần một">
               <thead>
                 <tr>
@@ -1439,7 +1465,8 @@
                 </tr>
               </tbody>
             </table>
-          </div>
+            </div>
+          </section>
         </div>
       </div>
       <div class="foot"><span class="keys"><span class="on">val out-of-fold và test-104 là hai tập khác nhau, không
