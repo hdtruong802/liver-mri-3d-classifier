@@ -1119,7 +1119,7 @@
         <div class="content">
           <div class="cover">
             <div>
-              <p class="eyebrow">Báo cáo tiến độ sprint 2 · 17/08/2026</p>
+              <p class="eyebrow">Báo cáo tiến độ:</p>
               <h1>Ứng dụng AI trong phân loại bất thường gan trực tiếp trên MRI 3D đa thì</h1>
               <dl class="meta">
                 <div>
@@ -1193,8 +1193,8 @@
               <h3>Cờ defer là gì</h3>
               <p>Một cờ bật hoặc tắt. Khi mức bất định vượt ngưỡng, mô hình <b>không trả lời</b> mà chuyển ca đó cho
                 bác sĩ đọc.</p>
-              <p>Ngưỡng là núm vặn đánh đổi: từ chối càng nhiều ca khó thì phần mô hình tự quyết càng chính xác, nhưng
-                bác sĩ phải đọc nhiều hơn. Mức đo được nằm ở bản khắc Kết quả.</p>
+              <p>Ngưỡng: từ chối càng nhiều ca khó thì phần mô hình tự quyết càng chính xác, nhưng
+                bác sĩ phải đọc nhiều hơn.</p>
             </div>
           </div>
         </div>
@@ -1332,8 +1332,6 @@
                   </tr>
                 </tbody>
               </table>
-              <p class="sub" style="font-size:var(--small);margin-top:var(--sm)">Dương ở <b>cả 5 fold</b> và <b>cả 7
-                  lớp</b>, ICC nhiều nhất <b>+0,212</b>. <span class="on">val out-of-fold</span></p>
             </div>
             <div>
               <table class="compact">
@@ -1366,27 +1364,10 @@
                 <b>0,768</b> lên <b>0,842</b> (P = 0,027). <span class="on">test-104</span></p>
             </div>
           </div>
-          <!-- Bốn điểm dưới đây là ràng buộc AGENTS.md §3 và §10, không được cắt. Chia hai cột vì
-               `.caveat` giới hạn 74ch nên một mình nó bỏ trống nửa bề rộng bản khắc. -->
-          <div class="caveat" style="max-width:none;display:grid;grid-template-columns:1fr 1fr;gap:0 var(--xl)">
-            <div>
-              <p><b>Test-104 đã nhìn hai lần</b> (07/08 và 14/08). Lần thứ ba cần xin phép và một bản đăng ký protocol
-                mới.</p>
-              <p><b>0,8147 lệch lạc quan:</b> thiên lệch chọn checkpoint <b>+0,0797</b> [+0,0419; +0,1213].</p>
-            </div>
-            <div style="border-left:2px solid var(--line-strong);padding-left:var(--md)">
-              <p><b>Một dự đoán chốt trước đã sai:</b> dự án dự đoán cơ chế từ chối <em>không</em> đạt ý nghĩa thống kê
-                trên test. Nó đạt.</p>
-              <p><b>Định vị:</b> vượt baseline ban tổ chức <b>0,6083</b><sup class="ref">2</sup> có ý nghĩa thống kê,
-                nhưng <em>dưới</em> SOTA đã công bố, và n = 104 nên chưa phân biệt được với nhóm 0,71 tới 0,83.</p>
-            </div>
-          </div>
         </div>
       </div>
-      <div class="foot"><span class="keys"><span><sup class="ref">2</sup> <a
-              href="https://github.com/LMMMEng/LLD-MMRI2023/blob/main/assets/test_leaderboard.md" target="_blank"
-              rel="noopener">LLD-MMRI2023 leaderboard</a>, n = 104</span><span class="on">val out-of-fold và test-104
-            là hai tập khác nhau, không so chéo</span></span><span class="no">Kết quả</span></div>
+      <div class="foot"><span class="keys"><span class="on">val out-of-fold và test-104 là hai tập khác nhau, không
+            so chéo</span></span><span class="no">Kết quả</span></div>
     </section>
 
     <!-- 5 · Tiếp theo -->

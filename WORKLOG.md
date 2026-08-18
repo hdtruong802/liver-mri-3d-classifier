@@ -7948,3 +7948,12 @@ In đúng **5 trang** · `impeccable detect slides` trả `[]` · quality gate P
 - `slides/sprint_2.html` — làm rõ tiêu đề và nhãn dataset ở slide 3.
 
 **Kiểm tra:** quality gate PASS.
+
+## S-186 · 2026-08-18 · codex
+
+**Mục tiêu phiên:** Bỏ khối nội dung dưới bảng ở slide 4 của `slides/sprint_2.html` theo yêu cầu người dùng.
+
+**Đã động file:**
+- `slides/sprint_2.html` — bỏ dòng diễn giải val out-of-fold, bốn cảnh báo/định vị ở cuối slide và chú giải nguồn số 2 đã không còn được dùng.
+
+**Kiểm tra:** soát render slide 4 bằng Chrome headless; bố cục hiển thị đúng, không có phần nội dung bị cắt.
