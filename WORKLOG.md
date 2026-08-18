@@ -7967,6 +7967,31 @@ In đúng **5 trang** · `impeccable detect slides` trả `[]` · quality gate P
 
 **Kiểm tra:** quality gate sẽ được chạy trước khi commit.
 
+---
+
+## S-194 · 2026-08-18 12:24 · codex
+
+**Mục tiêu phiên:** Hiển thị mức độ không chắc chắn và trạng thái kết quả bằng ngôn ngữ dễ hiểu cho bác sĩ trong web app.
+
+**Nhánh / commit:** `main` · `f5329f5` → *(commit của phiên này)*
+
+**Đã động file:**
+- `webapp/frontend/src/components/ResultCards.tsx` — thêm thang “Độ không chắc chắn của dự đoán”, chuẩn hoá nội bộ từ entropy và không hiển thị thuật ngữ thống kê.
+- `webapp/frontend/src/components/DeferPanel.tsx` — đổi trạng thái kỹ thuật thành “Có thể tham khảo”, “Cần đối chiếu chuyên môn” và “Chưa đánh giá trạng thái”.
+- `webapp/frontend/src/App.tsx`, `webapp/frontend/src/index.css` — đặt trạng thái kết quả trước biểu đồ lớp và giữ bố cục workstation responsive.
+
+**Quyết định & lý do:**
+- Dùng thang phân tán xác suất 0–100 thay vì lộ entropy hoặc ngưỡng kỹ thuật; giữ nguyên policy backend và nêu rõ kết quả chỉ dùng để tham khảo nghiên cứu.
+
+**Kết quả / số liệu:** frontend typecheck và production build PASS; `tests/test_webapp_api.py` và `tests/test_webapp_live_selective.py` PASS (34 test); quality gate PASS.
+
+**Dang dở:**
+- [ ] Không có việc treo.
+
+**Điểm vào phiên sau:** Không có việc treo. Bước kế tiếp đề xuất: xem lại ba trạng thái kết quả với một ZIP hợp lệ khi cần kiểm tra copy trên dữ liệu thật.
+
+**Cảnh báo cho tool sau:** Giữ nguyên thay đổi chưa commit tại `slides/sprint_2.html`; không stage hoặc ghi đè khi xử lý web app.
+
 ## S-193 · 2026-08-18 · codex
 
 **Mục tiêu phiên:** Rút gọn bảng kết quả ở slide 4 theo yêu cầu người dùng.

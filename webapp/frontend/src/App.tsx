@@ -214,8 +214,8 @@ export default function App() {
                 </div>
               </div>
               <ResultSummary result={prediction} />
-              <ClassProbabilityChart probs={prediction.probs} />
               <DeferPanel result={prediction} />
+              <ClassProbabilityChart probs={prediction.probs} />
             </div>
           ) : (
             <div className="results-empty">

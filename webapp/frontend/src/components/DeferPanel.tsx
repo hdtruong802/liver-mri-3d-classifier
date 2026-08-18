@@ -5,21 +5,21 @@ import type { PredictResult } from '@/api/types';
 export function DeferPanel({ result }: { result: PredictResult }) {
   const state = result.defer === null
     ? {
-        title: 'Chưa áp dụng cơ chế từ chối ca',
-        copy: 'Kết quả được tạo từ bộ MRI vừa tải lên. Hệ thống chưa áp dụng trạng thái nhận hoặc từ chối ca; cần được người có chuyên môn đối chiếu.',
+        title: 'Chưa đánh giá trạng thái',
+        copy: 'Hệ thống chưa có cơ sở để xác định trạng thái cho kết quả này. Cần được người có chuyên môn đối chiếu.',
         icon: <CircleAlert aria-hidden="true" />,
         tone: 'neutral',
       }
     : result.defer
     ? {
-        title: 'AI chưa tự nhận kết quả ca này',
-        copy: 'Dự đoán này chưa đủ tin cậy để AI tự nhận. Cần được người có chuyên môn đối chiếu trước khi sử dụng.',
+        title: 'Cần đối chiếu chuyên môn',
+        copy: 'Hệ thống chưa tự trả kết quả cho ca này. Cần được người có chuyên môn đối chiếu ảnh MRI và thông tin lâm sàng.',
         icon: <AlertTriangle aria-hidden="true" />,
         tone: 'warning',
       }
     : {
-        title: 'Kết quả AI đủ độ tin cậy để tham khảo',
-        copy: 'Hệ thống đánh giá dự đoán này thuộc nhóm có độ tin cậy phù hợp để trả kết quả. Bác sĩ vẫn cần đối chiếu ảnh MRI và thông tin lâm sàng; không sử dụng riêng kết quả này để chẩn đoán.',
+        title: 'Có thể tham khảo',
+        copy: 'Kết quả có thể dùng để tham khảo nghiên cứu. Bác sĩ vẫn cần đối chiếu ảnh MRI và thông tin lâm sàng; không sử dụng riêng kết quả này để chẩn đoán.',
         icon: <ShieldCheck aria-hidden="true" />,
         tone: 'success',
       };
@@ -32,6 +32,7 @@ export function DeferPanel({ result }: { result: PredictResult }) {
       <div className="flex items-start gap-3">
         <div className="mt-0.5 shrink-0">{state.icon}</div>
         <div>
+          <p className="defer-panel__label">Trạng thái kết quả</p>
           <h3 id="defer-heading">{state.title}</h3>
           <p>{state.copy}</p>
         </div>
