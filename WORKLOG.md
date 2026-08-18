@@ -7967,6 +7967,18 @@ In đúng **5 trang** · `impeccable detect slides` trả `[]` · quality gate P
 
 **Kiểm tra:** quality gate sẽ được chạy trước khi commit.
 
+## S-190 · 2026-08-18 · codex
+
+**Mục tiêu phiên:** Thêm bảng macro-F1 từng lớp của UniFormer-S + Kinetics vào slide 4.
+
+**Đã động file:**
+- `slides/sprint_2.html` — thêm bảng 7 lớp, hai cột `val out-of-fold` và `test-104 official`, mỗi số kèm CI95 bootstrap mức bệnh nhân và cỡ mẫu lớp.
+
+**Quyết định & lý do:**
+- Đọc lại xác suất đã lưu ở `runs/Uniformer3D/fold_*/val_probs_best.npz` và `runs/Uniformer3D/test/test_probs.npz`; đây không phải lượt chạm test-104 mới. Bootstrap phân tầng 2.000 lần, seed `20260727`.
+
+**Kiểm tra:** soát render slide 4 bằng Chrome headless; bảng vừa khung, không cắt nội dung.
+
 ## S-188 · 2026-08-18 · codex
 
 **Mục tiêu phiên:** Viết lại toàn bộ slide 5 của `slides/sprint_2.html` theo thứ tự ưu tiên công việc người dùng chốt.

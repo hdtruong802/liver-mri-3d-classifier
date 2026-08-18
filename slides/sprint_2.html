@@ -1362,6 +1362,53 @@
                 <b>0,768</b> lên <b>0,842</b> (P = 0,027). <span class="on">test-104</span></p>
             </div>
           </div>
+          <table class="compact" style="margin-top:var(--md);font-size:var(--small)">
+            <caption>macro-F1 từng lớp · UniFormer-S + Kinetics · CI95 bootstrap mức bệnh nhân.</caption>
+            <thead>
+              <tr>
+                <th scope="col">Lớp<br><span class="on">n val / test</span></th>
+                <th scope="col" class="n">val out-of-fold<br>394 ca</th>
+                <th scope="col" class="n">test-104 official<br>104 ca · lần chạm thứ hai</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>u máu <span class="on">63 / 16</span></td>
+                <td class="n">0,912 <span class="ci">[0,857; 0,960]</span></td>
+                <td class="n">0,938 <span class="ci">[0,839; 1,000]</span></td>
+              </tr>
+              <tr>
+                <td>ICC <span class="on">46 / 12</span></td>
+                <td class="n">0,731 <span class="ci">[0,630; 0,821]</span></td>
+                <td class="n">0,621 <span class="ci">[0,438; 0,800]</span></td>
+              </tr>
+              <tr>
+                <td>áp-xe <span class="on">42 / 12</span></td>
+                <td class="n">0,814 <span class="ci">[0,725; 0,894]</span></td>
+                <td class="n">0,667 <span class="ci">[0,400; 0,870]</span></td>
+              </tr>
+              <tr>
+                <td>di căn <span class="on">40 / 11</span></td>
+                <td class="n">0,576 <span class="ci">[0,433; 0,714]</span></td>
+                <td class="n">0,500 <span class="ci">[0,222; 0,737]</span></td>
+              </tr>
+              <tr>
+                <td>nang <span class="on">42 / 11</span></td>
+                <td class="n">0,897 <span class="ci">[0,833; 0,955]</span></td>
+                <td class="n">0,957 <span class="ci">[0,880; 1,000]</span></td>
+              </tr>
+              <tr>
+                <td>FNH <span class="on">36 / 10</span></td>
+                <td class="n">0,895 <span class="ci">[0,822; 0,959]</span></td>
+                <td class="n">0,909 <span class="ci">[0,800; 1,000]</span></td>
+              </tr>
+              <tr>
+                <td>HCC <span class="on">125 / 32</span></td>
+                <td class="n">0,878 <span class="ci">[0,835; 0,916]</span></td>
+                <td class="n">0,787 <span class="ci">[0,667; 0,885]</span></td>
+              </tr>
+            </tbody>
+          </table>
         </div>
       </div>
       <div class="foot"><span class="keys"><span class="on">val out-of-fold và test-104 là hai tập khác nhau, không
