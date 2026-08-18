@@ -8103,3 +8103,48 @@ Tức **kết quả âm ở cả hai tập**. Và `runs/Uniformer3D-mixup/test10
 1. **KHÔNG chạy `python scripts/make_final_report_docx.py --force`** sau khi người dùng đã bắt đầu viết. Cờ `--force` tồn tại cho lần dựng lại có chủ ý, không phải để vượt qua thông báo lỗi.
 2. **AGENTS.md §5 và §6 đang SAI về `uniformer_s_intra_mixup`** — cả hai ghi "chưa chạy fold nào" nhưng `runs/Uniformer3D-mixup/` có đủ 5 fold và một lượt test-104. Phiên này **không sửa** hai chỗ đó vì việc được giao là dựng template, và vì sửa chúng đúng cách cần người dùng quyết định xử lý thế nào với lượt chạm test-104 thứ ba không pre-registration. **Đây là việc nợ, phải xử lý trước khi ai đó dùng AGENTS.md §5 làm căn cứ lập kế hoạch thí nghiệm tiếp theo.**
 3. Số liệu mixup ở entry này đọc từ `.npz` đã lưu bằng `np.load` + `sklearn`, **không** phải một lượt chạm test mới.
+
+## S-196 · 2026-08-18 15:05 · claude-code
+
+**Mục tiêu phiên:** Hoàn thiện `reports/FINAL_REPORT.docx` — người dùng đổi ý so với S-195: không dừng ở khung template nữa mà viết đủ nội dung.
+
+**Nhánh / commit:** `main` · `a6a94fb` → *(commit của phiên này)*
+
+**Đã đụng file:**
+- `scripts/make_final_report_docx.py` — viết lại. `STRUCTURE` (khung rỗng + dòng gợi ý) thành `CONTENT` (văn xuôi thật, bảng đã điền số). Thêm kiểu khối `p`/`ul`/`callout`, parser `**đậm**` inline, và hàm nhúng ảnh có fallback khung trống.
+- `scripts/make_final_report_figures.py` — **mới**. Vẽ 3 hình từ xác suất đã lưu.
+- `reports/assets/fig-reliability.png`, `fig-risk-coverage.png`, `fig-confusion.png` — mới.
+- `reports/FINAL_REPORT.docx` — dựng lại, bản đầy đủ.
+- `AGENTS.md` §6 — cập nhật dòng lệnh cũ, thêm dòng cho script vẽ hình.
+
+**Quyết định & lý do:**
+- **Số trong docx là hằng số chép tay, hình thì sinh từ dữ liệu thật.** Bootstrap 2000 lượt trên nhiều cấu hình mất vài phút và cần sklearn; một script sinh tài liệu nên chạy trong vài giây. Đổi lại, mọi con số đã được **đối chiếu trực tiếp** trước khi chép (xem mục Kiểm chứng).
+- **Tách script vẽ hình khỏi script dựng docx.** Docx không cần matplotlib, và thiếu tệp hình thì nó để khung trống chứ không nổ.
+- **Hình gọi thẳng `src.eval.calibration` và `src.eval.selective`**, không cài lại phép tính. Lý do ở mục bẫy bên dưới.
+- **Palette in trên giấy trắng**, không dùng nền tối của `DESIGN.md` (file đó cho slide). Giữ vai trò hai màu chức năng nhưng làm tối cho đủ tương phản; mọi thông tin đều có nhãn chữ, không mã hoá bằng màu đơn lẻ (AGENTS.md §12).
+
+**⚠️ Hai chỗ tôi viết SAI rồi tự sửa, ghi lại vì cả hai đều là loại lỗi dễ lặp:**
+1. Mục "Hướng phát triển" ban đầu liệt kê **intra-class mixup** như một hướng *chưa thử*. Sai: `runs/Uniformer3D-mixup/` đã chạy đủ 5 fold và có cả một lượt test-104 (S-195). Đã đổi thành một câu chung về "can thiệp ở tầng huấn luyện cho lớp di căn", không nêu tên phép cụ thể.
+2. Mục 3.5 ban đầu viết **"chưa cài intra-class mixup"** là một chỗ lệch so với recipe gốc. Sai: nó *đã* được cài ở `src/data/dataset.py`. Câu đúng, và là câu đang dùng: **cấu hình chính không bật** phép đó. Ranh giới giữa "chưa cài" và "không bật" là thật, đừng viết lẫn.
+
+Người dùng đã chốt ở S-195 là bỏ hẳn thí nghiệm mixup khỏi báo cáo. Sau hai lần sửa trên, chuỗi `mixup` **không xuất hiện** ở đâu trong docx (đã kiểm bằng cách đọc ngược cả paragraph lẫn ô bảng).
+
+**Kết quả / số liệu:** `reports/FINAL_REPORT.docx`, 328,9 KB. 7 mục cấp 1, 55 tiêu đề, **21 bảng đã điền số** (+1 bảng bìa), **4 hình đã nhúng**, 13 tham khảo, 275 đoạn. Không còn dấu `**` sót, không còn placeholder nào. XML toàn gói parse sạch; field TOC và field PAGE đều có; 21 bảng đều đặt `tblHeader`. `ruff check` + `ruff format` sạch. Quality gate PASS. `pytest`: **640 passed, 91 skipped**.
+
+**Kiểm chứng số trước khi chép vào báo cáo** — chạy lại và đối chiếu, không chép từ trí nhớ:
+- `python -m src.eval.test_report --run-dir runs/Uniformer3D/test --oof-dir runs/Uniformer3D` → 0.7682 [0.6902, 0.8422] · κ 0.7333 · balacc 0.7822 · acc 0.7788 · ECE 0.0833 · AURC 0.0494 · cov@risk≤10% 76.9%. **Khớp AGENTS.md §5.**
+- `python -m src.eval.trust --run-dir runs/Uniformer3D` → OOF ECE 0.1073 · T_NLL 1.533 · AURC 0.0972. **Khớp.**
+- `python -m src.eval.compare --baseline runs/E4_cv_results --candidate runs/Uniformer3D` → +0.1296 [+0.0778, +0.1809] P<0.001, cả 5 fold và cả 7 lớp dương. **Khớp.**
+- Bootstrap ghép cặp selective so với coverage 100% tính lại độc lập (không phân tầng, seed 20260727): @90% +0.0340 P=0.044 · @80% +0.0739 P=0.019 · @70% +0.1229 P=0.018. Điểm ước lượng và kết luận **khớp** bản phân tầng đã ghi ở AGENTS.md; báo cáo dùng CI của bản phân tầng.
+- Cỡ fold đọc thẳng từ `splits/`: 312/82 · 314/80 · 316/78 · 317/77 · 317/77.
+
+**Dang dở:**
+- [ ] **Vẫn chưa mở được bằng Word.** Máy này không cài Word (`REGDB_E_CLASSNOTREG`), nên mục lục bấm F9 và việc các bảng 6–7 cột có tràn lề A4 hay không **chưa ai xác nhận bằng mắt**. Đây là việc còn lại duy nhất.
+
+**Điểm vào phiên sau:** Mở `reports/FINAL_REPORT.docx` bằng Word, bấm F9 trên mục lục, soát Bảng 15 (7 cột) và Bảng 19 (7 cột). Nếu tràn thì chỉnh trong Word.
+
+**Cảnh báo cho tool sau:**
+1. **KHÔNG chạy `make_final_report_docx.py --force`** sau khi người dùng đã sửa file trong Word — nó dựng lại toàn bộ và xoá sạch chỉnh sửa đó.
+2. **🐛 Bẫy đã dẫm phải: ECE có HAI giá trị tuỳ cách chia bin, và chúng lệch nhau đáng kể.** `src.eval.test_report` in ECE bằng `adaptive_calibration_error` (chia theo số ca) = **0.0833**. Tự chia 10 bin đều cho 0.0865; `expected_calibration_error` mặc định (15 bin đều) cho 0.0807; 10 bin đều qua module cho 0.0726. Bản nháp đầu của hình in 0.0865 trong khi bảng ghi 0.0833. Vẽ cột theo bin adaptive thì hình **không đọc được** (quá nửa số ca ở độ tự tin ≈1.0 nên cột cuối mảnh như sợi chỉ). Cách đã chốt: **vẽ cột theo bin đều, chú thích in CẢ HAI số kèm nhãn**. Ai thấy "hình có hai số ECE" thì đừng "dọn" đi một số.
+3. **AGENTS.md §5 và §6 vẫn SAI về `uniformer_s_intra_mixup`** (ghi "chưa chạy fold nào" trong khi `runs/Uniformer3D-mixup/` có đủ 5 fold + một lượt test-104 không pre-registration). Nợ từ S-195, phiên này **vẫn không sửa** vì cần người dùng quyết. Phải xử lý trước khi dùng §5 làm căn cứ lập kế hoạch.
+4. Số tham số của UniFormer trong Bảng 5 ghi "≈ 21 M *" kèm chú thích rõ là **của bản gốc cho video, chưa đo lại** sau khi đổi lớp vào sang 8 kênh và đầu ra sang 7 lớp. Máy soạn báo cáo không có torch nên không đo được. Ai có môi trường torch thì đo rồi thay con số và bỏ dấu sao.
