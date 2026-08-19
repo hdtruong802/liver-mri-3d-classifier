@@ -15,8 +15,14 @@ from src.utils.io import repo_root, resolve_cache_dir, resolve_output_dir, resol
 
 
 def test_repo_root_points_at_this_repo():
+    """File mốc phải là thứ CÒN ĐƯỢC PHÁT HÀNH kèm repo.
+
+    Trước S-198 test này dùng `AGENTS.md` làm mốc. `AGENTS.md` nay đã gỡ khỏi repo
+    (vẫn còn trên đĩa của máy phát triển), nên nó sẽ có mặt ở đây mà vắng ở một bản
+    clone sạch — đúng kiểu test xanh ở local rồi đỏ ở nơi khác.
+    """
     root = repo_root()
-    assert (root / "AGENTS.md").is_file()
+    assert (root / "pyproject.toml").is_file()
     assert (root / "splits" / "labels_trainval.txt").is_file()
 
 

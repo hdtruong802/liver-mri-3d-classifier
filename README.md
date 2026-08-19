@@ -85,7 +85,6 @@ luyện từ đầu và chỉ đạt 0,6083 — nên đây gần như là một 
 | `slides/` | Slide HTML |
 | `scripts/` | Quality gate, sinh báo cáo, tiện ích |
 | `tests/` | 537 test, gồm test chống rò rỉ dữ liệu |
-| `docs/` | Spec sheet, pre-registration, kho lưu thí nghiệm |
 
 ---
 
@@ -126,8 +125,11 @@ dừng, vì một phiên Kaggle có thể chết bất cứ lúc nào.
 ### Chạm tập test
 
 ⚠️ Tập test 104 ca **đã được chạm hai lần hợp lệ**. Lượt thứ ba cần đủ ba thứ, không bỏ bước
-nào: xin phép, một pre-registration **commit trước khi chạy**, và một entry WORKLOG.
-Protocol ở [`docs/TEST104_PREREGISTRATION.md`](docs/TEST104_PREREGISTRATION.md).
+nào: xin phép, một pre-registration **commit trước khi chạy**, và một entry nhật ký.
+
+Mỗi lượt chạm ghi lại sha commit của bản pre-registration vào `test_run_meta.json`, nên quan
+hệ *protocol có trước kết quả* là **kiểm được** chứ không phải một lời hứa — lượt thứ hai neo
+vào commit `24b8464`.
 
 Đọc lại số của lượt đã chạy thì **không** tính là một lượt chạm mới:
 
@@ -158,13 +160,14 @@ dự án này không làm phân vùng.
 
 ## Thứ KHÔNG nằm trong repo
 
-Ba nhóm sau bị `.gitignore` và **không đi kèm** khi clone:
+Bốn nhóm sau bị `.gitignore` và **không đi kèm** khi clone:
 
-| | Vì sao | Cách trỏ lại |
+| | Vì sao | Cách lấy lại |
 |---|---|---|
 | `data/` — ảnh MRI bệnh nhân | Dữ liệu người thật; giấy phép **CC BY-NC-ND** cấm phát tán bản phái sinh | tự xin quyền truy cập LLD-MMRI |
 | `artifacts/` — cache tiền xử lý | Vài GB, dựng lại được | chạy bước 1 ở trên, hoặc `LLDMMRI_CACHE_DIR` |
 | `runs/` — checkpoint + xác suất đã lưu | Hàng trăm MB mỗi fold | `LLDMMRI_LIVE_WEIGHTS_DIR` cho web app |
+| Tài liệu làm việc nội bộ | Tài liệu quá trình, không thuộc bản phát hành | còn nguyên trong git history — xem mục *Tài liệu* |
 
 Web app báo `model_loaded: false` ở `/api/health` cho tới khi tìm thấy trọng số 5 fold — đó là
 trạng thái **đúng** của một máy vừa clone repo, không phải lỗi.
@@ -195,12 +198,21 @@ trạng thái **đúng** của một máy vừa clone repo, không phải lỗi.
 | File | Nội dung |
 |---|---|
 | [`reports/FINAL_REPORT.docx`](reports/FINAL_REPORT.docx) | **Báo cáo kết thúc dự án** — đầy đủ |
-| `reports/W1–W4_REPORT.md` | Báo cáo tiến độ từng tuần |
-| [`AGENTS.md`](AGENTS.md) | Nguồn sự thật ngữ cảnh dự án cho mọi công cụ AI |
-| [`docs/MRI_Classification_Spec_Sheet.md`](docs/MRI_Classification_Spec_Sheet.md) | Chốt kỹ thuật: dataset, metric, ngưỡng |
-| [`docs/TEST104_PREREGISTRATION.md`](docs/TEST104_PREREGISTRATION.md) | Protocol khoá trước mỗi lần chạm test |
-| [`docs/EXPERIMENT_ARCHIVE.md`](docs/EXPERIMENT_ARCHIVE.md) | Hồ sơ thí nghiệm đã bị thay thế |
-| [`WORKLOG.md`](WORKLOG.md) | Nhật ký bàn giao, append-only |
+| `reports/W1_REPORT.md` … `W4_REPORT.md` | Báo cáo tiến độ từng tuần |
+| [`webapp/README.md`](webapp/README.md) | Contract API, biến môi trường, cách chạy demo |
+
+### Tài liệu làm việc nội bộ — không phát hành kèm repo
+
+Bản phát hành chỉ mang code, config khoa học, split, test, web app và báo cáo. Các tài liệu
+quá trình sau **nằm ngoài repo** nhưng vẫn còn đầy đủ trong lịch sử git:
+
+`AGENTS.md` (ngữ cảnh cho công cụ AI) · `WORKLOG.md` (nhật ký bàn giao) · `PRODUCT.md` ·
+`DESIGN.md` · `docs/` (spec sheet, pre-registration test-104, kho lưu thí nghiệm) · `prompt/`
+
+```bash
+git log --all --oneline -- AGENTS.md      # tìm commit
+git show <sha>:docs/TEST104_PREREGISTRATION.md
+```
 
 ---
 

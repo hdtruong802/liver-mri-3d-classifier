@@ -15,6 +15,7 @@ import numpy as np
 import pytest
 from src.eval.test_once import PINNED_SHA256, find_checkpoints, sha16
 from src.eval.test_report import COVERAGES, load_test, report, selective_rows, two_sided_p
+from src.utils.io import repo_root
 
 # --- cổng chặn của test_once --------------------------------------------------
 
@@ -164,18 +165,41 @@ def test_predict_members_co_do_latency():
     assert "per_case_ensemble_ms" in src, "thiếu con số ms/ca của ensemble"
 
 
-def test_prereg_da_commit():
-    """Pre-registration phải nằm trong lịch sử git trước khi chạm test.
+PREREG = "docs/TEST104_PREREGISTRATION.md"
+
+
+def test_prereg_nam_trong_lich_su_git():
+    """Pre-registration phải nằm trong lịch sử git — đó là thứ chứng minh
+    "protocol có TRƯỚC kết quả", và `test_run_meta.json` của mỗi lượt chạm ghi lại
+    đúng sha của nó.
+
+    ⚠️ Đổi ở S-198: `docs/` đã được gỡ khỏi repo phát hành, nên file này **không còn
+    tracked**. Phép kiểm vì thế chuyển từ "đang được commit" sang "có mặt trong lịch
+    sử" — vẫn đủ để sha trong meta tra ngược được, nhưng phải nói rõ nó YẾU HƠN bản
+    cũ: nó không còn chặn được việc file bị xoá khỏi cây làm việc.
 
     Kiểm ở đây chứ không chỉ trong `test_once`: nếu ai đó xoá file mà quên, cổng kia
     chỉ nổ đúng lúc chạy trên Kaggle — tức là đúng lúc không muốn nó nổ nhất.
     """
     out = subprocess.run(
-        ["git", "log", "-1", "--format=%H", "--", "docs/TEST104_PREREGISTRATION.md"],
+        ["git", "log", "-1", "--format=%H", "--", PREREG],
         capture_output=True,
         text=True,
     ).stdout.strip()
-    assert out, "docs/TEST104_PREREGISTRATION.md chưa được commit"
+    assert out, f"{PREREG} chưa bao giờ được commit — không tra ngược được sha trong meta"
+
+
+def test_prereg_van_con_tren_dia_du_khong_con_tracked():
+    """Gỡ khỏi repo phát hành không có nghĩa là được phép xoá.
+
+    `src/eval/test_once.py` đọc file này ở cổng 0 của mỗi lượt chạm test-104. Mất nó
+    thì lượt chạm tiếp theo không chạy được, và bằng chứng của hai lượt đã chạy cũng
+    không đọc lại được ngoài git history.
+    """
+    assert (repo_root() / PREREG).is_file(), (
+        f"{PREREG} biến mất khỏi cây làm việc. Khôi phục bằng: "
+        f"git show 24b8464:{PREREG} > {PREREG}"
+    )
 
 
 # --- phần báo cáo (không cần torch) --------------------------------------------

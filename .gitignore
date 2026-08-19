@@ -198,3 +198,26 @@ scratch/
 # -----------------------------------------------------------------------------
 reports/*.pdf
 reports/*.html
+
+# =============================================================================
+# Tài liệu làm việc nội bộ + cấu hình công cụ AI — GỠ KHỎI REPO (WORKLOG S-198)
+# =============================================================================
+# Quyết định của người dùng: repo phát hành chỉ mang code, config khoa học, split,
+# test, web app và báo cáo. Những thứ dưới đây vẫn nằm trên đĩa và vẫn dùng bình
+# thường ở local — chỉ là không phát hành kèm.
+#
+# ⚠️ Lịch sử đầy đủ của chúng CÒN NGUYÊN trong git history ở các commit trước lần
+# gỡ. Muốn xem lại: `git log --all -- AGENTS.md` rồi `git show <sha>:AGENTS.md`.
+#
+# Các dòng .impeccable/ .cursor/ .codex/ ở trên nay là thừa nhưng giữ lại để ai
+# bỏ khối này thì luật cũ vẫn còn nguyên.
+.codex/
+.cursor/
+.impeccable/
+/docs/
+/prompt/
+/AGENTS.md
+/CLAUDE.md
+/DESIGN.md
+/PRODUCT.md
+/WORKLOG.md
