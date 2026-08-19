@@ -9,13 +9,13 @@ export function ResultSummary({ result }: { result: PredictResult }) {
   return (
     <section className="prediction-summary" aria-label="Tóm tắt dự đoán">
       <div className="prediction-summary__primary">
-        <p className="section-label">Lớp dự đoán</p>
+        <p className="section-label">Bất thường AI dự đoán</p>
         <strong>{predicted?.label_vi ?? result.pred_class_name}</strong>
         <span>{percent(result.confidence)}%</span>
       </div>
       <div className="prediction-summary__uncertainty">
         <div>
-          <p className="section-label">Độ không chắc chắn của dự đoán</p>
+          <p className="section-label">Mức độ không chắc chắn của dự đoán</p>
           <strong>{uncertaintyPercent}%</strong>
         </div>
         <div
@@ -33,11 +33,10 @@ export function ResultSummary({ result }: { result: PredictResult }) {
           <span>Ít phân tán</span>
           <span>Phân tán hơn</span>
         </div>
-        <p>Thanh cao hơn nghĩa là xác suất đang được chia cho nhiều khả năng hơn.</p>
       </div>
       <div className="prediction-summary__malignancy">
         <div>
-          <p className="section-label">Nhóm ác tính</p>
+          <p className="section-label">Xác suất nhóm ác tính</p>
           <strong>{malignancyPercent}%</strong>
         </div>
         <div className="metric-track" role="progressbar" aria-label="Xác suất nhóm ác tính" aria-valuemin={0} aria-valuemax={100} aria-valuenow={malignancyPercent}>
