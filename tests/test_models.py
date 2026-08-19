@@ -361,28 +361,12 @@ def test_e3_geometry_matches_published_in_plane_size():
 _KHOI_TOI_THIEU: dict[str, tuple[dict, tuple[int, ...]]] = {
     "densenet121_3d": ({"in_channels": 8, "num_classes": 7}, (1, 8, 32, 32, 32)),
     "siamese_fusion": ({"num_phases": 8, "embed_dim": 32}, (1, 8, 32, 32, 32)),
-    "resnet3d": ({"depth": 10, "in_channels": 8, "num_classes": 7}, (1, 8, 32, 32, 32)),
     "cghnet": (
         {"num_phases": 8, "num_classes": 7, "resnet_depth": 10, "in_plane_size": 112},
         (1, 8, 112, 112, 14),
     ),
     "uniformer3d": (
         {"variant": "small", "patch_embed1_stride": (2, 2, 2), "require_pretrained": False},
-        (1, 8, 112, 112, 14),
-    ),
-    # ViT phẳng: cạnh in-plane phải chia hết cho patch_size 16, nên 112 là mức nhỏ nhất
-    # dùng được. `t_size` là số lát TRƯỚC conv1 và phải khớp chiều Z của shape đầu vào —
-    # lệch hai thứ này thì reshape trong transformer nổ với thông báo về số phần tử,
-    # hoàn toàn không gợi ra nguyên nhân.
-    "uniformerv2": (
-        {"variant": "b16", "input_resolution": 112, "t_size": 14, "require_pretrained": False},
-        (1, 8, 112, 112, 14),
-    ),
-    # Siamese hai độ phân giải: nhánh thấp lấy nửa mặt phẳng, nên cạnh in-plane phải chẵn và
-    # đủ lớn để sống qua hai lần pool (stem /2, stage1 /2, stage2 /2). 112 là hình học thật
-    # của config; nhỏ hơn thì nhánh Transformer teo về 1 voxel và lưới GSA toàn đệm.
-    "sdrformer": (
-        {"num_phases": 8, "num_classes": 7, "blocks_per_stage": 1},
         (1, 8, 112, 112, 14),
     ),
 }
@@ -440,3 +424,38 @@ def test_khong_model_nao_sinh_tham_so_moi_khi_forward():
             f"{name}: forward sinh thêm tham số {sorted(sau - truoc)}. Chúng sẽ KHÔNG nằm "
             "trong optimizer và không bao giờ được học. Cấp phát trong __init__."
         )
+
+
+def test_moi_config_co_khoi_model_ma_builder_nhan_duoc():
+    """Mọi khoá trong `model:` phải là tham số của builder tương ứng.
+
+    Lớp lỗi có thật: một config kế thừa `norm: batch` từ baseline trong khi builder của
+    nó chưa khai `norm` → `TypeError` ngay ở cell dựng model, sau khi đã tốn công mount
+    cache và tải hàng trăm MB trọng số.
+
+    Đây là lỗi *bắt được ở local trong một giây* mà nếu không có test thì chỉ lộ ra giữa
+    một session Kaggle. Quét mọi config nên config mới cũng được che.
+
+    (Chuyển từ `tests/test_pretrained.py` ở WORKLOG S-197 — nó là phép kiểm chung cho cả
+    registry, không riêng đường MedicalNet.)
+    """
+    import inspect
+
+    import yaml
+    from src.models import _BUILDERS
+    from src.utils.io import repo_root
+
+    loi = []
+    for path in sorted((repo_root() / "configs").glob("*.yaml")):
+        cfg = yaml.safe_load(path.read_text("utf-8")) or {}
+        block = cfg.get("model")
+        if not isinstance(block, dict) or "name" not in block:
+            continue  # configs/preprocess_*.yaml, data.yaml
+        builder = _BUILDERS.get(block["name"])
+        assert builder is not None, f"{path.name}: model.name {block['name']!r} không có builder"
+        nhan = set(inspect.signature(builder).parameters)
+        thua = sorted(set(block) - {"name"} - nhan)
+        if thua:
+            loi.append(f"{path.name} -> {builder.__name__} không nhận {thua}")
+
+    assert not loi, "config mang khoá builder không nhận:\n  " + "\n  ".join(loi)

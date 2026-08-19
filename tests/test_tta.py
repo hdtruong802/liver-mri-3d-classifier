@@ -1,4 +1,6 @@
-"""Test TTA và EMA.
+"""Test TTA.
+
+EMA đã được gỡ khỏi repo (WORKLOG S-197) nên phần test của nó cũng đi theo.
 
 `flip_combinations` thuần tổ hợp nên chạy không cần torch. Phần còn lại cần torch và
 tự skip — máy phát triển không cài deep-learning stack (AGENTS.md §4).
@@ -109,89 +111,3 @@ def test_tta_tra_model_ve_dung_che_do():
     model.train()
     tta_predict(model, _loader(), torch.device("cpu"), axes=(), amp=False)
     assert model.training is True
-
-
-# --- EMA ---------------------------------------------------------------------
-
-
-def _net():
-    return torch.nn.Sequential(torch.nn.Linear(4, 4), torch.nn.BatchNorm1d(4))
-
-
-@requires_torch
-def test_ema_tu_choi_decay_ngoai_khoang():
-    from src.train.ema import ModelEma
-
-    for bad in (0.0, 1.0, -0.5, 1.5):
-        with pytest.raises(ValueError, match="decay"):
-            ModelEma(_net(), decay=bad)
-
-
-@requires_torch
-def test_ema_bam_theo_trong_so_nhung_cham_hon():
-    from src.train.ema import ModelEma
-
-    net = _net()
-    ema = ModelEma(net, decay=0.9, use_num_updates=False)
-    goc = net[0].weight.detach().clone()
-
-    with torch.no_grad():
-        net[0].weight.add_(1.0)
-    ema.update(net)
-
-    # Sau MỘT bước: ema = 0.9*cũ + 0.1*mới, tức mới dịch 10% quãng đường.
-    torch.testing.assert_close(ema.module[0].weight, goc + 0.1, rtol=1e-5, atol=1e-6)
-
-
-@requires_torch
-def test_ema_KHONG_trung_binh_buffer_cua_batchnorm():
-    """Bất biến trung tâm — xem docstring `src/train/ema.py`.
-
-    `running_mean` đã là thống kê trượt do BatchNorm tự duy trì; EMA chồng lên là làm
-    trơn hai lần, và `num_batches_tracked` là số nguyên đếm bước.
-    """
-    from src.train.ema import ModelEma
-
-    net = _net()
-    ema = ModelEma(net, decay=0.9, use_num_updates=False)
-    with torch.no_grad():
-        net[1].running_mean.fill_(5.0)
-        net[1].num_batches_tracked.fill_(42)
-    ema.update(net)
-
-    torch.testing.assert_close(ema.module[1].running_mean, net[1].running_mean)
-    assert int(ema.module[1].num_batches_tracked) == 42, "buffer phải SAO CHÉP, không trung bình"
-
-
-@requires_torch
-def test_ema_warmup_dung_decay_nho_luc_dau():
-    """Không có warmup thì vài epoch đầu EMA còn phần lớn là trọng số ngẫu nhiên."""
-    from src.train.ema import ModelEma
-
-    net = _net()
-    ema = ModelEma(net, decay=0.999, use_num_updates=True)
-    assert ema._current_decay() < 0.999
-    ema.num_updates = 100_000
-    assert ema._current_decay() == pytest.approx(0.999)
-
-
-@requires_torch
-def test_ema_khong_giu_gradient():
-    """Bản EMA không bao giờ được train — nếu còn gradient thì nó sẽ bị optimizer đụng."""
-    from src.train.ema import ModelEma
-
-    ema = ModelEma(_net(), decay=0.9)
-    assert not any(p.requires_grad for p in ema.module.parameters())
-
-
-@requires_torch
-def test_ema_state_dict_khu_hoi_duoc():
-    from src.train.ema import ModelEma
-
-    net = _net()
-    a = ModelEma(net, decay=0.9)
-    a.num_updates = 7
-    b = ModelEma(net, decay=0.9)
-    b.load_state_dict(a.state_dict())
-    assert b.num_updates == 7
-    torch.testing.assert_close(b.module[0].weight, a.module[0].weight)

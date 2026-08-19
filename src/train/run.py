@@ -386,7 +386,6 @@ def train(config_path: str | Path, fold_override: int | None = None) -> dict[str
     epochs_without_gain = 0
 
     checkpoint_path = output_dir / "last.pt"
-    resumed_ema_state = None
     fingerprint = model_fingerprint(config["model"])
     if train_config.get("resume", True):
         state = load_checkpoint(checkpoint_path)
@@ -418,7 +417,6 @@ def train(config_path: str | Path, fold_override: int | None = None) -> dict[str
             best_score = float(state["best_score"])
             best_epoch = int(state["best_epoch"])
             epochs_without_gain = int(state["epochs_without_gain"])
-            resumed_ema_state = state.get("ema")
             logger.info(
                 "RESUME từ %s: tiếp epoch %d, best macro-F1 %.4f @ epoch %d",
                 checkpoint_path,
@@ -441,30 +439,15 @@ def train(config_path: str | Path, fold_override: int | None = None) -> dict[str
             mixup_alpha,
         )
 
-    # EMA: mặc định TẮT (`ema_decay: 0`) để `baseline_3dpatch.yaml` không đổi hành vi và
-    # `tests/test_protocol_conformance.py` giữ nguyên ý nghĩa.
-    #
-    # ⚠️ Khi BẬT, MỌI con số trong `train_log.csv`, `metrics_best.json` và
-    # `val_probs_*.npz` là của model EMA — model tức thời không được đánh giá nữa. Trộn
-    # hai nguồn số trong cùng một file là thứ về sau không ai phát hiện được.
-    ema_decay = float(train_config.get("ema_decay", 0.0))
-    ema = None
-    if ema_decay > 0:
-        from src.train.ema import ModelEma
-
-        ema = ModelEma(model, decay=ema_decay)
-        if resumed_ema_state is not None:
-            ema.load_state_dict(resumed_ema_state)
-            logger.info("RESUME EMA: đã tích luỹ %d bước", ema.num_updates)
-        elif start_epoch > 1:
-            # Resume từ checkpoint chưa có EMA: bản EMA sẽ bắt đầu lại từ trọng số hiện
-            # tại và cần vài nghìn bước mới trơn. Đó không phải cùng một thí nghiệm.
-            raise RuntimeError(
-                f"{checkpoint_path} không chứa trạng thái EMA nhưng config bật "
-                f"ema_decay={ema_decay}. Resume kiểu này cho ra một đường EMA khác hẳn "
-                "lần chạy trước. Xoá checkpoint để train lại từ đầu, hoặc tắt EMA."
-            )
-        logger.info("EMA BẬT (decay=%.4f) — mọi metric dưới đây là của model EMA", ema_decay)
+    # EMA đã được GỠ khỏi cây làm việc (WORKLOG S-197): hai config duy nhất dùng nó
+    # (`e7_ema`, `e9_e6b_ema`) chưa bao giờ chạy fold nào và không có mặt trong báo cáo
+    # cuối. Nổ ra thay vì lặng lẽ bỏ qua — một config cũ bật `ema_decay` mà train không
+    # EMA sẽ cho ra một thí nghiệm KHÁC nhưng trông y hệt.
+    if float(train_config.get("ema_decay", 0.0)) > 0:
+        raise ValueError(
+            "train.ema_decay > 0 nhưng đường EMA đã được gỡ khỏi repo (WORKLOG S-197). "
+            "Bỏ khoá này khỏi config, hoặc khôi phục src/train/ema.py từ git history."
+        )
     csv_logger = CsvLogger(output_dir / "train_log.csv", CSV_FIELDS)
 
     try:
@@ -479,11 +462,9 @@ def train(config_path: str | Path, fold_override: int | None = None) -> dict[str
                 scaler=scaler,
                 accum_steps=accum_steps,
                 amp=amp,
-                on_step=None if ema is None else (lambda: ema.update(model)),
                 mixup_alpha=mixup_alpha,
             )
-            evaluated = model if ema is None else ema.torch_module
-            val_out = run_epoch(evaluated, val_loader, device, criterion, amp=amp)
+            val_out = run_epoch(model, val_loader, device, criterion, amp=amp)
             scheduler.step()
 
             val_pred = val_out["probs"].argmax(axis=1)
@@ -545,11 +526,10 @@ def train(config_path: str | Path, fold_override: int | None = None) -> dict[str
                 save_checkpoint(
                     output_dir / "best.pt",
                     {
-                        "model": evaluated.state_dict(),
+                        "model": model.state_dict(),
                         "epoch": epoch,
                         "metrics": metrics,
                         "fold": fold,
-                        "ema_decay": ema_decay,
                     },
                 )
                 np.savez_compressed(
@@ -594,10 +574,6 @@ def train(config_path: str | Path, fold_override: int | None = None) -> dict[str
                     "fold": fold,
                     "seed": seed,
                     "model_fingerprint": fingerprint,
-                    # `model` ở đây là trọng số TỨC THỜI (cần cho optimizer khi resume);
-                    # trạng thái EMA đi riêng vì hai thứ phải khôi phục cùng nhau, nếu
-                    # không thì `ema` mất lịch sử và đường EMA sau resume khác hẳn.
-                    **({"ema": ema.state_dict()} if ema is not None else {}),
                 },
             )
 

@@ -243,35 +243,9 @@ class UploadViewInfo(BaseModel):
     note: str
 
 
-class ModelHeatmapInfo(BaseModel):
-    """Metadata for validated, precomputed model-sensitivity overlays."""
-
-    available: bool
-    phase_tokens: list[str] = Field(default_factory=list, max_length=8)
-    n_slices: int = Field(ge=0)
-    pred_class_index: int | None = Field(default=None, ge=0, le=6)
-    lesion_slices: dict[str, list[int]] = Field(default_factory=dict)
-    note: str = ""
-
-
-class CaseSummary(BaseModel):
-    case_id: str
-    label_vi: str
-    source_note: str
-    available: bool = Field(description="False khi thư mục dữ liệu không có trên máy này.")
-
-
-class CaseDetail(BaseModel):
-    case_id: str
-    label_vi: str
-    source_note: str
-    volumes: list[CaseVolumeInfo]
-    reference_phase: str
-    provenance: Provenance
-    model_heatmap: ModelHeatmapInfo | None = None
-
-
 class HealthResponse(BaseModel):
     status: str
+    #: Có tìm thấy trọng số 5 fold để suy luận trực tiếp hay không. `runs/` bị
+    #: .gitignore nên máy mới clone repo sẽ là False cho tới khi trỏ
+    #: `LLDMMRI_LIVE_WEIGHTS_DIR` vào thư mục checkpoint.
     model_loaded: bool
-    sample_dir_present: bool

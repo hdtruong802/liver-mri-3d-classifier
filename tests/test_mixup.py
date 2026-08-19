@@ -1,4 +1,4 @@
-"""Test mixup trong `run_epoch`, và hai config dùng nó.
+"""Test mixup chéo lớp trong `run_epoch`.
 
 Điều quan trọng nhất phải chứng minh: **`mixup_alpha = 0` cho đường code y hệt bản chưa
 có mixup**. Mixup được thêm vào một hàm mà mọi thí nghiệm của dự án đi qua, nên nếu nó
@@ -47,53 +47,28 @@ def test_train_doc_mixup_tu_khoi_data_va_tu_choi_gia_tri_am():
     assert "mixup_alpha=mixup_alpha" in src, "train() không truyền mixup xuống run_epoch"
 
 
-# --- hai config ----------------------------------------------------------------
+# --- config ---------------------------------------------------------------------
 
 
-@pytest.mark.parametrize(
-    ("base", "cand"),
-    [("baseline_3dpatch.yaml", "e14_mixup.yaml"), ("cghnet.yaml", "cghnet_mixup.yaml")],
-)
-def test_config_khac_base_dung_ba_khoa(base: str, cand: str):
-    """Ba khoá, không hơn. Thừa một khoá là thí nghiệm ba biến, và lỗi đó không để lại
-    dấu vết nào trong kết quả."""
+def test_khong_config_nao_con_bat_mixup_cheo_lop():
+    """`data.mixup_alpha` (mixup CHÉO lớp, có trộn nhãn) không còn config nào dùng.
 
-    def flat(d, prefix=""):
-        out = {}
-        for k, v in d.items():
-            name = f"{prefix}{k}"
-            out.update(flat(v, name + ".")) if isinstance(v, dict) else out.update({name: v})
-        return out
+    Hai config từng dùng nó — `e14_mixup.yaml` và `cghnet_mixup.yaml` — chưa bao giờ chạy
+    fold nào và đã gỡ ở WORKLOG S-197. Đường code thì Ở LẠI trong `run_epoch` vì nó rẻ và
+    đã được test; nhưng nếu có config nào bật lại thì phải là một quyết định nói ra, không
+    phải một khoá sót lại.
 
-    a, b = flat(_cfg(base)), flat(_cfg(cand))
-    diff = {k for k in set(a) | set(b) if a.get(k) != b.get(k)}
-    assert diff == {"data.mixup_alpha", "loss.label_smoothing", "output_dir"}, (
-        f"{cand} khác {base} ở {sorted(diff)}"
-    )
-
-
-@pytest.mark.parametrize("name", ["e14_mixup.yaml", "cghnet_mixup.yaml"])
-def test_gia_tri_hai_khoa(name: str):
-    cfg = _cfg(name)
-    assert cfg["data"]["mixup_alpha"] == 0.2
-    assert cfg["loss"]["label_smoothing"] == 0.05
-
-
-@pytest.mark.parametrize("name", ["e14_mixup.yaml", "cghnet_mixup.yaml"])
-def test_khong_bat_trong_so_lop(name: str):
-    """§1 của chẩn đoán LOẠI trọng số lớp: hai lớp yếu đã bị dự đoán thừa (ICC 1.26×,
-    áp-xe 1.31×). Bật nó lên là đi ngược bằng chứng."""
-    assert _cfg(name)["loss"]["class_weights"] == "none"
-
-
-def test_output_dir_rieng_cho_tung_run():
-    """Trùng `output_dir` là ghi đè checkpoint của thí nghiệm trước, và `resume: true`
-    sẽ lặng lẽ nạp tiếp trọng số của cấu hình khác."""
-    dirs = [
-        _cfg(n)["output_dir"]
-        for n in ("baseline_3dpatch.yaml", "e14_mixup.yaml", "cghnet.yaml", "cghnet_mixup.yaml")
-    ]
-    assert len(set(dirs)) == 4, dirs
+    ⚠️ Đừng lẫn với `data.intra_class_mixup` — phép trộn TRONG CÙNG lớp, giữ nguyên nhãn,
+    nằm ở tầng dataset. Đó là phép khác, có config riêng, và `tests/test_intra_class_mixup.py`
+    chốt rằng hai khoá không được bật cùng lúc.
+    """
+    bat = {}
+    for path in sorted((repo_root() / "configs").glob("*.yaml")):
+        cfg = yaml.safe_load(path.read_text("utf-8")) or {}
+        alpha = float((cfg.get("data") or {}).get("mixup_alpha", 0.0))
+        if alpha > 0:
+            bat[path.name] = alpha
+    assert bat == {}, bat
 
 
 # --- hành vi thật, cần torch ---------------------------------------------------

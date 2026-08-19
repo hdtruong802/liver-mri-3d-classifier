@@ -273,7 +273,7 @@ def test_config_nga_ra_neu_thieu_trong_so():
 def test_output_dir_rieng():
     others = {
         _cfg(n)["output_dir"]
-        for n in ("baseline_3dpatch.yaml", "cghnet.yaml", "e14_mixup.yaml", "cghnet_mixup.yaml")
+        for n in ("baseline_3dpatch.yaml", "cghnet.yaml", "e2_siamese.yaml", "e5_focal.yaml")
     }
     assert _cfg()["output_dir"] not in others
 

@@ -1,22 +1,25 @@
 /**
- * MRI viewer for the exact E4 crop space. The server renders one composed PNG
- * in a fixed order: MRI → predicted-class sensitivity heatmap → human label.
- * No raw-NIfTI overlay is allowed here because E4 aligns each phase separately.
+ * MRI viewer for an uploaded study. The server renders the source NIfTI slice,
+ * optionally overlaid with the annotation the user supplied in the same ZIP.
+ *
+ * The overlay is never a segmentation produced by this project — the model is a
+ * classifier (AGENTS.md §3.9). The heatmap layer and the prebuilt demo-case path
+ * were removed in WORKLOG S-197: both needed offline artefacts that the repo does
+ * not ship, and the heatmap directory had not existed for some time.
  */
 
 import { useCallback, useEffect, useMemo, useRef, useState, type PointerEvent } from 'react';
-import { ArrowLeft, ArrowRight, FileUp, Flame, Scan } from 'lucide-react';
+import { ArrowLeft, ArrowRight, FileUp, ImageOff, Scan } from 'lucide-react';
 
-import { modelViewUrl, sliceUrl, uploadSliceUrl } from '@/api/client';
-import type { CaseVolumeInfo, ModelHeatmapInfo, PhaseInfo } from '@/api/types';
+import { uploadSliceUrl } from '@/api/client';
+import type { CaseVolumeInfo, PhaseInfo } from '@/api/types';
 import { EmptyState } from '@/components/Provenance';
 
 interface Props {
+  /** Id của bộ ZIP vừa suy luận xong; ảnh chỉ sống trong bộ nhớ tạm của server. */
   caseId: string;
   phases: PhaseInfo[];
-  modelHeatmap: ModelHeatmapInfo | null;
   volumes: CaseVolumeInfo[];
-  source?: 'demo' | 'upload';
   onChooseUpload?: () => void;
 }
 
@@ -34,26 +37,21 @@ function toSegments(indices: number[]): Array<[number, number]> {
   return segments;
 }
 
-export function SliceViewer({ caseId, phases, modelHeatmap, volumes, source = 'demo', onChooseUpload }: Props) {
-  const hasModelHeatmap = modelHeatmap?.available === true;
+export function SliceViewer({ caseId, phases, volumes, onChooseUpload }: Props) {
   const volumeByToken = useMemo(
     () => new Map(volumes.map((volume) => [volume.file_token, volume])),
     [volumes],
   );
   const available = useMemo(
-    () =>
-      hasModelHeatmap
-        ? phases.filter((phase) => modelHeatmap?.phase_tokens.includes(phase.file_token) ?? false)
-        : phases.filter((phase) => volumeByToken.has(phase.file_token)),
-    [hasModelHeatmap, modelHeatmap, phases, volumeByToken],
+    () => phases.filter((phase) => volumeByToken.has(phase.file_token)),
+    [phases, volumeByToken],
   );
   const [token, setToken] = useState('C-pre');
   const activeVolume = volumeByToken.get(token);
-  const total = hasModelHeatmap ? modelHeatmap?.n_slices ?? 0 : activeVolume?.n_slices ?? 0;
+  const total = activeVolume?.n_slices ?? 0;
   const [z, setZ] = useState(0);
   const [failed, setFailed] = useState(false);
   const [showAnnotation, setShowAnnotation] = useState(false);
-  const [showHeatmap, setShowHeatmap] = useState(false);
   const [scale, setScale] = useState(1);
   const [offset, setOffset] = useState({ x: 0, y: 0 });
 
@@ -74,18 +72,13 @@ export function SliceViewer({ caseId, phases, modelHeatmap, volumes, source = 'd
   const clamp = useCallback((value: number) => Math.max(0, Math.min(total - 1, value)), [total]);
   const step = useCallback((delta: number) => setZ((current) => clamp(current + delta)), [clamp]);
 
-  const lesionSlices = hasModelHeatmap
-    ? modelHeatmap?.lesion_slices[token] ?? []
-    : activeVolume?.mask_slices ?? [];
+  const lesionSlices = activeVolume?.mask_slices ?? [];
   const segments = useMemo(() => toSegments(lesionSlices), [lesionSlices]);
 
-  // The first usable view opens at the longest C-pre annotation span. Switching
-  // phase preserves z: all eight artefact crops use the same E4 dimensions.
+  // Mở ở giữa dải nhãn dài nhất của C-pre, thay vì lát 0 — lát đầu thường ngoài gan.
   useEffect(() => {
     if (initialSliceSet.current || total <= 0) return;
-    const cPreSlices = hasModelHeatmap
-      ? modelHeatmap?.lesion_slices['C-pre'] ?? []
-      : volumeByToken.get('C-pre')?.mask_slices ?? [];
+    const cPreSlices = volumeByToken.get('C-pre')?.mask_slices ?? [];
     const cPreSegments = toSegments(cPreSlices);
     const longest = cPreSegments.reduce<Array<[number, number]>[number] | null>(
       (best, current) => (!best || current[1] - current[0] > best[1] - best[0] ? current : best),
@@ -93,16 +86,13 @@ export function SliceViewer({ caseId, phases, modelHeatmap, volumes, source = 'd
     );
     setZ(longest ? Math.round((longest[0] + longest[1]) / 2) : Math.floor(total / 2));
     initialSliceSet.current = true;
-  }, [hasModelHeatmap, modelHeatmap, total, volumeByToken]);
+  }, [total, volumeByToken]);
 
   useEffect(() => setZ((current) => clamp(current)), [clamp]);
-  useEffect(() => setFailed(false), [token, z, showAnnotation, showHeatmap]);
+  useEffect(() => setFailed(false), [token, z, showAnnotation]);
   useEffect(() => {
-    if (!hasModelHeatmap) setShowHeatmap(false);
-  }, [hasModelHeatmap]);
-  useEffect(() => {
-    if (!hasModelHeatmap && !activeVolume?.has_mask) setShowAnnotation(false);
-  }, [activeVolume?.has_mask, hasModelHeatmap]);
+    if (!activeVolume?.has_mask) setShowAnnotation(false);
+  }, [activeVolume?.has_mask]);
 
   const clampOffset = useCallback((next: { x: number; y: number }, atScale: number) => {
     const frame = frameRef.current;
@@ -167,9 +157,9 @@ export function SliceViewer({ caseId, phases, modelHeatmap, volumes, source = 'd
     return (
       <section className="mri-viewer mri-viewer--empty">
         <EmptyState
-          label="Chưa có ảnh MRI cho ca này"
-          detail="Backend chưa tìm thấy đủ volume MRI. Kiểm tra LLDMMRI_SAMPLE_DIR trước khi xem ảnh."
-          icon={Flame}
+          label="Chưa có ảnh MRI để hiển thị"
+          detail="Ảnh của bộ MRI tải lên đã hết hạn hoặc server đã khởi động lại. Hãy tải ZIP lên lại."
+          icon={ImageOff}
         />
       </section>
     );
@@ -177,18 +167,14 @@ export function SliceViewer({ caseId, phases, modelHeatmap, volumes, source = 'd
 
   const onLesionSlice = lesionSlices.includes(z);
   const zoomed = scale > 1.001;
-  const imageUrl = hasModelHeatmap
-    ? modelViewUrl(caseId, token, z, showAnnotation, showHeatmap)
-    : source === 'upload'
-      ? uploadSliceUrl(caseId, token, z, showAnnotation)
-      : sliceUrl(caseId, token, z, showAnnotation);
-  const annotationAvailable = hasModelHeatmap || activeVolume?.has_mask === true;
+  const imageUrl = uploadSliceUrl(caseId, token, z, showAnnotation);
+  const annotationAvailable = activeVolume?.has_mask === true;
 
   return (
     <section aria-label="Khám phá ảnh MRI" className="mri-viewer">
       <div className="viewer-toolbar">
         <div className="viewer-toolbar__controls">
-          {source === 'upload' && onChooseUpload ? (
+          {onChooseUpload ? (
             <button
               type="button"
               onClick={onChooseUpload}
@@ -199,17 +185,6 @@ export function SliceViewer({ caseId, phases, modelHeatmap, volumes, source = 'd
               Tải bộ MRI khác
             </button>
           ) : null}
-          {hasModelHeatmap && (
-            <Toggle
-              active={showHeatmap}
-              onClick={() => setShowHeatmap((value) => !value)}
-              icon={Flame}
-              activeLabel="Đang hiện heatmap"
-              inactiveLabel="Hiện heatmap"
-              tone="attention"
-              title="Độ nhạy cục bộ của model với lớp đã dự đoán"
-            />
-          )}
           <div role="group" aria-label="Chọn thì MRI" className="viewer-phase-group">
             {available.map((phase) => {
               const active = phase.file_token === token;
@@ -234,9 +209,7 @@ export function SliceViewer({ caseId, phases, modelHeatmap, volumes, source = 'd
             activeLabel="Đang hiện vùng tổn thương"
             inactiveLabel="Hiện vùng tổn thương"
             tone="annotation"
-            title={source === 'upload'
-              ? 'Ảnh MRI gốc của bộ vừa tải lên. Vùng fuchsia là nhãn tổn thương do người tải lên cung cấp, không phải output segmentation của model.'
-              : 'Nhãn dataset do người chú giải khoanh, không phải output segmentation của model'}
+            title="Ảnh MRI gốc của bộ vừa tải lên. Vùng fuchsia là nhãn tổn thương do người tải lên cung cấp, không phải output segmentation của model."
             disabled={!annotationAvailable}
           />
         </div>
@@ -268,9 +241,9 @@ export function SliceViewer({ caseId, phases, modelHeatmap, volumes, source = 'd
           <EmptyState label="Không đọc được lát này" detail={`Thì ${token}, lát ${z + 1}.`} />
         ) : (
           <img
-            key={`${token}-${z}-${showAnnotation}-${showHeatmap}`}
+            key={`${token}-${z}-${showAnnotation}`}
             src={imageUrl}
-            alt={`MRI, thì ${token}, lát ${z + 1} trên ${total}${showHeatmap ? ', có heatmap độ nhạy model' : ''}${showAnnotation ? ', có nhãn vùng tổn thương do người chú giải' : ''}`}
+            alt={`MRI, thì ${token}, lát ${z + 1} trên ${total}${showAnnotation ? ', có nhãn vùng tổn thương do người tải lên cung cấp' : ''}`}
             onError={() => setFailed(true)}
             draggable={false}
             style={{ transform: `translate(${offset.x}px, ${offset.y}px) scale(${scale})` }}

@@ -20,27 +20,13 @@ def _env_path(name: str, default: Path) -> Path:
     return Path(raw).expanduser() if raw else default
 
 
-# Dữ liệu bệnh nhân thật. `data/` bị .gitignore toàn bộ, và phải giữ nguyên như vậy:
-# đây là volume MRI của người thật (`AGENTS.md` §3.10). App đọc lúc chạy, không copy
-# vào webapp/, không commit, không đi kèm khi đem demo lên host công khai.
-SAMPLE_DIR: Path = _env_path("LLDMMRI_SAMPLE_DIR", REPO_ROOT / "data" / "sample")
-
-# Artefact offline: crop E4, heatmap 8 thì, và mask người chú giải trên cùng lưới.
-# Không có artefact thì UI dùng ảnh MRI nguồn, nhưng tuyệt đối không dựng heatmap/màu giả.
-MODEL_HEATMAP_DIR: Path = _env_path(
-    "LLDMMRI_MODEL_HEATMAP_DIR", REPO_ROOT / "runs" / "E4_per_phase_results" / "model_heatmaps"
-)
-
-# Checkpoint. Chưa có — W5 mới nạp model thật.
-CHECKPOINT_PATH: Path | None = (
-    Path(os.environ["LLDMMRI_CHECKPOINT"]) if os.environ.get("LLDMMRI_CHECKPOINT") else None
-)
-
+# Trọng số 5 fold của cấu hình chính, dùng cho suy luận trực tiếp trên ZIP người dùng
+# tải lên. `runs/` bị .gitignore nên thư mục này KHÔNG đi kèm repo — trỏ lại bằng
+# `LLDMMRI_LIVE_WEIGHTS_DIR` nếu checkpoint nằm chỗ khác.
+#
 # Completed local UniFormer folds for direct upload inference. Checkpoints are ignored
 # artifacts and are never used to recreate out-of-fold results.
-LIVE_WEIGHTS_DIR: Path = _env_path(
-    "LLDMMRI_LIVE_WEIGHTS_DIR", REPO_ROOT / "runs" / "Uniformer3D"
-)
+LIVE_WEIGHTS_DIR: Path = _env_path("LLDMMRI_LIVE_WEIGHTS_DIR", REPO_ROOT / "runs" / "Uniformer3D")
 LIVE_PREPROCESS_CONFIG: Path = _env_path(
     "LLDMMRI_LIVE_PREPROCESS_CONFIG", REPO_ROOT / "configs" / "preprocess_cghnet.yaml"
 )
@@ -58,8 +44,8 @@ UPLOAD_MAX_UNCOMPRESSED_BYTES: int = int(
 UPLOAD_VIEW_TTL_SECONDS: int = int(os.environ.get("LLDMMRI_UPLOAD_VIEW_TTL_SECONDS", "1800"))
 UPLOAD_VIEW_MAX_STUDIES: int = int(os.environ.get("LLDMMRI_UPLOAD_VIEW_MAX_STUDIES", "1"))
 
-# Ngưỡng mặc định cho utility thuần và prediction OOF cũ. Suy luận trực tiếp không dùng
-# giá trị này: nó nạp ngưỡng max-prob đã khóa từ artefact OOF UniFormer.
+# Ngưỡng mặc định cho utility thuần. Suy luận trực tiếp không dùng giá trị này: nó nạp
+# ngưỡng max-prob đã khoá từ artefact out-of-fold của UniFormer.
 DEFAULT_DEFER_THRESHOLD: float = float(os.environ.get("LLDMMRI_DEFER_THRESHOLD", "0.55"))
 
 # Mức coverage đã chốt cho selective prediction. Ngưỡng cụ thể không hard-code: backend

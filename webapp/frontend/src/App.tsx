@@ -186,9 +186,7 @@ export default function App() {
             <SliceViewer
               caseId={uploadView.upload_id}
               phases={meta.phases}
-              modelHeatmap={null}
               volumes={uploadView.volumes}
-              source="upload"
               onChooseUpload={chooseArchive}
             />
           ) : (

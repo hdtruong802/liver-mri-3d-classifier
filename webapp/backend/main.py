@@ -16,30 +16,24 @@ from fastapi import FastAPI, HTTPException, UploadFile
 from fastapi.responses import Response
 from src.data.taxonomy import CLASS_NAMES, MALIGNANT_INDICES, NUM_CLASSES, SHORT_NAMES
 
-from webapp.backend import demo_cases, inference
 from webapp.backend.config import (
     DEFAULT_DEFER_THRESHOLD,
     RUO_NOTICE,
-    SAMPLE_DIR,
     UPLOAD_MAX_ENTRIES,
     UPLOAD_MAX_UNCOMPRESSED_BYTES,
 )
 from webapp.backend.phases import PHASES, PhaseDetectionError, detect_phase
 from webapp.backend.schemas import (
-    CaseDetail,
-    CaseSummary,
     ClassInfo,
     HealthResponse,
     MetaResponse,
     PhaseInfo,
-    PredictResult,
     UploadPhaseState,
     UploadPhaseValidation,
     UploadPredictionResult,
     UploadValidationResult,
 )
 from webapp.backend.upload_views import upload_studies
-from webapp.backend.volumes import render_slice_png
 
 app = FastAPI(
     title="Liver MRI 3D Classifier — demo API",
@@ -53,11 +47,9 @@ app = FastAPI(
 
 @app.get("/api/health", response_model=HealthResponse)
 def health() -> HealthResponse:
-    return HealthResponse(
-        status="ok",
-        model_loaded=inference.model_is_loaded(),
-        sample_dir_present=SAMPLE_DIR.is_dir(),
-    )
+    from webapp.backend import live_inference
+
+    return HealthResponse(status="ok", model_loaded=live_inference.is_available())
 
 
 @app.get("/api/meta", response_model=MetaResponse)
@@ -93,66 +85,6 @@ def meta() -> MetaResponse:
     )
 
 
-@app.get("/api/cases", response_model=list[CaseSummary])
-def list_cases() -> list[CaseSummary]:
-    return demo_cases.list_cases()
-
-
-@app.get("/api/cases/{case_id}", response_model=CaseDetail)
-def case_detail(case_id: str) -> CaseDetail:
-    if case_id not in demo_cases.CASES_BY_ID:
-        raise HTTPException(status_code=404, detail=f"không có ca demo {case_id!r}")
-    if not demo_cases.case_is_available(demo_cases.CASES_BY_ID[case_id]):
-        raise HTTPException(
-            status_code=503,
-            detail=(
-                f"dữ liệu của ca {case_id!r} không có trên máy này. "
-                f"Đặt LLDMMRI_SAMPLE_DIR trỏ tới thư mục chứa 8 file .nii của ca."
-            ),
-        )
-    return demo_cases.get_case_detail(case_id)
-
-
-@app.get(
-    "/api/cases/{case_id}/slice",
-    responses={200: {"content": {"image/png": {}}}},
-    response_class=Response,
-)
-def case_slice(case_id: str, phase: str, z: int, mask: bool = False) -> Response:
-    """Render một lát của một thì ra PNG.
-
-    `phase` là `file_token` (vd `C+V`, `InPhase`). Ảnh thật, đọc từ NIfTI trên đĩa.
-
-    `mask=true` phủ **nhãn segmentation official của LLD-MMRI** lên. Đây là nhãn do
-    người chú giải, không phải đầu ra của model — dự án không làm segmentation
-    (AGENTS.md §3.9). Ca không có mask thì trả 404 thay vì lặng lẽ trả ảnh trần: gọi
-    xin mask mà nhận ảnh không mask là một sự im lặng dễ bị đọc nhầm thành
-    "model không tìm thấy tổn thương nào".
-    """
-    path = demo_cases.volume_path(case_id, phase)
-    if path is None:
-        raise HTTPException(
-            status_code=404, detail=f"không có volume cho ca {case_id!r} thì {phase!r}"
-        )
-    overlay = None
-    if mask:
-        overlay = demo_cases.mask_path(case_id, phase)
-        if overlay is None:
-            raise HTTPException(
-                status_code=404, detail=f"không có mask cho ca {case_id!r} thì {phase!r}"
-            )
-    try:
-        payload = render_slice_png(path, z, overlay)
-    except IndexError as exc:
-        raise HTTPException(status_code=416, detail=str(exc)) from exc
-    except ValueError as exc:  # mask lệch hình học so với ảnh
-        raise HTTPException(status_code=409, detail=str(exc)) from exc
-    # Ảnh bệnh nhân: cache ở trình duyệt trong phiên, không để proxy trung gian giữ.
-    return Response(
-        content=payload, media_type="image/png", headers={"Cache-Control": "private, max-age=3600"}
-    )
-
-
 @app.get(
     "/api/uploads/{upload_id}/slice",
     responses={200: {"content": {"image/png": {}}}},
@@ -180,48 +112,6 @@ def upload_slice(upload_id: str, phase: str, z: int, mask: bool = False) -> Resp
             ),
         )
     return Response(content=payload, media_type="image/png", headers={"Cache-Control": "no-store"})
-
-
-@app.get(
-    "/api/cases/{case_id}/model-view",
-    responses={200: {"content": {"image/png": {}}}},
-    response_class=Response,
-)
-def case_model_view(
-    case_id: str,
-    phase: str = "C-pre",
-    z: int = 0,
-    annotation: bool = False,
-    heatmap: bool = False,
-) -> Response:
-    """Render crop E4 theo thứ tự MRI → heatmap → nhãn người chú giải."""
-    from webapp.backend import model_heatmaps
-
-    artifact = model_heatmaps.get(case_id)
-    if artifact is None:
-        raise HTTPException(status_code=404, detail=f"chưa có heatmap đa thì cho ca {case_id!r}")
-    try:
-        payload = model_heatmaps.render_png(
-            artifact, phase, z, annotation=annotation, heatmap=heatmap
-        )
-    except ValueError as exc:
-        raise HTTPException(status_code=422, detail=str(exc)) from exc
-    except IndexError as exc:
-        raise HTTPException(status_code=416, detail=str(exc)) from exc
-    return Response(
-        content=payload, media_type="image/png", headers={"Cache-Control": "private, max-age=3600"}
-    )
-
-
-@app.post("/api/cases/{case_id}/predict", response_model=PredictResult)
-def predict_case(case_id: str) -> PredictResult:
-    """Suy luận trên một ca demo dựng sẵn — đường đi chính."""
-    if case_id not in demo_cases.CASES_BY_ID:
-        raise HTTPException(status_code=404, detail=f"không có ca demo {case_id!r}")
-    try:
-        return inference.predict(case_id)
-    except LookupError as exc:
-        raise HTTPException(status_code=503, detail=str(exc)) from exc
 
 
 def _is_nifti(name: str) -> bool:
@@ -253,9 +143,7 @@ def _inspect_upload(
     for name in nifti_names:
         role = _archive_role(name)
         if role is None:
-            image_errors.append(
-                f"{name!r} phải nằm trong thư mục images/ hoặc masks/ của ZIP."
-            )
+            image_errors.append(f"{name!r} phải nằm trong thư mục images/ hoặc masks/ của ZIP.")
             continue
         leaf_name = name.replace("\\", "/").rsplit("/", 1)[-1]
         try:

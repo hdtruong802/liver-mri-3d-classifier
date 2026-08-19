@@ -8148,3 +8148,58 @@ Người dùng đã chốt ở S-195 là bỏ hẳn thí nghiệm mixup khỏi b
 2. **🐛 Bẫy đã dẫm phải: ECE có HAI giá trị tuỳ cách chia bin, và chúng lệch nhau đáng kể.** `src.eval.test_report` in ECE bằng `adaptive_calibration_error` (chia theo số ca) = **0.0833**. Tự chia 10 bin đều cho 0.0865; `expected_calibration_error` mặc định (15 bin đều) cho 0.0807; 10 bin đều qua module cho 0.0726. Bản nháp đầu của hình in 0.0865 trong khi bảng ghi 0.0833. Vẽ cột theo bin adaptive thì hình **không đọc được** (quá nửa số ca ở độ tự tin ≈1.0 nên cột cuối mảnh như sợi chỉ). Cách đã chốt: **vẽ cột theo bin đều, chú thích in CẢ HAI số kèm nhãn**. Ai thấy "hình có hai số ECE" thì đừng "dọn" đi một số.
 3. **AGENTS.md §5 và §6 vẫn SAI về `uniformer_s_intra_mixup`** (ghi "chưa chạy fold nào" trong khi `runs/Uniformer3D-mixup/` có đủ 5 fold + một lượt test-104 không pre-registration). Nợ từ S-195, phiên này **vẫn không sửa** vì cần người dùng quyết. Phải xử lý trước khi dùng §5 làm căn cứ lập kế hoạch.
 4. Số tham số của UniFormer trong Bảng 5 ghi "≈ 21 M *" kèm chú thích rõ là **của bản gốc cho video, chưa đo lại** sau khi đổi lớp vào sang 8 kênh và đầu ra sang 7 lớp. Máy soạn báo cáo không có torch nên không đo được. Ai có môi trường torch thì đo rồi thay con số và bỏ dấu sao.
+
+## S-197 · 2026-08-19 10:47 · claude-code
+
+**Mục tiêu phiên:** Chốt UniFormer-S là cấu hình cuối, dọn nhánh chết khỏi repo, viết `README.md`, đưa repo về trạng thái đóng gói bàn giao được.
+
+**Nhánh / commit:** `main` · `c34829d` → *(commit của phiên này)*
+
+**Quy tắc dọn đã dùng:** **giữ mọi thứ `reports/FINAL_REPORT.docx` TRÍCH TÊN, xoá phần còn lại.** Báo cáo trích Bảng 5 (DenseNet121-3D · Siamese đa thì · CGHNet · UniFormer-S) và Bảng 8 (E0…E6b, E12, TTA, CGHNet, UniFormer), nên E2 và E12 **ở lại** dù người dùng ban đầu chọn xoá — xoá chúng thì người đọc báo cáo không tra ngược được vào repo. Đã hỏi lại và người dùng chốt giữ.
+
+**Đã xoá (30 file):** `src/models/{sdrformer,uniformerv2}.py` · `src/train/ema.py` · `src/xai/` (cả thư mục) · `scripts/export_demo_cases.py` · `webapp/backend/{demo_cases,model_heatmaps,predictions}.py` · 9 config (`e7_ema`, `e8_pretrained`, `e9_e6b_ema`, `e13_siamese_pretrained`, `e14_mixup`, `cghnet_mixup`, `sdrformer`, `uniformer_base`, `uniformerv2_b16`) · 3 notebook (23, 24, 25) · 7 test tương ứng.
+
+**Đã thêm:** `README.md` · `docs/EXPERIMENT_ARCHIVE.md`.
+
+**⚠️ HAI CHỖ PLAN SAI, phát hiện khi chạy test — ghi lại vì cả hai là loại lỗi "xoá thứ trông chết mà đang sống":**
+
+1. **`src/models/resnet3d.py` KHÔNG chết.** `src/models/uniformer3d.py:73` — tức **cấu hình chính** — `from src.models.resnet3d import resolve_pretrained_path`; `siamese_fusion.py` cũng import encoder từ đó. Đã **khôi phục** file và `tests/test_pretrained.py`. Nó không còn trong `_BUILDERS` (không config nào dùng `name: resnet3d` nữa) nhưng module thì sống.
+2. **`webapp/backend/inference.py` KHÔNG thuần ca demo.** `live_inference.py:30` import `assemble_result` từ đó. Đã khôi phục **bản rút gọn**: giữ `shannon_entropy`, `build_probabilities`, `malignant_probability`, `assemble_result`; bỏ `oof_result`, `predict`, `model_is_loaded`.
+
+**Web app — gỡ hai tính năng, giữ đúng một luồng:**
+
+Phát hiện quyết định: **`runs/E4_per_phase_results/model_heatmaps` không tồn tại**, tức lớp heatmap đã chết ở runtime từ lâu và âm thầm rơi về "chỉ hiện MRI". Ca demo thì cần `data/sample` (gitignore). Cả hai đều không dùng được với repo vừa clone.
+
+- Backend: bỏ 5 route `/api/cases…`; `config.py` bỏ `SAMPLE_DIR`, `MODEL_HEATMAP_DIR`, `CHECKPOINT_PATH`; `schemas.py` bỏ `ModelHeatmapInfo`, `CaseSummary`, `CaseDetail`; `/api/health` giờ báo `model_loaded` từ `live_inference.is_available()`.
+- Frontend: `client.ts` bỏ `listCases`/`getCase`/`predictCase`/`modelViewUrl`/`sliceUrl`; `types.ts` bỏ 3 interface; `SliceViewer.tsx` thành **upload-only** (App.tsx vốn đã truyền `modelHeatmap={null}` và `source="upload"`, tức nhánh demo là mã chết sẵn).
+- Route còn lại: `/api/health`, `/api/meta`, `/api/uploads/{id}/slice`, `/api/validate-upload`, `/api/predict-upload`.
+
+**Test — 640 → 537 passed, và một file đổi từ "luôn skip" sang "chạy thật":**
+
+`tests/test_webapp_volumes.py` trước bám `data/sample` nên **skip sạch ở mọi máy**, lại phụ thuộc `demo_cases`. Viết lại dựng NIfTI tổng hợp trong `tmp_path` → **15 test chạy thật**, che `volumes.py` (vẫn là code sống của luồng upload). Tương tự, các khẳng định trong `test_webapp_api.py` từng đi qua endpoint ca demo (skip khi thiếu dữ liệu) nay dựng thẳng từ `assemble_result` nên chạy thật.
+
+Ba test bị trượt khi cắt theo tên đã được cứu: `test_moi_config_co_khoi_model_ma_builder_nhan_duoc` (quét mọi config, đối chiếu khoá `model:` với chữ ký builder) chuyển sang `tests/test_models.py`; các cổng module của `siamese_fusion` giữ lại trong `test_siamese_pretrained.py` sau khi bỏ phần bám config E13; `test_mixup.py` thay hai test bám config đã xoá bằng một bất biến repo-wide (`không config nào bật data.mixup_alpha`).
+
+**AGENTS.md: 1.542 → 853 dòng.** 13 mục hồ sơ chuyển nguyên văn sang `docs/EXPERIMENT_ARCHIVE.md` (789 dòng), mỗi chỗ để lại một dòng trỏ. Thêm **bảng tổng hợp kết quả âm** để không phải mở archive mới đọc được. Cập nhật §2 (bản đồ tài liệu), §3.4 (test-104), §4 (cây thư mục), §6 (bảng lệnh).
+
+**🔴 ĐÍNH CHÍNH — nợ từ S-195/S-196 nay đã trả:** `uniformer_s_intra_mixup` **đã chạy đủ 5 fold**, không phải "chưa chạy fold nào" như §5 và §6 vẫn ghi.
+
+| | out-of-fold (394) | test-104 |
+|---|---|---|
+| `uniformer_s` | **0.8147** | **0.7682** |
+| `uniformer_s_intra_mixup` | 0.8038 | 0.7488 |
+
+Kết quả **âm** ở cả hai tập. Và `runs/Uniformer3D-mixup/test104/test_run_meta.json` ghi `prereg_commit: "(bỏ qua kiểm git)"` — lượt chạm test-104 đó **không có pre-registration**, nên nó **không hợp lệ**, không được tính vào số lần chạm, và số của nó không dùng ở đâu. Theo quyết định của người dùng: **giữ nguyên code, config, notebook 21**; chỉ sửa tài liệu. Xoá dấu vết một thí nghiệm đã chạy là làm hỏng hồ sơ.
+
+**Kết quả / số liệu:** `pytest` **537 passed, 72 skipped, 0 failed**. `ruff check src tests scripts webapp` sạch. Frontend `npm run typecheck` + `npm run build` PASS. Quality gate PASS. Route đã kiểm bằng cách nạp app và liệt kê. Tracked file: configs 24→15, notebooks 8→5, models 7→5, tests 55→49.
+
+**Dang dở:**
+- [ ] Chưa mở web app chạy thật với một ZIP hợp lệ sau khi gỡ — máy này không có bộ ZIP mẫu. Typecheck, build, test và danh sách route đều xanh, nhưng đó là kiểm tĩnh.
+
+**Điểm vào phiên sau:** Không có việc treo. Bước kế tiếp đề xuất: chạy backend + frontend, thả một ZIP hợp lệ, xác nhận không có 404 nào từ endpoint đã gỡ trong console trình duyệt.
+
+**Cảnh báo cho tool sau:**
+1. **`src/models/resnet3d.py` trông mồ côi nhưng KHÔNG được xoá** — nó không có trong `_BUILDERS`, không config nào gọi tên nó, vậy mà `uniformer3d.py` (cấu hình chính) và `siamese_fusion.py` đều import `resolve_pretrained_path` từ đó. Đọc import trước khi xoá.
+2. **`ruff format` KHÔNG sạch trên toàn repo** và chưa bao giờ sạch — 5 file có drift từ trước (`src/eval/tta.py`, `src/preprocess/build_cache.py`, `tests/test_preprocess_pipeline.py`, `webapp/backend/{live_inference,volumes}.py`). Phiên này chỉ format file mình đụng, cố ý, để diff không lẫn nhiễu. Quality gate chỉ chạy `ruff check`.
+3. **`reports/FINAL_REPORT.docx` đang modified do người dùng sửa trong Word** — phiên này **không stage** nó và **không chạy** `make_final_report_docx.py`. Chạy script đó với `--force` sẽ xoá sạch phần người dùng viết.
+4. `slides/sprint_2.html` và `webapp/frontend/src/components/ResultCards.tsx` vẫn là thay đổi chưa commit của tool khác — không stage hộ.

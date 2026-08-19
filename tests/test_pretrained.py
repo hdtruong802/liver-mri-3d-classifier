@@ -1,5 +1,9 @@
 """Test các cổng chặn của đường pretrained MedicalNet.
 
+⚠️ Các test bám `configs/e8_pretrained.yaml` đã bỏ cùng config đó ở WORKLOG S-197.
+`src/models/resnet3d.py` thì Ở LẠI: `uniformer3d` (cấu hình chính) và `siamese_fusion`
+đều import `resolve_pretrained_path` từ đó, nên các cổng dưới đây vẫn che code sống.
+
 Phần dựng mạng cần torch + monai nên không chạy được ở máy này. Thứ test được, và
 cũng là thứ đáng test hơn, là **các cổng**: chế độ hỏng của pretrained không phải
 crash mà là *im lặng* — model vẫn train, vẫn ra số, chỉ là một phần trọng số ngẫu
@@ -9,14 +13,12 @@ nhiên. Một cổng hỏng ở đây không để lại dấu vết nào trong 
 from __future__ import annotations
 
 import pytest
-import yaml
 from src.models.resnet3d import (
     MEDICALNET_ARGS,
     medicalnet_args,
     resolve_pretrained_path,
     unexpected_missing_keys,
 )
-from src.utils.io import repo_root
 
 # --- bảng biến thể ------------------------------------------------------------
 
@@ -108,57 +110,3 @@ def test_ca_hai_trong_thi_None(monkeypatch):
 
 
 # --- config E8 ----------------------------------------------------------------
-
-
-def test_config_e8_khop_bang_bien_the():
-    """Neo lỗi đã sửa: file này từng ghi shortcut_type B cho resnet18."""
-    cfg = yaml.safe_load((repo_root() / "configs" / "e8_pretrained.yaml").read_text("utf-8"))
-    model = cfg["model"]
-    assert model["name"] == "resnet3d"
-    need_shortcut, need_bias = medicalnet_args(int(model["depth"]))
-    assert model["shortcut_type"] == need_shortcut
-    assert bool(model["bias_downsample"]) is need_bias
-
-
-def test_config_e8_khong_ghi_cung_duong_dan_kaggle():
-    cfg = yaml.safe_load((repo_root() / "configs" / "e8_pretrained.yaml").read_text("utf-8"))
-    assert not cfg["model"]["pretrained_path"], (
-        "pretrained_path phải để trống và truyền qua LLDMMRI_PRETRAINED_PATH lúc chạy"
-    )
-
-
-def test_moi_config_co_khoi_model_ma_builder_nhan_duoc():
-    """Mọi khoá trong `model:` phải là tham số của builder tương ứng.
-
-    Lỗi đã dính thật trên Kaggle: `e8_pretrained.yaml` kế thừa `norm: batch` từ
-    baseline, nhưng `build_resnet3d` chưa khai `norm` → `TypeError` ngay ở cell dựng
-    model, sau khi đã tốn công mount cache và tải 132 MB trọng số.
-
-    Đây là lớp lỗi *bắt được ở local trong một giây* mà nếu không có test thì chỉ lộ
-    ra giữa một session Kaggle. Quét mọi config nên config mới cũng được che.
-    """
-    import inspect
-
-    from src.models import _BUILDERS
-
-    loi = []
-    for path in sorted((repo_root() / "configs").glob("*.yaml")):
-        cfg = yaml.safe_load(path.read_text("utf-8")) or {}
-        block = cfg.get("model")
-        if not isinstance(block, dict) or "name" not in block:
-            continue  # configs/preprocess_*.yaml, data.yaml
-        builder = _BUILDERS.get(block["name"])
-        assert builder is not None, f"{path.name}: model.name {block['name']!r} không có builder"
-        nhan = set(inspect.signature(builder).parameters)
-        thua = sorted(set(block) - {"name"} - nhan)
-        if thua:
-            loi.append(f"{path.name} -> {builder.__name__} không nhận {thua}")
-
-    assert not loi, "config mang khoá builder không nhận:\n  " + "\n  ".join(loi)
-
-
-def test_config_e8_giu_dropout_cho_mc_dropout():
-    """ResNet của MONAI không có dropout sẵn. Mất nó là mất bất định epistemic, tức
-    mất đóng góp headline của dự án."""
-    cfg = yaml.safe_load((repo_root() / "configs" / "e8_pretrained.yaml").read_text("utf-8"))
-    assert float(cfg["model"]["dropout_prob"]) > 0

@@ -1,9 +1,13 @@
-"""Test nhánh encoder pretrained của Siamese (E13).
+"""Test các cổng của nhánh encoder pretrained trong `siamese_fusion`.
 
 Phần dựng mạng cần torch + monai nên sẽ skip ở máy này. Thứ test được mà không cần
 chúng — và cũng là thứ đáng test hơn — là **các cổng**: một encoder bị hạ mẫu âm thầm,
 một cặp `shortcut_type` sai, hay một `embed_dim` bị bỏ qua đều cho ra model chạy được và
 số liệu trông hợp lý. E2 chết đúng theo cách đó và mất một tuần mới biết (WORKLOG S-065).
+
+⚠️ Các test bám `configs/e13_siamese_pretrained.yaml` đã bỏ cùng config đó ở WORKLOG
+S-197 — E13 chạy rồi bị loại và không có mặt trong báo cáo cuối. Phần còn lại kiểm chính
+module, vốn vẫn sống vì `configs/e2_siamese.yaml` dùng nó.
 """
 
 from __future__ import annotations
@@ -12,7 +16,7 @@ import inspect
 
 import pytest
 import yaml
-from src.models import build_model, build_siamese_fusion
+from src.models import build_siamese_fusion
 from src.models.siamese_fusion import (
     ENCODERS,
     MIN_SPATIAL,
@@ -21,13 +25,6 @@ from src.models.siamese_fusion import (
     resnet_feature_dim,
 )
 from src.utils.io import repo_root
-
-CFG_PATH = "configs/e13_siamese_pretrained.yaml"
-
-
-def _e13() -> dict:
-    return yaml.safe_load((repo_root() / CFG_PATH).read_text("utf-8"))
-
 
 # --- số chiều đặc trưng --------------------------------------------------------
 
@@ -90,74 +87,6 @@ def test_nguong_resnet_khac_nguong_densenet():
 # --- config E13 -----------------------------------------------------------------
 
 
-def test_e13_khong_ha_mau_dau_vao():
-    """Cổng quan trọng nhất. E2 để [2,2,1] và chạy ở 48 in-plane trong khi văn liệu
-    dùng 112-128; WORKLOG S-065 kết luận đó là thủ phạm, không phải ý tưởng Siamese."""
-    model = _e13()["model"]
-    assert model["input_downsample"] == [1, 1, 1], (
-        "E13 phải nhận đủ 112x112x32. Hạ mẫu ở đây là lặp lại đúng lỗi của E2."
-    )
-
-
-def test_e13_khop_bien_the_medicalnet():
-    from src.models.resnet3d import medicalnet_args
-
-    model = _e13()["model"]
-    need_shortcut, need_bias = medicalnet_args(int(model["encoder_depth"]))
-    assert model["shortcut_type"] == need_shortcut
-    assert bool(model["bias_downsample"]) is need_bias
-
-
-def test_e13_khong_ghi_cung_duong_dan_kaggle():
-    assert not _e13()["model"]["pretrained_path"], (
-        "truyền qua LLDMMRI_PRETRAINED_PATH lúc chạy, không ghi cứng đường dẫn mount"
-    )
-
-
-def test_e13_khong_khai_embed_dim():
-    assert "embed_dim" not in _e13()["model"]
-
-
-def test_e13_giu_dropout_cho_mc_dropout():
-    assert float(_e13()["model"]["dropout_prob"]) > 0
-
-
-def test_e13_chi_khac_baseline_trong_khoi_model():
-    """E13 là phép đổi kiến trúc. Một khoá lọt sang `data.` hay `train.` biến nó thành
-    phép đổi hai cụm biến, và sai đó không để lại dấu vết nào trong kết quả."""
-
-    def flat(d, prefix=""):
-        out = {}
-        for k, v in d.items():
-            name = f"{prefix}{k}"
-            out.update(flat(v, name + ".")) if isinstance(v, dict) else out.update({name: v})
-        return out
-
-    base = yaml.safe_load((repo_root() / "configs/baseline_3dpatch.yaml").read_text("utf-8"))
-    fa, fb = flat(base), flat(_e13())
-    ngoai = [
-        k
-        for k in set(fa) | set(fb)
-        if str(fa.get(k)) != str(fb.get(k))
-        and not k.startswith("model.")
-        and k not in ("output_dir", "fold")
-    ]
-    assert not ngoai, f"khác baseline NGOÀI khối model: {sorted(ngoai)}"
-
-
-def test_e13_giu_recipe_official_tung_chu_so():
-    """Recipe train phải trùng khít baseline — nếu không thì E13 so E4 là hai biến."""
-    base = yaml.safe_load((repo_root() / "configs/baseline_3dpatch.yaml").read_text("utf-8"))
-    e13 = _e13()
-    assert e13["train"] == base["train"]
-    assert e13["loss"] == base["loss"]
-    assert e13["data"] == base["data"]
-    assert e13["seed"] == base["seed"]
-
-
-# --- hồi quy cho nhánh DenseNet cũ ---------------------------------------------
-
-
 def test_e2_densenet_khong_doi_hanh_vi():
     """`embed_dim` đổi từ `int = 256` sang `int | None = None`. E2 khai 256 tường minh
     nên vẫn phải ra đúng mạng cũ."""
@@ -176,46 +105,3 @@ def test_mac_dinh_van_la_densenet():
 
 
 # --- dựng thật, chỉ chạy nơi có torch + monai (Kaggle) ------------------------
-
-
-def test_e13_dung_that_va_khong_ha_mau():
-    """Phép kiểm cuối: dựng đúng khối config của E13 rồi cho một batch thật đi qua.
-
-    Ba điều nó khẳng định, và cả ba đều là chỗ E2 hoặc E8 đã sai:
-
-    1. ``pre_pool`` là ``Identity`` — encoder nhận đủ 112×112×32, không hạ mẫu.
-    2. Đặc trưng đúng 512 chiều, tức `feed_forward=False` có tác dụng và
-       `phase_embedding`/`attention` được dựng ở cùng số chiều với encoder.
-    3. Trọng số attention có 8 phần tử và tổng bằng 1 trên trục thì.
-    """
-    torch = pytest.importorskip("torch", reason="dựng mạng cần torch")
-    pytest.importorskip("monai", reason="ResNet-3D lấy từ MONAI")
-
-    model = build_model(_e13()["model"])  # pretrained_path trống -> from scratch
-    model.eval()
-
-    assert isinstance(model.pre_pool, torch.nn.Identity), (
-        "pre_pool không phải Identity -> encoder đang bị hạ mẫu, đúng lỗi của E2"
-    )
-    assert model.embed_dim == 512
-
-    x = torch.zeros(2, 8, 112, 112, 32)
-    with torch.no_grad():
-        y = model(x)
-    assert tuple(y.shape) == (2, 7)
-
-    weights = model.last_phase_weights
-    assert weights is not None and tuple(weights.shape) == (2, 8)
-    torch.testing.assert_close(weights.sum(dim=1), torch.ones(2))
-
-
-def test_encoder_nhan_dung_mot_kenh():
-    """Trọng số MedicalNet là một kênh. Encoder phải nhận đúng 1, không phải 8 —
-    đó chính là chỗ Siamese tốt hơn early-concat ở đây."""
-    pytest.importorskip("torch", reason="dựng mạng cần torch")
-    pytest.importorskip("monai", reason="ResNet-3D lấy từ MONAI")
-
-    model = build_model(_e13()["model"])
-    assert model.encoder.conv1.in_channels == 1, (
-        "conv đầu của encoder phải nhận 1 kênh; 8 kênh nghĩa là đang chạy early-concat"
-    )

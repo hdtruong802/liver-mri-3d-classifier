@@ -109,18 +109,6 @@ export interface MetaResponse {
   default_defer_threshold: number;
 }
 
-/** Artefact MRI crop + heatmap sensitivity đã được kiểm tra ở backend. */
-export interface ModelHeatmapInfo {
-  available: boolean;
-  phase_tokens: string[];
-  n_slices: number;
-  /** Heatmap luôn giải thích lớp model đã dự đoán, kể cả khi dự đoán sai. */
-  pred_class_index: number | null;
-  /** Lát có nhãn do người chú giải, trên chính lưới crop E4 của từng thì. */
-  lesion_slices: Record<string, number[]>;
-  note: string;
-}
-
 export interface CaseVolumeInfo {
   phase_name: string;
   file_token: string;
@@ -146,22 +134,4 @@ export interface UploadViewInfo {
   volumes: CaseVolumeInfo[];
   expires_in_seconds: number;
   note: string;
-}
-
-export interface CaseSummary {
-  case_id: string;
-  label_vi: string;
-  source_note: string;
-  /** false khi thư mục dữ liệu không có trên máy này (data/ bị gitignore). */
-  available: boolean;
-}
-
-export interface CaseDetail {
-  case_id: string;
-  label_vi: string;
-  source_note: string;
-  volumes: CaseVolumeInfo[];
-  reference_phase: string;
-  model_heatmap: ModelHeatmapInfo | null;
-  provenance: Provenance;
 }

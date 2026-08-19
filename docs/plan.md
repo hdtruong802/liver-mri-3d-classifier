@@ -1,5 +1,11 @@
 # Kế hoạch chi tiết 5 tuần còn lại (W2 → W6)
 
+> 📅 **Tài liệu LỊCH SỬ — kế hoạch viết trước khi thực thi, giữ nguyên làm hồ sơ.**
+> Nó mô tả ý định ở thời điểm lập kế hoạch, **không** mô tả repo hiện tại: một số
+> module nêu ở đây (ví dụ `src/xai/`) đã được gỡ ở WORKLOG S-197, và một số hướng đã
+> bị kết quả thực nghiệm loại. Trạng thái đang hiệu lực: [`../README.md`](../README.md)
+> và [`../AGENTS.md`](../AGENTS.md) §5.
+
 > **Research Use Only (RUO)** — chưa kiểm định lâm sàng, không dùng chẩn đoán.
 > Dự án: phân loại đa lớp u gan trên **MRI 3D đa pha** (LLD-MMRI, 7 lớp, 8 thì). Solo · Kaggle-only · MONAI/PyTorch.
 > **Đóng góp headline:** trustworthiness (calibration + selective prediction), **không** đua accuracy.

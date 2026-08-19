@@ -10,20 +10,19 @@ from typing import Any
 
 from src.models.cghnet import build_cghnet
 from src.models.densenet3d import build_densenet3d, count_parameters
-from src.models.resnet3d import build_resnet3d
-from src.models.sdrformer import build_sdrformer
 from src.models.siamese_fusion import build_siamese_fusion
 from src.models.uniformer3d import build_uniformer3d
-from src.models.uniformerv2 import build_uniformerv2
 
+# Bốn kiến trúc còn lại là bốn kiến trúc ĐÃ CHẠY và được báo cáo cuối trích tên
+# (Bảng 5). `uniformer3d` là cấu hình chính. Các nhánh chưa từng chạy fold nào
+# (SDR-Former, UniFormerV2) và các nhánh chạy rồi bị loại mà không vào báo cáo
+# (ResNet3D/MedicalNet) đã gỡ khỏi cây làm việc — xem WORKLOG S-197, lịch sử đầy đủ
+# nằm ở git history.
 _BUILDERS = {
     "densenet121_3d": build_densenet3d,
     "siamese_fusion": build_siamese_fusion,
-    "resnet3d": build_resnet3d,
     "cghnet": build_cghnet,
     "uniformer3d": build_uniformer3d,
-    "uniformerv2": build_uniformerv2,
-    "sdrformer": build_sdrformer,
 }
 
 # Model trả về **dict** ở chế độ train (deep supervision). Vòng train phải biết để lấy
@@ -54,10 +53,7 @@ __all__ = [
     "build_cghnet",
     "build_densenet3d",
     "build_model",
-    "build_resnet3d",
-    "build_sdrformer",
     "build_siamese_fusion",
     "build_uniformer3d",
-    "build_uniformerv2",
     "count_parameters",
 ]

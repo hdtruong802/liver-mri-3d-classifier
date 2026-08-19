@@ -163,8 +163,6 @@ def test_moi_config_cu_van_o_che_do_instance():
     assert lech == {
         "uniformer_s.yaml": "sqrt",
         "uniformer_s_intra_mixup.yaml": "sqrt",
-        "uniformer_base.yaml": "sqrt",
-        "uniformerv2_b16.yaml": "sqrt",
     }, lech
 
 
