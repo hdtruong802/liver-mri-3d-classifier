@@ -2,6 +2,8 @@
 
 > **Research Use Only — chưa kiểm định lâm sàng.** Kết quả chỉ dành cho nghiên cứu; không dùng để chẩn đoán, điều trị hoặc thay thế ý kiến bác sĩ.
 
+![Giao diện web app MRI hiện tại](reports/assets/w4-webapp-current-mri.png)
+
 ## Bài toán
 
 Phân loại tổn thương gan ở mức ROI từ khối MRI 3D gồm 8 thì trên dataset [LLD-MMRI](https://github.com/LMMMEng/LLD-MMRI2023) (498 bệnh nhân). Vị trí tổn thương được cung cấp sẵn; đây không phải bài toán phát hiện hay phân vùng.
@@ -79,8 +81,6 @@ python -m src.eval.compare --baseline runs/E4_cv_results --candidate runs/Unifor
 Tập test-104 là held-out đã được chạm hai lần hợp lệ. Không chạy lại đánh giá test nếu chưa có sự cho phép và pre-registration được commit trước khi chạy.
 
 ## Chạy web app demo
-
-![Giao diện web app MRI hiện tại](reports/assets/w4-webapp-current-mri.png)
 
 ```bash
 python -m uvicorn webapp.backend.main:app --reload
